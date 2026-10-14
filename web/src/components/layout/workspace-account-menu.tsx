@@ -10,6 +10,7 @@ import { UserAvatar } from "./user-avatar";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
+import { LanguageSwitch } from "@/lib/i18n/language-switch";
 
 /** 顶部与侧栏复用同一账户卡片；顶部额外保留版本和主题偏好。 */
 export function WorkspaceAccountMenu() {
@@ -44,6 +45,7 @@ export function WorkspaceAccountMenu() {
                         <span className="ml-2 flex-1 text-xs text-foreground/65">深色模式</span>
                         <Switch size="sm" checked={theme === "dark"} onChange={(checked) => setTheme(checked ? "dark" : "light")} aria-label="深色模式" />
                     </div>
+                    <LanguageSwitch className="workspace-topbar-account-theme" />
                 </div>
             )}
         >

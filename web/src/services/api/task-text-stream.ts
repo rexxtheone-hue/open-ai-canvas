@@ -1,3 +1,5 @@
+import { translateServerPayload } from "@/lib/i18n/runtime";
+
 export type TaskTextStreamEvent = {
     event: string;
     id?: number;
@@ -53,5 +55,5 @@ function emitTaskTextStreamBlock(block: string, onEvent: (event: TaskTextStreamE
     } catch {
         throw new Error("任务文本流返回了无效数据");
     }
-    onEvent({ event, ...(id !== undefined ? { id } : {}), data: parsed });
+    onEvent({ event, ...(id !== undefined ? { id } : {}), data: translateServerPayload(parsed) });
 }

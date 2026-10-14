@@ -1,4 +1,5 @@
 import { http, apiBaseURL } from "@/services/api/request";
+import { translateServerText } from "@/lib/i18n/runtime";
 
 export type EagleFolder = {
     id: string;
@@ -67,7 +68,7 @@ export async function downloadEagleItem(itemId: string, baseUrl: string, signal?
         let message = "读取 Eagle 素材失败";
         try {
             const body = await response.json() as { msg?: string };
-            message = body.msg || message;
+            message = body.msg ? translateServerText(body.msg) : message;
         } catch {
             // 保留通用错误，避免把 HTML 或服务器内部信息展示给用户。
         }

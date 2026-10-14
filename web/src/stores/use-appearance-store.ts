@@ -1,9 +1,10 @@
 import { create } from "zustand";
-import { DEFAULT_CANVAS_APPEARANCE } from "@/lib/canvas/agent-appearance";
+import { DEFAULT_CANVAS_APPEARANCE, type CanvasAppearance } from "@/lib/canvas/agent-appearance";
 import { DEFAULT_UPDATE_ANNOUNCEMENT, normalizeUpdateAnnouncement } from "@/lib/update-announcement";
 
 import type { PublicAppearance } from "@/services/api/appearance";
 import { applySkinTheme, DEFAULT_CLASSIC_SKIN, normalizeSkinDefinition } from "@/lib/skin-themes";
+import { translateKnownText, translateServerText } from "@/lib/i18n/runtime";
 
 export const DEFAULT_PUBLIC_APPEARANCE: PublicAppearance = {
     updates: DEFAULT_UPDATE_ANNOUNCEMENT,
@@ -49,7 +50,7 @@ export const useAppearanceStore = create<AppearanceStore>((set) => ({
 }));
 
 export function normalizePublicAppearance(value?: Partial<PublicAppearance> | null): PublicAppearance {
-    const brandName = String(value?.brandName || "").trim();
+    const brandName = translateKnownText(String(value?.brandName || "").trim());
     const brandSlug = normalizeBrandSlug(value?.brandSlug);
     const authHeroTitle = normalizeAppearanceCopy(value?.authHeroTitle, DEFAULT_PUBLIC_APPEARANCE.authHeroTitle);
     const authHeroDescription = normalizeAppearanceCopy(value?.authHeroDescription, DEFAULT_PUBLIC_APPEARANCE.authHeroDescription, true);
@@ -57,10 +58,13 @@ export function normalizePublicAppearance(value?: Partial<PublicAppearance> | nu
     const logoUrl = safeAppearanceURL(value?.logoUrl, DEFAULT_PUBLIC_APPEARANCE.logoUrl);
     const darkLogoUrl = safeAppearanceURL(value?.darkLogoUrl, logoUrl);
     const resolvedBrandName = brandName || DEFAULT_PUBLIC_APPEARANCE.brandName;
-    const seoTitle = normalizeAppearanceCopy(value?.seoTitle, resolvedBrandName);
-    const seoDescription = normalizeAppearanceCopy(value?.seoDescription, `${resolvedBrandName}，面向 AI 影视与短剧创作的工作台。`, true);
+    // 后端默认文案里嵌着原品牌名，品牌名被翻译时同步替换。
+    const rawBrandName = String(value?.brandName || "").trim();
+    const withBrand = (text: string) => (rawBrandName && brandName !== rawBrandName ? translateServerText(text).replaceAll(rawBrandName, brandName) : text);
+    const seoTitle = withBrand(normalizeAppearanceCopy(value?.seoTitle, resolvedBrandName));
+    const seoDescription = withBrand(normalizeAppearanceCopy(value?.seoDescription, `${resolvedBrandName}，面向 AI 影视与短剧创作的工作台。`, true));
     const seoKeywords = normalizeAppearanceCopy(value?.seoKeywords, "", true);
-    const footerCopyright = normalizeAppearanceCopy(value?.footerCopyright, `© ${new Date().getFullYear()} ${resolvedBrandName}. All rights reserved.`);
+    const footerCopyright = withBrand(normalizeAppearanceCopy(value?.footerCopyright, `© ${new Date().getFullYear()} ${resolvedBrandName}. All rights reserved.`));
     const icpFilingNumber = normalizeAppearanceCopy(value?.icpFilingNumber, "", true);
     const redeemPurchaseUrl = typeof value?.redeemPurchaseUrl === "string" ? safeAppearanceURL(value.redeemPurchaseUrl, "") : "";
     return {
@@ -68,7 +72,7 @@ export function normalizePublicAppearance(value?: Partial<PublicAppearance> | nu
         ...value,
         schemaVersion: 10,
         updates: normalizeUpdateAnnouncement(value?.updates),
-        canvas: { ...DEFAULT_CANVAS_APPEARANCE, ...value?.canvas },
+        canvas: translateCanvasCopy({ ...DEFAULT_CANVAS_APPEARANCE, ...value?.canvas }),
         brandName: resolvedBrandName,
         brandSlug,
         authHeroTitle,
@@ -97,9 +101,13 @@ export function normalizePublicAppearance(value?: Partial<PublicAppearance> | nu
     };
 }
 
+function translateCanvasCopy(canvas: CanvasAppearance): CanvasAppearance {
+    return Object.fromEntries(Object.entries(canvas).map(([key, value]) => [key, typeof value === "string" ? translateKnownText(value) : value])) as CanvasAppearance;
+}
+
 function normalizeAppearanceCopy(value: unknown, fallback: string, allowEmpty = false) {
     if (typeof value !== "string") return fallback;
-    const normalized = value.replace(/\r\n?/g, "\n").trim();
+    const normalized = translateKnownText(value.replace(/\r\n?/g, "\n").trim());
     return normalized || (allowEmpty ? "" : fallback);
 }
 

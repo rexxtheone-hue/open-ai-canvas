@@ -6,6 +6,7 @@
  * 浏览器 HTTP 缓存之外再做一层内存缓存，同一次会话只请求一遍。
  */
 import { curatedInspirations, type CreationInspiration, type InspirationSourceId } from "@/lib/inspirations/catalog";
+import { translateContentPayload } from "@/lib/i18n/runtime";
 
 /** manifest.json 里每个来源带的分类码译名表。 */
 type SourceManifest = { revision?: string; count?: number; categories?: Record<string, string> };
@@ -38,7 +39,7 @@ let pending: Promise<InspirationCatalog> | null = null;
 async function fetchJson<T>(url: string): Promise<T> {
     const response = await fetch(url, { headers: { Accept: "application/json" } });
     if (!response.ok) throw new Error(`加载灵感目录失败：${url} 返回 HTTP ${response.status}`);
-    return (await response.json()) as T;
+    return translateContentPayload((await response.json()) as T);
 }
 
 /** 目录文件是构建期生成的，但仍然是外部数据：形状不对就抛错，不能当成空目录糊过去。 */

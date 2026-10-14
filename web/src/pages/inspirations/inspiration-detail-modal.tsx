@@ -76,7 +76,6 @@ export function InspirationDetailModal({
                         <div className="flex flex-col gap-1.5">
                             <MetaRow label="来源">
                                 {source?.name ?? "原创"}
-                                {item.credit ? ` · ${item.credit}` : ""}
                             </MetaRow>
                             <MetaRow label="分类">{categoryLabel(item)}</MetaRow>
                             <MetaRow label="类型">

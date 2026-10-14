@@ -1,4 +1,5 @@
 import { http, apiBaseURL, compactApiParams } from "@/services/api/request";
+import { translateServerText } from "@/lib/i18n/runtime";
 
 export type AdminStorageResource = {
     id: string;
@@ -96,7 +97,7 @@ export async function downloadAdminResource(resource: AdminStorageResource) {
         let message = "下载资源失败";
         try {
             const body = (await response.json()) as { msg?: string };
-            if (body.msg) message = body.msg;
+            if (body.msg) message = translateServerText(body.msg);
         } catch {
             // 文件接口失败时不保证返回 JSON。
         }

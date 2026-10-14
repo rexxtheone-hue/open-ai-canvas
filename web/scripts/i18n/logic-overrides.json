@@ -1,0 +1,83 @@
+{
+    "_comment": "Only applies where the literal is used in logic (comparison, switch case, text matching). raw = keep the Chinese because the other side is backend data or Chinese user input; server = translate with the backend dictionary because the other side is backend text translated by the request layer. Run bun scripts/i18n/logic-sites.mjs after upstream updates to review new sites.",
+    "files": {
+        "src/lib/generation-task-display.ts": {
+            "server": [
+                "等待队列调度",
+                "后端接管任务",
+                "调用生成模型",
+                "正在准备参考素材",
+                "正在连接上游",
+                "作品创作中",
+                "上游生成中",
+                "后台仍在生成",
+                "等待上游任务同步",
+                "正在准备创作"
+            ]
+        },
+        "src/lib/model-capabilities-workflow.ts": {
+            "raw": [
+                "清晰度",
+                "分辨率",
+                "时长",
+                "秒数"
+            ]
+        },
+        "src/pages/admin/components/analytics-panel.tsx": {
+            "raw": [
+                "未识别",
+                "超时"
+            ]
+        },
+        "src/pages/canvas/list-mode-generator.ts": {
+            "raw": [
+                "十",
+                "百"
+            ]
+        },
+        "src/pages/tasks/task-shared.tsx": {
+            "raw": [
+                "视频",
+                "图片",
+                "画面"
+            ]
+        },
+        "src/pages/welcome/contributors-parse.ts": {
+            "raw": [
+                "项目发起者"
+            ]
+        },
+        "src/components/model-protocol-picker.tsx": {
+            "raw": [
+                "即梦",
+                "火山方舟"
+            ]
+        },
+        "src/lib/canvas/canvas-node-size.ts": {
+            "raw": [
+                "竖",
+                "横"
+            ]
+        },
+        "src/lib/canvas/canvas-emotion.ts": {
+            "raw": [
+                "实际可编辑范围以该人脸周围的透明椭圆蒙版为最终边界。",
+                "只允许修改目标框及其透明蒙版对应的这一张脸。",
+                "输入图已裁切到目标人物头部区域；透明蒙版内允许编辑，白色蒙版区域必须保持不变，蒙版外绝对不要生成或修改任何内容。"
+            ]
+        },
+        "src/pages/projects/detail/project-character-media.ts": {
+            "raw": [
+                "风格组合",
+                "项目定位",
+                "题材世界观",
+                "视觉媒介",
+                "角色设计系统",
+                "项目色彩与光影",
+                "服饰、材质与场景",
+                "资产一致性",
+                "全局禁用"
+            ]
+        }
+    }
+}

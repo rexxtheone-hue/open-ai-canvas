@@ -413,7 +413,7 @@ export default function SkillsPage() {
                     </div>
                 </div>
                 <CollectionToolbar active={filtersActive} onReset={resetFilters}>
-                        <Input className="min-w-0 sm:!w-56" prefix={<Search className="size-4 text-foreground/38" />} value={search} allowClear placeholder="搜索技能或作者" onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
+                        <Input className="min-w-0 sm:!w-56" prefix={<Search className="size-4 text-foreground/38" />} value={search} allowClear placeholder="搜索技能" onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
                         <Select aria-label="技能排序" className="w-24" value={sort} options={sortOptions} onChange={(value) => { setSort(value); setPage(1); }} />
                 </CollectionToolbar>
                 </div>
@@ -599,7 +599,6 @@ function SkillCard({ skill, rootLabel, categories, libraryCategories, canCategor
                     <Heart className={`size-3.5 ${skill.isLike ? "fill-current text-rose-500" : ""}`} />
                     <span>{formatSkillCount(skill.likeCount)}</span>
                 </button>
-                <span className="skill-card-author">{skill.effectiveUser.name || "未知用户"}</span>
                 <span className="skill-card-tag">{rootLabel || skillCategoryLabel(skill.tag, categories)}</span>
                 {skill.isPrivate ? <span className="skill-card-flag">仅自己</span> : null}
             </div>

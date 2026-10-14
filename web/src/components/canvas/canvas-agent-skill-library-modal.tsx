@@ -192,7 +192,7 @@ export function CanvasAgentSkillLibraryModal({
                         value={search}
                         onChange={(event) => onSearch(event.target.value)}
                         placeholder="搜索技能"
-                        aria-label="搜索技能名称、说明或作者"
+                        aria-label="搜索技能名称或说明"
                         className="canvas-agent-skill-library-search"
                     />
                     <nav className="canvas-agent-skill-library-categories thin-scrollbar" aria-label="技能视图与分类">
@@ -327,7 +327,6 @@ function SkillLibraryCard({ skill, rootLabel, theme, categories, selected, canSe
     const coverUrl = cover?.showcaseUrl;
     const hasCover = Boolean(coverUrl && !coverFailed);
     const categoryLabel = rootLabel || categories.find((item) => item.value === skill.tag)?.label || "其他";
-    const author = skill.effectiveUser?.name || "影策创作者";
     const addedCount = formatSkillCount(skill.addedCount || 0);
 
     useEffect(() => setCoverFailed(false), [coverUrl]);
@@ -380,8 +379,7 @@ function SkillLibraryCard({ skill, rootLabel, theme, categories, selected, canSe
                     </div>
                 </div>
                 <div className="canvas-agent-skill-card-meta" style={{ color: theme.node.muted }}>
-                    <span className="min-w-0 truncate">{author}</span>
-                    {skill.version ? <><span aria-hidden="true">·</span><span className="canvas-agent-skill-card-version">v{skill.version}</span></> : null}
+                    {skill.version ? <span className="canvas-agent-skill-card-version">v{skill.version}</span> : null}
                     <span className="inline-flex shrink-0 items-center gap-1"><Users className="size-3.5" aria-hidden="true" />{addedCount}</span>
                 </div>
                 <p title={skill.description || "暂无技能说明"}>{skill.description || "暂无技能说明"}</p>

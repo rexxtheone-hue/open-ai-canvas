@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { LanguageSwitch } from "@/lib/i18n/language-switch";
 import { SiteComplianceFooter } from "@/components/layout/site-compliance-footer";
 import { aceternityMotion } from "@/lib/aceternity-motion";
 import { brandStudioLabel, useAppearanceStore } from "@/stores/use-appearance-store";
@@ -108,6 +109,7 @@ export function AuthScene() {
                         <ArrowLeft className="size-3.5" />
                         返回首页
                     </Link>
+                    <LanguageSwitch compact className="absolute left-5 top-5 z-20 h-9 lg:left-8 lg:top-8" />
 
                     <div className="flex w-full flex-1 items-center justify-center">
                         <motion.div

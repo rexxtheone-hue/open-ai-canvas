@@ -444,7 +444,6 @@ export default function InspirationsPage() {
                                             <div className="inspiration-card-tags">
                                                 <span className="inspiration-chip">{categoryLabel(item)}</span>
                                                 {item.ratio ? <span className="inspiration-chip">{item.ratio}</span> : null}
-                                                {item.credit ? <span className="inspiration-chip">{item.credit}</span> : null}
                                             </div>
                                         </div>
                                     </article>
