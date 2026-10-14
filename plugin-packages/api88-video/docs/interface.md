@@ -71,7 +71,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "api88-video",
   "name": "88API 统一视频",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "Rexx",
   "description": "88API 统一视频协议插件（POST /v1/videos，异步轮询），适配 SD2.5、SD2.0 云厂商版与 Gemini Omni、Veo，支持视频续写与视频编辑。",
   "permissions": [
@@ -110,6 +110,150 @@
           "field": "apiKey"
         },
         "requiresPublicMediaUrls": true,
+        "validations": [
+          {
+            "assert": {
+              "$or": [
+                {
+                  "$not": {
+                    "$or": [
+                      {
+                        "$eq": [
+                          {
+                            "$ref": "request.operation"
+                          },
+                          "extend"
+                        ]
+                      },
+                      {
+                        "$in": [
+                          {
+                            "$ref": "request.operation"
+                          },
+                          [
+                            "inpaint",
+                            "replace_element",
+                            "style_transfer",
+                            "camera_motion",
+                            "edit"
+                          ]
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "$gt": [
+                    {
+                      "$len": {
+                        "$coalesce": [
+                          {
+                            "$ref": "request.videos"
+                          },
+                          []
+                        ]
+                      }
+                    },
+                    0
+                  ]
+                }
+              ]
+            },
+            "message": "视频续写和局部修改需要先放入一段原视频（1–30 秒）。"
+          },
+          {
+            "assert": {
+              "$or": [
+                {
+                  "$not": {
+                    "$eq": [
+                      {
+                        "$ref": "request.operation"
+                      },
+                      "extend"
+                    ]
+                  }
+                },
+                {
+                  "$eq": [
+                    {
+                      "$lower": {
+                        "$coalesce": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          ""
+                        ]
+                      }
+                    },
+                    "gemini-omni-flash-1.1"
+                  ]
+                },
+                {
+                  "$eq": [
+                    {
+                      "$first": {
+                        "$split": [
+                          {
+                            "$lower": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "request.model"
+                                },
+                                ""
+                              ]
+                            }
+                          },
+                          "-"
+                        ]
+                      }
+                    },
+                    "veo"
+                  ]
+                }
+              ]
+            },
+            "message": "该模型不支持视频续写，请改用 gemini-omni-flash-1.1 或 Veo。"
+          },
+          {
+            "assert": {
+              "$or": [
+                {
+                  "$not": {
+                    "$in": [
+                      {
+                        "$ref": "request.operation"
+                      },
+                      [
+                        "inpaint",
+                        "replace_element",
+                        "style_transfer",
+                        "camera_motion",
+                        "edit"
+                      ]
+                    ]
+                  }
+                },
+                {
+                  "$eq": [
+                    {
+                      "$lower": {
+                        "$coalesce": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          ""
+                        ]
+                      }
+                    },
+                    "gemini-omni-flash-1.1"
+                  ]
+                }
+              ]
+            },
+            "message": "该模型不支持视频局部修改，请改用 gemini-omni-flash-1.1。"
+          }
+        ],
         "parameters": [
           {
             "name": "model",

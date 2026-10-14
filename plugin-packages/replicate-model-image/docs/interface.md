@@ -53,7 +53,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "replicate-model-image",
   "name": "Replicate 官方模型（图片）",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Rexx",
   "description": "Replicate 官方模型图片协议插件（异步任务），按 owner/name 调用，首个适配 OpenAI GPT Image 2.5 Sunburst。",
   "permissions": [
@@ -92,6 +92,39 @@
           "field": "apiKey"
         },
         "requiresPublicMediaUrls": false,
+        "validations": [
+          {
+            "assert": {
+              "$eq": [
+                {
+                  "$len": {
+                    "$filter": {
+                      "from": {
+                        "$coalesce": [
+                          {
+                            "$ref": "request.images"
+                          },
+                          []
+                        ]
+                      },
+                      "as": "media",
+                      "where": {
+                        "$eq": [
+                          {
+                            "$ref": "media.role"
+                          },
+                          "mask"
+                        ]
+                      }
+                    }
+                  }
+                },
+                0
+              ]
+            },
+            "message": "该模型不支持蒙版局部重绘，请直接用文字描述要修改的地方，或改用支持蒙版的模型。"
+          }
+        ],
         "imageParameters": [
           {
             "name": "size",

@@ -141,3 +141,21 @@ func TestRunningHubModelTextOnlyRequiresExplicitRatio(t *testing.T) {
 		t.Fatalf("reference request without ratio must stay adaptive: %#v", body)
 	}
 }
+
+func TestRunningHubModelRejectsEditOperationsAndDefaultsDuration(t *testing.T) {
+	adapter := loadRunningHubModelAdapter(t)
+	for _, operation := range []string{"extend", "inpaint", "style_transfer"} {
+		_, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://www.runninghub.cn", Request: GenerationRequest{Model: "rhart-video/minimax-h3-rh-enhanced/ref2va", Prompt: "x", Operation: operation}})
+		if err == nil {
+			t.Fatalf("operation %s must be rejected before calling RunningHub", operation)
+		}
+	}
+	// 未指定时长时宿主传 0，不能把 0 秒发给 RunningHub。
+	create, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://www.runninghub.cn", Request: GenerationRequest{Model: "rhart-video/minimax-h3-rh-enhanced/ref2va", Prompt: "x", Operation: "text_to_video"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body := create.Body.(map[string]any); body["duration"] != float64(5) {
+		t.Fatalf("duration must default to 5: %#v", body)
+	}
+}

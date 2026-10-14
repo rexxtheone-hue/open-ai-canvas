@@ -105,3 +105,15 @@ func TestBoyesirVideoParsesTaskLifecycle(t *testing.T) {
 		t.Fatalf("failed = %#v, err = %v", failed, err)
 	}
 }
+
+func TestBoyesirVideoRejectsEditOperations(t *testing.T) {
+	adapter := loadBoyesirVideoAdapter(t)
+	for _, operation := range []string{"extend", "inpaint"} {
+		if _, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://boyesir.com", Request: GenerationRequest{Model: "bh-sd2-5-720p", Prompt: "x", Operation: operation, Videos: []MediaReference{{URL: "https://cdn.example/a.mp4"}}}}); err == nil {
+			t.Fatalf("operation %s must be rejected", operation)
+		}
+	}
+	if _, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://boyesir.com", Request: GenerationRequest{Model: "bh-sd2-5-720p", Prompt: "x", Operation: "reference_to_video"}}); err != nil {
+		t.Fatalf("reference generation must pass validation: %v", err)
+	}
+}

@@ -226,3 +226,28 @@ func TestAPI88VideoExtendAndEditTasks(t *testing.T) {
 		t.Fatalf("normal generation uses videos, not video: %#v", normal)
 	}
 }
+
+func TestAPI88VideoValidatesExtendAndEditSupport(t *testing.T) {
+	adapter := loadAPI88VideoAdapter(t)
+	source := []MediaReference{{URL: "https://cdn.example/source.mp4"}}
+	cases := []struct {
+		name    string
+		request GenerationRequest
+		wantErr bool
+	}{
+		{"extend without source video", GenerationRequest{Model: "gemini-omni-flash-1.1", Prompt: "x", Operation: "extend"}, true},
+		{"extend on SD2.5", GenerationRequest{Model: "SD2.5", Prompt: "x", Operation: "extend", Videos: source}, true},
+		{"edit on veo", GenerationRequest{Model: "veo-3.1", Prompt: "x", Operation: "inpaint", Videos: source}, true},
+		{"extend on old gemini omni", GenerationRequest{Model: "gemini-omni-flash", Prompt: "x", Operation: "extend", Videos: source}, true},
+		{"extend on gemini 1.1", GenerationRequest{Model: "gemini-omni-flash-1.1", Prompt: "x", Operation: "extend", Videos: source}, false},
+		{"extend on veo", GenerationRequest{Model: "veo-3.1-fast", Prompt: "x", Operation: "extend", Videos: source}, false},
+		{"edit on gemini 1.1", GenerationRequest{Model: "gemini-omni-flash-1.1", Prompt: "x", Operation: "inpaint", Videos: source}, false},
+		{"normal SD2.5", GenerationRequest{Model: "SD2.5", Prompt: "x", Operation: "text_to_video"}, false},
+	}
+	for _, item := range cases {
+		_, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.88api.ai", Request: item.request})
+		if (err != nil) != item.wantErr {
+			t.Fatalf("%s: err = %v, wantErr = %v", item.name, err, item.wantErr)
+		}
+	}
+}

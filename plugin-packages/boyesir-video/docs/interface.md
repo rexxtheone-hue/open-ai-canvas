@@ -47,7 +47,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "boyesir-video",
   "name": "Boyesir 视频",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Rexx",
   "description": "Boyesir AI 视频协议插件（POST /v1/videos/generations，异步轮询 /v1/tasks），支持其全部视频型号。",
   "permissions": [
@@ -86,6 +86,28 @@
           "field": "apiKey"
         },
         "requiresPublicMediaUrls": true,
+        "validations": [
+          {
+            "assert": {
+              "$not": {
+                "$in": [
+                  {
+                    "$ref": "request.operation"
+                  },
+                  [
+                    "extend",
+                    "inpaint",
+                    "replace_element",
+                    "style_transfer",
+                    "camera_motion",
+                    "edit"
+                  ]
+                ]
+              }
+            },
+            "message": "该模型不支持视频续写或局部修改，请改用支持这些功能的模型。"
+          }
+        ],
         "parameters": [
           {
             "name": "model",

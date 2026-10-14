@@ -103,3 +103,19 @@ func TestReplicateModelImageParsesPredictionLifecycle(t *testing.T) {
 		t.Fatalf("failed = %#v, err = %v", failed, err)
 	}
 }
+
+func TestReplicateModelImageRejectsMask(t *testing.T) {
+	adapter := loadReplicateModelImageAdapter(t)
+	_, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.replicate.com", Request: GenerationRequest{
+		Model: "openai/gpt-image-2.5-sunburst", Prompt: "replace the sky",
+		Images: []MediaReference{{DataURL: "data:image/png;base64,AAA", Role: "edit_source"}, {DataURL: "data:image/png;base64,BBB", Role: "mask"}},
+	}})
+	if err == nil {
+		t.Fatal("mask edits must be rejected because the model ignores masks")
+	}
+	if _, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.replicate.com", Request: GenerationRequest{
+		Model: "openai/gpt-image-2.5-sunburst", Prompt: "edit", Images: []MediaReference{{DataURL: "data:image/png;base64,AAA", Role: "edit_source"}},
+	}}); err != nil {
+		t.Fatalf("plain image edit must pass validation: %v", err)
+	}
+}

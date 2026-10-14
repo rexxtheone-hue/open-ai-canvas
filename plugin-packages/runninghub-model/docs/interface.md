@@ -52,7 +52,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "runninghub-model",
   "name": "RunningHub 标准模型 API",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "Rexx",
   "description": "RunningHub 标准模型 API 视频协议插件（异步任务），首个适配 MiniMax H3 RH Enhanced 多参考生视频。",
   "permissions": [
@@ -91,6 +91,28 @@
           "field": "apiKey"
         },
         "requiresPublicMediaUrls": false,
+        "validations": [
+          {
+            "assert": {
+              "$not": {
+                "$in": [
+                  {
+                    "$ref": "request.operation"
+                  },
+                  [
+                    "extend",
+                    "inpaint",
+                    "replace_element",
+                    "style_transfer",
+                    "camera_motion",
+                    "edit"
+                  ]
+                ]
+              }
+            },
+            "message": "该模型不支持视频续写或局部修改，请改用支持这些功能的模型。"
+          }
+        ],
         "parameters": [
           {
             "name": "model",
@@ -259,15 +281,32 @@
             },
             "duration": {
               "$toFloat": {
-                "$coalesce": [
-                  {
+                "$if": {
+                  "condition": {
+                    "$gt": [
+                      {
+                        "$coalesce": [
+                          {
+                            "$ref": "request.duration"
+                          },
+                          0
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "then": {
                     "$ref": "request.duration"
                   },
-                  {
-                    "$ref": "request.providerOptions.runninghub-model.duration"
-                  },
-                  5
-                ]
+                  "else": {
+                    "$coalesce": [
+                      {
+                        "$ref": "request.providerOptions.runninghub-model.duration"
+                      },
+                      5
+                    ]
+                  }
+                }
               }
             },
             "audioMode": {
