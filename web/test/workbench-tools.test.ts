@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { filterWorkbenchTools, workbenchTaskSnapshot } from "./image-workbench-page";
+import { filterWorkbenchTools, workbenchTaskSnapshot } from "../src/pages/workbench/image-workbench-page";
 import type { GenerationTask } from "@/services/api/task-center";
 import type { WorkbenchTool } from "@/services/api/workbench";
 

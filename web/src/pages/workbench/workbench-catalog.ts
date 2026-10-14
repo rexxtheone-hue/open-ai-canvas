@@ -19,7 +19,10 @@ export function workbenchCategoryLabel(id: string) {
 
 export function workbenchModeOptions(kind: WorkbenchKind) {
     return kind === "image"
-        ? [{ value: "image", label: "图片生成" }, { value: "image_edit", label: "图片编辑" }]
+        ? [
+              { value: "image", label: "图片生成" },
+              { value: "image_edit", label: "图片编辑" },
+          ]
         : [{ value: "video", label: "视频生成" }];
 }
 

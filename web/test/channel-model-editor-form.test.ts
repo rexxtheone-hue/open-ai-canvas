@@ -1,7 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { defaultModelCapabilityConfig } from "../src/lib/model-capabilities";
 import type { ModelProtocolDefinition } from "../src/lib/model-protocols";
-import { changeChannelModelCapability, duplicateChannelModelValues, editorSectionForField, initialChannelModelValues, updateChannelModelUpstreamCapabilities, validateChannelModelPrices, validateChannelModelProtocol } from "../src/pages/admin/components/channel-model-editor-form";
+import {
+    changeChannelModelCapability,
+    duplicateChannelModelValues,
+    editorSectionForField,
+    initialChannelModelValues,
+    updateChannelModelUpstreamCapabilities,
+    validateChannelModelPrices,
+    validateChannelModelProtocol,
+} from "../src/pages/admin/components/channel-model-editor-form";
 import { defaultPriceTier } from "../src/pages/admin/components/channel-model-price-tier-form";
 import type { ChannelModel, ChannelModelPriceTier } from "../src/services/api/wallet";
 
@@ -10,6 +18,12 @@ const protocols = [definition("disabled-text", "text", false), definition("text"
 const protocolsWithAudio = [...protocols, definition("audio", "audio")];
 
 describe("channel model editor drafts", () => {
+    test("new drafts use 未分类 and imported drafts display the upstream ID without overwriting custom names", () => {
+        expect(initialChannelModelValues(null, protocols).displayName).toBe("未分类");
+        const imported = { modelKey: "product-id", providerModelKey: "upstream-id", displayName: "未分类", channelLabel: "", priceTiers: [] } as unknown as ChannelModel;
+        expect(initialChannelModelValues(imported, protocols)).toMatchObject({ displayName: "未分类", channelLabel: "upstream-id" });
+        expect(initialChannelModelValues({ ...imported, displayName: "product-id", channelLabel: "手动命名" }, protocols)).toMatchObject({ displayName: "product-id", channelLabel: "手动命名" });
+    });
     test("Kemei Seedream selection initializes the image profile and preserves pricing", () => {
         const draft = initialChannelModelValues(null, protocols);
         draft.priceTiers[0].unitPrice = 19;
@@ -84,7 +98,10 @@ describe("channel model editor drafts", () => {
             capability: "video",
             protocol: "video",
             enabled: false,
-            priceTiers: [{ providerModelKey: "", unitPrice: 5 }, { providerModelKey: "vendor-video-hq", unitPrice: 8 }],
+            priceTiers: [
+                { providerModelKey: "", unitPrice: 5 },
+                { providerModelKey: "vendor-video-hq", unitPrice: 8 },
+            ],
         });
         expect(draft.tags).not.toBe(item.tags);
     });

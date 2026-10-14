@@ -455,13 +455,13 @@ func resolveOutboundHostWithPolicy(ctx context.Context, host string, allowPrivat
 		failure.Reason = kernel.ReasonUpstreamDNSFailed
 		return nil, failure
 	}
-	// if !allowPrivateHost {
-	// 	for _, ip := range addresses {
-	// 		if blockedOutboundIP(ip) {
-	// 			return nil, BadAuthRequest("不允许访问本机、内网或链路本地地址")
-	// 		}
-	// 	}
-	// }
+	if !allowPrivateHost {
+		for _, ip := range addresses {
+			if blockedOutboundIP(ip) {
+				return nil, BadAuthRequest("不允许访问本机、内网或链路本地地址")
+			}
+		}
+	}
 	return addresses, nil
 }
 

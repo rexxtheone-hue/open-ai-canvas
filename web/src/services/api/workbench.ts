@@ -168,7 +168,24 @@ export type SaveAdminWorkbenchToolInput = Pick<WorkbenchTool, "kind" | "category
 
 export function saveAdminWorkbenchTool(input: SaveAdminWorkbenchToolInput) {
     const { id, capability = {}, guide = {}, presets, ...tool } = input;
-    const payload = { ...tool, capability, guide, ...(presets ? { presets: presets.map((preset) => ({ id: preset.id || undefined, name: preset.name, summary: preset.summary || "", promptTemplate: preset.promptTemplate, enabled: preset.enabled !== false, sortOrder: preset.sortOrder || 0, defaultParameters: preset.defaultParameters || {} })) } : {}) };
+    const payload = {
+        ...tool,
+        capability,
+        guide,
+        ...(presets
+            ? {
+                  presets: presets.map((preset) => ({
+                      id: preset.id || undefined,
+                      name: preset.name,
+                      summary: preset.summary || "",
+                      promptTemplate: preset.promptTemplate,
+                      enabled: preset.enabled !== false,
+                      sortOrder: preset.sortOrder || 0,
+                      defaultParameters: preset.defaultParameters || {},
+                  })),
+              }
+            : {}),
+    };
     return id ? http.patch<{ tool: WorkbenchTool }>(`/admin/workbench/tools/${encodeURIComponent(id)}`, payload).then(({ tool: saved }) => saved) : http.post<{ tool: WorkbenchTool }>("/admin/workbench/tools", payload).then(({ tool: saved }) => saved);
 }
 
