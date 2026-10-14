@@ -9,6 +9,7 @@
 - 鉴权驱动：`bearer`（`Authorization: Bearer <API Key>`）。
 - 创建：`POST /openapi/v2/{model}`。
 - 查询：`POST /openapi/v2/query`，请求体 `{"taskId": "..."}`。
+- 两个请求都使用 `originPath`：路径从 Base URL 的域名根开始拼接，渠道 Base URL 只填域名，宿主不会补 `/v1`。
 
 ## 已适配模型
 
@@ -51,7 +52,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "runninghub-model",
   "name": "RunningHub 标准模型 API",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Rexx",
   "description": "RunningHub 标准模型 API 视频协议插件（异步任务），首个适配 MiniMax H3 RH Enhanced 多参考生视频。",
   "permissions": [
@@ -158,6 +159,7 @@
         "create": {
           "method": "POST",
           "path": "/openapi/v2/{{model}}",
+          "originPath": true,
           "contentType": "application/json",
           "body": {
             "prompt": {
@@ -783,6 +785,7 @@
         "poll": {
           "method": "POST",
           "path": "/openapi/v2/query",
+          "originPath": true,
           "contentType": "application/json",
           "body": {
             "taskId": {

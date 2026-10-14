@@ -44,7 +44,8 @@ func TestRunningHubModelBuildsRef2VARequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if create.Method != "POST" || create.Path != "/openapi/v2/rhart-video/minimax-h3-rh-enhanced/ref2va" || create.ContentType != "application/json" {
+	// RunningHub 路径从域名根开始；不能被宿主补成 /v1/openapi/v2/...
+	if create.Method != "POST" || create.Path != "/openapi/v2/rhart-video/minimax-h3-rh-enhanced/ref2va" || !create.OriginPath || create.ContentType != "application/json" {
 		t.Fatalf("create spec = %#v", create)
 	}
 	body := create.Body.(map[string]any)
@@ -87,7 +88,7 @@ func TestRunningHubModelParsesTaskLifecycle(t *testing.T) {
 		t.Fatalf("created = %#v, err = %v", created, err)
 	}
 	poll, err := adapter.BuildPoll(context.Background(), PollContext{BaseURL: "https://www.runninghub.cn", Model: "rhart-video/minimax-h3-rh-enhanced/ref2va", TaskID: created.TaskID})
-	if err != nil || poll.Method != "POST" || poll.Path != "/openapi/v2/query" {
+	if err != nil || poll.Method != "POST" || poll.Path != "/openapi/v2/query" || !poll.OriginPath {
 		t.Fatalf("poll spec = %#v, err = %v", poll, err)
 	}
 	if body, ok := poll.Body.(map[string]any); !ok || body["taskId"] != "2013508786110730241" {
