@@ -18,7 +18,9 @@
 | `SD2.5` | 480p（默认）、720p、1080p | 4–30 秒 | 必须显式指定 | 30 / 10 / 10 | 支持 `generate_audio` |
 | `SD2.0` | 480p（默认）、720p、1080p、4k | 4–15 秒 | 默认 1:1 | 9 / 3 / 3，合计最多 12 | 不支持，开启会报 400 |
 
-其他走 88API 统一 `/v1/videos` 规范、使用 `images` 与 `metadata.reference*` 字段的模型也可使用。
+| `gemini-omni-flash-1.1` | 720p、1080p、4k | 3–10 秒 | 16:9、9:16 | 10 / 3 / 0 | 不支持参考音频 |
+
+其他走 88API 统一 `/v1/videos` 规范的模型也可使用。模型 ID 以 `gemini-`、`veo-` 开头时，参考视频放顶层 `videos`；其他模型放 `metadata.referenceVideos`，两处不会同时发送。
 
 ## 统一字段映射
 
@@ -32,7 +34,7 @@
 | `images`（首帧角色） | `metadata.firstFrame` | 与普通参考素材互斥 |
 | `images`（尾帧角色） | `metadata.lastFrame` | 必须同时有首帧 |
 | `images`（其他角色） | `images` | 参考图网址数组 |
-| `videos` | `metadata.referenceVideos` | 参考视频网址数组 |
+| `videos` | `metadata.referenceVideos`，Gemini/Veo 为顶层 `videos` | 参考视频网址数组 |
 | `audios` | `metadata.referenceAudios` | 参考音频网址数组 |
 
 ## Provider 扩展键
@@ -56,9 +58,9 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "api88-video",
   "name": "88API 统一视频",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Rexx",
-  "description": "88API 统一视频协议插件（POST /v1/videos，异步轮询），首个适配 SD2.5、SD2.0 云厂商版。",
+  "description": "88API 统一视频协议插件（POST /v1/videos，异步轮询），适配 SD2.5、SD2.0 云厂商版与 Gemini Omni、Veo。",
   "permissions": [
     "generation.run",
     "media.read"
@@ -121,8 +123,8 @@
             "name": "videos",
             "type": "media[]",
             "required": false,
-            "mapping": "metadata.referenceVideos",
-            "description": "参考视频。"
+            "mapping": "metadata.referenceVideos / videos",
+            "description": "参考视频；Gemini、Veo 系列放顶层 videos，其他模型放 metadata.referenceVideos。"
           },
           {
             "name": "audios",
@@ -320,6 +322,56 @@
                 }
               }
             },
+            "videos": {
+              "$omitEmpty": {
+                "$if": {
+                  "condition": {
+                    "$in": [
+                      {
+                        "$first": {
+                          "$split": [
+                            {
+                              "$lower": {
+                                "$coalesce": [
+                                  {
+                                    "$ref": "request.model"
+                                  },
+                                  ""
+                                ]
+                              }
+                            },
+                            "-"
+                          ]
+                        }
+                      },
+                      [
+                        "gemini",
+                        "veo"
+                      ]
+                    ]
+                  },
+                  "then": {
+                    "$map": {
+                      "from": {
+                        "$ref": "request.videos"
+                      },
+                      "as": "media",
+                      "in": {
+                        "$coalesce": [
+                          {
+                            "$ref": "media.url"
+                          },
+                          {
+                            "$ref": "media.dataUrl"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "else": null
+                }
+              }
+            },
             "metadata": {
               "$omitEmpty": {
                 "firstFrame": {
@@ -394,20 +446,50 @@
                 },
                 "referenceVideos": {
                   "$omitEmpty": {
-                    "$map": {
-                      "from": {
-                        "$ref": "request.videos"
-                      },
-                      "as": "media",
-                      "in": {
-                        "$coalesce": [
+                    "$if": {
+                      "condition": {
+                        "$in": [
                           {
-                            "$ref": "media.url"
+                            "$first": {
+                              "$split": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$ref": "request.model"
+                                      },
+                                      ""
+                                    ]
+                                  }
+                                },
+                                "-"
+                              ]
+                            }
                           },
-                          {
-                            "$ref": "media.dataUrl"
-                          }
+                          [
+                            "gemini",
+                            "veo"
+                          ]
                         ]
+                      },
+                      "then": null,
+                      "else": {
+                        "$map": {
+                          "from": {
+                            "$ref": "request.videos"
+                          },
+                          "as": "media",
+                          "in": {
+                            "$coalesce": [
+                              {
+                                "$ref": "media.url"
+                              },
+                              {
+                                "$ref": "media.dataUrl"
+                              }
+                            ]
+                          }
+                        }
                       }
                     }
                   }

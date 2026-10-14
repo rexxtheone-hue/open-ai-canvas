@@ -136,3 +136,40 @@ func TestAPI88VideoParsesTaskLifecycle(t *testing.T) {
 		t.Fatalf("failed = %#v, err = %v", failed, err)
 	}
 }
+
+func TestAPI88VideoGeminiOmniUsesTopLevelVideos(t *testing.T) {
+	adapter := loadAPI88VideoAdapter(t)
+	create, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.88api.ai", Request: GenerationRequest{
+		Model: "gemini-omni-flash-1.1", Prompt: "edit the scene", Duration: 6, AspectRatio: "9:16", Resolution: "1080P",
+		Images: []MediaReference{{URL: "https://cdn.example/ref.jpg", Role: "reference_image"}},
+		Videos: []MediaReference{{URL: "https://cdn.example/a.mp4"}, {URL: "https://cdn.example/b.mp4"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := create.Body.(map[string]any)
+	videos, _ := body["videos"].([]any)
+	if len(videos) != 2 || videos[0] != "https://cdn.example/a.mp4" || body["ratio"] != "9:16" || body["resolution"] != "1080p" {
+		t.Fatalf("gemini body = %#v", body)
+	}
+	// 同类素材只能用一个字段：顶层 videos 已发送时 metadata.referenceVideos 必须缺省。
+	if metadata, ok := body["metadata"].(map[string]any); ok {
+		if _, exists := metadata["referenceVideos"]; exists {
+			t.Fatalf("gemini must not duplicate videos into metadata: %#v", metadata)
+		}
+	}
+
+	sd, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.88api.ai", Request: GenerationRequest{
+		Model: "SD2.5", Prompt: "x", Videos: []MediaReference{{URL: "https://cdn.example/a.mp4"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sdBody := sd.Body.(map[string]any)
+	if _, exists := sdBody["videos"]; exists {
+		t.Fatalf("SD models must not send top-level videos: %#v", sdBody)
+	}
+	if refs, _ := sdBody["metadata"].(map[string]any)["referenceVideos"].([]any); len(refs) != 1 {
+		t.Fatalf("SD referenceVideos = %#v", sdBody)
+	}
+}
