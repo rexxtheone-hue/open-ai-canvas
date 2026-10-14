@@ -163,14 +163,15 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     const config = buildNodeConfig(globalConfig, node, mode, requirements);
     const videoProfile = mode === "video" ? modelCapabilityConfigFor(config, config.model).video : undefined;
     const explicitVideoMode = node.metadata?.videoMode;
+    const videoModeInput = { imageCount: requirements.input!.imageCount + requirements.input!.characterCount, videoCount: requirements.input!.videoCount, audioCount: requirements.input!.audioCount };
     const effectiveVideoMode: VideoMode = explicitVideoMode || (() => {
         const operation = inferVideoOperation(requirements.input!);
         return operation === "text_to_video" || operation === "image_to_video" ? operation : "reference_to_video";
     })();
     useEffect(() => {
         // 换成不支持当前模式的模型时，回到按连线素材自动判断。
-        if (mode === "video" && explicitVideoMode && videoModeUnavailableReason(videoProfile, explicitVideoMode)) onConfigChange(node.id, { videoMode: undefined });
-    }, [explicitVideoMode, mode, node.id, onConfigChange, videoProfile]);
+        if (mode === "video" && explicitVideoMode && videoModeUnavailableReason(videoProfile, explicitVideoMode, videoModeInput)) onConfigChange(node.id, { videoMode: undefined });
+    }, [explicitVideoMode, mode, node.id, onConfigChange, videoProfile, videoModeInput.imageCount, videoModeInput.videoCount, videoModeInput.audioCount]);
     const resolvedRequirements: ModelRequirements = {
         ...requirements,
         options: modelRequestOptions(config, mode),
@@ -473,6 +474,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                     {mode === "video" ? (
                         <CanvasVideoModeMenu
                             profile={videoProfile}
+                            input={videoModeInput}
                             value={effectiveVideoMode}
                             explicit={Boolean(explicitVideoMode)}
                             onChange={(videoMode) => onConfigChange(node.id, { videoMode })}

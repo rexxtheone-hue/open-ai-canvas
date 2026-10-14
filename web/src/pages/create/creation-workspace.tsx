@@ -35,7 +35,7 @@ import { countOptions, modeLabels, qualityOptions, resolutionOptions, type Creat
 import "./creation-product.css";
 import "./creation-scrollbars.css";
 import { CreationAttachmentThumbnail, CreationMediaPreviewModal } from "./creation-workspace-messages";
-import { VIDEO_MODES, videoModeLabel, videoModeUnavailableReason, type VideoMode } from "@/lib/video-modes";
+import { VIDEO_MODES, videoModeLabel, videoModeUnavailableReason, type VideoMode, type VideoModeInput } from "@/lib/video-modes";
 
 export { CreationHistoryDrawer } from "./creation-workspace-history";
 export { CreationMessageView } from "./creation-workspace-messages";
@@ -108,6 +108,7 @@ type ComposerProps = {
     /** 当前生效的视频模式：用户选过时为所选模式，否则为按素材推断的模式。 */
     videoMode: VideoMode;
     videoModeExplicit: boolean;
+    videoModeInput: VideoModeInput;
     onVideoModeChange: (mode: VideoMode) => void;
     imageProfile: ImageCapabilityConfig;
     config: AiConfig;
@@ -398,7 +399,7 @@ export function CreationComposer(props: ComposerProps) {
                     </button>
                 </Tooltip> : null}
 				<ModelPicker config={props.config} value={props.model} onChange={props.onModelChange} capability={props.mode} requirements={props.modelRequirements} className="creation-model-picker" placeholder={`选择${modeLabels[props.mode]}模型`} showSelectedPrice={false} showOptionPrices variant="creation" />
-                {props.mode === "video" ? <VideoModeMenu profile={props.videoProfile} value={props.videoMode} explicit={props.videoModeExplicit} onChange={props.onVideoModeChange} /> : null}
+                {props.mode === "video" ? <VideoModeMenu profile={props.videoProfile} input={props.videoModeInput} value={props.videoMode} explicit={props.videoModeExplicit} onChange={props.onVideoModeChange} /> : null}
                 {props.mode === "video" || (props.mode === "image" && imageSettingsSupported) ? <GenerationSettingsMenu {...props} /> : null}
                 {props.mode === "video" ? <DurationMenu profile={props.videoProfile} seconds={props.seconds} onChange={props.setSeconds} /> : null}
                 {props.mode === "text" ? <>
@@ -538,12 +539,12 @@ const videoModeIcons: Record<VideoMode, ReactNode> = {
     extend: <FastForward />,
 };
 
-function VideoModeMenu({ profile, value, explicit, onChange }: { profile: VideoCapabilityConfig; value: VideoMode; explicit: boolean; onChange: (mode: VideoMode) => void }) {
+function VideoModeMenu({ profile, input, value, explicit, onChange }: { profile: VideoCapabilityConfig; input: VideoModeInput; value: VideoMode; explicit: boolean; onChange: (mode: VideoMode) => void }) {
     const [open, setOpen] = useState(false);
     const content = <div className="creation-video-mode-menu" role="listbox" aria-label="视频生成模式">
         <div className="creation-video-mode-heading">视频生成模式</div>
         {VIDEO_MODES.map((mode) => {
-            const reason = videoModeUnavailableReason(profile, mode.value);
+            const reason = videoModeUnavailableReason(profile, mode.value, input);
             const selected = mode.value === value;
             const option = <button key={mode.value} type="button" role="option" aria-selected={selected} disabled={Boolean(reason)} className={`creation-video-mode-option${selected ? " is-selected" : ""}`} onClick={() => { onChange(mode.value); setOpen(false); }}>
                 {videoModeIcons[mode.value]}

@@ -176,10 +176,12 @@ export default function CreatePage() {
         return operation === "text_to_video" || operation === "image_to_video" ? operation : "reference_to_video";
     }, [modelRequirements.input]);
     const effectiveVideoMode = explicitVideoMode || inferredVideoMode;
+    const { imageCount: modeImageCount, videoCount: modeVideoCount, audioCount: modeAudioCount } = modelRequirements.input!;
+    const videoModeInput = useMemo(() => ({ imageCount: modeImageCount, videoCount: modeVideoCount, audioCount: modeAudioCount }), [modeImageCount, modeVideoCount, modeAudioCount]);
     useEffect(() => {
-        // 换成不支持当前模式的模型时，回到按素材自动判断，避免提交必然失败的组合。
-        if (explicitVideoMode && videoModeUnavailableReason(videoProfile, explicitVideoMode)) setExplicitVideoMode(undefined);
-    }, [explicitVideoMode, videoProfile]);
+        // 换模型或增删素材后与当前模式冲突时，回到按素材自动判断，避免提交必然失败的组合。
+        if (explicitVideoMode && videoModeUnavailableReason(videoProfile, explicitVideoMode, videoModeInput)) setExplicitVideoMode(undefined);
+    }, [explicitVideoMode, videoProfile, videoModeInput]);
     // 同名逻辑模型可能把文生视频、图生视频和全模态参考拆到不同路由。
     // 入口需要展示整个模型组的引用能力，添加素材后再由兼容路由选择具体模型。
     const videoReferenceLimits = useMemo(() => mode === "video"
@@ -1061,6 +1063,7 @@ export default function CreatePage() {
         videoProfile,
         videoMode: effectiveVideoMode,
         videoModeExplicit: Boolean(explicitVideoMode),
+        videoModeInput,
         onVideoModeChange: setExplicitVideoMode,
         config: generationConfig,
         onModelChange: (value: string) => updateConfig(mode === "text" ? "textModel" : mode === "image" ? "imageModel" : "videoModel", value),

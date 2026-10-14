@@ -29,8 +29,18 @@ export function videoModeOperation(mode: VideoMode) {
     return mode === "first_last_frame" ? "image_to_video" : mode;
 }
 
-/** 模型不支持时返回原因，用于下拉置灰提示。 */
-export function videoModeUnavailableReason(profile: VideoCapabilityConfig | undefined, mode: VideoMode): string | undefined {
+/** 已放入的素材与模式冲突时返回原因：有素材不能文生视频，有视频不能图生视频或首尾帧。 */
+export function videoModeMaterialConflict(mode: VideoMode, input: VideoModeInput | undefined): string | undefined {
+    if (!input) return undefined;
+    if (mode === "text_to_video" && input.imageCount + input.videoCount + input.audioCount > 0) return "已放入参考素材，请移除后再用文生视频";
+    if ((mode === "image_to_video" || mode === "first_last_frame") && input.videoCount > 0) return "已放入参考视频，请用全能参考";
+    return undefined;
+}
+
+/** 模型不支持或与已放素材冲突时返回原因，用于下拉置灰提示。 */
+export function videoModeUnavailableReason(profile: VideoCapabilityConfig | undefined, mode: VideoMode, input?: VideoModeInput): string | undefined {
+    const conflict = videoModeMaterialConflict(mode, input);
+    if (conflict) return conflict;
     if (!profile) return undefined;
     const operations = profile.operations || [];
     const references = profile.references;

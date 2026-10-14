@@ -30,6 +30,18 @@ describe("video modes", () => {
         expect(resolveSelectableVideoMode(sd, "extend")).toBe("text_to_video");
     });
 
+    test("attached media disables conflicting modes", () => {
+        const gemini = profile(["text_to_video", "image_to_video", "reference_to_video", "extend", "inpaint"]);
+        const oneImage = { imageCount: 1, videoCount: 0, audioCount: 0 };
+        expect(videoModeUnavailableReason(gemini, "text_to_video", oneImage)).toBeTruthy();
+        expect(videoModeUnavailableReason(gemini, "image_to_video", oneImage)).toBeUndefined();
+        expect(videoModeUnavailableReason(gemini, "first_last_frame", oneImage)).toBeUndefined();
+        const oneVideo = { imageCount: 0, videoCount: 1, audioCount: 0 };
+        expect(videoModeUnavailableReason(gemini, "image_to_video", oneVideo)).toBeTruthy();
+        expect(videoModeUnavailableReason(gemini, "extend", oneVideo)).toBeUndefined();
+        expect(videoModeUnavailableReason(gemini, "text_to_video", { imageCount: 0, videoCount: 0, audioCount: 0 })).toBeUndefined();
+    });
+
     test("input errors block mismatched submissions", () => {
         expect(videoModeInputError("first_last_frame", { imageCount: 1, videoCount: 0, audioCount: 0 })).toContain("两张");
         expect(videoModeInputError("extend", { imageCount: 0, videoCount: 0, audioCount: 0 })).toBeTruthy();

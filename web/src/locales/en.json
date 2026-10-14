@@ -5061,6 +5061,8 @@
   "已收尾并给出最终答复": "Wrapped up and gave the final reply",
   "已收纳 {0}/{1} 层，{2} 层尚未通过。{3}展开查看失败层并单独重试。": "{0}/{1} layers collected, {2} layers not yet passed. {3}Expand to see the failed layers and retry them individually.",
   "已收藏": "Favorited",
+  "已放入参考素材，请移除后再用文生视频": "Reference media is attached. Remove it to use Text to video",
+  "已放入参考视频，请用全能参考": "A reference video is attached. Use Universal reference",
   "已整理你的要求。": "Your request has been organized.",
   "已整理选中节点": "Selected nodes organized",
   "已断开": "Disconnected",

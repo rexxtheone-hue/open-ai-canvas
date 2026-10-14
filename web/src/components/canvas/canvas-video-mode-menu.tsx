@@ -3,7 +3,7 @@ import { Check, ChevronDown, Columns2, FastForward, Image as ImageIcon, Layers, 
 import type { ReactNode } from "react";
 
 import type { VideoCapabilityConfig } from "@/lib/model-capabilities";
-import { VIDEO_MODES, videoModeLabel, videoModeUnavailableReason, type VideoMode } from "@/lib/video-modes";
+import { VIDEO_MODES, videoModeLabel, videoModeUnavailableReason, type VideoMode, type VideoModeInput } from "@/lib/video-modes";
 
 const icons: Record<VideoMode, ReactNode> = {
     text_to_video: <Type />,
@@ -17,6 +17,7 @@ const icons: Record<VideoMode, ReactNode> = {
 /** 画布视频节点的生成模式下拉；value 为当前生效模式（显式选择或按素材推断）。 */
 export function CanvasVideoModeMenu({
     profile,
+    input,
     value,
     explicit,
     onChange,
@@ -25,6 +26,7 @@ export function CanvasVideoModeMenu({
     compact = false,
 }: {
     profile: VideoCapabilityConfig | undefined;
+    input: VideoModeInput;
     value: VideoMode;
     explicit: boolean;
     onChange: (mode: VideoMode) => void;
@@ -35,7 +37,7 @@ export function CanvasVideoModeMenu({
     const items: MenuProps["items"] = [
         { key: "heading", type: "group", label: "视频生成模式" },
         ...VIDEO_MODES.map((mode) => {
-            const reason = videoModeUnavailableReason(profile, mode.value);
+            const reason = videoModeUnavailableReason(profile, mode.value, input);
             return {
                 key: mode.value,
                 disabled: Boolean(reason),
