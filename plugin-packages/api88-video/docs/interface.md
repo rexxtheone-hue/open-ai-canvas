@@ -37,6 +37,19 @@
 | `videos` | `metadata.referenceVideos`，Gemini/Veo 为顶层 `videos` | 参考视频网址数组 |
 | `audios` | `metadata.referenceAudios` | 参考音频网址数组 |
 
+## 视频续写与视频编辑
+
+按宿主传入的操作类型切换：
+
+| 操作 | 发送 | 不发送 |
+| --- | --- | --- |
+| `extend`（视频续写） | `task: "extend"`，第一段视频放顶层 `video` | `duration`、`ratio`、`videos`、`metadata.referenceVideos`；Veo 不发 `resolution`，Gemini 只发 720p/1080p（其他档位回落 720p） |
+| `inpaint`、`replace_element`、`style_transfer`、`camera_motion`（视频编辑） | `task: "edit"`，第一段视频放顶层 `video`，`resolution` 照常 | `duration`、`ratio`、`videos`、`metadata.referenceVideos` |
+
+- `gemini-omni-flash-1.1` 续写每次新增约 10 秒，输入视频 1–30 秒，按新增秒数计费；输出为重新生成的完整视频。
+- `veo-3.1` 续写每次新增 7 秒。
+- 编辑保持原视频比例。
+
 ## Provider 扩展键
 
 - `providerOptions.api88-video.negative_prompt`、`seed`。
@@ -58,9 +71,9 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "api88-video",
   "name": "88API 统一视频",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "Rexx",
-  "description": "88API 统一视频协议插件（POST /v1/videos，异步轮询），适配 SD2.5、SD2.0 云厂商版与 Gemini Omni、Veo。",
+  "description": "88API 统一视频协议插件（POST /v1/videos，异步轮询），适配 SD2.5、SD2.0 云厂商版与 Gemini Omni、Veo，支持视频续写与视频编辑。",
   "permissions": [
     "generation.run",
     "media.read"
@@ -183,83 +196,313 @@
                 "$ref": "request.prompt"
               }
             },
-            "duration": {
-              "$toInt": {
+            "task": {
+              "$omitEmpty": {
                 "$if": {
                   "condition": {
-                    "$gt": [
+                    "$eq": [
                       {
-                        "$coalesce": [
+                        "$ref": "request.operation"
+                      },
+                      "extend"
+                    ]
+                  },
+                  "then": "extend",
+                  "else": {
+                    "$if": {
+                      "condition": {
+                        "$in": [
                           {
-                            "$ref": "request.duration"
+                            "$ref": "request.operation"
                           },
-                          0
+                          [
+                            "inpaint",
+                            "replace_element",
+                            "style_transfer",
+                            "camera_motion",
+                            "edit"
+                          ]
                         ]
                       },
-                      0
+                      "then": "edit",
+                      "else": null
+                    }
+                  }
+                }
+              }
+            },
+            "video": {
+              "$omitEmpty": {
+                "$if": {
+                  "condition": {
+                    "$or": [
+                      {
+                        "$eq": [
+                          {
+                            "$ref": "request.operation"
+                          },
+                          "extend"
+                        ]
+                      },
+                      {
+                        "$in": [
+                          {
+                            "$ref": "request.operation"
+                          },
+                          [
+                            "inpaint",
+                            "replace_element",
+                            "style_transfer",
+                            "camera_motion",
+                            "edit"
+                          ]
+                        ]
+                      }
                     ]
                   },
                   "then": {
-                    "$ref": "request.duration"
+                    "$first": {
+                      "$map": {
+                        "from": {
+                          "$ref": "request.videos"
+                        },
+                        "as": "media",
+                        "in": {
+                          "$coalesce": [
+                            {
+                              "$ref": "media.url"
+                            },
+                            {
+                              "$ref": "media.dataUrl"
+                            }
+                          ]
+                        }
+                      }
+                    }
                   },
-                  "else": {
-                    "$coalesce": [
+                  "else": null
+                }
+              }
+            },
+            "duration": {
+              "$omitEmpty": {
+                "$if": {
+                  "condition": {
+                    "$or": [
                       {
-                        "$ref": "request.providerOptions.api88-video.duration"
+                        "$eq": [
+                          {
+                            "$ref": "request.operation"
+                          },
+                          "extend"
+                        ]
                       },
-                      5
+                      {
+                        "$in": [
+                          {
+                            "$ref": "request.operation"
+                          },
+                          [
+                            "inpaint",
+                            "replace_element",
+                            "style_transfer",
+                            "camera_motion",
+                            "edit"
+                          ]
+                        ]
+                      }
                     ]
+                  },
+                  "then": null,
+                  "else": {
+                    "$toInt": {
+                      "$if": {
+                        "condition": {
+                          "$gt": [
+                            {
+                              "$coalesce": [
+                                {
+                                  "$ref": "request.duration"
+                                },
+                                0
+                              ]
+                            },
+                            0
+                          ]
+                        },
+                        "then": {
+                          "$ref": "request.duration"
+                        },
+                        "else": {
+                          "$coalesce": [
+                            {
+                              "$ref": "request.providerOptions.api88-video.duration"
+                            },
+                            5
+                          ]
+                        }
+                      }
+                    }
                   }
                 }
               }
             },
             "ratio": {
-              "$if": {
-                "condition": {
-                  "$in": [
-                    {
-                      "$lower": {
-                        "$coalesce": [
+              "$omitEmpty": {
+                "$if": {
+                  "condition": {
+                    "$or": [
+                      {
+                        "$eq": [
                           {
-                            "$ref": "request.aspectRatio"
+                            "$ref": "request.operation"
                           },
-                          ""
+                          "extend"
+                        ]
+                      },
+                      {
+                        "$in": [
+                          {
+                            "$ref": "request.operation"
+                          },
+                          [
+                            "inpaint",
+                            "replace_element",
+                            "style_transfer",
+                            "camera_motion",
+                            "edit"
+                          ]
                         ]
                       }
-                    },
-                    [
-                      "",
-                      "auto",
-                      "adaptive",
-                      "自适应",
-                      "智能"
                     ]
-                  ]
-                },
-                "then": {
-                  "$coalesce": [
-                    {
-                      "$ref": "request.providerOptions.api88-video.ratio"
-                    },
-                    "16:9"
-                  ]
-                },
-                "else": {
-                  "$ref": "request.aspectRatio"
+                  },
+                  "then": null,
+                  "else": {
+                    "$if": {
+                      "condition": {
+                        "$in": [
+                          {
+                            "$lower": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "request.aspectRatio"
+                                },
+                                ""
+                              ]
+                            }
+                          },
+                          [
+                            "",
+                            "auto",
+                            "adaptive",
+                            "自适应",
+                            "智能"
+                          ]
+                        ]
+                      },
+                      "then": {
+                        "$coalesce": [
+                          {
+                            "$ref": "request.providerOptions.api88-video.ratio"
+                          },
+                          "16:9"
+                        ]
+                      },
+                      "else": {
+                        "$ref": "request.aspectRatio"
+                      }
+                    }
+                  }
                 }
               }
             },
             "resolution": {
               "$omitEmpty": {
-                "$lower": {
-                  "$coalesce": [
-                    {
-                      "$ref": "request.resolution"
-                    },
-                    {
-                      "$ref": "request.providerOptions.api88-video.resolution"
+                "$if": {
+                  "condition": {
+                    "$eq": [
+                      {
+                        "$ref": "request.operation"
+                      },
+                      "extend"
+                    ]
+                  },
+                  "then": {
+                    "$if": {
+                      "condition": {
+                        "$eq": [
+                          {
+                            "$first": {
+                              "$split": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$ref": "request.model"
+                                      },
+                                      ""
+                                    ]
+                                  }
+                                },
+                                "-"
+                              ]
+                            }
+                          },
+                          "veo"
+                        ]
+                      },
+                      "then": null,
+                      "else": {
+                        "$if": {
+                          "condition": {
+                            "$in": [
+                              {
+                                "$lower": {
+                                  "$coalesce": [
+                                    {
+                                      "$ref": "request.resolution"
+                                    },
+                                    {
+                                      "$ref": "request.providerOptions.api88-video.resolution"
+                                    }
+                                  ]
+                                }
+                              },
+                              [
+                                "720p",
+                                "1080p"
+                              ]
+                            ]
+                          },
+                          "then": {
+                            "$lower": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "request.resolution"
+                                },
+                                {
+                                  "$ref": "request.providerOptions.api88-video.resolution"
+                                }
+                              ]
+                            }
+                          },
+                          "else": "720p"
+                        }
+                      }
                     }
-                  ]
+                  },
+                  "else": {
+                    "$lower": {
+                      "$coalesce": [
+                        {
+                          "$ref": "request.resolution"
+                        },
+                        {
+                          "$ref": "request.providerOptions.api88-video.resolution"
+                        }
+                      ]
+                    }
+                  }
                 }
               }
             },
@@ -326,49 +569,80 @@
               "$omitEmpty": {
                 "$if": {
                   "condition": {
-                    "$in": [
+                    "$or": [
                       {
-                        "$first": {
-                          "$split": [
-                            {
-                              "$lower": {
-                                "$coalesce": [
-                                  {
-                                    "$ref": "request.model"
-                                  },
-                                  ""
-                                ]
-                              }
-                            },
-                            "-"
-                          ]
-                        }
-                      },
-                      [
-                        "gemini",
-                        "veo"
-                      ]
-                    ]
-                  },
-                  "then": {
-                    "$map": {
-                      "from": {
-                        "$ref": "request.videos"
-                      },
-                      "as": "media",
-                      "in": {
-                        "$coalesce": [
+                        "$eq": [
                           {
-                            "$ref": "media.url"
+                            "$ref": "request.operation"
                           },
+                          "extend"
+                        ]
+                      },
+                      {
+                        "$in": [
                           {
-                            "$ref": "media.dataUrl"
-                          }
+                            "$ref": "request.operation"
+                          },
+                          [
+                            "inpaint",
+                            "replace_element",
+                            "style_transfer",
+                            "camera_motion",
+                            "edit"
+                          ]
                         ]
                       }
-                    }
+                    ]
                   },
-                  "else": null
+                  "then": null,
+                  "else": {
+                    "$if": {
+                      "condition": {
+                        "$in": [
+                          {
+                            "$first": {
+                              "$split": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$ref": "request.model"
+                                      },
+                                      ""
+                                    ]
+                                  }
+                                },
+                                "-"
+                              ]
+                            }
+                          },
+                          [
+                            "gemini",
+                            "veo"
+                          ]
+                        ]
+                      },
+                      "then": {
+                        "$map": {
+                          "from": {
+                            "$ref": "request.videos"
+                          },
+                          "as": "media",
+                          "in": {
+                            "$coalesce": [
+                              {
+                                "$ref": "media.url"
+                              },
+                              {
+                                "$ref": "media.dataUrl"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "else": null
+                    }
+                  }
                 }
               }
             },
@@ -448,46 +722,77 @@
                   "$omitEmpty": {
                     "$if": {
                       "condition": {
-                        "$in": [
+                        "$or": [
                           {
-                            "$first": {
-                              "$split": [
-                                {
-                                  "$lower": {
-                                    "$coalesce": [
-                                      {
-                                        "$ref": "request.model"
-                                      },
-                                      ""
-                                    ]
-                                  }
-                                },
-                                "-"
-                              ]
-                            }
+                            "$eq": [
+                              {
+                                "$ref": "request.operation"
+                              },
+                              "extend"
+                            ]
                           },
-                          [
-                            "gemini",
-                            "veo"
-                          ]
+                          {
+                            "$in": [
+                              {
+                                "$ref": "request.operation"
+                              },
+                              [
+                                "inpaint",
+                                "replace_element",
+                                "style_transfer",
+                                "camera_motion",
+                                "edit"
+                              ]
+                            ]
+                          }
                         ]
                       },
                       "then": null,
                       "else": {
-                        "$map": {
-                          "from": {
-                            "$ref": "request.videos"
-                          },
-                          "as": "media",
-                          "in": {
-                            "$coalesce": [
+                        "$if": {
+                          "condition": {
+                            "$in": [
                               {
-                                "$ref": "media.url"
+                                "$first": {
+                                  "$split": [
+                                    {
+                                      "$lower": {
+                                        "$coalesce": [
+                                          {
+                                            "$ref": "request.model"
+                                          },
+                                          ""
+                                        ]
+                                      }
+                                    },
+                                    "-"
+                                  ]
+                                }
                               },
-                              {
-                                "$ref": "media.dataUrl"
-                              }
+                              [
+                                "gemini",
+                                "veo"
+                              ]
                             ]
+                          },
+                          "then": null,
+                          "else": {
+                            "$map": {
+                              "from": {
+                                "$ref": "request.videos"
+                              },
+                              "as": "media",
+                              "in": {
+                                "$coalesce": [
+                                  {
+                                    "$ref": "media.url"
+                                  },
+                                  {
+                                    "$ref": "media.dataUrl"
+                                  }
+                                ]
+                              }
+                            }
                           }
                         }
                       }

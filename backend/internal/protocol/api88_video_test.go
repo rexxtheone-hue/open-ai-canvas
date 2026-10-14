@@ -173,3 +173,56 @@ func TestAPI88VideoGeminiOmniUsesTopLevelVideos(t *testing.T) {
 		t.Fatalf("SD referenceVideos = %#v", sdBody)
 	}
 }
+
+func TestAPI88VideoExtendAndEditTasks(t *testing.T) {
+	adapter := loadAPI88VideoAdapter(t)
+	build := func(request GenerationRequest) map[string]any {
+		t.Helper()
+		create, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.88api.ai", Request: request})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return create.Body.(map[string]any)
+	}
+	source := []MediaReference{{URL: "https://cdn.example/source.mp4", Role: "reference_video"}}
+
+	extend := build(GenerationRequest{Model: "gemini-omni-flash-1.1", Prompt: "keep walking", Operation: "extend", Duration: 6, AspectRatio: "16:9", Resolution: "2160P", Videos: source})
+	if extend["task"] != "extend" || extend["video"] != "https://cdn.example/source.mp4" || extend["resolution"] != "720p" {
+		t.Fatalf("gemini extend = %#v", extend)
+	}
+	// 88API 续写禁止 duration、ratio，也不能再带参考视频数组。
+	for _, key := range []string{"duration", "ratio", "videos", "metadata"} {
+		if _, exists := extend[key]; exists {
+			t.Fatalf("extend must omit %s: %#v", key, extend)
+		}
+	}
+	if hd := build(GenerationRequest{Model: "gemini-omni-flash-1.1", Prompt: "x", Operation: "extend", Resolution: "1080p", Videos: source}); hd["resolution"] != "1080p" {
+		t.Fatalf("1080p extend must be kept: %#v", hd)
+	}
+
+	edit := build(GenerationRequest{Model: "gemini-omni-flash-1.1", Prompt: "make it snow", Operation: "inpaint", Duration: 6, AspectRatio: "9:16", Resolution: "1080P", Videos: source})
+	if edit["task"] != "edit" || edit["video"] != "https://cdn.example/source.mp4" || edit["resolution"] != "1080p" {
+		t.Fatalf("gemini edit = %#v", edit)
+	}
+	for _, key := range []string{"duration", "ratio", "videos"} {
+		if _, exists := edit[key]; exists {
+			t.Fatalf("edit must omit %s: %#v", key, edit)
+		}
+	}
+
+	veo := build(GenerationRequest{Model: "veo-3.1", Prompt: "continue", Operation: "extend", Resolution: "1080p", Videos: source})
+	if veo["task"] != "extend" || veo["video"] != "https://cdn.example/source.mp4" {
+		t.Fatalf("veo extend = %#v", veo)
+	}
+	if _, exists := veo["resolution"]; exists {
+		t.Fatalf("veo extend must not send resolution: %#v", veo)
+	}
+
+	normal := build(GenerationRequest{Model: "gemini-omni-flash-1.1", Prompt: "x", Operation: "reference_to_video", Videos: source})
+	if _, exists := normal["task"]; exists {
+		t.Fatalf("normal generation must not send task: %#v", normal)
+	}
+	if _, exists := normal["video"]; exists {
+		t.Fatalf("normal generation uses videos, not video: %#v", normal)
+	}
+}
