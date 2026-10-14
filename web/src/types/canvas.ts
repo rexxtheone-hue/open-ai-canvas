@@ -8,6 +8,7 @@ import type { CameraControlOptions } from "@/lib/canvas/camera-prompt-library";
 import type { SrtEntry, SubtitleHighlight, SubtitleStyle } from "@/types/timeline";
 import type { GenerationSpec } from "@/lib/canvas/generation-contract.generated";
 import type { GenerationTask } from "@/services/api/task-center";
+import type { VideoMode } from "@/lib/video-modes";
 
 export type Position = {
     x: number;
@@ -457,6 +458,8 @@ export type CanvasNodeMetadata = {
     };
     sessionId?: string;
     videoEditOperation?: CanvasVideoEditOperation;
+    /** 用户在节点输入框显式选择的视频模式；未选择时按连线素材自动推断。 */
+    videoMode?: VideoMode;
     arkPrivateAssetUpload?: string;
     videoCameraMoveId?: string;
     videoCameraMovePrompt?: string;

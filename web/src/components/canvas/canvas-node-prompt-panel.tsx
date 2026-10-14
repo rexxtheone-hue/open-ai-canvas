@@ -10,7 +10,7 @@ import { PROMPT_EDITOR_VIEWPORT_MARGIN } from "@/lib/canvas/canvas-prompt-editor
 import { CreditSymbol, requestCreditCost } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { modelQuoteDescription, modelQuoteRequest } from "@/lib/model-pricing";
-import { modelRequestOptions, defaultImageParamsForModel, type ModelRequirements } from "@/lib/model-selection";
+import { modelRequestOptions, defaultImageParamsForModel, type ModelRequirements, inferVideoOperation } from "@/lib/model-selection";
 import { navigateToSettings } from "@/lib/settings-navigation";
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -37,6 +37,9 @@ import { quoteModel, type LogicalModelQuote } from "@/services/api/logical-model
 import { ConnectedReferenceShelf, ReferenceToolsPopover, referenceShelfHeading } from "./canvas-node-prompt-references";
 import { PromptModalResizeHandle, PromptResizeHandle, clampExpandedModalSize, clampPromptHeight, estimatePromptContentHeight, promptEditorBounds } from "./canvas-node-prompt-resize";
 import { audioConfigPatch, buildNodeConfig, defaultMode, modeDisplayName, promptPlaceholder, videoConfigPatch } from "./canvas-node-prompt-config";
+import { videoModeUnavailableReason, type VideoMode } from "@/lib/video-modes";
+import { CanvasVideoModeMenu } from "@/components/canvas/canvas-video-mode-menu";
+import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
 
 export { buildNodeConfig } from "./canvas-node-prompt-config";
 
@@ -140,6 +143,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
             characterCount: activeReferences.filter((item) => item.kind === "character").length,
         },
         videoOperation: node.metadata?.videoEditOperation,
+        videoMode: mode === "video" ? node.metadata?.videoMode : undefined,
         videoSeconds: mode === "video" ? node.metadata?.seconds ?? globalConfig.videoSeconds : undefined,
         options: modelRequestOptions({
             ...globalConfig,
@@ -157,6 +161,16 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
         }, mode),
     };
     const config = buildNodeConfig(globalConfig, node, mode, requirements);
+    const videoProfile = mode === "video" ? modelCapabilityConfigFor(config, config.model).video : undefined;
+    const explicitVideoMode = node.metadata?.videoMode;
+    const effectiveVideoMode: VideoMode = explicitVideoMode || (() => {
+        const operation = inferVideoOperation(requirements.input!);
+        return operation === "text_to_video" || operation === "image_to_video" ? operation : "reference_to_video";
+    })();
+    useEffect(() => {
+        // 换成不支持当前模式的模型时，回到按连线素材自动判断。
+        if (mode === "video" && explicitVideoMode && videoModeUnavailableReason(videoProfile, explicitVideoMode)) onConfigChange(node.id, { videoMode: undefined });
+    }, [explicitVideoMode, mode, node.id, onConfigChange, videoProfile]);
     const resolvedRequirements: ModelRequirements = {
         ...requirements,
         options: modelRequestOptions(config, mode),
@@ -456,6 +470,17 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                     />
                 </div>
                 <div className="ml-auto flex min-w-0 shrink-0 items-center gap-1">
+                    {mode === "video" ? (
+                        <CanvasVideoModeMenu
+                            profile={videoProfile}
+                            value={effectiveVideoMode}
+                            explicit={Boolean(explicitVideoMode)}
+                            onChange={(videoMode) => onConfigChange(node.id, { videoMode })}
+                            stroke={theme.node.stroke}
+                            muted={theme.node.muted}
+                            compact={!expanded}
+                        />
+                    ) : null}
                     <ReferenceToolsPopover
                         canAutoMention={canAutoMention}
                         autoLinkEnabled={autoLinkEnabled}

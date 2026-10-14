@@ -52,7 +52,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "runninghub-model",
   "name": "RunningHub 标准模型 API",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": "Rexx",
   "description": "RunningHub 标准模型 API 视频协议插件（异步任务），首个适配 MiniMax H3 RH Enhanced 多参考生视频。",
   "permissions": [
@@ -111,6 +111,40 @@
               }
             },
             "message": "该模型不支持视频续写或局部修改，请改用支持这些功能的模型。"
+          },
+          {
+            "assert": {
+              "$eq": [
+                {
+                  "$len": {
+                    "$filter": {
+                      "from": {
+                        "$coalesce": [
+                          {
+                            "$ref": "request.images"
+                          },
+                          []
+                        ]
+                      },
+                      "as": "media",
+                      "where": {
+                        "$in": [
+                          {
+                            "$ref": "media.role"
+                          },
+                          [
+                            "first_frame",
+                            "last_frame"
+                          ]
+                        ]
+                      }
+                    }
+                  }
+                },
+                0
+              ]
+            },
+            "message": "该模型不支持首尾帧，请改用全能参考，或换一个支持首尾帧的模型。"
           }
         ],
         "parameters": [

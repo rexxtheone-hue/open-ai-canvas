@@ -41,6 +41,7 @@ import { CreationAgentEntry } from "./creation-agent-entry";
 import { createCreationSubmitGate } from "./creation-submit-gate";
 import { creationVideoConfig } from "./creation-generation-config";
 import { CreationLoginDialog } from "./creation-login-dialog";
+import { applyVideoModeImageRoles, videoModeInputError, videoModeOperation, videoModeUnavailableReason, type VideoMode } from "@/lib/video-modes";
 
 const AssetLibraryPickerModal = lazy(() => import("@/components/assets/asset-library-picker-modal").then((module) => ({ default: module.AssetLibraryPickerModal })));
 const loadCreationRuntime = () => import("./creation-runtime");
@@ -107,6 +108,8 @@ export default function CreatePage() {
     const addedSkillsRequestedRef = useRef(false);
     const [ratio, setRatio] = useState("16:9");
     const [seconds, setSeconds] = useState("6");
+    // 用户在输入框显式选择的视频模式；未选择时按素材自动推断。
+    const [explicitVideoMode, setExplicitVideoMode] = useState<VideoMode | undefined>(undefined);
     const [quality, setQuality] = useState("auto");
     const [imageResolution, setImageResolution] = useState("auto");
     const [imageParameters, setImageParameters] = useState("{}");
@@ -154,19 +157,29 @@ export default function CreatePage() {
             characterCount: 0,
         },
         videoSeconds: mode === "video" ? seconds : undefined,
+        videoMode: mode === "video" ? explicitVideoMode : undefined,
         imageSize: mode === "image" ? ratio : undefined,
 		options: mode === "image"
             ? imageParameterRequest(modelCapabilityConfigFor(config, preferredModel).image!, { ...config, size: ratio, imageResolution, quality, count, imageParameters }) ?? { size: ratio, imageResolution, quality, count: Number(count), transparentBackground: config.transparentBackground === "true" }
 			: mode === "video"
 				? { size: ratio, videoSeconds: Number(seconds), vquality: videoQuality }
 				: {},
-    }), [attachments, config, preferredModel, count, hasPrompt, imageResolution, imageParameters, mode, quality, ratio, seconds, videoQuality]);
+    }), [attachments, config, preferredModel, count, explicitVideoMode, hasPrompt, imageResolution, imageParameters, mode, quality, ratio, seconds, videoQuality]);
     const selectedModel = resolveCompatibleModel(config, preferredModel, modelRequirements) || preferredModel;
     const generationConfig = useMemo(() => mode === "video"
         ? creationVideoConfig(config, selectedModel, { ratio, seconds, videoQuality })
         : config, [config, mode, ratio, seconds, selectedModel, videoQuality]);
     const imageProfile = useMemo(() => modelCapabilityConfigFor(config, selectedModel).image!, [config, selectedModel]);
     const videoProfile = useMemo(() => modelCapabilityConfigFor(config, selectedModel).video!, [config, selectedModel]);
+    const inferredVideoMode = useMemo<VideoMode>(() => {
+        const operation = inferVideoOperation(modelRequirements.input!);
+        return operation === "text_to_video" || operation === "image_to_video" ? operation : "reference_to_video";
+    }, [modelRequirements.input]);
+    const effectiveVideoMode = explicitVideoMode || inferredVideoMode;
+    useEffect(() => {
+        // 换成不支持当前模式的模型时，回到按素材自动判断，避免提交必然失败的组合。
+        if (explicitVideoMode && videoModeUnavailableReason(videoProfile, explicitVideoMode)) setExplicitVideoMode(undefined);
+    }, [explicitVideoMode, videoProfile]);
     // 同名逻辑模型可能把文生视频、图生视频和全模态参考拆到不同路由。
     // 入口需要展示整个模型组的引用能力，添加素材后再由兼容路由选择具体模型。
     const videoReferenceLimits = useMemo(() => mode === "video"
@@ -631,8 +644,20 @@ export default function CreatePage() {
         const settings = { ratio, seconds, quality, videoQuality, count };
         const references = selectedCreationReferences(text, mentionReferences);
         // 后端对图片和视频使用不同的参考字段；这里先拆分，避免媒体类型在写入任务时被误判。
-        const { referenceImages, referenceVideos, referenceAudios } = splitCreationAttachments(attachments);
-        const videoOperation = inferVideoOperation({
+        const split = splitCreationAttachments(attachments);
+        const { referenceVideos, referenceAudios } = split;
+        if (mode === "video" && explicitVideoMode) {
+            const modeError = videoModeInputError(explicitVideoMode, { imageCount: split.referenceImages.length, videoCount: referenceVideos.length, audioCount: referenceAudios.length });
+            if (modeError) {
+                toast.error(modeError);
+                releaseRetryLock();
+                releaseSubmitGate();
+                return;
+            }
+        }
+        // 首尾帧模式：前两张图片分别标为首帧、尾帧，由后端与插件写入对应字段。
+        const referenceImages = mode === "video" ? applyVideoModeImageRoles(explicitVideoMode, split.referenceImages) : split.referenceImages;
+        const videoOperation = explicitVideoMode ? videoModeOperation(explicitVideoMode) : inferVideoOperation({
             textCount: text ? 1 : 0,
             imageCount: referenceImages.length,
             videoCount: referenceVideos.length,
@@ -1034,6 +1059,9 @@ export default function CreatePage() {
         modelRequirements,
         imageProfile,
         videoProfile,
+        videoMode: effectiveVideoMode,
+        videoModeExplicit: Boolean(explicitVideoMode),
+        onVideoModeChange: setExplicitVideoMode,
         config: generationConfig,
         onModelChange: (value: string) => updateConfig(mode === "text" ? "textModel" : mode === "image" ? "imageModel" : "videoModel", value),
         ratio,

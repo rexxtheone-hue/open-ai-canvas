@@ -19,6 +19,7 @@ import { CanvasNodeType, type CanvasAssistantSession, type CanvasConnection, typ
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 import { generationSpecMetadata, readNodeGenerationSpec, resolveGenerationSelection } from "@/lib/canvas/generation-contract";
+import { applyVideoModeImageRoles, videoModeInputError, videoModeOperation } from "@/lib/video-modes";
 
 export async function runBackendCanvasGenerationTask(
     {
@@ -307,6 +308,7 @@ function resolveVideoEditOperation(
         referenceAudios: ReferenceAudio[];
     },
 ): CanvasVideoEditOperation {
+    if (node?.metadata?.videoMode) return videoModeOperation(node.metadata.videoMode) as CanvasVideoEditOperation;
     const storedOperation = node?.metadata?.videoEditOperation;
     const input = {
         textCount: 0,
@@ -316,6 +318,13 @@ function resolveVideoEditOperation(
         characterCount: 0,
     };
     return resolveVideoOperation(input, storedOperation) as CanvasVideoEditOperation;
+}
+
+/** 首尾帧模式且未在画布上指定首尾帧时，按参考图顺序把前两张标为首帧、尾帧。 */
+export function videoModeReferenceImages<T extends { role?: string }>(node: CanvasNodeData | undefined, images: T[]): T[] {
+    const metadata = node?.metadata;
+    if (metadata?.videoMode !== "first_last_frame" || metadata.videoStartFrameNodeId || metadata.videoEndFrameNodeId) return images;
+    return applyVideoModeImageRoles(metadata.videoMode, images);
 }
 
 export function buildVideoGenerationMetadata(
@@ -328,6 +337,10 @@ export function buildVideoGenerationMetadata(
     config?: AiConfig,
 ): CanvasNodeMetadata {
     const metadata = node?.metadata;
+    if (metadata?.videoMode && context) {
+        const modeError = videoModeInputError(metadata.videoMode, { imageCount: context.referenceImages.length, videoCount: context.referenceVideos.length, audioCount: (context.referenceAudios || []).length });
+        if (modeError) throw new Error(modeError);
+    }
     const referenceImageIds = new Set((context?.referenceImages || []).map((image) => image.id));
     // 工作流视频把已连接媒体交给字段映射处理，不再把历史首尾帧选择当成硬约束。
     // 工作流视频把已连接媒体交给字段映射处理，不再把历史首尾帧选择当成硬约束。

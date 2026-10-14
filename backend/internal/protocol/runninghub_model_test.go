@@ -159,3 +159,14 @@ func TestRunningHubModelRejectsEditOperationsAndDefaultsDuration(t *testing.T) {
 		t.Fatalf("duration must default to 5: %#v", body)
 	}
 }
+
+func TestRunningHubModelRejectsFirstLastFrames(t *testing.T) {
+	adapter := loadRunningHubModelAdapter(t)
+	_, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://www.runninghub.cn", Request: GenerationRequest{
+		Model: "rhart-video/minimax-h3-rh-enhanced/ref2va", Prompt: "x", Operation: "image_to_video",
+		Images: []MediaReference{{DataURL: "data:image/png;base64,A", Role: "first_frame"}, {DataURL: "data:image/png;base64,B", Role: "last_frame"}},
+	}})
+	if err == nil {
+		t.Fatal("ref2va has no frame fields; first/last frame requests must be rejected")
+	}
+}

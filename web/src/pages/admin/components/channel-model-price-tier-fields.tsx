@@ -244,7 +244,7 @@ function ImagePriceParameterInput({ field, value, onChange }: { field: import("@
 function operationOptions(capability: EditableCapability | undefined) {
     const options = [{ label: "任意生成方式", value: "*" }];
     if (capability === "image") return [...options, { label: "文生图", value: "text_to_image" }, { label: "图生图", value: "image_to_image" }];
-    if (capability === "video") return [...options, { label: "文生视频", value: "text_to_video" }, { label: "图生视频", value: "image_to_video" }, { label: "视频生视频", value: "video_to_video" }];
+    if (capability === "video") return [...options, { label: "文生视频", value: "text_to_video" }, { label: "图生视频", value: "image_to_video" }, { label: "视频生视频", value: "video_to_video" }, { label: "全能参考", value: "reference_to_video" }, { label: "视频续写", value: "extend" }, { label: "视频编辑", value: "video_edit" }];
     if (capability === "text") return [...options, { label: "文本生成", value: "text_generation" }];
     return options;
 }

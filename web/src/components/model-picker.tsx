@@ -513,7 +513,7 @@ function tierDurationLabel(seconds: number) {
 
 function tierSpecificationLabel(tier: NonNullable<NonNullable<AiConfig["channels"][number]["modelCosts"]>[number]["logicalPriceTiers"]>[number]) {
     const selector = tier.selector || {};
-    const operationLabels: Record<string, string> = { text_to_image: "文生图", image_to_image: "图生图", text_to_video: "文生视频", image_to_video: "图生视频", video_to_video: "视频生视频" };
+    const operationLabels: Record<string, string> = { text_to_image: "文生图", image_to_image: "图生图", text_to_video: "文生视频", image_to_video: "图生视频", video_to_video: "视频生视频", reference_to_video: "全能参考", extend: "视频续写", video_edit: "视频编辑" };
     const operation = selector.operation && selector.operation !== "*" ? operationLabels[selector.operation] || selector.operation : "";
     const details = [
         operation,

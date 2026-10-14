@@ -4,6 +4,7 @@ import { imagePriceSelector, normalizeImagePriceSelector } from "@/lib/image-pri
 import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
 import type { LogicalModelQuote, ModelQuoteRequest, ModelRequestIntent } from "@/services/api/logical-models";
 import { modelOptionName, resolveModelChannel, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
+import { videoModeOperation, videoPricingOperation } from "@/lib/video-modes";
 
 export type ModelPriceTier = NonNullable<NonNullable<AiConfig["channels"][number]["modelCosts"]>[number]["logicalPriceTiers"]>[number];
 
@@ -36,10 +37,22 @@ export function requestCreditCost(options: { channelMode: string; modelCosts?: M
 
 export function priceTiersForCurrentSelection(tiers: ModelPriceTier[], capability: ModelCapability | undefined, config: AiConfig, requirements?: ModelRequirements) {
     const requested = priceSelectorForRequest(capability, config, requirements);
+    const declaredParameters = Boolean(modelCapabilityConfigFor(config, config.model || config.imageModel).image?.parameters);
+    // 全能参考、续写、编辑优先匹配各自的专属价格；没有专属价格时按素材归类兜底，与后端一致。
+    const special = capability === "video" ? videoPricingOperation(requestedVideoOperation(requirements)) : undefined;
+    if (special) {
+        const exclusive = tiers.filter((tier) => priceSelectorForTier(tier, declaredParameters).operation === special);
+        const matched = bestMatchingTiers(exclusive, { ...requested, operation: special }, declaredParameters);
+        if (matched.length) return matched;
+    }
+    return bestMatchingTiers(tiers, requested, declaredParameters);
+}
+
+function bestMatchingTiers(tiers: ModelPriceTier[], requested: Record<string, string>, declaredParameters: boolean) {
     let bestScore = -1;
     let matched: ModelPriceTier[] = [];
     for (const tier of tiers) {
-        const selector = priceSelectorForTier(tier, Boolean(modelCapabilityConfigFor(config, config.model || config.imageModel).image?.parameters));
+        const selector = priceSelectorForTier(tier, declaredParameters);
         const conditions = Object.entries(selector).filter(([, value]) => value && value !== "*");
         if (conditions.some(([key, value]) => requested[key] !== value)) continue;
         const score = conditions.length;
@@ -51,6 +64,12 @@ export function priceTiersForCurrentSelection(tiers: ModelPriceTier[], capabilit
         }
     }
     return matched;
+}
+
+function requestedVideoOperation(requirements?: ModelRequirements) {
+    const input = requirements?.input;
+    if (input) return resolveVideoOperation(input, requirements?.videoOperation, requirements?.videoMode);
+    return requirements?.videoMode ? videoModeOperation(requirements.videoMode) : requirements?.videoOperation;
 }
 
 export function priceTierSummaryLabel(tiers: ModelPriceTier[], capability?: ModelCapability) {
@@ -99,7 +118,7 @@ export function modelQuoteRequest(config: AiConfig, value: string, capability?: 
     const input = requirements?.input;
     const intent: ModelRequestIntent = {
         capability,
-        operation: capability === "image" ? imagePriceOperation(requirements) : capability === "video" && input ? resolveVideoOperation(input, requirements?.videoOperation) : requirements?.videoOperation,
+        operation: capability === "image" ? imagePriceOperation(requirements) : capability === "video" && input ? resolveVideoOperation(input, requirements?.videoOperation, requirements?.videoMode) : requirements?.videoOperation,
         inputs: {
             image: (input?.imageCount || 0) + (input?.characterCount || 0),
             video: input?.videoCount || 0,
@@ -126,7 +145,7 @@ function priceSelectorForRequest(capability: ModelCapability | undefined, config
         const input = requirements?.input;
         if (input) {
             const imageCount = (input.imageCount || 0) + (input.characterCount || 0);
-            requested.operation = input.videoCount > 0 ? "video_to_video" : imageCount > 0 ? "image_to_video" : resolveVideoOperation(input, requirements?.videoOperation);
+            requested.operation = input.videoCount > 0 ? "video_to_video" : imageCount > 0 ? "image_to_video" : resolveVideoOperation(input, requirements?.videoOperation, requirements?.videoMode);
             if (imageCount > 0) requested.imageCount = String(imageCount);
         } else if (requirements?.videoOperation) requested.operation = requirements.videoOperation;
         const options: Record<string, unknown> = { ...modelRequestOptions(config, "video"), ...requirements?.options, ...(requirements?.videoSeconds ? { videoSeconds: Number(requirements.videoSeconds) } : {}) };

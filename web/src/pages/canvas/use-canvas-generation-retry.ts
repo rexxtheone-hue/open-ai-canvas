@@ -29,6 +29,7 @@ import {
     runCanvasGenerationTaskToConsumer,
     sourceNodeReferenceImages,
     supportsVideoReferenceAudio,
+    videoModeReferenceImages,
 } from "@/lib/canvas/canvas-project-generation";
 import { isCanvasWorkflowProvider } from "@/lib/canvas/canvas-workflow";
 import { buildPortraitTexturePrompt } from "@/lib/canvas/canvas-portrait-texture";
@@ -333,7 +334,7 @@ export function useCanvasGenerationRetry({
                 message.error("参考图片已丢失，无法继续重试");
                 return;
             }
-            const videoReferenceImages = context?.referenceImages.length ? context.referenceImages : storedVideoImages;
+            const videoReferenceImages = videoModeReferenceImages(node, context?.referenceImages.length ? context.referenceImages : storedVideoImages);
             const videoContext =
                 node.type === CanvasNodeType.Video
                     ? {

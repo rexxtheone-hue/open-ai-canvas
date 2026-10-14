@@ -7,7 +7,7 @@ import { Button, Popover } from "antd";
 import { useWorkspaceTopBarMount } from "@/components/layout/workspace-top-bar-extension";
 import { Tooltip } from "@/components/ui/base/tooltip";
 import { Reorder, LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { ArrowUp, Brain, ChevronDown, ChevronLeft, ChevronRight, Clapperboard, Clock3, Film, History, Image as ImageIcon, LoaderCircle, Maximize2, MessageSquareText, Minimize2, Plus, SlidersHorizontal, Trash2, WandSparkles, Waves, X } from "lucide-react";
+import { ArrowUp, Brain, Check, ChevronDown, Columns2, FastForward, Layers, PencilLine, Type, ChevronLeft, ChevronRight, Clapperboard, Clock3, Film, History, Image as ImageIcon, LoaderCircle, Maximize2, MessageSquareText, Minimize2, Plus, SlidersHorizontal, Trash2, WandSparkles, Waves, X } from "lucide-react";
 
 import { WorkingGlow } from "@/components/ai/working-indicator";
 import { formatVideoResolutionLabel as videoResolutionLabel } from "@/lib/video-generation-options";
@@ -35,6 +35,7 @@ import { countOptions, modeLabels, qualityOptions, resolutionOptions, type Creat
 import "./creation-product.css";
 import "./creation-scrollbars.css";
 import { CreationAttachmentThumbnail, CreationMediaPreviewModal } from "./creation-workspace-messages";
+import { VIDEO_MODES, videoModeLabel, videoModeUnavailableReason, type VideoMode } from "@/lib/video-modes";
 
 export { CreationHistoryDrawer } from "./creation-workspace-history";
 export { CreationMessageView } from "./creation-workspace-messages";
@@ -104,6 +105,10 @@ type ComposerProps = {
     model: string;
     modelRequirements: ModelRequirements;
     videoProfile: VideoCapabilityConfig;
+    /** 当前生效的视频模式：用户选过时为所选模式，否则为按素材推断的模式。 */
+    videoMode: VideoMode;
+    videoModeExplicit: boolean;
+    onVideoModeChange: (mode: VideoMode) => void;
     imageProfile: ImageCapabilityConfig;
     config: AiConfig;
     onModelChange: (value: string) => void;
@@ -393,6 +398,7 @@ export function CreationComposer(props: ComposerProps) {
                     </button>
                 </Tooltip> : null}
 				<ModelPicker config={props.config} value={props.model} onChange={props.onModelChange} capability={props.mode} requirements={props.modelRequirements} className="creation-model-picker" placeholder={`选择${modeLabels[props.mode]}模型`} showSelectedPrice={false} showOptionPrices variant="creation" />
+                {props.mode === "video" ? <VideoModeMenu profile={props.videoProfile} value={props.videoMode} explicit={props.videoModeExplicit} onChange={props.onVideoModeChange} /> : null}
                 {props.mode === "video" || (props.mode === "image" && imageSettingsSupported) ? <GenerationSettingsMenu {...props} /> : null}
                 {props.mode === "video" ? <DurationMenu profile={props.videoProfile} seconds={props.seconds} onChange={props.setSeconds} /> : null}
                 {props.mode === "text" ? <>
@@ -521,6 +527,36 @@ function GenerationSettingsMenu(props: ComposerProps) {
 
 function SettingSection({ title, value, children }: { title: string; value?: string; children: ReactNode }) {
     return <section className="creation-parameter-section"><header><h3>{title}</h3>{value ? <span>{value}</span> : null}</header>{children}</section>;
+}
+
+const videoModeIcons: Record<VideoMode, ReactNode> = {
+    text_to_video: <Type />,
+    reference_to_video: <Layers />,
+    image_to_video: <ImageIcon />,
+    first_last_frame: <Columns2 />,
+    inpaint: <PencilLine />,
+    extend: <FastForward />,
+};
+
+function VideoModeMenu({ profile, value, explicit, onChange }: { profile: VideoCapabilityConfig; value: VideoMode; explicit: boolean; onChange: (mode: VideoMode) => void }) {
+    const [open, setOpen] = useState(false);
+    const content = <div className="creation-video-mode-menu" role="listbox" aria-label="视频生成模式">
+        <div className="creation-video-mode-heading">视频生成模式</div>
+        {VIDEO_MODES.map((mode) => {
+            const reason = videoModeUnavailableReason(profile, mode.value);
+            const selected = mode.value === value;
+            const option = <button key={mode.value} type="button" role="option" aria-selected={selected} disabled={Boolean(reason)} className={`creation-video-mode-option${selected ? " is-selected" : ""}`} onClick={() => { onChange(mode.value); setOpen(false); }}>
+                {videoModeIcons[mode.value]}
+                <span className="creation-video-mode-text"><strong>{mode.label}</strong><em>{reason || mode.description}</em></span>
+                {selected ? <Check className="creation-video-mode-check" /> : null}
+            </button>;
+            return option;
+        })}
+        {!explicit ? <p className="creation-video-mode-hint">未手动选择时，按放入的素材自动判断模式</p> : null}
+    </div>;
+    return <Popover open={open} onOpenChange={setOpen} trigger="click" placement="bottom" arrow={false} classNames={{ root: "creation-control-popover", container: "creation-control-popover-surface", content: "creation-control-popover-content" }} content={content}>
+        <button type="button" className="creation-chat-control is-video-mode" aria-label={`视频生成模式：${videoModeLabel(value)}`}>{videoModeIcons[value]}<span>{videoModeLabel(value)}</span><ChevronDown className={open ? "is-open" : ""} /></button>
+    </Popover>;
 }
 
 function DurationMenu({ profile, seconds, onChange }: { profile: VideoCapabilityConfig; seconds: string; onChange: (value: string) => void }) {

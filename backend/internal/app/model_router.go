@@ -260,7 +260,38 @@ func channelModelHasActivePriceTier(channelModel model.ChannelModel) bool {
 // channelModelPriceTierForIntent 使用“精确规格优先、通配规格兜底”的规则。SKU 选择器与
 // 运行意图使用同一组规范键，因而图片质量/画幅、视频分辨率/时长和生成操作都能独立定价。
 func channelModelPriceTierForIntent(channelModel model.ChannelModel, intent ModelRequestIntent, specs ...CapabilitySpec) *model.ChannelModelPriceTier {
+	// 全能参考、续写、编辑优先匹配各自的专属价格；没有专属价格时按素材归类兜底，
+	// 保证未配置专属价格的模型行为不变。
+	if special := videoPricingOperation(intent); special != "" {
+		if tier := bestChannelModelPriceTier(channelModel, intent, special, specs...); tier != nil {
+			return tier
+		}
+	}
+	return bestChannelModelPriceTier(channelModel, intent, "", specs...)
+}
+
+// videoPricingOperation 把执行操作映射为可单独定价的视频类别；空字符串表示按素材归类。
+func videoPricingOperation(intent ModelRequestIntent) string {
+	if normalizeCapability(intent.Capability) != "video" {
+		return ""
+	}
+	switch strings.ToLower(strings.TrimSpace(intent.Operation)) {
+	case "reference_to_video":
+		return "reference_to_video"
+	case "extend":
+		return "extend"
+	case "inpaint", "replace_element", "style_transfer", "camera_motion":
+		return "video_edit"
+	}
+	return ""
+}
+
+// bestChannelModelPriceTier 在 exclusiveOperation 非空时只考虑该操作的专属价格档。
+func bestChannelModelPriceTier(channelModel model.ChannelModel, intent ModelRequestIntent, exclusiveOperation string, specs ...CapabilitySpec) *model.ChannelModelPriceTier {
 	selector := skuSelectorForIntent(intent)
+	if exclusiveOperation != "" {
+		selector["operation"] = exclusiveOperation
+	}
 	parameters := imagePriceParametersForChannel(channelModel, specs...)
 	if parameters != nil {
 		selector = imagePriceSelectorForParameters(parameters, intent)
@@ -279,6 +310,9 @@ func channelModelPriceTierForIntent(channelModel model.ChannelModel, intent Mode
 				continue
 			}
 		}
+		if exclusiveOperation != "" && strings.TrimSpace(tierSelector["operation"]) != exclusiveOperation {
+			continue
+		}
 		matched, score := matchSKUSelector(tierSelector, selector)
 		if !matched {
 			continue
@@ -294,7 +328,17 @@ func channelModelPriceTierForIntent(channelModel model.ChannelModel, intent Mode
 // omitted from the intent is still a choice, while every supplied selector
 // value must be compatible with at least one active, configured tier.
 func channelModelHasCompatiblePriceTier(channelModel model.ChannelModel, intent ModelRequestIntent, specs ...CapabilitySpec) bool {
+	if special := videoPricingOperation(intent); special != "" && channelModelHasCompatibleTierForSelector(channelModel, intent, special, specs...) {
+		return true
+	}
+	return channelModelHasCompatibleTierForSelector(channelModel, intent, "", specs...)
+}
+
+func channelModelHasCompatibleTierForSelector(channelModel model.ChannelModel, intent ModelRequestIntent, exclusiveOperation string, specs ...CapabilitySpec) bool {
 	requested := skuSelectorForIntent(intent)
+	if exclusiveOperation != "" {
+		requested["operation"] = exclusiveOperation
+	}
 	parameters := imagePriceParametersForChannel(channelModel, specs...)
 	if parameters != nil {
 		requested = imagePriceSelectorForParameters(parameters, intent)
@@ -310,6 +354,9 @@ func channelModelHasCompatiblePriceTier(channelModel model.ChannelModel, intent 
 			if validateImageParameterPriceSelector(parameters, tierSelector) != nil {
 				continue
 			}
+		}
+		if exclusiveOperation != "" && strings.TrimSpace(tierSelector["operation"]) != exclusiveOperation {
+			continue
 		}
 		for key, expected := range tierSelector {
 			expected = strings.TrimSpace(expected)

@@ -4,7 +4,7 @@ import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
 import { canGenerateMediaInPlace } from "@/lib/canvas/canvas-generation-layout";
 import { nodeSizeFromRatio } from "@/lib/canvas/canvas-node-size";
 import { nextCanvasVersionLabel } from "@/lib/canvas/canvas-layout";
-import { buildAudioGenerationMetadata, buildVideoGenerationMetadata, generationReferenceUrls, runCanvasGenerationTaskToConsumer } from "@/lib/canvas/canvas-project-generation";
+import { buildAudioGenerationMetadata, buildVideoGenerationMetadata, videoModeReferenceImages, generationReferenceUrls, runCanvasGenerationTaskToConsumer } from "@/lib/canvas/canvas-project-generation";
 import { canvasGenerationPromptMetadata } from "@/lib/canvas/canvas-generation-submission";
 import { producedModelCandidateForGeneration } from "@/lib/canvas/produced-model";
 import { isDoubaoAudioConfig } from "@/lib/audio-generation";
@@ -106,7 +106,7 @@ export async function executeVideoGeneration({
                 mode: "video",
                 prompt: effectivePrompt,
                 config: generationConfig,
-                referenceImages: generationContext.referenceImages,
+                referenceImages: videoModeReferenceImages(sourceNode, generationContext.referenceImages),
                 referenceVideos: generationContext.referenceVideos,
                 referenceAudios: generationContext.referenceAudios,
                 signal: controller.signal,
