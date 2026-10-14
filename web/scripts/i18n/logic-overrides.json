@@ -78,6 +78,30 @@
                 "资产一致性",
                 "全局禁用"
             ]
+        },
+        "src/pages/workbench/image-workbench-page.tsx": {
+            "raw": [
+                "模特",
+                "人物",
+                "上身",
+                "穿搭",
+                "视频",
+                "场景",
+                "氛围",
+                "背景",
+                "风格",
+                "海报",
+                "视觉",
+                "主图",
+                "商品",
+                "电商",
+                "白底"
+            ]
+        },
+        "src/pages/admin/components/channel-model-editor.tsx": {
+            "raw": [
+                "未分类"
+            ]
         }
     }
 }
