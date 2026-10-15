@@ -16,6 +16,20 @@ export const VIDEO_MODES: Array<{ value: VideoMode; label: string; description: 
 
 const EDIT_OPERATIONS = new Set(["inpaint", "replace_element", "style_transfer", "camera_motion"]);
 
+/** 专项视频操作：需要供应商专门支持，模型必须在能力里勾选；每种都可以单独定价。 */
+export const SPECIALTY_VIDEO_OPERATIONS = [
+    { value: "lip_sync", label: "对口型" },
+    { value: "motion_transfer", label: "动作同步" },
+    { value: "video_upscale", label: "视频高清" },
+    { value: "dubbing", label: "视频配音翻译" },
+] as const;
+
+export type SpecialtyVideoOperation = (typeof SPECIALTY_VIDEO_OPERATIONS)[number]["value"];
+
+export function isSpecialtyVideoOperation(value: unknown): value is SpecialtyVideoOperation {
+    return typeof value === "string" && SPECIALTY_VIDEO_OPERATIONS.some((item) => item.value === value);
+}
+
 export function isVideoMode(value: unknown): value is VideoMode {
     return typeof value === "string" && VIDEO_MODES.some((mode) => mode.value === value);
 }
@@ -141,7 +155,7 @@ export function applyVideoModeImageRoles<T extends { role?: string }>(mode: Vide
 /** 计费专属类别：全能参考、续写、编辑可以单独定价；其余沿用按素材归类。 */
 export function videoPricingOperation(operation: string | undefined): string | undefined {
     if (!operation) return undefined;
-    if (operation === "reference_to_video" || operation === "extend") return operation;
+    if (operation === "reference_to_video" || operation === "extend" || isSpecialtyVideoOperation(operation)) return operation;
     if (EDIT_OPERATIONS.has(operation)) return "video_edit";
     return undefined;
 }

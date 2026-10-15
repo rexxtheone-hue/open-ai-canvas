@@ -219,3 +219,11 @@ func TestStudioWorkShowsUserPromptWithoutBrandSuffix(t *testing.T) {
 		t.Fatalf("unexpected work %+v", work)
 	}
 }
+
+func TestStudioSpecialtyWorkKeepsEmptyUserPrompt(t *testing.T) {
+	task := model.Task{ID: "lip", WorkbenchKind: model.StudioKindVideo, InputJSON: `{"mode":"video","prompt":"让人物按照参考音频说话","config":{"model":"m"},"metadata":{"source":"studio","studioTool":"lip-sync","studioPrompt":"","videoEditOperation":"lip_sync"}}`}
+	work := studioWorkFromTask(task, TaskSummary{ID: "lip", Prompt: "让人物按照参考音频说话"}, false)
+	if work.Prompt != "让人物按照参考音频说话" || work.Settings["userPrompt"] != "" || work.Tool != "lip-sync" {
+		t.Fatalf("unexpected work %+v", work)
+	}
+}

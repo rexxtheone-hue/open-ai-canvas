@@ -24,6 +24,10 @@ const operationOptions = [
     { label: "运镜调整", value: "camera_motion" },
     { label: "风格迁移", value: "style_transfer" },
     { label: "音频生视频", value: "audio_to_video" },
+    { label: "对口型", value: "lip_sync" },
+    { label: "动作同步", value: "motion_transfer" },
+    { label: "视频高清", value: "video_upscale" },
+    { label: "视频配音翻译", value: "dubbing" },
 ];
 
 function ImageSizeHelp() {

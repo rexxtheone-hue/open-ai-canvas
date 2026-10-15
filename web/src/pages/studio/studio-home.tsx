@@ -7,7 +7,7 @@ import { modelDisplayName, selectableModelsByCapability, useEffectiveConfig } fr
 import { useUserStore } from "@/stores/use-user-store";
 import { StudioShell } from "./studio-shell";
 import { startStudioAgentRun } from "./studio-agent";
-import { STUDIO_TOOLS } from "./studio-tools";
+import { useAvailableStudioTools } from "./studio-pages";
 
 const SUGGESTIONS = [
     "做一条 15 秒的产品广告，展示一款保温杯的卖点",
@@ -34,6 +34,7 @@ export default function StudioHomePage({ initialMode = "agents" }: { initialMode
     const [prompt, setPrompt] = useState("");
     const [sending, setSending] = useState(false);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const tools = useAvailableStudioTools();
 
     // H5：最新模型只列后台已开启的模型，每类取前几个。
     const latestModels = useMemo(() => {
@@ -113,7 +114,7 @@ export default function StudioHomePage({ initialMode = "agents" }: { initialMode
                         </>
                     ) : (
                         <div className="studio-card-row" style={{ width: "min(760px, 100%)" }}>
-                            {STUDIO_TOOLS.map((tool) => (
+                            {tools.filter((tool) => !tool.specialty).map((tool) => (
                                 <Link key={tool.id} to={tool.path} className="studio-entry-card">
                                     <tool.icon className="studio-entry-icon" aria-hidden />
                                     <strong>{tool.label}</strong>
@@ -151,7 +152,7 @@ export default function StudioHomePage({ initialMode = "agents" }: { initialMode
                         <Link to="/studio/tools">全部工具</Link>
                     </div>
                     <div className="studio-card-row">
-                        {STUDIO_TOOLS.map((tool) => (
+                        {tools.slice(0, 8).map((tool) => (
                             <Link key={tool.id} to={tool.path} className="studio-entry-card">
                                 <tool.icon className="studio-entry-icon" aria-hidden />
                                 <strong>{tool.label}</strong>

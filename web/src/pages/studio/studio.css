@@ -518,3 +518,19 @@
     .studio-form-grid, .studio-inline-form { grid-template-columns: minmax(0, 1fr); }
     .studio-section-head { flex-wrap: wrap; }
 }
+
+/* 专项工具：按槽位上传素材 */
+.studio-back-link { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; height: 30px; padding: 0 10px 0 6px; border-radius: 999px; color: var(--studio-muted); font-size: 12.5px; text-decoration: none; }
+.studio-back-link:hover { background: var(--studio-hover); color: var(--studio-fg); }
+.studio-back-link svg { width: 15px; height: 15px; }
+.studio-slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.studio-slot { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.studio-slot-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; }
+.studio-slot-label b { color: var(--studio-accent); }
+.studio-slot-label em { font-style: normal; font-weight: 500; font-size: 11px; color: var(--studio-muted); }
+.studio-slot .studio-ref-slot { width: 100%; height: auto; aspect-ratio: 4 / 3; flex-direction: column; gap: 6px; padding: 8px; text-align: center; }
+.studio-slot .studio-ref-slot small { color: var(--studio-muted); font-size: 11px; line-height: 1.35; }
+.studio-chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.studio-chip-list button { height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--studio-line); background: var(--studio-panel); color: var(--studio-fg); font: inherit; font-size: 12.5px; cursor: pointer; }
+.studio-chip-list button:hover { background: var(--studio-hover); }
+.studio-chip-list button[aria-pressed="true"] { border-color: var(--studio-accent); background: var(--studio-accent-soft); }

@@ -10,6 +10,8 @@ import {
     studioFinalPrompt,
     studioGenerationConfig,
     studioMaxCount,
+    studioModelRequirements,
+    studioModelSupportsSpecialty,
     studioOverflowAttachmentIds,
     studioPreferredModel,
     studioReferenceLimits,
@@ -17,6 +19,7 @@ import {
     studioSubmission,
     type StudioToolState,
 } from "../src/pages/studio/studio-generation";
+import { buildSpecialtyState, defaultSpecialtyOptions, orderedSlotAttachments, specialtyInputError, specialtyPrompt, studioSpecialtyAvailable, studioSpecialtySpec } from "../src/pages/studio/studio-specialty";
 
 function studioConfig(): AiConfig {
     const image = defaultModelCapabilityConfig(undefined, "pic-pro");
@@ -190,5 +193,87 @@ describe("AI Studio 品牌套件", () => {
         limited.channels[0].modelCosts![0].capabilityConfig!.image!.references.promptMaxChars = 10;
         expect(studioBlockReason(limited, state("image", { prompt: "一杯咖啡" }), "relay::pic-pro", ready)).toBe("");
         expect(studioBlockReason(limited, state("image", { prompt: "一杯咖啡", brand }), "relay::pic-pro", ready)).not.toBe("");
+    });
+});
+
+describe("AI Studio 专项工具", () => {
+    const lipConfig = () => {
+        const config = studioConfig();
+        const video = config.channels[0].modelCosts![1].capabilityConfig!.video!;
+        video.operations = [...video.operations, "lip_sync"];
+        return config;
+    };
+
+    test("只有勾选了该操作的模型才会被选中；都不支持时提示去后台配置", () => {
+        const spec = studioSpecialtySpec("lip-sync")!;
+        const empty = buildSpecialtyState(spec, {}, "", {});
+        expect(studioPreferredModel(studioConfig(), "video", "", empty)).toBe("");
+        expect(studioBlockReason(studioConfig(), state("video", { specialty: empty }), "", ready)).toBe("后台还没有支持对口型的模型");
+        expect(studioPreferredModel(lipConfig(), "video", "relay::clip-mute", empty)).toBe("relay::clip-pro");
+        expect(studioSpecialtyAvailable(studioConfig(), "lip-sync")).toBe(false);
+        expect(studioSpecialtyAvailable(lipConfig(), "lip-sync")).toBe(true);
+        expect(studioSpecialtyAvailable(studioConfig(), "relight")).toBe(true);
+    });
+
+    test("必填素材和类型检查", () => {
+        const spec = studioSpecialtySpec("lip-sync")!;
+        expect(specialtyInputError(spec, {}, "")).toBe("请添加人物");
+        expect(specialtyInputError(spec, { subject: attachment("v", "video/mp4") }, "")).toBe("请添加声音");
+        expect(specialtyInputError(spec, { subject: attachment("m", "audio/mpeg"), voice: attachment("n", "audio/mpeg") }, "")).toBe("人物的文件类型不对");
+        expect(specialtyInputError(spec, { subject: attachment("a", "image/png"), voice: attachment("m", "audio/mpeg") }, "")).toBe("");
+        const background = studioSpecialtySpec("replace-background")!;
+        expect(specialtyInputError(background, { subject: attachment("a", "image/png") }, " ")).toBe("请填写新背景");
+        expect(specialtyInputError(background, { subject: attachment("a", "image/png") }, "海边")).toBe("");
+    });
+
+    test("指令包含选项和补充说明；素材按槽位顺序", () => {
+        const relight = studioSpecialtySpec("relight")!;
+        const text = specialtyPrompt(relight, "光从左边来", { lighting: "neon" });
+        expect(text).toContain("霓虹");
+        expect(text).toContain("补充要求：光从左边来");
+        expect(specialtyPrompt(relight, "", defaultSpecialtyOptions(relight))).not.toContain("补充要求");
+        const dubbing = studioSpecialtySpec("video-dubbing")!;
+        expect(specialtyPrompt(dubbing, "", { language: "ms" })).toContain("马来语");
+        const background = studioSpecialtySpec("replace-background")!;
+        const ordered = orderedSlotAttachments(background, { background: attachment("bg", "image/png"), subject: attachment("main", "image/png") });
+        expect(ordered.map((item) => item.id)).toEqual(["main", "bg"]);
+    });
+
+    test("对口型提交固定操作并发送全部素材，不追加品牌", () => {
+        const config = lipConfig();
+        const spec = studioSpecialtySpec("lip-sync")!;
+        const values = { subject: attachment("a", "image/png"), voice: attachment("m", "audio/mpeg") };
+        const specialty = buildSpecialtyState(spec, values, "微笑", {});
+        const brand = { id: "kit", name: "暖杯", prompt: "品牌：暖杯" };
+        const lip = state("video", { specialty, brand, attachments: orderedSlotAttachments(spec, values), video: { ratio: "16:9", seconds: "5", videoQuality: "720", generateAudio: true, mode: "first_last_frame" } });
+        expect(studioModelRequirements(config, lip).videoOperation).toBe("lip_sync");
+        expect(studioModelRequirements(config, lip).videoMode).toBeUndefined();
+        expect(studioBlockReason(config, lip, "relay::clip-pro", ready)).toBe("");
+        const submission = studioSubmission(config, lip, "relay::clip-pro", studioReferenceLimits(config, lip, "relay::clip-pro"));
+        expect(submission.metadata).toMatchObject({ videoEditOperation: "lip_sync", studioPrompt: "微笑" });
+        expect(submission.metadata.videoMode).toBeUndefined();
+        expect(submission.metadata.brandKitId).toBeUndefined();
+        expect(submission.prompt).toContain("补充要求：微笑");
+        expect(submission.prompt).not.toContain("品牌");
+        expect(submission.referenceImages.map((item) => item.id)).toEqual(["a"]);
+        expect(submission.referenceAudios.map((item) => item.id)).toEqual(["m"]);
+        expect((submission.referenceImages[0] as { role?: string }).role).toBeUndefined();
+    });
+
+    test("缺素材时生成按钮给出原因", () => {
+        const config = lipConfig();
+        const spec = studioSpecialtySpec("lip-sync")!;
+        const specialty = buildSpecialtyState(spec, { subject: attachment("a", "image/png") }, "", {});
+        expect(studioBlockReason(config, state("video", { specialty }), "relay::clip-pro", ready)).toBe("请添加声音");
+    });
+
+    test("图片专项工具选能放下参考图的模型", () => {
+        const config = studioConfig();
+        const spec = studioSpecialtySpec("replace-background")!;
+        const specialty = buildSpecialtyState(spec, {}, "", {});
+        expect(specialty.minImages).toBe(1);
+        expect(studioModelSupportsSpecialty(config, "relay::pic-pro", specialty)).toBe(true);
+        config.channels[0].modelCosts![0].capabilityConfig!.image!.references.maxImages = 0;
+        expect(studioModelSupportsSpecialty(config, "relay::pic-pro", specialty)).toBe(false);
     });
 });

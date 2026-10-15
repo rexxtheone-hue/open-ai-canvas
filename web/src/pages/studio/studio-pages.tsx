@@ -1,17 +1,34 @@
-import { Link, useNavigate } from "react-router";
+import { Link, Navigate, useNavigate, useParams } from "react-router";
+import { useEffectiveConfig } from "@/stores/use-config-store";
 
 import type { StudioWork } from "@/services/api/studio";
 import { STUDIO_REUSE_KEY } from "./studio-agent";
 import { StudioLibrary } from "./studio-library";
 import { StudioShell } from "./studio-shell";
-import { STUDIO_TOOL_CATEGORIES, STUDIO_TOOLS, studioToolForKind } from "./studio-tools";
+import { STUDIO_TOOL_CATEGORIES, STUDIO_TOOLS, studioSpecialtyToolById, studioToolById, studioToolForKind } from "./studio-tools";
+import { studioSpecialtyAvailable } from "./studio-specialty";
+import StudioToolPage from "./studio-tool-page";
+
+/** H6：后台没有能用的模型时，专项工具不出现在列表里。 */
+export function useAvailableStudioTools() {
+    const config = useEffectiveConfig();
+    return STUDIO_TOOLS.filter((tool) => !tool.specialty || studioSpecialtyAvailable(config, tool.id));
+}
+
+export function StudioSpecialtyToolRoute() {
+    const { toolId } = useParams<{ toolId: string }>();
+    const tool = studioSpecialtyToolById(toolId);
+    if (!tool) return <Navigate to="/studio/tools" replace />;
+    return <StudioToolPage key={tool.id} toolId={tool.id} />;
+}
 
 export function StudioToolsPage() {
+    const available = useAvailableStudioTools();
     return (
         <StudioShell title="工具">
             <div className="studio-home">
                 {STUDIO_TOOL_CATEGORIES.map((category) => {
-                    const tools = STUDIO_TOOLS.filter((tool) => tool.category === category.id);
+                    const tools = available.filter((tool) => tool.category === category.id);
                     if (!tools.length) return null;
                     return (
                         <section key={category.id} className="studio-section" aria-labelledby={`studio-tools-${category.id}`}>
@@ -37,7 +54,8 @@ export function StudioToolsPage() {
 export function StudioMediaPage() {
     const navigate = useNavigate();
     const reuse = (work: StudioWork) => {
-        const tool = studioToolForKind(work.kind);
+        const original = work.tool ? studioToolById(work.tool) : undefined;
+        const tool = original && original.kind === work.kind ? original : studioToolForKind(work.kind);
         if (!tool) return;
         try {
             window.sessionStorage.setItem(STUDIO_REUSE_KEY, JSON.stringify(work));

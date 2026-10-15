@@ -459,5 +459,9 @@ function videoOperationLabel(operation: string) {
     if (operation === "audio_to_video") return "音频生视频";
     if (operation === "reference_to_video") return "全模态参考";
     if (operation === "extend") return "视频续写";
+    if (operation === "lip_sync") return "对口型";
+    if (operation === "motion_transfer") return "动作同步";
+    if (operation === "video_upscale") return "视频高清";
+    if (operation === "dubbing") return "视频配音翻译";
     return "当前生成模式";
 }

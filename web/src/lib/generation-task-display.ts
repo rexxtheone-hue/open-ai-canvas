@@ -91,6 +91,10 @@ export const operationOptions = [
     { label: "风格迁移", value: "style_transfer" },
     { label: "参考音频生成视频", value: "audio_to_video" },
     { label: "结果版本对比", value: "compare_versions" },
+    { label: "对口型", value: "lip_sync" },
+    { label: "动作同步", value: "motion_transfer" },
+    { label: "视频高清", value: "video_upscale" },
+    { label: "视频配音翻译", value: "dubbing" },
 ];
 
 export const operationLabelByValue = new Map(operationOptions.map((item) => [item.value, item.label]));

@@ -147,7 +147,7 @@ export function validateChannelModelPrices(values: Pick<ChannelModelFormValues, 
     const operations: Record<string, string[]> = {
         text: ["text_generation"],
         image: ["text_to_image", "image_to_image"],
-        video: ["text_to_video", "image_to_video", "video_to_video", "reference_to_video", "extend", "video_edit"],
+        video: ["text_to_video", "image_to_video", "video_to_video", "reference_to_video", "extend", "video_edit", "lip_sync", "motion_transfer", "video_upscale", "dubbing"],
         audio: [],
     };
     priceTiers.forEach((tier, index) => {

@@ -77,3 +77,24 @@ func TestVideoModePricingExclusiveOnlyModelIsDiscoverable(t *testing.T) {
 		t.Fatal("extend-only price must not make text-to-video billable")
 	}
 }
+
+func TestSpecialtyVideoOperationsUseOwnPriceOrFallBack(t *testing.T) {
+	channelModel := model.ChannelModel{Capability: "video", PriceTiers: []model.ChannelModelPriceTier{
+		videoPricingTier("any-720", `{"vquality":"720p"}`, 4_000_000),
+		videoPricingTier("v2v-720", `{"operation":"video_to_video","vquality":"720p"}`, 40_000_000),
+		videoPricingTier("lip-720", `{"operation":"lip_sync","vquality":"720p"}`, 8_000_000),
+	}}
+	lipSync := ModelRequestIntent{Capability: "video", Operation: "lip_sync", Inputs: map[string]int{"image": 1, "audio": 1}, Options: map[string]any{"vquality": "720p"}}
+	if tier := channelModelPriceTierForIntent(channelModel, lipSync); tier == nil || tier.ID != "lip-720" {
+		t.Fatalf("lip_sync must use its own tier: %#v", tier)
+	}
+	// 没有专属价格的专项操作按素材归类，保证已上线模型的计价不变。
+	upscale := ModelRequestIntent{Capability: "video", Operation: "video_upscale", Inputs: map[string]int{"video": 1}, Options: map[string]any{"vquality": "720p"}}
+	if tier := channelModelPriceTierForIntent(channelModel, upscale); tier == nil || tier.ID != "v2v-720" {
+		t.Fatalf("video_upscale without own tier must fall back: %#v", tier)
+	}
+	motion := ModelRequestIntent{Capability: "video", Operation: "motion_transfer", Inputs: map[string]int{"image": 1, "video": 1}, Options: map[string]any{"vquality": "720p"}}
+	if tier := channelModelPriceTierForIntent(channelModel, motion); tier == nil || tier.ID != "v2v-720" {
+		t.Fatalf("motion_transfer without own tier must fall back: %#v", tier)
+	}
+}

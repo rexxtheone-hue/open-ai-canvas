@@ -21,6 +21,19 @@ export type StudioToolState = {
     audio: { voice: string; format: string; speed: string };
     /** 选中的品牌套件。配音不使用品牌（朗读文案必须原样）。 */
     brand?: StudioBrandContext;
+    /** 专项工具：固定的视频操作、编译好的指令和素材检查结果。素材已按槽位顺序放在 attachments。 */
+    specialty?: StudioSpecialtyState;
+};
+
+export type StudioSpecialtyState = {
+    operation?: string;
+    operationLabel: string;
+    instruction: string;
+    /** 用户自己写的补充说明，作品库「再次生成」时填回。 */
+    userText: string;
+    inputError: string;
+    /** 每个槽位需要的最少素材数，用来挑选能放下这些素材的模型。 */
+    minImages: number;
 };
 
 export type StudioBrandContext = { id: string; name: string; prompt: string };
@@ -41,7 +54,9 @@ export function studioBrandPrompt(kit: StudioBrandKitLike) {
 }
 
 /** 实际发送的提示词：图片和视频在用户提示词后追加品牌要求。 */
-export function studioFinalPrompt(state: Pick<StudioToolState, "kind" | "prompt" | "brand">) {
+export function studioFinalPrompt(state: Pick<StudioToolState, "kind" | "prompt" | "brand" | "specialty">) {
+    // 专项工具的指令已包含用户补充说明，不再追加品牌，避免改动换背景、高清等结果的主体。
+    if (state.specialty) return state.specialty.instruction.trim();
     const prompt = state.prompt.trim();
     if (!prompt || state.kind === "audio" || !state.brand?.prompt) return prompt;
     return `${prompt}\n\n${state.brand.prompt}`;
@@ -49,9 +64,17 @@ export function studioFinalPrompt(state: Pick<StudioToolState, "kind" | "prompt"
 
 export type StudioReferenceLimits = { maxImages: number; maxVideos: number; maxAudios: number; exclusiveImageAudio?: boolean };
 
+/** 专项工具只考虑支持该操作（视频）或能放下必需参考图（图片）的模型。 */
+export function studioModelSupportsSpecialty(config: AiConfig, model: string, specialty: StudioSpecialtyState | undefined) {
+    if (!specialty) return true;
+    const profile = modelCapabilityConfigFor(config, model);
+    if (specialty.operation) return Boolean(profile.video?.operations.includes(specialty.operation));
+    return (profile.image?.references.maxImages || 0) >= specialty.minImages;
+}
+
 /** T1：只列出后台已开启的模型；记住的模型失效时回落到渠道默认模型，再回落到第一个。 */
-export function studioPreferredModel(config: AiConfig, kind: StudioKind, remembered?: string) {
-    const options = selectableModelsByCapability(config, kind);
+export function studioPreferredModel(config: AiConfig, kind: StudioKind, remembered?: string, specialty?: StudioSpecialtyState) {
+    const options = selectableModelsByCapability(config, kind).filter((model) => studioModelSupportsSpecialty(config, model, specialty));
     if (!options.length) return "";
     if (remembered && options.includes(remembered)) return remembered;
     const configured = kind === "image" ? config.imageModel : kind === "video" ? config.videoModel : config.audioModel;
@@ -75,15 +98,15 @@ function attachmentCounts(attachments: CreationAttachment[]) {
 /** 与创作页一致的模型需求：手动选择视频模式时，只有该模式实际用到的素材参与筛选和计价。 */
 export function studioModelRequirements(config: AiConfig, state: StudioToolState): ModelRequirements {
     const counts = attachmentCounts(state.attachments);
-    const used = videoModeUsedInput(state.kind === "video" ? state.video.mode : undefined, counts);
-    const input = { textCount: state.prompt.trim() ? 1 : 0, ...used, characterCount: 0 };
+    const used = state.specialty ? counts : videoModeUsedInput(state.kind === "video" ? state.video.mode : undefined, counts);
+    const input = { textCount: state.specialty || state.prompt.trim() ? 1 : 0, ...used, characterCount: 0 };
     if (state.kind === "image") {
         const profile = modelCapabilityConfigFor(config, state.model).image!;
         const values = { ...config, size: state.image.ratio, imageResolution: state.image.imageResolution, quality: state.image.quality, count: String(state.count), imageParameters: state.image.imageParameters };
         return { capability: "image", input, imageSize: state.image.ratio, options: imageParameterRequest(profile, values) ?? { size: state.image.ratio, imageResolution: state.image.imageResolution, quality: state.image.quality, count: state.count, transparentBackground: config.transparentBackground === "true" } };
     }
     if (state.kind === "video") {
-        return { capability: "video", input, videoSeconds: state.video.seconds, videoMode: state.video.mode, options: { size: state.video.ratio, videoSeconds: Number(state.video.seconds), vquality: state.video.videoQuality } };
+        return { capability: "video", input, videoSeconds: state.video.seconds, ...(state.specialty?.operation ? { videoOperation: state.specialty.operation } : { videoMode: state.video.mode }), options: { size: state.video.ratio, videoSeconds: Number(state.video.seconds), vquality: state.video.videoQuality } };
     }
     return { capability: "audio", input, options: {} };
 }
@@ -200,17 +223,18 @@ export type StudioBlockContext = {
 /** T4、T7、T8：生成按钮置灰的原因。返回空字符串表示可以提交。顺序即提示优先级。 */
 export function studioBlockReason(config: AiConfig, state: StudioToolState, model: string, context: StudioBlockContext) {
     if (!context.loggedIn) return "请先登录";
-    if (!model) return "后台还没有可用的模型";
-    const prompt = state.prompt.trim();
+    if (!model) return state.specialty ? `后台还没有支持${state.specialty.operationLabel}的模型` : "后台还没有可用的模型";
+    if (state.specialty?.inputError) return state.specialty.inputError;
+    const prompt = studioFinalPrompt(state);
     if (!prompt) return state.kind === "audio" ? "请输入要朗读的文案" : "请输入提示词";
     if (state.kind === "image" || state.kind === "video") {
-        const lengthError = modelPromptLengthError(config, model, state.kind, studioFinalPrompt(state));
+        const lengthError = modelPromptLengthError(config, model, state.kind, prompt);
         if (lengthError) return lengthError;
     }
     if (state.kind === "video") {
         const profile = modelCapabilityConfigFor(config, model).video!;
         if (!videoDurationAllowed(profile, Number(state.video.seconds))) return "当前模型不支持所选视频时长";
-        if (state.video.mode) {
+        if (state.video.mode && !state.specialty) {
             const counts = attachmentCounts(state.attachments);
             const error = videoModeInputError(state.video.mode, counts);
             if (error) return error;
@@ -242,9 +266,16 @@ export function studioSubmission(config: AiConfig, state: StudioToolState, model
     const generationConfig = studioGenerationConfig(config, state, model);
     const metadata: Record<string, unknown> = { source: "studio", studioTool: state.tool };
     const finalPrompt = studioFinalPrompt(state);
-    if (state.kind !== "audio" && state.brand && finalPrompt !== state.prompt.trim()) {
+    if (state.specialty) {
+        metadata.studioPrompt = state.specialty.userText.trim();
+    } else if (state.kind !== "audio" && state.brand && finalPrompt !== state.prompt.trim()) {
         metadata.brandKitId = state.brand.id;
         metadata.studioPrompt = state.prompt.trim();
+    }
+    if (state.kind === "video" && state.specialty?.operation) {
+        // 专项操作按槽位顺序发送全部素材，不走视频模式的素材挑选。
+        metadata.videoEditOperation = state.specialty.operation;
+        return { mode: "video", prompt: finalPrompt, config: generationConfig, count: 1, referenceImages: split.referenceImages, referenceVideos: split.referenceVideos, referenceAudios: split.referenceAudios, metadata };
     }
     if (state.kind === "video") {
         const mode = state.video.mode;

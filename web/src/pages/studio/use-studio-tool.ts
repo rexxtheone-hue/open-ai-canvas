@@ -27,6 +27,7 @@ import {
     studioReferenceLimits,
     studioResolvedModel,
     studioSubmission,
+    type StudioSpecialtyState,
     type StudioToolState,
 } from "./studio-generation";
 import { notifyStudioWorksChanged } from "./use-studio-works";
@@ -81,22 +82,37 @@ export function studioAttachmentFromMedia(work: StudioWork, media: StudioMedia, 
     return { id, name, type: media.mimeType || "audio/mpeg", url, storageKey: media.storageKey, durationMs: media.durationMs, previewUrl: url };
 }
 
-export function useStudioTool(kind: StudioKind, tool: string) {
+/** 上传单个素材，返回可直接提交的参考素材；类型不支持时抛出原因。 */
+export async function uploadStudioFile(file: File): Promise<CreationAttachment> {
+    if (file.type.startsWith("image/")) return creationAttachmentFromImage(file, await uploadImage(file));
+    if (file.type.startsWith("video/")) return creationAttachmentFromVideo(file, await uploadMediaFile(file, "studio-upload"));
+    if (file.type.startsWith("audio/")) return creationAttachmentFromAudio(file, await uploadMediaFile(file, "studio-upload"));
+    throw new Error(`${file.name} 不是图片、视频或音频`);
+}
+
+export function useStudioTool(kind: StudioKind, tool: string, options: { specialty?: StudioSpecialtyState; brand?: boolean } = {}) {
     const config = useEffectiveConfig();
     const user = useUserStore((state) => state.user);
     const [baseState, setState] = useState<StudioToolState>(() => initialState(kind, tool));
-    const brand = useStudioBrandChoice(kind !== "audio");
-    // 品牌不进入本地记忆的工具参数，每次由当前选择的套件拼出。
-    const state = useMemo<StudioToolState>(() => (brand.context ? { ...baseState, brand: brand.context } : baseState), [baseState, brand.context]);
+    const brandEnabled = kind !== "audio" && options.brand !== false;
+    const brand = useStudioBrandChoice(brandEnabled);
+    const specialty = options.specialty;
+    // 品牌和专项指令不进入本地记忆的工具参数，每次由当前选择拼出。
+    const state = useMemo<StudioToolState>(() => {
+        let next = baseState;
+        if (brandEnabled && brand.context) next = { ...next, brand: brand.context };
+        if (specialty) next = { ...next, specialty };
+        return next;
+    }, [baseState, brand.context, brandEnabled, specialty]);
     const [submitting, setSubmitting] = useState(false);
     const [uploading, setUploading] = useState(0);
     const submitLockRef = useRef(false);
 
     // T1：模型目录加载或变化后，确认当前模型仍可用。
     useEffect(() => {
-        const preferred = studioPreferredModel(config, kind, state.model);
+        const preferred = studioPreferredModel(config, kind, state.model, specialty);
         if (preferred !== state.model) setState((current) => ({ ...current, model: preferred }));
-    }, [config, kind, state.model]);
+    }, [config, kind, specialty, state.model]);
 
     const resolvedModel = useMemo(() => studioResolvedModel(config, state), [config, state]);
     const requirements = useMemo(() => studioModelRequirements(config, state), [config, state]);
@@ -157,12 +173,14 @@ export function useStudioTool(kind: StudioKind, tool: string) {
         seconds: state.video.seconds,
         requirements,
     });
-    const blockReason = studioBlockReason(config, state, resolvedModel, {
+    const baseBlockReason = studioBlockReason(config, state, resolvedModel, {
         loggedIn: Boolean(user),
         creditsEnabled,
         availableCredits: availableMicrocredits === null ? null : availableMicrocredits / 1_000_000,
         cost: credits,
     });
+    // 专项工具的每个素材都是必需的，模型放不下时不能悄悄少发。
+    const blockReason = baseBlockReason || (specialty && resolvedModel && overflowIds.size ? "当前模型放不下所选素材，请换一个模型" : "");
 
     const update = useCallback((patch: Partial<StudioToolState>) => setState((current) => ({ ...current, ...patch })), []);
     const updateImage = useCallback((patch: Partial<StudioToolState["image"]>) => setState((current) => ({ ...current, image: { ...current.image, ...patch } })), []);
@@ -187,10 +205,8 @@ export function useStudioTool(kind: StudioKind, tool: string) {
         const failures: string[] = [];
         for (const file of files) {
             try {
-                if (file.type.startsWith("image/")) uploaded.push(creationAttachmentFromImage(file, await uploadImage(file)));
-                else if (file.type.startsWith("video/")) uploaded.push(creationAttachmentFromVideo(file, await uploadMediaFile(file, "studio-upload")));
-                else if (file.type.startsWith("audio/")) uploaded.push(creationAttachmentFromAudio(file, await uploadMediaFile(file, "studio-upload")));
-                else failures.push(`${file.name} 不是图片、视频或音频`);
+                if (!/^(image|video|audio)\//.test(file.type)) failures.push(`${file.name} 不是图片、视频或音频`);
+                else uploaded.push(await uploadStudioFile(file));
             } catch (cause) {
                 failures.push(`${file.name} 上传失败：${cause instanceof Error ? cause.message : "未知错误"}`);
             } finally {

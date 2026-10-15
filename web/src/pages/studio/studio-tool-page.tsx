@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { App, Popover, Switch } from "antd";
-import { AudioLines, ChevronRight, Film, ImagePlus, Music, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
+import { AudioLines, ChevronLeft, ChevronRight, Film, ImagePlus, Music, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 
 import { AudioSettingsPanel } from "@/components/audio-settings-panel";
@@ -19,7 +19,8 @@ import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { StudioLibrary } from "./studio-library";
 import { StudioShell } from "./studio-shell";
 import { studioToolById, STUDIO_TOOLS } from "./studio-tools";
-import { studioAttachmentFromMedia, useStudioTool } from "./use-studio-tool";
+import { studioAttachmentFromMedia, uploadStudioFile, useStudioTool } from "./use-studio-tool";
+import { buildSpecialtyState, defaultSpecialtyOptions, orderedSlotAttachments, slotAcceptAttribute, slotAccepts, studioSpecialtySpec, type StudioSlot, type StudioSlotValues } from "./studio-specialty";
 import { STUDIO_ATTACH_KEY, STUDIO_REUSE_KEY } from "./studio-agent";
 import type { StudioBrandKit, StudioWork } from "@/services/api/studio";
 
@@ -54,11 +55,54 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     const kind = tool.kind;
     const { message } = App.useApp();
     const theme = canvasThemes[useActiveTheme()] ?? canvasThemes.dark;
-    const studio = useStudioTool(kind, tool.id);
+    const specialtySpec = studioSpecialtySpec(tool.id);
+    const [slotValues, setSlotValues] = useState<StudioSlotValues>({});
+    const [specialtyText, setSpecialtyText] = useState("");
+    const [specialtyOptions, setSpecialtyOptions] = useState<Record<string, string>>(() => (specialtySpec ? defaultSpecialtyOptions(specialtySpec) : {}));
+    const [slotUploading, setSlotUploading] = useState("");
+    const specialty = useMemo(() => (specialtySpec ? buildSpecialtyState(specialtySpec, slotValues, specialtyText, specialtyOptions) : undefined), [slotValues, specialtyOptions, specialtySpec, specialtyText]);
+    const studio = useStudioTool(kind, tool.id, { specialty, brand: !specialtySpec });
     const { state, config, resolvedModel, generationConfig, limits, overflowIds, maxCount, credits, creditsEnabled, blockReason, submitting, uploading } = studio;
     const [outputOpen, setOutputOpen] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
     const { update, applyWorkSettings, addAttachments } = studio;
+
+    // 专项工具的素材按槽位顺序提交（第一张图是主体）。
+    useEffect(() => {
+        if (specialtySpec) update({ attachments: orderedSlotAttachments(specialtySpec, slotValues) });
+    }, [slotValues, specialtySpec, update]);
+
+    const fillSlot = (slot: StudioSlot, attachment: CreationAttachment) => {
+        if (!slotAccepts(slot, attachment)) {
+            message.warning(`${slot.label}需要${slot.accept === "audio" ? "音频" : slot.accept === "video" ? "视频" : slot.accept === "image" ? "图片" : "图片或视频"}`);
+            return false;
+        }
+        setSlotValues((current) => ({ ...current, [slot.key]: attachment }));
+        return true;
+    };
+    const uploadToSlot = async (slot: StudioSlot, file: File | undefined) => {
+        if (!file) return;
+        setSlotUploading(slot.key);
+        try {
+            fillSlot(slot, await uploadStudioFile(file));
+        } catch (cause) {
+            message.error(`${file.name} 上传失败：${cause instanceof Error ? cause.message : "未知错误"}`);
+        } finally {
+            setSlotUploading("");
+        }
+    };
+    /** 作品库「作为参考」：放进第一个类型匹配的空槽位，没有空位时替换第一个匹配的槽位。 */
+    const attachToSlot = useCallback((attachment: CreationAttachment) => {
+        if (!specialtySpec) return false;
+        const matching = specialtySpec.slots.filter((slot) => slotAccepts(slot, attachment));
+        const target = matching.find((slot) => !slotValues[slot.key]) || matching[0];
+        if (!target) {
+            message.warning("这个工具用不到这种素材");
+            return false;
+        }
+        setSlotValues((current) => ({ ...current, [target.key]: attachment }));
+        return true;
+    }, [message, slotValues, specialtySpec]);
 
     // 首页「可用模型」带着 ?model= 进入时选中该模型；素材页「再生成」通过会话存储带入作品设置。
     useEffect(() => {
@@ -76,11 +120,13 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
             if (!raw) return;
             window.sessionStorage.removeItem(STUDIO_REUSE_KEY);
             const work = JSON.parse(raw) as StudioWork;
-            if (work.kind === kind) applyWorkSettings(work);
+            if (work.kind !== kind) return;
+            applyWorkSettings(work);
+            if (specialtySpec) setSpecialtyText(typeof work.settings?.userPrompt === "string" ? work.settings.userPrompt : "");
         } catch {
             // 会话存储不可用时忽略带入。
         }
-    }, [applyWorkSettings, kind]);
+    }, [applyWorkSettings, kind, specialtySpec]);
     // 模型能力加载后再带入素材，才能按当前模型上限检查。
     useEffect(() => {
         if (!resolvedModel) return;
@@ -91,12 +137,16 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
             if (payload.kind !== kind) return;
             window.sessionStorage.removeItem(STUDIO_ATTACH_KEY);
             if (payload.prompt) update({ prompt: payload.prompt });
+            if (specialtySpec) {
+                payload.attachments?.forEach((attachment) => attachToSlot(attachment));
+                return;
+            }
             const reason = payload.attachments?.length ? addAttachments(payload.attachments) : undefined;
             if (reason) message.warning(reason);
         } catch {
             // 会话存储不可用时忽略带入。
         }
-    }, [addAttachments, kind, message, resolvedModel, update]);
+    }, [addAttachments, attachToSlot, kind, message, resolvedModel, specialtySpec, update]);
     const maxChars = promptMaxChars(config, kind, resolvedModel);
     const promptChars = Array.from(state.prompt).length;
     const videoProfile = kind === "video" && resolvedModel ? modelCapabilityConfigFor(config, resolvedModel).video : undefined;
@@ -147,11 +197,15 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
             <div className="studio-tool">
                 <section className="studio-panel" aria-label={`${tool.label}参数`}>
                     <div className="studio-panel-scroll">
-                        <nav className="studio-kind-tabs" aria-label="生成类型">
-                            {KIND_TABS.map((tab) => (
-                                <Link key={tab.kind} to={tab.path} aria-current={tab.kind === kind ? "page" : undefined}>{tab.label}</Link>
-                            ))}
-                        </nav>
+                        {specialtySpec ? (
+                            <Link to="/studio/tools" className="studio-back-link"><ChevronLeft aria-hidden />全部工具</Link>
+                        ) : (
+                            <nav className="studio-kind-tabs" aria-label="生成类型">
+                                {KIND_TABS.map((tab) => (
+                                    <Link key={tab.kind} to={tab.path} aria-current={tab.kind === kind ? "page" : undefined}>{tab.label}</Link>
+                                ))}
+                            </nav>
+                        )}
                         <div className="studio-tool-header">
                             <tool.icon aria-hidden />
                             <div><strong>{tool.label}</strong><span>{tool.description}</span></div>
@@ -170,7 +224,47 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                             />
                         </div>
 
-                        {totalReferenceLimit > 0 ? (
+                        {specialtySpec ? (
+                            <div className="studio-block">
+                                <div className="studio-block-title">素材</div>
+                                <div className="studio-slot-grid">
+                                    {specialtySpec.slots.map((slot) => {
+                                        const value = slotValues[slot.key];
+                                        const valueKind = value ? creationAttachmentKind(value) : undefined;
+                                        const busy = slotUploading === slot.key;
+                                        return (
+                                            <div key={slot.key} className="studio-slot">
+                                                <span className="studio-slot-label">{slot.label}{slot.required ? <b aria-hidden>*</b> : <em>可选</em>}</span>
+                                                {value ? (
+                                                    <div className="studio-ref-slot is-filled" title={value.name}>
+                                                        {valueKind === "image" ? <img src={value.previewUrl} alt={value.name} /> : valueKind === "video" ? <video src={value.previewUrl} muted playsInline preload="metadata" /> : <div className="studio-ref-audio"><Music aria-hidden /><span>{value.name}</span></div>}
+                                                        <button type="button" className="studio-ref-remove" aria-label={`移除 ${slot.label}`} onClick={() => setSlotValues((current) => ({ ...current, [slot.key]: undefined }))}><X aria-hidden /></button>
+                                                    </div>
+                                                ) : (
+                                                    <label className="studio-ref-slot" aria-disabled={busy}>
+                                                        {slot.accept === "audio" ? <AudioLines aria-hidden /> : slot.accept === "video" ? <Film aria-hidden /> : <ImagePlus aria-hidden />}
+                                                        <small>{busy ? "正在上传…" : slot.hint}</small>
+                                                        <input
+                                                            id={`studio-slot-${tool.id}-${slot.key}`}
+                                                            type="file"
+                                                            className="sr-only"
+                                                            disabled={busy}
+                                                            aria-label={`上传${slot.label}`}
+                                                            accept={slotAcceptAttribute(slot)}
+                                                            onChange={(event) => {
+                                                                void uploadToSlot(slot, event.target.files?.[0]);
+                                                                event.target.value = "";
+                                                            }}
+                                                        />
+                                                    </label>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <p className="studio-hint">也可以在右边作品库点「作为参考」直接放进来。</p>
+                            </div>
+                        ) : totalReferenceLimit > 0 ? (
                             <div className="studio-block">
                                 <div className="studio-block-title">参考素材 <em>可选</em></div>
                                 <div className="studio-ref-grid">
@@ -207,7 +301,18 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                             </div>
                         ) : null}
 
-                        {kind === "video" ? (
+                        {specialtySpec?.options?.map((option) => (
+                            <div key={option.key} className="studio-block">
+                                <div className="studio-block-title">{option.label}</div>
+                                <div className="studio-chip-list" role="group" aria-label={option.label}>
+                                    {option.choices.map((choice) => (
+                                        <button key={choice.value} type="button" aria-pressed={specialtyOptions[option.key] === choice.value} onClick={() => setSpecialtyOptions((current) => ({ ...current, [option.key]: choice.value }))}>{choice.label}</button>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+
+                        {kind === "video" && !specialtySpec ? (
                             <div className="studio-block">
                                 <div className="studio-block-title">生成模式 <em>{state.video.mode ? "手动选择" : "按素材自动判断"}</em></div>
                                 <div className="studio-mode-list" role="group" aria-label="视频生成模式">
@@ -227,24 +332,24 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                         ) : null}
 
                         <div className="studio-block studio-prompt">
-                            <div className="studio-block-title">{kind === "audio" ? "配音文案" : kind === "video" ? "描述你的视频" : "描述你的图片"}</div>
+                            <div className="studio-block-title">{specialtySpec ? specialtySpec.prompt.label : kind === "audio" ? "配音文案" : kind === "video" ? "描述你的视频" : "描述你的图片"}{specialtySpec && !specialtySpec.prompt.required ? <em>可选</em> : null}</div>
                             <textarea
                                 id={`studio-prompt-${tool.id}`}
-                                value={state.prompt}
-                                placeholder={kind === "audio" ? "输入要朗读的文案" : kind === "video" ? "描述画面、动作、镜头和声音。可以写清楚怎么使用参考素材。" : "描述你想要的画面，例如：清晨阳光下，桌上的一杯咖啡，暖色调。"}
-                                aria-label={kind === "audio" ? "配音文案" : "提示词"}
-                                onChange={(event) => studio.update({ prompt: event.target.value })}
+                                value={specialtySpec ? specialtyText : state.prompt}
+                                placeholder={specialtySpec ? specialtySpec.prompt.placeholder : kind === "audio" ? "输入要朗读的文案" : kind === "video" ? "描述画面、动作、镜头和声音。可以写清楚怎么使用参考素材。" : "描述你想要的画面，例如：清晨阳光下，桌上的一杯咖啡，暖色调。"}
+                                aria-label={specialtySpec ? specialtySpec.prompt.label : kind === "audio" ? "配音文案" : "提示词"}
+                                onChange={(event) => (specialtySpec ? setSpecialtyText(event.target.value) : studio.update({ prompt: event.target.value }))}
                                 onKeyDown={(event) => {
                                     if ((event.metaKey || event.ctrlKey) && event.key === "Enter" && !blockReason && !submitting) void handleGenerate();
                                 }}
                             />
                             <div className="studio-prompt-tools">
-                                <button type="button" className="studio-mini-button" disabled={!state.prompt} onClick={() => studio.update({ prompt: "" })}><Trash2 aria-hidden />清空</button>
+                                <button type="button" className="studio-mini-button" disabled={specialtySpec ? !specialtyText : !state.prompt} onClick={() => (specialtySpec ? setSpecialtyText("") : studio.update({ prompt: "" }))}><Trash2 aria-hidden />清空</button>
                                 {maxChars ? <span className={`studio-counter${promptChars > maxChars ? " is-over" : ""}`}>{promptChars.toLocaleString("zh-CN")} / {maxChars.toLocaleString("zh-CN")}</span> : null}
                             </div>
                         </div>
 
-                        {kind !== "audio" ? (
+                        {kind !== "audio" && !specialtySpec ? (
                             <div className="studio-block">
                                 <div className="studio-block-title">品牌 <em>可选</em><Link to="/studio/brand" className="studio-block-link">管理</Link></div>
                                 <select
@@ -295,7 +400,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                             </div>
                         ) : (
                             <>
-                                {kind === "video" && videoProfile?.generateAudio.supported ? (
+                                {kind === "video" && !specialtySpec && videoProfile?.generateAudio.supported ? (
                                     <div className="studio-block">
                                         <label className="studio-switch-row" htmlFor={`studio-audio-${tool.id}`}>
                                             <span>同步生成声音</span>
@@ -355,7 +460,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                     <button type="button" aria-label="增加数量" disabled={state.count >= maxCount} onClick={() => studio.update({ count: Math.min(maxCount, state.count + 1) })}>+</button>
                                 </div>
                             ) : null}
-                            <button type="button" className="studio-generate-button" disabled={Boolean(blockReason) || submitting || uploading} onClick={() => void handleGenerate()}>
+                            <button type="button" className="studio-generate-button" disabled={Boolean(blockReason) || submitting || uploading || Boolean(slotUploading)} onClick={() => void handleGenerate()}>
                                 <Sparkles aria-hidden />
                                 {submitting ? "提交中…" : "生成"}
                                 {creditsEnabled && credits !== null ? <span className="studio-cost"><CreditSymbol />{credits.toLocaleString("zh-CN", { maximumFractionDigits: 2 })}</span> : null}
@@ -370,13 +475,16 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                 </section>
                 <StudioLibrary
                     kind={kind}
-                    onUseAsReference={totalReferenceLimit > 0 ? (work, media) => {
+                    onUseAsReference={specialtySpec ? (work, media) => {
+                        if (attachToSlot(studioAttachmentFromMedia(work, media))) message.success("已加入参考素材");
+                    } : totalReferenceLimit > 0 ? (work, media) => {
                         const reason = studio.addAttachments([studioAttachmentFromMedia(work, media)]);
                         if (reason) message.warning(reason);
                         else message.success("已加入参考素材");
                     } : undefined}
                     onReuseSettings={(work) => {
                         studio.applyWorkSettings(work);
+                        if (specialtySpec) setSpecialtyText(typeof work.settings?.userPrompt === "string" ? work.settings.userPrompt : "");
                         message.success("已填入这个作品的提示词和设置");
                     }}
                 />

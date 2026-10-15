@@ -44,7 +44,7 @@ export function specificationLabel(tier: ChannelModelPriceTier) {
     const operation = specific(selector.operation);
     const resolution = specific(selector.vquality) || specific(tier.resolution);
     const duration = specific(selector.videoSeconds) || (tier.videoSeconds ? String(tier.videoSeconds) : "");
-    const operations: Record<string, string> = { text_to_image: "文生图", image_to_image: "图生图", text_to_video: "文生视频", image_to_video: "图生视频", video_to_video: "视频生视频", reference_to_video: "全能参考", extend: "视频续写", video_edit: "视频编辑", text_generation: "文本生成" };
+    const operations: Record<string, string> = { text_to_image: "文生图", image_to_image: "图生图", text_to_video: "文生视频", image_to_video: "图生视频", video_to_video: "视频生视频", reference_to_video: "全能参考", extend: "视频续写", video_edit: "视频编辑", lip_sync: "对口型", motion_transfer: "动作同步", video_upscale: "视频高清", dubbing: "视频配音翻译", text_generation: "文本生成" };
     return (
         [
             operation ? operations[operation] || operation : "",
