@@ -307,3 +307,36 @@ func TestAPI88VideoMiniMaxH3(t *testing.T) {
 		t.Fatalf("SD2.5 must keep top-level images and audio flag: %#v", sdBody)
 	}
 }
+
+func TestAPI88VideoKling(t *testing.T) {
+	adapter := loadAPI88VideoAdapter(t)
+	build := func(request GenerationRequest) (map[string]any, error) {
+		request.Model = "kling-3.0-turbo"
+		create, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.88api.ai", Request: request})
+		if err != nil {
+			return nil, err
+		}
+		return create.Body.(map[string]any), nil
+	}
+	body, err := build(GenerationRequest{Prompt: "rotate", Duration: 10, AspectRatio: "9:16", Resolution: "4K", GenerateAudio: true,
+		Images: []MediaReference{{URL: "https://cdn.example/s.jpg", Role: "first_frame"}, {URL: "https://cdn.example/p.jpg"}}, Videos: []MediaReference{{URL: "https://cdn.example/m.mp4"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	metadata := body["metadata"].(map[string]any)
+	images, _ := body["images"].([]any)
+	videos, _ := metadata["referenceVideos"].([]any)
+	if len(images) != 1 || metadata["firstFrame"] != "https://cdn.example/s.jpg" || len(videos) != 1 || body["resolution"] != "4k" || body["generate_audio"] != true || body["ratio"] != "9:16" {
+		t.Fatalf("kling body = %#v", body)
+	}
+	for index, request := range []GenerationRequest{
+		{Prompt: "x", Audios: []MediaReference{{URL: "https://cdn.example/a.mp3"}}},
+		{Prompt: ""},
+		{Prompt: "x", AspectRatio: "4:3"},
+		{Prompt: "x", Resolution: "768p"},
+	} {
+		if _, err := build(request); err == nil {
+			t.Fatalf("case %d must be rejected", index)
+		}
+	}
+}

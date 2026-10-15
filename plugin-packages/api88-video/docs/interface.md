@@ -19,6 +19,7 @@
 | `SD2.0` | 480p（默认）、720p、1080p、4k | 4–15 秒 | 默认 1:1 | 9 / 3 / 3，合计最多 12 | 不支持，开启会报 400 |
 | `gemini-omni-flash-1.1` | 720p、1080p、4k | 3–10 秒 | 16:9、9:16 | 10 / 3 / 0 | 不支持参考音频 |
 | `minimax-h3`（别名 `minimax_h3`） | 768p（默认）、1080p、2k | 4–15 秒 | 16:9、9:16、1:1、4:3、3:4、21:9 | 9 / 3 / 3 | 成片自带音轨，不发送 `generate_audio` |
+| `kling-3.0-turbo` | 720p（默认）、1080p、2k、4k | 4–15 秒 | 16:9、9:16、1:1 | 30（含首尾帧）/ 10 / 0 | 支持 `generate_audio` |
 
 其他走 88API 统一 `/v1/videos` 规范的模型也可使用。模型 ID 以 `gemini-`、`veo-` 开头时，参考视频放顶层 `videos`；其他模型放 `metadata.referenceVideos`，两处不会同时发送。
 
@@ -48,6 +49,16 @@
 - 不支持视频续写和视频编辑。
 
 生成耗时：16:9、9:16 的文生或参考图请求，768P 约 2–3 分钟，1080P、2K 约 5–8 分钟；其他比例、只给首帧或高分辨率首尾帧可能需要 10–60 分钟。
+
+## 可灵 Kling 规则
+
+参考图放顶层 `images`，参考视频放 `metadata.referenceVideos`，首尾帧放 `metadata.firstFrame`、`metadata.lastFrame`，首尾帧可以和参考图一起提交。发送前校验：
+
+- 不支持参考音频。
+- 提示词必填，最长 2000 字符。
+- 比例只支持 16:9、9:16、1:1。
+- 分辨率只支持 720p、1080p、2k、4k。
+- 不支持视频续写和视频编辑。
 
 ## 视频续写与视频编辑
 
@@ -83,9 +94,9 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "api88-video",
   "name": "88API 统一视频",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "author": "Rexx",
-  "description": "88API 统一视频协议插件（POST /v1/videos，异步轮询），适配 SD2.5、SD2.0 云厂商版、MiniMax H3 与 Gemini Omni、Veo，支持视频续写与视频编辑。",
+  "description": "88API 统一视频协议插件（POST /v1/videos，异步轮询），适配 SD2.5、SD2.0 云厂商版、MiniMax H3、可灵 Kling 与 Gemini Omni、Veo，支持视频续写与视频编辑。",
   "permissions": [
     "generation.run",
     "media.read"
@@ -583,6 +594,229 @@
               ]
             },
             "message": "MiniMax H3 只支持 768P、1080P、2K 分辨率。"
+          },
+          {
+            "assert": {
+              "$or": [
+                {
+                  "$not": {
+                    "$eq": [
+                      {
+                        "$first": {
+                          "$split": [
+                            {
+                              "$lower": {
+                                "$coalesce": [
+                                  {
+                                    "$ref": "request.model"
+                                  },
+                                  ""
+                                ]
+                              }
+                            },
+                            "-"
+                          ]
+                        }
+                      },
+                      "kling"
+                    ]
+                  }
+                },
+                {
+                  "$eq": [
+                    {
+                      "$len": {
+                        "$coalesce": [
+                          {
+                            "$ref": "request.audios"
+                          },
+                          []
+                        ]
+                      }
+                    },
+                    0
+                  ]
+                }
+              ]
+            },
+            "message": "可灵 Kling 不支持参考音频，请移除音频。"
+          },
+          {
+            "assert": {
+              "$or": [
+                {
+                  "$not": {
+                    "$eq": [
+                      {
+                        "$first": {
+                          "$split": [
+                            {
+                              "$lower": {
+                                "$coalesce": [
+                                  {
+                                    "$ref": "request.model"
+                                  },
+                                  ""
+                                ]
+                              }
+                            },
+                            "-"
+                          ]
+                        }
+                      },
+                      "kling"
+                    ]
+                  }
+                },
+                {
+                  "$gt": [
+                    {
+                      "$len": {
+                        "$coalesce": [
+                          {
+                            "$ref": "request.prompt"
+                          },
+                          ""
+                        ]
+                      }
+                    },
+                    0
+                  ]
+                }
+              ]
+            },
+            "message": "可灵 Kling 必须填写提示词。"
+          },
+          {
+            "assert": {
+              "$or": [
+                {
+                  "$not": {
+                    "$eq": [
+                      {
+                        "$first": {
+                          "$split": [
+                            {
+                              "$lower": {
+                                "$coalesce": [
+                                  {
+                                    "$ref": "request.model"
+                                  },
+                                  ""
+                                ]
+                              }
+                            },
+                            "-"
+                          ]
+                        }
+                      },
+                      "kling"
+                    ]
+                  }
+                },
+                {
+                  "$in": [
+                    {
+                      "$if": {
+                        "condition": {
+                          "$in": [
+                            {
+                              "$lower": {
+                                "$coalesce": [
+                                  {
+                                    "$ref": "request.aspectRatio"
+                                  },
+                                  ""
+                                ]
+                              }
+                            },
+                            [
+                              "",
+                              "auto",
+                              "adaptive",
+                              "自适应",
+                              "智能"
+                            ]
+                          ]
+                        },
+                        "then": {
+                          "$coalesce": [
+                            {
+                              "$ref": "request.providerOptions.api88-video.ratio"
+                            },
+                            "16:9"
+                          ]
+                        },
+                        "else": {
+                          "$ref": "request.aspectRatio"
+                        }
+                      }
+                    },
+                    [
+                      "16:9",
+                      "9:16",
+                      "1:1"
+                    ]
+                  ]
+                }
+              ]
+            },
+            "message": "可灵 Kling 只支持 16:9、9:16、1:1 比例。"
+          },
+          {
+            "assert": {
+              "$or": [
+                {
+                  "$not": {
+                    "$eq": [
+                      {
+                        "$first": {
+                          "$split": [
+                            {
+                              "$lower": {
+                                "$coalesce": [
+                                  {
+                                    "$ref": "request.model"
+                                  },
+                                  ""
+                                ]
+                              }
+                            },
+                            "-"
+                          ]
+                        }
+                      },
+                      "kling"
+                    ]
+                  }
+                },
+                {
+                  "$in": [
+                    {
+                      "$lower": {
+                        "$coalesce": [
+                          {
+                            "$ref": "request.resolution"
+                          },
+                          {
+                            "$ref": "request.providerOptions.api88-video.resolution"
+                          },
+                          ""
+                        ]
+                      }
+                    },
+                    [
+                      "",
+                      "720p",
+                      "1080p",
+                      "2k",
+                      "4k"
+                    ]
+                  ]
+                }
+              ]
+            },
+            "message": "可灵 Kling 只支持 720P、1080P、2K、4K 分辨率。"
           }
         ],
         "parameters": [
