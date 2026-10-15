@@ -139,7 +139,7 @@ export const router = createBrowserRouter([
             { path: "/studio/agents", element: <RequireAuth>{deferred(<StudioChatPage />)}</RequireAuth> },
             { path: "/studio/tools", element: <RequireAuth>{deferred(<StudioToolsPage />)}</RequireAuth> },
             { path: "/studio/tools/:toolId", element: <RequireAuth>{deferred(<StudioSpecialtyToolRoute />)}</RequireAuth> },
-            ...(["video", "image", "audio", "character"] as const).map((tab) => ({ path: `/studio/${tab}`, element: <RequireAuth>{deferred(<StudioToolsBrowser />)}</RequireAuth> })),
+            ...(["video", "image", "audio", "character", "world"] as const).map((tab) => ({ path: `/studio/${tab}`, element: <RequireAuth>{deferred(<StudioToolsBrowser />)}</RequireAuth> })),
             { path: "/studio/media", element: <RequireAuth>{deferred(<StudioMediaPage />)}</RequireAuth> },
             { path: "/studio/director", element: <RequireAuth>{deferred(<StudioDirectorPage />)}</RequireAuth> },
             { path: "/studio/director/:storyId", element: <RequireAuth>{deferred(<StudioDirectorWorkspace />)}</RequireAuth> },
@@ -150,6 +150,8 @@ export const router = createBrowserRouter([
             { path: "/studio/create-image", element: <RequireAuth>{deferred(<StudioToolPage key="create-image" toolId="create-image" />)}</RequireAuth> },
             { path: "/studio/create-video", element: <RequireAuth>{deferred(<StudioToolPage key="create-video" toolId="create-video" />)}</RequireAuth> },
             { path: "/studio/create-audio", element: <RequireAuth>{deferred(<StudioToolPage key="create-audio" toolId="create-audio" />)}</RequireAuth> },
+            { path: "/studio/frame-to-video", element: <RequireAuth>{deferred(<StudioToolPage key="frame-to-video" toolId="frame-to-video" />)}</RequireAuth> },
+            { path: "/studio/text-to-video", element: <RequireAuth>{deferred(<StudioToolPage key="text-to-video" toolId="text-to-video" />)}</RequireAuth> },
             {
                 path: "/toolbox/image",
                 element: (

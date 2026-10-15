@@ -1,7 +1,7 @@
 import { creationAttachmentKind, splitCreationAttachments, type CreationAttachment } from "@/pages/create/creation-assets";
 import { creationVideoConfig } from "@/pages/create/creation-generation-config";
 import { audioGenerationPrompt, isDoubaoAudioConfig } from "@/lib/audio-generation";
-import { imageParameterRequest } from "@/lib/image-parameters";
+import { imageParameterAccepts, imageParameterRequest } from "@/lib/image-parameters";
 import { modelCapabilityConfigFor, normalizeImageValue, videoDurationAllowed } from "@/lib/model-capabilities";
 import { inferVideoOperation, modelGroupReferenceLimits, modelPromptLengthError, resolveCompatibleModel, resolveModelVideoBooleanOptions, type ModelReferenceLimits, type ModelRequirements } from "@/lib/model-selection";
 import { applyVideoModeImageRoles, pickVideoModeMaterials, videoModeInputError, videoModeOperation, videoModeUsedInput, type VideoMode } from "@/lib/video-modes";
@@ -34,8 +34,9 @@ export type StudioSpecialtyState = {
     /** 工具选项（光线、目标语言等），做同款时一起填回。 */
     options: Record<string, string>;
     inputError: string;
-    /** 每个槽位需要的最少素材数，用来挑选能放下这些素材的模型。 */
+    /** 必填槽位需要的最少素材数，用来挑选能放下这些素材的模型。 */
     minImages: number;
+    minVideos?: number;
 };
 
 export type StudioBrandContext = { id: string; name: string; prompt: string };
@@ -70,8 +71,32 @@ export type StudioReferenceLimits = { maxImages: number; maxVideos: number; maxA
 export function studioModelSupportsSpecialty(config: AiConfig, model: string, specialty: StudioSpecialtyState | undefined) {
     if (!specialty) return true;
     const profile = modelCapabilityConfigFor(config, model);
-    if (specialty.operation) return Boolean(profile.video?.operations.includes(specialty.operation));
+    if (specialty.operation) {
+        const video = profile.video;
+        if (!video?.operations.includes(specialty.operation)) return false;
+        // 延长、编辑等要把原视频发给模型，模型必须能接收足够的参考视频和图片。
+        return video.references.maxVideos >= (specialty.minVideos || 0) && video.references.maxImages >= specialty.minImages;
+    }
     return (profile.image?.references.maxImages || 0) >= specialty.minImages;
+}
+
+/** 图片模型是否真的接受某个比例（参数化配置看 size 字段的取值，旧配置看比例列表）。 */
+export function studioImageRatioSupported(config: AiConfig, model: string, ratio: string) {
+    const profile = modelCapabilityConfigFor(config, model).image;
+    if (!profile) return false;
+    if (profile.parameters) {
+        const field = profile.parameters.find((item) => item.name === "size" && item.enabled !== false);
+        return Boolean(field && imageParameterAccepts(field, ratio));
+    }
+    return profile.size.allowCustom || profile.size.values.includes(ratio);
+}
+
+/** 图片模型的默认比例（参数化配置取 size 字段默认值）。 */
+export function studioImageDefaultRatio(config: AiConfig, model: string) {
+    const profile = modelCapabilityConfigFor(config, model).image;
+    if (!profile) return "1:1";
+    const field = profile.parameters?.find((item) => item.name === "size" && item.enabled !== false);
+    return String(field?.default ?? profile.size.default ?? "1:1");
 }
 
 /** T1：只列出后台已开启的模型；记住的模型失效时回落到渠道默认模型，再回落到第一个。 */

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App, Popover, Switch } from "antd";
 import { AudioLines, ChevronRight, Film, ImagePlus, Music, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
@@ -21,7 +21,7 @@ import { studioAttachmentFromMedia, uploadStudioFile, useStudioTool } from "./us
 import { StudioPanelFooter, StudioPanelTabs, StudioToolSwitcher } from "./studio-workspace";
 import { StudioToolThumb } from "./studio-tool-thumb";
 import { StudioModelCard, StudioModelPanel } from "./studio-model-panel";
-import { studioModelSupportsSpecialty } from "./studio-generation";
+import { studioImageDefaultRatio, studioImageRatioSupported, studioModelSupportsSpecialty } from "./studio-generation";
 import { useStudioToolCovers } from "./use-studio-tool-meta";
 import { buildSpecialtyState, defaultSpecialtyOptions, orderedSlotAttachments, restoreSpecialtyOptions, slotAcceptAttribute, slotAccepts, studioSpecialtySpec, type StudioSlot, type StudioSlotValues } from "./studio-specialty";
 import { STUDIO_ATTACH_KEY, STUDIO_REUSE_KEY } from "./studio-agent";
@@ -72,6 +72,27 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     useEffect(() => {
         if (specialtySpec) update({ attachments: orderedSlotAttachments(specialtySpec, slotValues) });
     }, [slotValues, specialtySpec, update]);
+
+    // 图生视频、文生视频入口：模型就绪后选好对应模式，之后用户仍可切换。
+    const presetAppliedRef = useRef(false);
+    const { setVideoMode, updateImage } = studio;
+    useEffect(() => {
+        if (!tool.presetMode || presetAppliedRef.current || !resolvedModel) return;
+        presetAppliedRef.current = true;
+        setVideoMode(tool.presetMode);
+    }, [resolvedModel, setVideoMode, tool.presetMode]);
+
+    // 固定输出比例的工具（全景 2:1）：模型支持时自动选上；不支持就保留原比例并提示换模型，避免提交后才被拒绝。
+    const fixedRatio = specialtySpec?.outputRatio;
+    const fixedRatioSupported = Boolean(fixedRatio && resolvedModel && studioImageRatioSupported(config, resolvedModel, fixedRatio));
+    const ratioAppliedRef = useRef("");
+    useEffect(() => {
+        if (!fixedRatio || !resolvedModel || ratioAppliedRef.current === resolvedModel) return;
+        ratioAppliedRef.current = resolvedModel;
+        if (fixedRatioSupported) updateImage({ ratio: fixedRatio });
+        else if (state.image.ratio === fixedRatio) updateImage({ ratio: studioImageDefaultRatio(config, resolvedModel) });
+    }, [config, fixedRatio, fixedRatioSupported, resolvedModel, state.image.ratio, updateImage]);
+    const ratioMismatch = Boolean(fixedRatio && resolvedModel && !fixedRatioSupported);
 
     const fillSlot = (slot: StudioSlot, attachment: CreationAttachment) => {
         if (!slotAccepts(slot, attachment)) {
@@ -437,6 +458,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                         )}
                     </div>
                     <div className="studio-panel-footer">
+                        {ratioMismatch ? <p className="studio-hint is-warn">当前模型不支持 {specialtySpec?.outputRatio} 画幅，生成结果可能不是标准全景图，建议换一个支持 {specialtySpec?.outputRatio} 的模型。</p> : null}
                         <div className="studio-generate-row">
                             {kind === "image" ? (
                                 <div className="studio-stepper" role="group" aria-label="生成数量">

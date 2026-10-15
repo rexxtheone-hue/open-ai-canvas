@@ -577,7 +577,7 @@ button.studio-block-link { border: 0; background: none; cursor: pointer; font: i
 .studio-left-panel .studio-panel-scroll { padding: 4px 8px 12px; }
 .studio-right-panel { position: relative; min-height: 0; min-width: 0; display: flex; }
 .studio-right-panel > .studio-library { flex: 1 1 auto; }
-.studio-panel-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; margin: 8px 8px 6px; padding: 3px; border-radius: 999px; }
+.studio-panel-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; margin: 8px 8px 6px; padding: 3px; border-radius: 999px; }
 .studio-panel-tabs a { display: grid; place-items: center; height: 36px; border-radius: 999px; color: var(--studio-muted); font-size: 13px; font-weight: 600; text-decoration: none; }
 .studio-panel-tabs a:hover { color: var(--studio-soft); }
 .studio-panel-tabs a[aria-current="page"] { background: rgba(214, 225, 255, 0.1); color: var(--studio-fg); }

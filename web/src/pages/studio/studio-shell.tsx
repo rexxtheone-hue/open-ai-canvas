@@ -11,7 +11,7 @@ import { useWalletBalance } from "@/hooks/use-wallet-balance";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { useUserStore } from "@/stores/use-user-store";
 import { StudioToolThumb } from "./studio-tool-thumb";
-import { STUDIO_TOOL_TABS, studioToolById } from "./studio-tools";
+import { STUDIO_TOOL_TABS, STUDIO_TOOLS, studioToolById } from "./studio-tools";
 import { useStudioPins, useStudioToolCovers } from "./use-studio-tool-meta";
 import "./studio.css";
 
@@ -53,8 +53,7 @@ export function useStudioActiveTab() {
     const { pathname } = useLocation();
     const direct = STUDIO_TOOL_TABS.find((tab) => pathname === tab.path);
     if (direct) return direct.id;
-    const toolId = pathname.startsWith("/studio/tools/") ? pathname.slice("/studio/tools/".length) : pathname.startsWith("/studio/create-") ? pathname.slice("/studio/".length) : "";
-    return toolId ? studioToolById(toolId)?.tabs[0] : undefined;
+    return STUDIO_TOOLS.find((tool) => tool.path === pathname)?.tabs[0];
 }
 
 /** Studio 外框：可收起的分组侧栏、带面包屑的顶栏和内容区。 */
