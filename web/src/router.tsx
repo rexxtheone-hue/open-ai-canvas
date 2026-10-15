@@ -52,6 +52,9 @@ const StudioHomePage = lazy(() => import("@/pages/studio/studio-home"));
 const StudioToolPage = lazy(() => import("@/pages/studio/studio-tool-page"));
 const StudioToolsPage = lazy(() => import("@/pages/studio/studio-pages").then((module) => ({ default: module.StudioToolsPage })));
 const StudioMediaPage = lazy(() => import("@/pages/studio/studio-pages").then((module) => ({ default: module.StudioMediaPage })));
+const StudioDirectorPage = lazy(() => import("@/pages/studio/studio-director-page"));
+const StudioCharactersPage = lazy(() => import("@/pages/studio/studio-characters-page"));
+const StudioBrandPage = lazy(() => import("@/pages/studio/studio-brand"));
 const ImageWorkbenchPage = lazy(() => import("@/pages/workbench/image-workbench-route"));
 const VideoWorkbenchPage = lazy(() => import("@/pages/workbench/video-workbench-page"));
 const InspirationsPage = lazy(loadInspirationsPage);
@@ -129,6 +132,9 @@ export const router = createBrowserRouter([
             { path: "/studio/agents", element: <RequireAuth>{deferred(<StudioHomePage initialMode="agents" />)}</RequireAuth> },
             { path: "/studio/tools", element: <RequireAuth>{deferred(<StudioToolsPage />)}</RequireAuth> },
             { path: "/studio/media", element: <RequireAuth>{deferred(<StudioMediaPage />)}</RequireAuth> },
+            { path: "/studio/director", element: <RequireAuth>{deferred(<StudioDirectorPage />)}</RequireAuth> },
+            { path: "/studio/characters", element: <RequireAuth>{deferred(<StudioCharactersPage />)}</RequireAuth> },
+            { path: "/studio/brand", element: <RequireAuth>{deferred(<StudioBrandPage />)}</RequireAuth> },
             { path: "/studio/create-image", element: <RequireAuth>{deferred(<StudioToolPage key="create-image" toolId="create-image" />)}</RequireAuth> },
             { path: "/studio/create-video", element: <RequireAuth>{deferred(<StudioToolPage key="create-video" toolId="create-video" />)}</RequireAuth> },
             { path: "/studio/create-audio", element: <RequireAuth>{deferred(<StudioToolPage key="create-audio" toolId="create-audio" />)}</RequireAuth> },

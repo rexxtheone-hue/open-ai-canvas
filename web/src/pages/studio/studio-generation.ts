@@ -19,7 +19,33 @@ export type StudioToolState = {
     image: { ratio: string; quality: string; imageResolution: string; imageParameters: string };
     video: { ratio: string; seconds: string; videoQuality: string; generateAudio: boolean; mode?: VideoMode };
     audio: { voice: string; format: string; speed: string };
+    /** 选中的品牌套件。配音不使用品牌（朗读文案必须原样）。 */
+    brand?: StudioBrandContext;
 };
+
+export type StudioBrandContext = { id: string; name: string; prompt: string };
+
+export type StudioBrandKitLike = { id: string; name: string; intro?: string; audience?: string; tone?: string; slogan?: string; colors?: string[]; avoid?: string };
+
+/** 品牌套件编译成追加在提示词后的一段要求；空字段不输出。 */
+export function studioBrandPrompt(kit: StudioBrandKitLike) {
+    const lines = [
+        kit.intro?.trim() ? `品牌介绍：${kit.intro.trim()}` : "",
+        kit.audience?.trim() ? `目标人群：${kit.audience.trim()}` : "",
+        kit.tone?.trim() ? `品牌调性：${kit.tone.trim()}` : "",
+        kit.colors?.length ? `品牌色：${kit.colors.join("、")}` : "",
+        kit.slogan?.trim() ? `品牌口号：${kit.slogan.trim()}（画面需要文字时使用）` : "",
+        kit.avoid?.trim() ? `避免：${kit.avoid.trim()}` : "",
+    ].filter(Boolean);
+    return [`品牌：${kit.name.trim()}`, ...lines].join("\n");
+}
+
+/** 实际发送的提示词：图片和视频在用户提示词后追加品牌要求。 */
+export function studioFinalPrompt(state: Pick<StudioToolState, "kind" | "prompt" | "brand">) {
+    const prompt = state.prompt.trim();
+    if (!prompt || state.kind === "audio" || !state.brand?.prompt) return prompt;
+    return `${prompt}\n\n${state.brand.prompt}`;
+}
 
 export type StudioReferenceLimits = { maxImages: number; maxVideos: number; maxAudios: number; exclusiveImageAudio?: boolean };
 
@@ -178,7 +204,7 @@ export function studioBlockReason(config: AiConfig, state: StudioToolState, mode
     const prompt = state.prompt.trim();
     if (!prompt) return state.kind === "audio" ? "请输入要朗读的文案" : "请输入提示词";
     if (state.kind === "image" || state.kind === "video") {
-        const lengthError = modelPromptLengthError(config, model, state.kind, prompt);
+        const lengthError = modelPromptLengthError(config, model, state.kind, studioFinalPrompt(state));
         if (lengthError) return lengthError;
     }
     if (state.kind === "video") {
@@ -215,6 +241,11 @@ export function studioSubmission(config: AiConfig, state: StudioToolState, model
     const split = splitCreationAttachments(sendable);
     const generationConfig = studioGenerationConfig(config, state, model);
     const metadata: Record<string, unknown> = { source: "studio", studioTool: state.tool };
+    const finalPrompt = studioFinalPrompt(state);
+    if (state.kind !== "audio" && state.brand && finalPrompt !== state.prompt.trim()) {
+        metadata.brandKitId = state.brand.id;
+        metadata.studioPrompt = state.prompt.trim();
+    }
     if (state.kind === "video") {
         const mode = state.video.mode;
         const referenceImages = applyVideoModeImageRoles(mode, pickVideoModeMaterials(mode, "image", split.referenceImages));
@@ -223,12 +254,12 @@ export function studioSubmission(config: AiConfig, state: StudioToolState, model
         const operation = mode ? videoModeOperation(mode) : inferVideoOperation({ textCount: 1, imageCount: referenceImages.length, videoCount: referenceVideos.length, audioCount: referenceAudios.length, characterCount: 0 });
         if (mode) metadata.videoMode = mode;
         metadata.videoEditOperation = operation;
-        return { mode: "video", prompt: state.prompt.trim(), config: generationConfig, count: 1, referenceImages, referenceVideos, referenceAudios, metadata };
+        return { mode: "video", prompt: finalPrompt, config: generationConfig, count: 1, referenceImages, referenceVideos, referenceAudios, metadata };
     }
     if (state.kind === "image") {
         const maxOutputs = modelCapabilityConfigFor(config, model).image!.maxOutputs;
         const count = Math.max(1, Math.min(maxOutputs || 1, Math.floor(state.count) || 1));
-        return { mode: "image", prompt: state.prompt.trim(), config: generationConfig, count, referenceImages: split.referenceImages, referenceVideos: [], referenceAudios: [], metadata };
+        return { mode: "image", prompt: finalPrompt, config: generationConfig, count, referenceImages: split.referenceImages, referenceVideos: [], referenceAudios: [], metadata };
     }
     const prompt = audioGenerationPrompt(generationConfig, state.prompt.trim(), split.referenceAudios.length, split.referenceImages.length);
     return { mode: "audio", prompt, config: generationConfig, count: 1, referenceImages: split.referenceImages, referenceVideos: [], referenceAudios: split.referenceAudios, metadata };

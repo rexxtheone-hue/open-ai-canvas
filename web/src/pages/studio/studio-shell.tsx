@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router";
-import { FolderOpen, Home, Sparkles, Waypoints, Wand2 } from "lucide-react";
+import { Clapperboard, FolderOpen, Home, Palette, Sparkles, UserRound, Waypoints, Wand2 } from "lucide-react";
 
 import { WorkspaceAccountMenu } from "@/components/layout/workspace-account-menu";
 import { WorkspaceWalletHost } from "@/components/layout/workspace-wallet-modal";
@@ -13,9 +13,12 @@ import "./studio.css";
 
 const NAV_ITEMS = [
     { to: "/studio", label: "首页", icon: Home, match: (path: string) => path === "/studio" || path === "/studio/" },
-    { to: "/studio/agents", label: "Agents", icon: Sparkles, match: (path: string) => path.startsWith("/studio/agents") || path.startsWith("/studio/director") },
+    { to: "/studio/agents", label: "Agents", icon: Sparkles, match: (path: string) => path.startsWith("/studio/agents") },
+    { to: "/studio/director", label: "导演", icon: Clapperboard, match: (path: string) => path.startsWith("/studio/director") },
     { to: "/studio/tools", label: "工具", icon: Wand2, match: (path: string) => path.startsWith("/studio/tools") || path.startsWith("/studio/create-") },
     { to: "/studio/media", label: "素材", icon: FolderOpen, match: (path: string) => path.startsWith("/studio/media") },
+    { to: "/studio/characters", label: "角色", icon: UserRound, match: (path: string) => path.startsWith("/studio/characters") },
+    { to: "/studio/brand", label: "品牌", icon: Palette, match: (path: string) => path.startsWith("/studio/brand") },
 ];
 
 export function StudioBrandName() {

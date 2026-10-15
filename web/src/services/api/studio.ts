@@ -64,3 +64,36 @@ export function getStudioPreference() {
 export function saveStudioPreference(surface: StudioSurface) {
     return http.put<{ surface: StudioSurface }>("/studio/preferences", { surface });
 }
+
+export type StudioBrandKit = {
+    id: string;
+    name: string;
+    intro: string;
+    audience: string;
+    tone: string;
+    slogan: string;
+    colors: string[];
+    logoResourceId?: string;
+    logoUrl?: string;
+    avoid: string;
+    isDefault: boolean;
+    updatedAt: string;
+};
+
+export type StudioBrandKitInput = Omit<StudioBrandKit, "id" | "logoUrl" | "updatedAt">;
+
+export function listStudioBrandKits() {
+    return http.get<{ brandKits: StudioBrandKit[] }>("/studio/brand-kits");
+}
+
+export function createStudioBrandKit(input: StudioBrandKitInput) {
+    return http.post<StudioBrandKit>("/studio/brand-kits", input);
+}
+
+export function updateStudioBrandKit(id: string, input: StudioBrandKitInput) {
+    return http.put<StudioBrandKit>(`/studio/brand-kits/${encodeURIComponent(id)}`, input);
+}
+
+export function deleteStudioBrandKit(id: string) {
+    return http.delete<{ deleted: boolean }>(`/studio/brand-kits/${encodeURIComponent(id)}`);
+}

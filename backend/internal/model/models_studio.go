@@ -38,3 +38,20 @@ type StudioHiddenTask struct {
 	TaskID    string    `json:"taskId" gorm:"primaryKey;size:64;index"`
 	CreatedAt time.Time `json:"createdAt"`
 }
+
+// StudioBrandKit 是用户的品牌套件：生成时把品牌信息并入提示词，Logo 可加为参考图。
+type StudioBrandKit struct {
+	ID             string    `json:"id" gorm:"primaryKey;size:36"`
+	UserID         string    `json:"userId" gorm:"index;size:36"`
+	Name           string    `json:"name" gorm:"size:80"`
+	Intro          string    `json:"intro" gorm:"type:text"`
+	Audience       string    `json:"audience" gorm:"size:400"`
+	Tone           string    `json:"tone" gorm:"size:400"`
+	Slogan         string    `json:"slogan" gorm:"size:200"`
+	ColorsJSON     string    `json:"-" gorm:"type:text"`
+	LogoResourceID string    `json:"logoResourceId" gorm:"size:36"`
+	Avoid          string    `json:"avoid" gorm:"size:600"`
+	IsDefault      bool      `json:"isDefault"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+}

@@ -127,6 +127,13 @@ func studioWorkFromTask(task model.Task, summary TaskSummary, favorite bool) Stu
 		work.Error = truncateRunes(task.Error, 500)
 	}
 	work.Tool, work.Settings = studioSettingsFromInput(task.InputJSON)
+	// 带品牌要求的作品，卡片和「再次生成」显示用户自己写的提示词，品牌部分由套件重新拼接。
+	if prompt, ok := work.Settings["studioPrompt"].(string); ok {
+		delete(work.Settings, "studioPrompt")
+		if strings.TrimSpace(prompt) != "" {
+			work.Prompt = prompt
+		}
+	}
 	return work
 }
 
@@ -219,6 +226,11 @@ func studioSettingsFromInput(raw string) (string, map[string]any) {
 	}
 	if videoMode, ok := input.Metadata["videoMode"].(string); ok && videoMode != "" {
 		settings["videoMode"] = videoMode
+	}
+	for _, key := range []string{"studioPrompt", "brandKitId"} {
+		if value, ok := input.Metadata[key].(string); ok && value != "" {
+			settings[key] = truncateRunes(value, 20000)
+		}
 	}
 	tool, _ := input.Metadata["studioTool"].(string)
 	return strings.TrimSpace(tool), settings

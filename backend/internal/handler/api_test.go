@@ -23,6 +23,7 @@ func TestRegisterCanvasAPIExposesOpenAPIAndProjects(t *testing.T) {
 		"POST /api/workbench/tasks":         false,
 		"GET /api/studio/works":            false,
 		"GET /api/studio/preferences":      false,
+		"GET /api/studio/brand-kits":       false,
 		"GET /api/projects":                 false,
 		"POST /api/tasks":                   false,
 		"POST /api/tasks/:id/recover-media": false,

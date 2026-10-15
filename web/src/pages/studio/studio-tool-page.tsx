@@ -13,14 +13,15 @@ import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
 import { VIDEO_MODES, videoModeMaterialRole, videoModeUnavailableReason, videoModeUsesMaterial } from "@/lib/video-modes";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { creationAttachmentKind, type CreationAttachment } from "@/pages/create/creation-assets";
+import { resolveResourceUrl } from "@/services/api/resources";
 import type { StudioKind } from "@/services/api/studio";
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { StudioLibrary } from "./studio-library";
 import { StudioShell } from "./studio-shell";
 import { studioToolById, STUDIO_TOOLS } from "./studio-tools";
 import { studioAttachmentFromMedia, useStudioTool } from "./use-studio-tool";
-import { STUDIO_REUSE_KEY } from "./studio-agent";
-import type { StudioWork } from "@/services/api/studio";
+import { STUDIO_ATTACH_KEY, STUDIO_REUSE_KEY } from "./studio-agent";
+import type { StudioBrandKit, StudioWork } from "@/services/api/studio";
 
 const KIND_TABS: Array<{ kind: StudioKind; label: string; path: string }> = [
     { kind: "video", label: "视频", path: "/studio/create-video" },
@@ -32,6 +33,14 @@ function promptMaxChars(config: Parameters<typeof modelCapabilityConfigFor>[0], 
     if (!model || kind === "audio") return kind === "audio" ? 10000 : 0;
     const profile = modelCapabilityConfigFor(config, model);
     return (kind === "image" ? profile.image?.references.promptMaxChars : profile.video?.references.promptMaxChars) || 0;
+}
+
+/** 品牌 Logo 作为一张图片参考，和上传的图片走同一套上限检查。 */
+export function studioBrandLogoAttachment(kit: StudioBrandKit): CreationAttachment | undefined {
+    if (!kit.logoResourceId) return undefined;
+    const storageKey = `resource:${kit.logoResourceId}`;
+    const url = resolveResourceUrl(storageKey, kit.logoUrl || "");
+    return { id: `brand-logo:${kit.id}:${kit.logoResourceId}`, name: `${kit.name} Logo`, type: "image/png", dataUrl: url, url, storageKey, previewUrl: url };
 }
 
 function settingsSummary(kind: StudioKind, state: ReturnType<typeof useStudioTool>["state"]) {
@@ -49,7 +58,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     const { state, config, resolvedModel, generationConfig, limits, overflowIds, maxCount, credits, creditsEnabled, blockReason, submitting, uploading } = studio;
     const [outputOpen, setOutputOpen] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
-    const { update, applyWorkSettings } = studio;
+    const { update, applyWorkSettings, addAttachments } = studio;
 
     // 首页「可用模型」带着 ?model= 进入时选中该模型；素材页「再生成」通过会话存储带入作品设置。
     useEffect(() => {
@@ -72,6 +81,22 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
             // 会话存储不可用时忽略带入。
         }
     }, [applyWorkSettings, kind]);
+    // 模型能力加载后再带入素材，才能按当前模型上限检查。
+    useEffect(() => {
+        if (!resolvedModel) return;
+        try {
+            const raw = window.sessionStorage.getItem(STUDIO_ATTACH_KEY);
+            if (!raw) return;
+            const payload = JSON.parse(raw) as { kind?: StudioKind; attachments?: CreationAttachment[]; prompt?: string };
+            if (payload.kind !== kind) return;
+            window.sessionStorage.removeItem(STUDIO_ATTACH_KEY);
+            if (payload.prompt) update({ prompt: payload.prompt });
+            const reason = payload.attachments?.length ? addAttachments(payload.attachments) : undefined;
+            if (reason) message.warning(reason);
+        } catch {
+            // 会话存储不可用时忽略带入。
+        }
+    }, [addAttachments, kind, message, resolvedModel, update]);
     const maxChars = promptMaxChars(config, kind, resolvedModel);
     const promptChars = Array.from(state.prompt).length;
     const videoProfile = kind === "video" && resolvedModel ? modelCapabilityConfigFor(config, resolvedModel).video : undefined;
@@ -218,6 +243,40 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                 {maxChars ? <span className={`studio-counter${promptChars > maxChars ? " is-over" : ""}`}>{promptChars.toLocaleString("zh-CN")} / {maxChars.toLocaleString("zh-CN")}</span> : null}
                             </div>
                         </div>
+
+                        {kind !== "audio" ? (
+                            <div className="studio-block">
+                                <div className="studio-block-title">品牌 <em>可选</em><Link to="/studio/brand" className="studio-block-link">管理</Link></div>
+                                <select
+                                    className="studio-select"
+                                    aria-label="品牌套件"
+                                    value={studio.brandKit?.id || ""}
+                                    onChange={(event) => studio.setBrandChoice(event.target.value)}
+                                >
+                                    <option value="">不使用品牌</option>
+                                    {studio.brandKits.map((kit) => <option key={kit.id} value={kit.id}>{kit.name}{kit.isDefault ? "（默认）" : ""}</option>)}
+                                </select>
+                                {studio.brandKit ? (
+                                    <>
+                                        <p className="studio-hint">品牌介绍、调性、品牌色等会追加在提示词后发送。</p>
+                                        {studio.brandKit.logoResourceId && limits.maxImages > 0 ? (
+                                            <button
+                                                type="button"
+                                                className="studio-mini-button"
+                                                onClick={() => {
+                                                    const logo = studioBrandLogoAttachment(studio.brandKit!);
+                                                    const reason = logo ? studio.addAttachments([logo]) : undefined;
+                                                    if (reason) message.warning(reason);
+                                                    else message.success("已加入参考素材");
+                                                }}
+                                            >
+                                                <ImagePlus aria-hidden />加入 Logo 参考
+                                            </button>
+                                        ) : null}
+                                    </>
+                                ) : !studio.brandKits.length ? <p className="studio-hint">还没有品牌套件，<Link to="/studio/brand">去创建</Link>。</p> : null}
+                            </div>
+                        ) : null}
 
                         {kind === "audio" ? (
                             <div className="studio-block">

@@ -211,3 +211,11 @@ func TestStudioCursorRejectsGarbage(t *testing.T) {
 		}
 	}
 }
+
+func TestStudioWorkShowsUserPromptWithoutBrandSuffix(t *testing.T) {
+	task := model.Task{ID: "brand", WorkbenchKind: model.StudioKindImage, InputJSON: `{"mode":"image","prompt":"一杯咖啡\n\n品牌：暖杯","config":{"model":"m"},"metadata":{"source":"studio","studioTool":"create-image","studioPrompt":"一杯咖啡","brandKitId":"kit-1"}}`}
+	work := studioWorkFromTask(task, TaskSummary{ID: "brand", Prompt: "一杯咖啡\n\n品牌：暖杯"}, false)
+	if work.Prompt != "一杯咖啡" || work.Settings["brandKitId"] != "kit-1" || work.Settings["studioPrompt"] != nil {
+		t.Fatalf("unexpected work %+v", work)
+	}
+}

@@ -143,3 +143,44 @@ func (r *Repository) StudioOwnedTaskIDs(userID string, taskIDs []string) ([]stri
 	err := r.db.Model(&model.Task{}).Where("user_id = ? AND id IN ? AND workbench_kind IN ?", userID, taskIDs, model.StudioKinds).Pluck("id", &ids).Error
 	return ids, err
 }
+
+func (r *Repository) StudioBrandKits(userID string) ([]model.StudioBrandKit, error) {
+	var kits []model.StudioBrandKit
+	err := r.db.Where("user_id = ?", userID).Order("is_default desc, updated_at desc, id").Find(&kits).Error
+	return kits, err
+}
+
+func (r *Repository) StudioBrandKit(userID string, id string) (*model.StudioBrandKit, error) {
+	var kit model.StudioBrandKit
+	err := r.db.Where("id = ? AND user_id = ?", id, userID).Take(&kit).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &kit, nil
+}
+
+func (r *Repository) CountStudioBrandKits(userID string) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.StudioBrandKit{}).Where("user_id = ?", userID).Count(&count).Error
+	return count, err
+}
+
+// SaveStudioBrandKit 保存品牌套件；设为默认时同一事务里取消其它套件的默认标记，保证最多一个默认。
+func (r *Repository) SaveStudioBrandKit(kit *model.StudioBrandKit) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if kit.IsDefault {
+			if err := tx.Model(&model.StudioBrandKit{}).Where("user_id = ? AND id <> ?", kit.UserID, kit.ID).Update("is_default", false).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Save(kit).Error
+	})
+}
+
+func (r *Repository) DeleteStudioBrandKit(userID string, id string) (bool, error) {
+	result := r.db.Where("id = ? AND user_id = ?", id, userID).Delete(&model.StudioBrandKit{})
+	return result.RowsAffected > 0, result.Error
+}

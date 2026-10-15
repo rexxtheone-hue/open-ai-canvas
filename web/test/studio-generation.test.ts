@@ -6,6 +6,8 @@ import type { CreationAttachment } from "../src/pages/create/creation-assets";
 import {
     admitStudioAttachments,
     studioBlockReason,
+    studioBrandPrompt,
+    studioFinalPrompt,
     studioGenerationConfig,
     studioMaxCount,
     studioOverflowAttachmentIds,
@@ -157,5 +159,36 @@ describe("AI Studio 生成规则", () => {
         const config = studioConfig();
         expect(studioResolvedModel(config, state("audio"))).toBe("");
         expect(studioReferenceLimits(config, state("audio"), "")).toEqual({ maxImages: 0, maxVideos: 0, maxAudios: 0 });
+    });
+});
+
+describe("AI Studio 品牌套件", () => {
+    const kit = { id: "kit-1", name: "暖杯", intro: "316 不锈钢保温杯", audience: "", tone: "温暖、简约", colors: ["#D9A441", "#0A0A0A"], slogan: "温暖随身", avoid: "竞品 Logo" };
+    const brand = { id: kit.id, name: kit.name, prompt: studioBrandPrompt(kit) };
+
+    test("品牌要求只输出填写过的字段", () => {
+        expect(brand.prompt).toBe("品牌：暖杯\n品牌介绍：316 不锈钢保温杯\n品牌调性：温暖、简约\n品牌色：#D9A441、#0A0A0A\n品牌口号：温暖随身（画面需要文字时使用）\n避免：竞品 Logo");
+        expect(studioBrandPrompt({ id: "k", name: " 极简 " })).toBe("品牌：极简");
+    });
+
+    test("图片和视频追加品牌要求，配音文案保持原样", () => {
+        expect(studioFinalPrompt({ kind: "image", prompt: " 一杯咖啡 ", brand })).toBe(`一杯咖啡\n\n${brand.prompt}`);
+        expect(studioFinalPrompt({ kind: "audio", prompt: "欢迎光临", brand })).toBe("欢迎光临");
+        expect(studioFinalPrompt({ kind: "video", prompt: "  ", brand })).toBe("");
+    });
+
+    test("提交带品牌时记录原始提示词和套件，长度按最终提示词检查", () => {
+        const config = studioConfig();
+        const submission = studioSubmission(config, state("image", { prompt: "一杯咖啡", brand }), "relay::pic-pro", { maxImages: 2, maxVideos: 0, maxAudios: 0 });
+        expect(submission.prompt).toBe(`一杯咖啡\n\n${brand.prompt}`);
+        expect(submission.metadata).toMatchObject({ brandKitId: "kit-1", studioPrompt: "一杯咖啡" });
+        const plain = studioSubmission(config, state("image", { prompt: "一杯咖啡" }), "relay::pic-pro", { maxImages: 2, maxVideos: 0, maxAudios: 0 });
+        expect(plain.metadata.brandKitId).toBeUndefined();
+        expect(plain.metadata.studioPrompt).toBeUndefined();
+
+        const limited = studioConfig();
+        limited.channels[0].modelCosts![0].capabilityConfig!.image!.references.promptMaxChars = 10;
+        expect(studioBlockReason(limited, state("image", { prompt: "一杯咖啡" }), "relay::pic-pro", ready)).toBe("");
+        expect(studioBlockReason(limited, state("image", { prompt: "一杯咖啡", brand }), "relay::pic-pro", ready)).not.toBe("");
     });
 });

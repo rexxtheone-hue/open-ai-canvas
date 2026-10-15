@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const CurrentSchemaVersion int64 = 55
+const CurrentSchemaVersion int64 = 56
 
 const baselineSchemaChecksum = "sha256:open-ai-canvas-schema-v1-20260830"
 const schemaMigrationAppliedAtIndexChecksum = "sha256:schema-migrations-applied-at-index-v2-20260830"
@@ -186,6 +186,9 @@ var schemaMigrations = []migration{
 	}},
 	{version: 55, name: "ai_studio_preferences_favorites", checksum: "sha256:ai-studio-preferences-favorites-v55-20261015", apply: func(tx *gorm.DB) error {
 		return tx.AutoMigrate(&model.StudioPreference{}, &model.StudioFavorite{}, &model.StudioHiddenTask{})
+	}},
+	{version: 56, name: "ai_studio_brand_kits", checksum: "sha256:ai-studio-brand-kits-v56-20261015", apply: func(tx *gorm.DB) error {
+		return tx.AutoMigrate(&model.StudioBrandKit{})
 	}},
 }
 

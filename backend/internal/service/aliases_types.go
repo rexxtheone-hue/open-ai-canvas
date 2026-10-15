@@ -332,6 +332,8 @@ type (
 	StudioWorkQuery                        = app.StudioWorkQuery
 	StudioMedia                            = app.StudioMedia
 	StudioPreferenceView                   = app.StudioPreferenceView
+	StudioBrandKitView                     = app.StudioBrandKitView
+	StudioBrandKitInput                    = app.StudioBrandKitInput
 	TextCapabilityConfig                   = app.TextCapabilityConfig
 	TextReferenceConfig                    = app.TextReferenceConfig
 	TextReplayResult                       = app.TextReplayResult

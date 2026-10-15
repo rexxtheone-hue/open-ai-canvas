@@ -107,4 +107,65 @@ func RegisterStudioRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		ok(c, gin.H{"removed": removed})
 	})
+	r.GET("/studio/brand-kits", func(c *gin.Context) {
+		user, err := currentUser(c, svc)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		kits, err := svc.StudioBrandKits(user.ID)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, gin.H{"brandKits": kits})
+	})
+	r.POST("/studio/brand-kits", func(c *gin.Context) {
+		user, err := currentUser(c, svc)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		var req service.StudioBrandKitInput
+		if err := c.ShouldBindJSON(&req); err != nil {
+			fail(c, http.StatusBadRequest, err)
+			return
+		}
+		kit, err := svc.CreateStudioBrandKit(user.ID, req)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, kit)
+	})
+	r.PUT("/studio/brand-kits/:id", func(c *gin.Context) {
+		user, err := currentUser(c, svc)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		var req service.StudioBrandKitInput
+		if err := c.ShouldBindJSON(&req); err != nil {
+			fail(c, http.StatusBadRequest, err)
+			return
+		}
+		kit, err := svc.UpdateStudioBrandKit(user.ID, c.Param("id"), req)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, kit)
+	})
+	r.DELETE("/studio/brand-kits/:id", func(c *gin.Context) {
+		user, err := currentUser(c, svc)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		if err := svc.DeleteStudioBrandKit(user.ID, c.Param("id")); err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, gin.H{"deleted": true})
+	})
 }

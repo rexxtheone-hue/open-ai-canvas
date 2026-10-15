@@ -71,7 +71,7 @@ type CloudAgentPanelProps = {
     references: CanvasResourceReference[];
     open: boolean;
     /** 外部预填请求（如右键“发送到 Agent”）；id 变化即追加一次 text，可选自动提交和视觉模型路由。 */
-    prefillRequest?: (CloudAgentMessagePresentation & { id: number; text: string; autoSubmit?: boolean; requiresVision?: boolean }) | null;
+    prefillRequest?: (CloudAgentMessagePresentation & { id: number; text: string; autoSubmit?: boolean; requiresVision?: boolean; maxCredits?: number }) | null;
     onOpen: () => void;
     onCollapse: () => void;
     onFocusNode?: (nodeId: string) => void;
@@ -326,6 +326,8 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
         if (!prefillRequest.text.trim()) return;
         setPrompt((current) => appendAgentPromptPrefill(current, prefillRequest.displayText || prefillRequest.text));
         prefilledSubmissionRef.current = prefillRequest;
+        // AI 导演带来的预算上限只放宽或收紧本次积分上限，其余预算保持面板设置。
+        if (prefillRequest.maxCredits && prefillRequest.maxCredits > 0) setMaxCredits(String(prefillRequest.maxCredits));
         setPendingAutoSubmit(prefillRequest.autoSubmit ? prefillRequest : null);
         setView("chat");
     }, [prefillRequest]);

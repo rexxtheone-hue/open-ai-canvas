@@ -9,6 +9,7 @@ import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
 import { getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
 import { audioMetadata, imageMetadata, videoMetadata } from "@/lib/canvas/canvas-generation-task-sync";
 import { createCanvasNode } from "@/lib/canvas/canvas-project-domain";
+import { createCharacterCardNode } from "@/lib/canvas/canvas-character-node";
 import { isAudioFile } from "@/lib/canvas/canvas-project-generation";
 import { fitNodeSize, VIDEO_NODE_MAX_SIZE } from "@/lib/canvas/canvas-node-size";
 import { CANVAS_UPLOAD_ACCEPT, createFileUploadPlaceholder, uploadNodeType, uploadPercent } from "@/lib/canvas/canvas-file-upload";
@@ -648,38 +649,7 @@ export function useCanvasUpload({
     }, []);
 
     const createAssetPayloadNode = useCallback(async (payload: InsertAssetPayload, center: Position) => {
-        if (payload.kind === "character") {
-            // 角色卡是竖版海报式主视觉，默认用 3:4 竖幅。
-            const width = 264;
-            const height = 352;
-            return {
-                id: `character-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-                type: CanvasNodeType.Text,
-                title: payload.title,
-                position: { x: center.x - width / 2, y: center.y - height / 2 },
-                width,
-                height,
-                metadata: {
-                    workflowKind: "character",
-                    characterAssetId: payload.assetId,
-                    characterVersionId: payload.versionId,
-                    characterVersionPolicy: "current",
-                    characterName: payload.title,
-                    characterPrompt: payload.prompt,
-                    characterAliases: payload.aliases,
-                    characterDefinition: payload.definition,
-                    characterCoverUrl: payload.coverUrl,
-                    characterVisualStatus: payload.visualStatus,
-                    characterVoiceStatus: payload.voiceStatus,
-                    characterVoiceName: payload.voiceName,
-                    characterVoiceProfile: payload.voiceProfile,
-                    characterVoiceInstructions: payload.voiceInstructions,
-                    assetId: payload.assetId,
-                    status: NODE_STATUS_SUCCESS,
-                    fontSize: 14,
-                },
-            } satisfies CanvasNodeData;
-        }
+        if (payload.kind === "character") return createCharacterCardNode(payload, center);
         if (payload.kind === "text") {
             const node = { ...createCanvasNode(CanvasNodeType.Text, center, { content: payload.content, status: NODE_STATUS_SUCCESS, assetId: payload.assetId }), title: payload.content.slice(0, 32) || "Assistant Text" };
             return node;

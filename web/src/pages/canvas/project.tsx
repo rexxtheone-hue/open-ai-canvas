@@ -42,6 +42,7 @@ import { CanvasActiveTaskPanel } from "@/components/canvas/canvas-active-task-pa
 import { CanvasProjectSidebar } from "@/components/canvas/canvas-project-sidebar";
 import { CanvasProjectAssetModal } from "@/components/canvas/canvas-project-asset-modal";
 import { CanvasCharacterLibraryModal } from "@/components/canvas/canvas-character-library-modal";
+import { readStudioAgentHandoff } from "@/pages/studio/studio-agent";
 import { CanvasCharacterReferenceNodeContent } from "@/components/canvas/canvas-character-reference-node";
 import { CanvasCharacterReferenceModal } from "@/components/canvas/canvas-character-reference-modal";
 import { WorkspaceState } from "@/components/layout/workspace-state";
@@ -242,7 +243,7 @@ function CanvasViewportPage() {
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
     const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
     // 每次发送带递增 id：重复发送同一节点时文本相同，仍需触发一次追加。
-    const [agentPrefillRequest, setAgentPrefillRequest] = useState<(CloudAgentMessagePresentation & { id: number; text: string; autoSubmit?: boolean; requiresVision?: boolean }) | null>(null);
+    const [agentPrefillRequest, setAgentPrefillRequest] = useState<(CloudAgentMessagePresentation & { id: number; text: string; autoSubmit?: boolean; requiresVision?: boolean; maxCredits?: number }) | null>(null);
     const [isMiniMapOpen, setIsMiniMapOpen] = useState(false);
     const [canvasAppearance, setCanvasAppearance] = useState<CanvasAppearance>(() => canvasAppearanceForTheme(colorTheme));
     const [backgroundMode, setBackgroundMode] = useState<CanvasBackgroundMode>(DEFAULT_CANVAS_BACKGROUND_MODE);
@@ -601,13 +602,17 @@ function CanvasViewportPage() {
         if (!projectLoaded || searchParams.get("agent") !== "1") return;
         // AI Studio 首页把需求带进来：打开 Agent 后自动发送一次，再从地址栏移除，刷新不会重复发送。
         const handoffPrompt = searchParams.get("agentPrompt")?.trim();
-        if (handoffPrompt) setAgentPrefillRequest((current) => ({ id: (current?.id ?? 0) + 1, text: handoffPrompt, autoSubmit: true }));
+        // AI 导演的长指令放在会话存储里，显示文本和预算一起带入。
+        const handoff = searchParams.get("agentHandoff") === "1" && projectId ? readStudioAgentHandoff(projectId) : null;
+        if (handoff) setAgentPrefillRequest((current) => ({ id: (current?.id ?? 0) + 1, text: handoff.text, displayText: handoff.displayText, maxCredits: handoff.maxCredits, autoSubmit: true }));
+        else if (handoffPrompt) setAgentPrefillRequest((current) => ({ id: (current?.id ?? 0) + 1, text: handoffPrompt, autoSubmit: true }));
         openAgent();
         const next = new URLSearchParams(searchParams);
         next.delete("agent");
         next.delete("agentPrompt");
+        next.delete("agentHandoff");
         setSearchParams(next, { replace: true });
-    }, [projectLoaded, searchParams, setSearchParams, openAgent]);
+    }, [projectLoaded, projectId, searchParams, setSearchParams, openAgent]);
 
     // 沉浸专注进入时收起智能体与小地图、重置 Dock 唤出态；仅响应「进入」瞬间，避免关闭专注内主动唤出的面板。
     const prevFocusModeRef = useRef(focusMode);

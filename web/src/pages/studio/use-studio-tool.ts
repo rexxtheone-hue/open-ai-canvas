@@ -30,6 +30,7 @@ import {
     type StudioToolState,
 } from "./studio-generation";
 import { notifyStudioWorksChanged } from "./use-studio-works";
+import { useStudioBrandChoice } from "./use-studio-brand";
 
 type StoredToolSettings = Pick<StudioToolState, "model" | "count" | "image" | "video" | "audio">;
 
@@ -83,7 +84,10 @@ export function studioAttachmentFromMedia(work: StudioWork, media: StudioMedia, 
 export function useStudioTool(kind: StudioKind, tool: string) {
     const config = useEffectiveConfig();
     const user = useUserStore((state) => state.user);
-    const [state, setState] = useState<StudioToolState>(() => initialState(kind, tool));
+    const [baseState, setState] = useState<StudioToolState>(() => initialState(kind, tool));
+    const brand = useStudioBrandChoice(kind !== "audio");
+    // 品牌不进入本地记忆的工具参数，每次由当前选择的套件拼出。
+    const state = useMemo<StudioToolState>(() => (brand.context ? { ...baseState, brand: brand.context } : baseState), [baseState, brand.context]);
     const [submitting, setSubmitting] = useState(false);
     const [uploading, setUploading] = useState(0);
     const submitLockRef = useRef(false);
@@ -277,5 +281,8 @@ export function useStudioTool(kind: StudioKind, tool: string) {
         removeAttachment,
         applyWorkSettings,
         submit,
+        brandKits: brand.kits,
+        brandKit: brand.kit,
+        setBrandChoice: brand.setChoice,
     };
 }

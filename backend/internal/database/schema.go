@@ -110,6 +110,7 @@ func Models() []any {
 		&model.StudioPreference{},
 		&model.StudioFavorite{},
 		&model.StudioHiddenTask{},
+		&model.StudioBrandKit{},
 		&model.CanvasShare{},
 		&model.PromptTemplate{},
 		&model.UserPromptCustomization{},

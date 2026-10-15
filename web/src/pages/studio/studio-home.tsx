@@ -15,14 +15,14 @@ const SUGGESTIONS = [
     "为一段美食视频配一段轻快的背景音乐",
 ];
 
-/** H4：行业一键成片的开场需求。点击后填入输入框，用户确认后再发送。 */
+/** H4：行业一键成片进入 AI 导演，并预选对应类型。 */
 const QUICK_STARTS = [
-    { id: "product-ad", label: "产品广告", icon: Megaphone, prompt: "帮我做一支 30 秒的产品广告。产品是：（写产品名称和卖点）。风格：干净、高级、节奏明快，9:16 竖屏，结尾有行动号召。" },
-    { id: "real-estate", label: "房地产", icon: Building2, prompt: "帮我做一支房地产宣传短片。项目是：（写楼盘名称、位置、户型和卖点）。镜头包括外观、社区环境和室内样板间，9:16 竖屏，45 秒。" },
-    { id: "food-review", label: "餐饮探店", icon: Store, prompt: "帮我做一支餐饮探店视频。店名：（写店名），招牌菜：（写菜名）。风格真实自然，有门头、环境、上菜和试吃镜头，9:16 竖屏，30 秒。" },
-    { id: "ugc", label: "UGC 口播", icon: UserRound, prompt: "帮我做一支 UGC 风格的口播广告。产品：（写产品）。一位真实感的年轻主播用手机自拍介绍使用感受，口语化，9:16 竖屏，30 秒。" },
-    { id: "presenter", label: "数字人讲解", icon: MicVocal, prompt: "帮我做一支数字人讲解视频。主题：（写主题）。一位专业形象的讲解员面对镜头讲解，画面穿插要点字卡，9:16 竖屏，60 秒。" },
-    { id: "brand-film", label: "品牌片", icon: Briefcase, prompt: "帮我做一支品牌故事短片。品牌：（写品牌名和理念）。用三到五个场景讲清楚品牌由来和价值，电影感，16:9，60 秒。" },
+    { id: "product-ad", label: "产品广告", icon: Megaphone },
+    { id: "real-estate", label: "房地产", icon: Building2 },
+    { id: "food", label: "餐饮探店", icon: Store },
+    { id: "ugc", label: "UGC 口播", icon: UserRound },
+    { id: "presenter", label: "数字人讲解", icon: MicVocal },
+    { id: "brand-film", label: "品牌片", icon: Briefcase },
 ];
 
 export default function StudioHomePage({ initialMode = "agents" }: { initialMode?: "agents" | "tools" }) {
@@ -128,16 +128,16 @@ export default function StudioHomePage({ initialMode = "agents" }: { initialMode
                     <div className="studio-section-head">
                         <div>
                             <h2 id="studio-quick-title">一键成片</h2>
-                            <p>选一个行业，填好产品信息，AI 帮你从剧本做到成片。</p>
+                            <p>选一个行业，填好简报，AI 导演帮你从方案做到成片。</p>
                         </div>
                     </div>
                     <div className="studio-card-row">
                         {QUICK_STARTS.map((item) => (
-                            <button key={item.id} type="button" className="studio-entry-card" onClick={() => { setMode("agents"); fill(item.prompt); }}>
+                            <Link key={item.id} to={`/studio/director?genre=${item.id}`} className="studio-entry-card">
                                 <item.icon className="studio-entry-icon" aria-hidden />
                                 <strong>{item.label}</strong>
-                                <span>填入开场需求，改好后发送</span>
-                            </button>
+                                <span>交给 AI 导演，从方案做到成片</span>
+                            </Link>
                         ))}
                     </div>
                 </section>

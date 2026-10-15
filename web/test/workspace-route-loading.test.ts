@@ -31,19 +31,18 @@ describe("workspace route loading", () => {
         expect(navigation).toContain("onFocus={() => preloadWorkspaceRoute(linkTo)}");
     });
 
-    test("keeps the creation page at root and preserves the create compatibility route", () => {
+    test("opens the Studio/Canvas chooser at root and keeps the creation page at /create", () => {
         const router = source("../src/router.tsx");
         const navigation = source("../src/components/layout/workspace-sidebar-nav.tsx");
 
-        expect(router).toContain('{ path: "/", element: deferred(<CreatePage />) }');
+        expect(router).toContain('{ path: "/", element: deferred(<StudioEntryPage />) }');
         expect(router).toContain('{ path: "/create", element: deferred(<CreatePage />) }');
         expect(router).toContain("<RequireAuth allowAnonymous={isGuestWorkspacePath(pathname)}>");
         expect(router).toContain('{ path: "/assets", element: <RequireAuth>{deferred(<AssetsPage />)}</RequireAuth> }');
         expect(router).toMatch(/path: "\/canvas\/:id",\s+element: \(\s+<RequireAuth>\s+<CanvasProjectPage \/>\s+<\/RequireAuth>\s+\),/);
         expect(router).not.toContain('path: "/home"');
-        expect(router).not.toContain("HomePage");
-        expect(navigation).toContain('{ ...toolItem("create", "/"), id: "home", title: "创作" }');
-        expect(navigation).not.toContain('to: "/create"');
+        expect(router).not.toMatch(/\bHomePage\b/);
+        expect(navigation).toContain('{ ...toolItem("create", "/create"), id: "home", title: "创作" }');
         expect(navigation).not.toContain('to: "/home"');
     });
 
