@@ -47,6 +47,11 @@ const CanvasPage = lazy(loadCanvasPage);
 const CanvasProjectPage = lazy(loadCanvasProjectPage);
 const SharedCanvasPage = lazy(() => import("@/pages/canvas/shared"));
 const CreatePage = lazy(loadCreatePage);
+const StudioEntryPage = lazy(() => import("@/pages/studio/studio-entry"));
+const StudioHomePage = lazy(() => import("@/pages/studio/studio-home"));
+const StudioToolPage = lazy(() => import("@/pages/studio/studio-tool-page"));
+const StudioToolsPage = lazy(() => import("@/pages/studio/studio-pages").then((module) => ({ default: module.StudioToolsPage })));
+const StudioMediaPage = lazy(() => import("@/pages/studio/studio-pages").then((module) => ({ default: module.StudioMediaPage })));
 const ImageWorkbenchPage = lazy(() => import("@/pages/workbench/image-workbench-route"));
 const VideoWorkbenchPage = lazy(() => import("@/pages/workbench/video-workbench-page"));
 const InspirationsPage = lazy(loadInspirationsPage);
@@ -118,8 +123,15 @@ export const router = createBrowserRouter([
         element: <AuthenticatedWorkspaceLayout />,
         errorElement: <RouteErrorPage />,
         children: [
-            { path: "/", element: deferred(<CreatePage />) },
+            { path: "/", element: deferred(<StudioEntryPage />) },
             { path: "/create", element: deferred(<CreatePage />) },
+            { path: "/studio", element: <RequireAuth>{deferred(<StudioHomePage />)}</RequireAuth> },
+            { path: "/studio/agents", element: <RequireAuth>{deferred(<StudioHomePage initialMode="agents" />)}</RequireAuth> },
+            { path: "/studio/tools", element: <RequireAuth>{deferred(<StudioToolsPage />)}</RequireAuth> },
+            { path: "/studio/media", element: <RequireAuth>{deferred(<StudioMediaPage />)}</RequireAuth> },
+            { path: "/studio/create-image", element: <RequireAuth>{deferred(<StudioToolPage key="create-image" toolId="create-image" />)}</RequireAuth> },
+            { path: "/studio/create-video", element: <RequireAuth>{deferred(<StudioToolPage key="create-video" toolId="create-video" />)}</RequireAuth> },
+            { path: "/studio/create-audio", element: <RequireAuth>{deferred(<StudioToolPage key="create-audio" toolId="create-audio" />)}</RequireAuth> },
             {
                 path: "/toolbox/image",
                 element: (

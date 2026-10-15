@@ -160,3 +160,15 @@ export function audioMimeType(format: string) {
     if (format === "pcm") return "audio/pcm";
     return "audio/mpeg";
 }
+
+/** 豆包流式语音的参考素材写法与画布、Studio 共用：图片模式只保留文本，音频改用 @AudioN。 */
+export function audioGenerationPrompt(config: AiConfig, prompt: string, audioCount: number, imageCount: number) {
+    if (!isDoubaoAudioConfig(config)) return prompt;
+    // 参考图片模式的 text_prompt 只保留要合成的文本，图片走 references。
+    if (imageCount > 0) return prompt.replace(/@(图片|音频|视频|绘图|角色|文本)\d+/g, " ").replace(/[ \t]{2,}/g, " ").trim();
+    if (audioCount <= 0) return prompt;
+    // 官方参考音频用 @Audio1、@Audio2，和 references 的顺序一致。画布里的 @音频N 只是编辑器槽位。
+    const next = prompt.replace(/@音频(\d+)/g, "@Audio$1");
+    const missing = Array.from({ length: audioCount }, (_, index) => `@Audio${index + 1}`).filter((marker) => !next.includes(marker));
+    return missing.length ? `${missing.join(" ")} ${next}` : next;
+}

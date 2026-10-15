@@ -1,0 +1,241 @@
+import { creationAttachmentKind, splitCreationAttachments, type CreationAttachment } from "@/pages/create/creation-assets";
+import { creationVideoConfig } from "@/pages/create/creation-generation-config";
+import { audioGenerationPrompt, isDoubaoAudioConfig } from "@/lib/audio-generation";
+import { imageParameterRequest } from "@/lib/image-parameters";
+import { modelCapabilityConfigFor, normalizeImageValue, videoDurationAllowed } from "@/lib/model-capabilities";
+import { inferVideoOperation, modelGroupReferenceLimits, modelPromptLengthError, resolveCompatibleModel, resolveModelVideoBooleanOptions, type ModelReferenceLimits, type ModelRequirements } from "@/lib/model-selection";
+import { applyVideoModeImageRoles, pickVideoModeMaterials, videoModeInputError, videoModeOperation, videoModeUsedInput, type VideoMode } from "@/lib/video-modes";
+import { resolveModelRequestConfig, selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
+import type { StudioKind } from "@/services/api/studio";
+
+/** Studio 生成工具的全部可编辑状态。模型值沿用渠道编码（channelId::model）。 */
+export type StudioToolState = {
+    kind: StudioKind;
+    tool: string;
+    model: string;
+    prompt: string;
+    attachments: CreationAttachment[];
+    count: number;
+    image: { ratio: string; quality: string; imageResolution: string; imageParameters: string };
+    video: { ratio: string; seconds: string; videoQuality: string; generateAudio: boolean; mode?: VideoMode };
+    audio: { voice: string; format: string; speed: string };
+};
+
+export type StudioReferenceLimits = { maxImages: number; maxVideos: number; maxAudios: number; exclusiveImageAudio?: boolean };
+
+/** T1：只列出后台已开启的模型；记住的模型失效时回落到渠道默认模型，再回落到第一个。 */
+export function studioPreferredModel(config: AiConfig, kind: StudioKind, remembered?: string) {
+    const options = selectableModelsByCapability(config, kind);
+    if (!options.length) return "";
+    if (remembered && options.includes(remembered)) return remembered;
+    const configured = kind === "image" ? config.imageModel : kind === "video" ? config.videoModel : config.audioModel;
+    if (configured && options.includes(configured)) return configured;
+    return options[0];
+}
+
+function attachmentCounts(attachments: CreationAttachment[]) {
+    let imageCount = 0;
+    let videoCount = 0;
+    let audioCount = 0;
+    for (const attachment of attachments) {
+        const kind = creationAttachmentKind(attachment);
+        if (kind === "image") imageCount += 1;
+        else if (kind === "video") videoCount += 1;
+        else if (kind === "audio") audioCount += 1;
+    }
+    return { imageCount, videoCount, audioCount };
+}
+
+/** 与创作页一致的模型需求：手动选择视频模式时，只有该模式实际用到的素材参与筛选和计价。 */
+export function studioModelRequirements(config: AiConfig, state: StudioToolState): ModelRequirements {
+    const counts = attachmentCounts(state.attachments);
+    const used = videoModeUsedInput(state.kind === "video" ? state.video.mode : undefined, counts);
+    const input = { textCount: state.prompt.trim() ? 1 : 0, ...used, characterCount: 0 };
+    if (state.kind === "image") {
+        const profile = modelCapabilityConfigFor(config, state.model).image!;
+        const values = { ...config, size: state.image.ratio, imageResolution: state.image.imageResolution, quality: state.image.quality, count: String(state.count), imageParameters: state.image.imageParameters };
+        return { capability: "image", input, imageSize: state.image.ratio, options: imageParameterRequest(profile, values) ?? { size: state.image.ratio, imageResolution: state.image.imageResolution, quality: state.image.quality, count: state.count, transparentBackground: config.transparentBackground === "true" } };
+    }
+    if (state.kind === "video") {
+        return { capability: "video", input, videoSeconds: state.video.seconds, videoMode: state.video.mode, options: { size: state.video.ratio, videoSeconds: Number(state.video.seconds), vquality: state.video.videoQuality } };
+    }
+    return { capability: "audio", input, options: {} };
+}
+
+/** 同名模型可能拆成多条路由，按素材选出真正兼容的那一条。 */
+export function studioResolvedModel(config: AiConfig, state: StudioToolState) {
+    if (!state.model) return "";
+    return resolveCompatibleModel(config, state.model, studioModelRequirements(config, state)) || state.model;
+}
+
+/** T2：参考素材上限读模型能力。视频用整个模型组的上限，提交时再由兼容路由收窄。 */
+export function studioReferenceLimits(config: AiConfig, state: StudioToolState, resolvedModel: string): StudioReferenceLimits {
+    if (!resolvedModel) return { maxImages: 0, maxVideos: 0, maxAudios: 0 };
+    if (state.kind === "image") {
+        return { maxImages: modelCapabilityConfigFor(config, resolvedModel).image!.references.maxImages, maxVideos: 0, maxAudios: 0 };
+    }
+    if (state.kind === "video") {
+        const limits: ModelReferenceLimits | undefined = modelGroupReferenceLimits(config, state.model || resolvedModel, "video");
+        return { maxImages: limits?.maxImages || 0, maxVideos: limits?.maxVideos || 0, maxAudios: limits?.maxAudios || 0 };
+    }
+    // 豆包流式语音支持最多 3 段参考音频或 1 张参考图，两者不能混用；其他语音模型不接受参考素材。
+    return isDoubaoAudioConfig({ ...config, model: resolvedModel, audioModel: resolvedModel }) ? { maxImages: 1, maxVideos: 0, maxAudios: 3, exclusiveImageAudio: true } : { maxImages: 0, maxVideos: 0, maxAudios: 0 };
+}
+
+export type StudioAttachmentAdmission = { accepted: CreationAttachment[]; rejected: CreationAttachment[]; reason?: string };
+
+/** 加入新素材时按上限截断，返回被拒绝的素材和原因；已有素材顺序不变。 */
+export function admitStudioAttachments(current: CreationAttachment[], incoming: CreationAttachment[], limits: StudioReferenceLimits): StudioAttachmentAdmission {
+    const accepted = [...current];
+    const rejected: CreationAttachment[] = [];
+    let reason: string | undefined;
+    for (const attachment of incoming) {
+        if (accepted.some((item) => item.id === attachment.id)) continue;
+        const kind = creationAttachmentKind(attachment);
+        const counts = attachmentCounts(accepted);
+        const limit = kind === "image" ? limits.maxImages : kind === "video" ? limits.maxVideos : kind === "audio" ? limits.maxAudios : 0;
+        const used = kind === "image" ? counts.imageCount : kind === "video" ? counts.videoCount : kind === "audio" ? counts.audioCount : 0;
+        const label = kind === "image" ? "图片" : kind === "video" ? "视频" : kind === "audio" ? "音频" : "文件";
+        if (limit <= 0) {
+            rejected.push(attachment);
+            reason = `当前模型不支持${label}参考`;
+            continue;
+        }
+        if (limits.exclusiveImageAudio && ((kind === "image" && counts.audioCount > 0) || (kind === "audio" && counts.imageCount > 0))) {
+            rejected.push(attachment);
+            reason = "当前模型的参考图片和参考音频不能同时使用";
+            continue;
+        }
+        if (used >= limit) {
+            rejected.push(attachment);
+            reason = `当前模型最多 ${limit} 个${label}参考`;
+            continue;
+        }
+        accepted.push(attachment);
+    }
+    return { accepted, rejected, reason };
+}
+
+/** T3：换模型后超出上限的素材不发送，但保留在面板里。返回不会发送的素材 ID。 */
+export function studioOverflowAttachmentIds(attachments: CreationAttachment[], limits: StudioReferenceLimits) {
+    const seen = { image: 0, video: 0, audio: 0 };
+    const overflow = new Set<string>();
+    for (const attachment of attachments) {
+        const kind = creationAttachmentKind(attachment);
+        if (kind === "file") {
+            overflow.add(attachment.id);
+            continue;
+        }
+        seen[kind] += 1;
+        const limit = kind === "image" ? limits.maxImages : kind === "video" ? limits.maxVideos : limits.maxAudios;
+        if (seen[kind] > limit) overflow.add(attachment.id);
+    }
+    return overflow;
+}
+
+/** 提交用的完整配置，与创作页、画布使用同一套参数规范化。 */
+export function studioGenerationConfig(config: AiConfig, state: StudioToolState, model: string): AiConfig {
+    if (state.kind === "image") {
+        const profile = modelCapabilityConfigFor(config, model).image!;
+        const raw = { size: state.image.ratio, quality: state.image.quality, imageResolution: state.image.imageResolution, imageParameters: state.image.imageParameters, count: "1" };
+        const normalized = profile.parameters ? raw : normalizeImageValue(profile, raw, resolveModelRequestConfig(config, model).interfaceType);
+        return {
+            ...config,
+            model,
+            imageModel: model,
+            size: normalized.size || state.image.ratio,
+            quality: normalized.quality || state.image.quality,
+            imageResolution: normalized.imageResolution || state.image.imageResolution,
+            imageParameters: normalized.imageParameters || state.image.imageParameters,
+            count: "1",
+        };
+    }
+    if (state.kind === "video") {
+        const base = creationVideoConfig(config, model, { ratio: state.video.ratio, seconds: state.video.seconds, videoQuality: state.video.videoQuality });
+        return { ...base, ...resolveModelVideoBooleanOptions(config, model, { videoGenerateAudio: state.video.generateAudio ? "true" : "false" }, { videoWatermark: config.videoWatermark }) };
+    }
+    return { ...config, model, audioModel: model, audioVoice: state.audio.voice, audioFormat: state.audio.format, audioSpeed: state.audio.speed };
+}
+
+/** 视频生效模式：手动选择优先，否则按素材推断，和创作页显示一致。 */
+export function studioEffectiveVideoMode(state: StudioToolState): VideoMode {
+    if (state.video.mode) return state.video.mode;
+    const operation = inferVideoOperation({ textCount: 1, ...attachmentCounts(state.attachments), characterCount: 0 });
+    return operation === "text_to_video" || operation === "image_to_video" ? operation : "reference_to_video";
+}
+
+export type StudioBlockContext = {
+    loggedIn: boolean;
+    creditsEnabled: boolean;
+    availableCredits: number | null;
+    cost: number | null;
+};
+
+/** T4、T7、T8：生成按钮置灰的原因。返回空字符串表示可以提交。顺序即提示优先级。 */
+export function studioBlockReason(config: AiConfig, state: StudioToolState, model: string, context: StudioBlockContext) {
+    if (!context.loggedIn) return "请先登录";
+    if (!model) return "后台还没有可用的模型";
+    const prompt = state.prompt.trim();
+    if (!prompt) return state.kind === "audio" ? "请输入要朗读的文案" : "请输入提示词";
+    if (state.kind === "image" || state.kind === "video") {
+        const lengthError = modelPromptLengthError(config, model, state.kind, prompt);
+        if (lengthError) return lengthError;
+    }
+    if (state.kind === "video") {
+        const profile = modelCapabilityConfigFor(config, model).video!;
+        if (!videoDurationAllowed(profile, Number(state.video.seconds))) return "当前模型不支持所选视频时长";
+        if (state.video.mode) {
+            const counts = attachmentCounts(state.attachments);
+            const error = videoModeInputError(state.video.mode, counts);
+            if (error) return error;
+        }
+    }
+    if (context.creditsEnabled && context.cost !== null && context.availableCredits !== null && context.cost > context.availableCredits) {
+        const missing = Math.ceil((context.cost - context.availableCredits) * 100) / 100;
+        return `积分不足，还差 ${missing.toLocaleString("zh-CN", { maximumFractionDigits: 2 })}`;
+    }
+    return "";
+}
+
+export type StudioSubmission = {
+    mode: StudioKind;
+    prompt: string;
+    config: AiConfig;
+    count: number;
+    referenceImages: ReturnType<typeof splitCreationAttachments>["referenceImages"];
+    referenceVideos: ReturnType<typeof splitCreationAttachments>["referenceVideos"];
+    referenceAudios: ReturnType<typeof splitCreationAttachments>["referenceAudios"];
+    metadata: Record<string, unknown>;
+};
+
+/** 组装一次提交。超出上限的素材、当前视频模式不用的素材都不发送。 */
+export function studioSubmission(config: AiConfig, state: StudioToolState, model: string, limits: StudioReferenceLimits): StudioSubmission {
+    const overflow = studioOverflowAttachmentIds(state.attachments, limits);
+    const sendable = state.attachments.filter((attachment) => !overflow.has(attachment.id));
+    const split = splitCreationAttachments(sendable);
+    const generationConfig = studioGenerationConfig(config, state, model);
+    const metadata: Record<string, unknown> = { source: "studio", studioTool: state.tool };
+    if (state.kind === "video") {
+        const mode = state.video.mode;
+        const referenceImages = applyVideoModeImageRoles(mode, pickVideoModeMaterials(mode, "image", split.referenceImages));
+        const referenceVideos = pickVideoModeMaterials(mode, "video", split.referenceVideos);
+        const referenceAudios = pickVideoModeMaterials(mode, "audio", split.referenceAudios);
+        const operation = mode ? videoModeOperation(mode) : inferVideoOperation({ textCount: 1, imageCount: referenceImages.length, videoCount: referenceVideos.length, audioCount: referenceAudios.length, characterCount: 0 });
+        if (mode) metadata.videoMode = mode;
+        metadata.videoEditOperation = operation;
+        return { mode: "video", prompt: state.prompt.trim(), config: generationConfig, count: 1, referenceImages, referenceVideos, referenceAudios, metadata };
+    }
+    if (state.kind === "image") {
+        const maxOutputs = modelCapabilityConfigFor(config, model).image!.maxOutputs;
+        const count = Math.max(1, Math.min(maxOutputs || 1, Math.floor(state.count) || 1));
+        return { mode: "image", prompt: state.prompt.trim(), config: generationConfig, count, referenceImages: split.referenceImages, referenceVideos: [], referenceAudios: [], metadata };
+    }
+    const prompt = audioGenerationPrompt(generationConfig, state.prompt.trim(), split.referenceAudios.length, split.referenceImages.length);
+    return { mode: "audio", prompt, config: generationConfig, count: 1, referenceImages: split.referenceImages, referenceVideos: [], referenceAudios: split.referenceAudios, metadata };
+}
+
+/** 生成按钮上的数量上限：图片按模型最多出图数，其余固定 1。 */
+export function studioMaxCount(config: AiConfig, kind: StudioKind, model: string) {
+    if (kind !== "image" || !model) return 1;
+    return Math.max(1, Math.min(8, modelCapabilityConfigFor(config, model).image!.maxOutputs || 1));
+}

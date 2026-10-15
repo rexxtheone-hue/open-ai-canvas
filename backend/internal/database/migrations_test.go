@@ -106,10 +106,11 @@ func TestMigrateSchemaNormalizesLegacyWorkbenchMigrationV51(t *testing.T) {
 	if err := MigrateSchema(db); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Where("version IN ?", []int64{51, 52, 53}).Delete(&schemaMigration{}).Error; err != nil {
+	// 旧库当时只走到工作台迁移，之后的迁移记录都还不存在。
+	if err := db.Where("version IN ? OR version > ?", []int64{51, 52, 53}, workbenchToolsMigrationVersion).Delete(&schemaMigration{}).Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Model(&schemaMigration{}).Where("version = ?", 54).Updates(map[string]any{
+	if err := db.Model(&schemaMigration{}).Where("version = ?", workbenchToolsMigrationVersion).Updates(map[string]any{
 		"version":  51,
 		"name":     workbenchToolsMigrationName,
 		"checksum": legacyWorkbenchToolsMigrationChecksum,

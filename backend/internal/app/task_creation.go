@@ -363,6 +363,9 @@ func normalizeTaskInput(input map[string]any) (map[string]any, error) {
 
 func workbenchKindFromTaskInput(input map[string]any, taskType string) string {
 	metadata, ok := input["metadata"].(map[string]any)
+	if ok && metadata["source"] == "studio" {
+		return studioKindFromTaskInput(input, taskType)
+	}
 	if !ok || metadata["source"] != "workbench" {
 		return ""
 	}
@@ -759,4 +762,23 @@ func compactPersistedValue(value interface{}) interface{} {
 	default:
 		return value
 	}
+}
+
+// studioKindFromTaskInput 只在模式与任务类型一致时标记 Studio 作品，避免伪造来源污染作品库。
+func studioKindFromTaskInput(input map[string]any, taskType string) string {
+	switch stringValue(input["mode"]) {
+	case "image":
+		if taskType == "canvas_image" {
+			return model.StudioKindImage
+		}
+	case "video":
+		if taskType == "canvas_video" || strings.HasPrefix(taskType, "video_") {
+			return model.StudioKindVideo
+		}
+	case "audio":
+		if taskType == "canvas_audio" {
+			return model.StudioKindAudio
+		}
+	}
+	return ""
 }

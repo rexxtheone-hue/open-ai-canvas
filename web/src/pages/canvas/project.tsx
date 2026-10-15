@@ -599,9 +599,13 @@ function CanvasViewportPage() {
 
     useEffect(() => {
         if (!projectLoaded || searchParams.get("agent") !== "1") return;
+        // AI Studio 首页把需求带进来：打开 Agent 后自动发送一次，再从地址栏移除，刷新不会重复发送。
+        const handoffPrompt = searchParams.get("agentPrompt")?.trim();
+        if (handoffPrompt) setAgentPrefillRequest((current) => ({ id: (current?.id ?? 0) + 1, text: handoffPrompt, autoSubmit: true }));
         openAgent();
         const next = new URLSearchParams(searchParams);
         next.delete("agent");
+        next.delete("agentPrompt");
         setSearchParams(next, { replace: true });
     }, [projectLoaded, searchParams, setSearchParams, openAgent]);
 

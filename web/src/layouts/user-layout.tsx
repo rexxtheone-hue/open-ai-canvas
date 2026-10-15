@@ -15,6 +15,8 @@ const workspaceTheme = getWorkspaceAntThemeConfig();
 export default function UserLayout({ children }: { children: ReactNode }) {
     const { pathname } = useLocation();
     const adminWorkspace = pathname === "/admin" || pathname.startsWith("/admin/");
+    // 界面选择页与 AI Studio 使用自己的外框，不套用工作台侧栏和顶栏。
+    const ownChrome = pathname === "/" || pathname === "/studio" || pathname.startsWith("/studio/");
     const spatialWorkbench = isSpatialWorkbenchPath(pathname);
     const productWorkspace = !adminWorkspace && !/^\/canvas\/[^/]+(?:\/|$)/.test(pathname);
     useWorkspaceButtonFeedback(productWorkspace);
@@ -40,9 +42,13 @@ export default function UserLayout({ children }: { children: ReactNode }) {
             dropdown={productWorkspace ? { classNames: { root: "workspace-quiet-popup" } } : undefined}
             popover={productWorkspace ? { classNames: { root: "workspace-quiet-popup" } } : undefined}
         >
-            <div className={cn("app-user-workspace h-dvh overflow-hidden text-foreground", spatialWorkbench && "app-spatial-workspace", productWorkspace && "app-product-workspace")}>
-                <AppWorkspaceShell>{children}</AppWorkspaceShell>
-            </div>
+            {ownChrome ? (
+                children
+            ) : (
+                <div className={cn("app-user-workspace h-dvh overflow-hidden text-foreground", spatialWorkbench && "app-spatial-workspace", productWorkspace && "app-product-workspace")}>
+                    <AppWorkspaceShell>{children}</AppWorkspaceShell>
+                </div>
+            )}
         </ConfigProvider>
     );
 }

@@ -1,5 +1,5 @@
 import { Popover } from "antd";
-import { ChevronDown, ChevronRight, CircleUserRound, History as HistoryIcon, Image as ImageIcon, Infinity as InfinityIcon, PanelLeftClose, PanelLeftOpen, Plus, Video } from "lucide-react";
+import { ChevronDown, ChevronRight, CircleUserRound, History as HistoryIcon, Image as ImageIcon, Infinity as InfinityIcon, PanelLeftClose, PanelLeftOpen, Plus, Sparkles, Video } from "lucide-react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
@@ -44,7 +44,8 @@ function buildNav(features: FeatureAvailability): { groups: WorkspaceNavGroup[];
     const groups: WorkspaceNavGroup[] = [
         {
             items: [
-                { ...toolItem("create", "/"), id: "home", title: "创作" },
+                { id: "studio", title: "AI Studio", icon: Sparkles, to: "/studio" },
+                { ...toolItem("create", "/create"), id: "home", title: "创作" },
                 { ...toolItem("inspirations", "/inspirations"), title: "灵感" },
                 { ...toolItem("projects", "/projects"), title: "短剧制作" },
                 { ...toolItem("canvas", "/canvas"), title: "自由画布" },
@@ -337,7 +338,8 @@ function NavGroup({ group, activeId, onNavigate, onOpenSearch, onLogout, collaps
 export function workspaceNavActiveId(pathname: string, section?: string | null) {
     const segments = pathname.split("/").filter(Boolean);
     if (segments[0] === "toolbox" && segments[1]) return `toolbox-${segments[1]}`;
-    const slug = segments[0] || "home";
+    // 原创作页搬到 /create 后仍高亮「创作」；根路径是界面选择页。
+    const slug = !segments[0] || segments[0] === "create" ? "home" : segments[0];
     return slug === "settings" && section ? `settings:${section}` : slug;
 }
 

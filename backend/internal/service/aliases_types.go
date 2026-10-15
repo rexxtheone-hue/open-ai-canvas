@@ -327,6 +327,11 @@ type (
 	TaskClientContext                      = app.TaskClientContext
 	TaskListOptions                        = app.TaskListOptions
 	TaskSummary                            = app.TaskSummary
+	StudioWork                             = app.StudioWork
+	StudioWorkPage                         = app.StudioWorkPage
+	StudioWorkQuery                        = app.StudioWorkQuery
+	StudioMedia                            = app.StudioMedia
+	StudioPreferenceView                   = app.StudioPreferenceView
 	TextCapabilityConfig                   = app.TextCapabilityConfig
 	TextReferenceConfig                    = app.TextReferenceConfig
 	TextReplayResult                       = app.TextReplayResult
