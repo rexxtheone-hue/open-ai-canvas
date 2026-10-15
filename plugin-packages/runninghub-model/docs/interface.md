@@ -22,7 +22,7 @@
 | 统一字段 | 上游字段 | 说明 |
 | --- | --- | --- |
 | `prompt` | `prompt` | 提示词，0–20000 字 |
-| `aspectRatio` | `aspectRatio` | 1:1、3:4、4:3、9:16、16:9、21:9。纯文本（无参考图和参考视频）时 RunningHub 不接受自适应，未指定或为 auto/adaptive 时默认 16:9；有参考素材时留空表示跟随参考 |
+| `aspectRatio` | `aspectRatio`、`ratio` | 1:1、3:4、4:3、9:16、16:9、21:9。有参考素材时发送 `aspectRatio`，留空表示跟随参考。纯文本（无参考图和参考视频）时 RunningHub 转入 t2va 流程，只认 `ratio` 且不接受自适应，因此同时发送 `ratio`；未指定或为 auto/adaptive 时默认 16:9 |
 | `resolution` | `resolution` | 480p、768p、1080p，默认 768p |
 | `duration` | `duration` | 4–15 秒，默认 5 |
 | `images[0..8]` | `refImage1`–`refImage9` | 按顺序填入 |
@@ -52,7 +52,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "runninghub-model",
   "name": "RunningHub 标准模型 API",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "author": "Rexx",
   "description": "RunningHub 标准模型 API 视频协议插件（异步任务），首个适配 MiniMax H3 RH Enhanced 多参考生视频。",
   "permissions": [
@@ -298,6 +298,83 @@
                     }
                   }
                 ]
+              }
+            },
+            "ratio": {
+              "$omitEmpty": {
+                "$if": {
+                  "condition": {
+                    "$or": [
+                      {
+                        "$gt": [
+                          {
+                            "$len": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "request.images"
+                                },
+                                []
+                              ]
+                            }
+                          },
+                          0
+                        ]
+                      },
+                      {
+                        "$gt": [
+                          {
+                            "$len": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "request.videos"
+                                },
+                                []
+                              ]
+                            }
+                          },
+                          0
+                        ]
+                      }
+                    ]
+                  },
+                  "then": null,
+                  "else": {
+                    "$coalesce": [
+                      {
+                        "$if": {
+                          "condition": {
+                            "$in": [
+                              {
+                                "$lower": {
+                                  "$coalesce": [
+                                    {
+                                      "$ref": "request.aspectRatio"
+                                    },
+                                    ""
+                                  ]
+                                }
+                              },
+                              [
+                                "",
+                                "auto",
+                                "adaptive",
+                                "自适应",
+                                "智能"
+                              ]
+                            ]
+                          },
+                          "then": {
+                            "$ref": "request.providerOptions.runninghub-model.aspectRatio"
+                          },
+                          "else": {
+                            "$ref": "request.aspectRatio"
+                          }
+                        }
+                      },
+                      "16:9"
+                    ]
+                  }
+                }
               }
             },
             "resolution": {
