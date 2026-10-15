@@ -43,6 +43,10 @@ type renderProject struct {
 	Tracks     []renderTrack `json:"tracks"`
 	Clips      []renderClip  `json:"clips"`
 	DurationMs int64         `json:"durationMs"`
+	// 以下为可选项，只有 AI Studio 导演会传；画布剪辑器不传时保持原有行为。
+	Width          int  `json:"width,omitempty"`
+	Height         int  `json:"height,omitempty"`
+	MixAudioTracks bool `json:"mixAudioTracks,omitempty"`
 }
 
 type renderSource struct {
@@ -68,6 +72,15 @@ type renderPlan struct {
 	Segments    []renderSegment
 	SubtitleSRT string
 	HasMedia    bool
+	Width       int
+	Height      int
+	// Overlays 是叠加在整片上的音频片段（配音、音乐），按 startMs 延迟后与主音轨混合。
+	Overlays []renderOverlay
+}
+
+type renderOverlay struct {
+	Clip   renderClip
+	Source *renderSource
 }
 
 // buildRenderPlan 挑选可见视频/图片轨片段按 startMs 排序，并把片段之间的
@@ -97,7 +110,26 @@ func buildRenderPlan(project renderProject) renderPlan {
 		return clips[i].StartMs < clips[j].StartMs
 	})
 
-	plan := renderPlan{SubtitleSRT: buildRenderSubtitleSRT(project)}
+	plan := renderPlan{SubtitleSRT: buildRenderSubtitleSRT(project), Width: renderWidth, Height: renderHeight}
+	if project.Width >= 256 && project.Width <= 4096 && project.Height >= 256 && project.Height <= 4096 {
+		// 偶数尺寸才能用 yuv420p 编码。
+		plan.Width, plan.Height = project.Width/2*2, project.Height/2*2
+	}
+	if project.MixAudioTracks {
+		muted := map[string]bool{}
+		for _, track := range project.Tracks {
+			muted[track.ID] = track.Muted || !(track.Visible == nil || *track.Visible)
+		}
+		for _, clip := range project.Clips {
+			if clip.Kind != "audio" || muted[clip.TrackID] || clip.DurationMs <= 0 {
+				continue
+			}
+			if _, ok := mediaResourceID(clip); ok {
+				plan.Overlays = append(plan.Overlays, renderOverlay{Clip: clip})
+			}
+		}
+		sort.SliceStable(plan.Overlays, func(i, j int) bool { return plan.Overlays[i].Clip.StartMs < plan.Overlays[j].Clip.StartMs })
+	}
 	cursor := int64(0)
 	for _, clip := range clips {
 		if gap := clip.StartMs - cursor; gap > 0 {
@@ -169,8 +201,12 @@ func buildRenderFFmpegArgs(plan renderPlan, target string) []string {
 	if len(plan.Segments) == 0 {
 		return nil
 	}
+	width, height := plan.Width, plan.Height
+	if width <= 0 || height <= 0 {
+		width, height = renderWidth, renderHeight
+	}
 	scale := fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2",
-		renderWidth, renderHeight, renderWidth, renderHeight)
+		width, height, width, height)
 	args := []string{"-nostdin", "-y"}
 	for _, seg := range plan.Segments {
 		seconds := fmt.Sprintf("%.3f", float64(seg.DurationMs)/1000)
@@ -231,7 +267,7 @@ func buildRenderFFmpegArgs(plan renderPlan, target string) []string {
 			// 无音轨媒体：改用静音源，避免 map 失败。
 			audioIn = videoIn
 			filters = append(filters,
-				fmt.Sprintf("[%d:v]fps=%d,%s,setsar=1[%s]", videoIn, renderFPS, scale, videoLabel))
+				fmt.Sprintf("[%d:v]fps=%d,%s,setsar=1%s[%s]", videoIn, renderFPS, scale, renderHoldLastFrame(seg), videoLabel))
 			silentLabel := fmt.Sprintf("silent%d", i)
 			filters = append(filters,
 				fmt.Sprintf("anullsrc=r=%d:cl=stereo[%s]", renderSampleRate, silentLabel))
@@ -243,10 +279,11 @@ func buildRenderFFmpegArgs(plan renderPlan, target string) []string {
 				volume = seg.Clip.Volume
 			}
 			filters = append(filters,
-				fmt.Sprintf("[%d:v]fps=%d,%s,setsar=1[%s]", videoIn, renderFPS, scale, videoLabel))
+				fmt.Sprintf("[%d:v]fps=%d,%s,setsar=1%s[%s]", videoIn, renderFPS, scale, renderHoldLastFrame(seg), videoLabel))
+			// apad 补到片段时长后必须截断：无限长的音频会让 concat 一直等待第一段结束而卡死。
 			filters = append(filters,
-				fmt.Sprintf("[%d:a]aformat=sample_fmts=fltp:sample_rates=%d:channel_layouts=stereo,volume=%.3f,apad[%s]",
-					audioIn, renderSampleRate, volume, audioLabel))
+				fmt.Sprintf("[%d:a]aformat=sample_fmts=fltp:sample_rates=%d:channel_layouts=stereo,volume=%.3f,apad,atrim=0:%.3f,asetpts=N/SR/TB[%s]",
+					audioIn, renderSampleRate, volume, float64(seg.DurationMs)/1000, audioLabel))
 		}
 		labels = append(labels, videoLabel, audioLabel)
 	}
@@ -254,11 +291,38 @@ func buildRenderFFmpegArgs(plan renderPlan, target string) []string {
 	for _, label := range labels {
 		fmt.Fprintf(&concatInputs, "[%s]", label)
 	}
+	audioOut := "aout"
 	filters = append(filters, fmt.Sprintf("%sconcat=n=%d:v=1:a=1[vout][aout]", concatInputs.String(), len(plan.Segments)))
+	mixed := 0
+	for _, overlay := range plan.Overlays {
+		if overlay.Source == nil {
+			continue
+		}
+		args = append(args, "-i", overlay.Source.Path)
+		input := 2*len(plan.Segments) + mixed
+		volume := 1.0
+		if overlay.Clip.Volume > 0 {
+			volume = overlay.Clip.Volume
+		}
+		label := fmt.Sprintf("ov%d", mixed)
+		filters = append(filters, fmt.Sprintf("[%d:a]atrim=start=%.3f:duration=%.3f,asetpts=PTS-STARTPTS,aformat=sample_fmts=fltp:sample_rates=%d:channel_layouts=stereo,volume=%.3f,adelay=%d|%d[%s]",
+			input, float64(overlay.Clip.SourceStartMs)/1000, float64(overlay.Clip.DurationMs)/1000, renderSampleRate, volume, overlay.Clip.StartMs, overlay.Clip.StartMs, label))
+		mixed++
+	}
+	if mixed > 0 {
+		var mixInputs strings.Builder
+		mixInputs.WriteString("[aout]")
+		for i := 0; i < mixed; i++ {
+			fmt.Fprintf(&mixInputs, "[ov%d]", i)
+		}
+		// normalize=0：叠加配音和音乐时不压低原有音量。
+		filters = append(filters, fmt.Sprintf("%samix=inputs=%d:duration=first:dropout_transition=0:normalize=0[amixed]", mixInputs.String(), mixed+1))
+		audioOut = "amixed"
+	}
 
 	args = append(args,
 		"-filter_complex", strings.Join(filters, ";"),
-		"-map", "[vout]", "-map", "[aout]",
+		"-map", "[vout]", "-map", "["+audioOut+"]",
 		"-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
 		"-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart",
 		"-t", fmt.Sprintf("%.3f", planTotalSeconds(plan)),
@@ -273,4 +337,14 @@ func planTotalSeconds(plan renderPlan) float64 {
 		total += seg.DurationMs
 	}
 	return float64(total) / 1000
+}
+
+// renderHoldLastFrame 让视频片段正好铺满片段时长：素材比片段短时定格最后一帧补齐。
+// 否则 concat 里这段画面会提前结束，后面所有片段的画面都比声音早，成片音画不同步。
+func renderHoldLastFrame(seg renderSegment) string {
+	if seg.Kind != "video" || seg.DurationMs <= 0 {
+		return ""
+	}
+	seconds := float64(seg.DurationMs) / 1000
+	return fmt.Sprintf(",tpad=stop_mode=clone:stop_duration=%.3f,trim=duration=%.3f,setpts=PTS-STARTPTS", seconds, seconds)
 }

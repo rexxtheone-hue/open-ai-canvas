@@ -1,5 +1,5 @@
 import { Popover } from "antd";
-import { ChevronDown, ChevronRight, CircleUserRound, History as HistoryIcon, Image as ImageIcon, Infinity as InfinityIcon, PanelLeftClose, PanelLeftOpen, Plus, Sparkles, Video } from "lucide-react";
+import { ChevronDown, ChevronRight, CircleUserRound, History as HistoryIcon, Image as ImageIcon, Infinity as InfinityIcon, PanelLeftClose, PanelLeftOpen, Plus, Repeat2, Video } from "lucide-react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
@@ -44,11 +44,12 @@ function buildNav(features: FeatureAvailability): { groups: WorkspaceNavGroup[];
     const groups: WorkspaceNavGroup[] = [
         {
             items: [
-                { id: "studio", title: "AI Studio", icon: Sparkles, to: "/studio" },
                 { ...toolItem("create", "/create"), id: "home", title: "创作" },
                 { ...toolItem("inspirations", "/inspirations"), title: "灵感" },
                 { ...toolItem("projects", "/projects"), title: "短剧制作" },
                 { ...toolItem("canvas", "/canvas"), title: "自由画布" },
+                // 回到产品选择页；AI Canvas 与 AI Studio 是两个独立产品，只共用账号、会员与积分。
+                { id: "switch-product", title: "切换产品", icon: Repeat2, to: "/?choose=1" },
             ],
         },
         {

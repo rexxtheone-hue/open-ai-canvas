@@ -117,7 +117,7 @@ func (s *Service) CreateTask(userID string, req CreateTaskRequest) (*model.Task,
 		return nil, err
 	}
 	if limit := s.activeTaskLimitForUser(userID, policy.Task.ActiveTaskLimit); activeTasks >= int64(limit) {
-		return nil, BadAuthRequest(fmt.Sprintf("同时排队或运行的任务最多 %d 个，请等待已有任务完成", limit))
+		return nil, activeTaskLimitError(limit)
 	}
 	// 媒体任务在扣费和调用上游前确认账号文件容量，避免容量已满仍然计费却无法回存产物。
 	// 调用方已持锁时走不加锁的版本；这里不能再抢同一把 storageMu。
@@ -212,7 +212,7 @@ func (s *Service) CreateTask(userID string, req CreateTaskRequest) (*model.Task,
 	}
 	err = s.createTaskWithinStorageQuota(&task, billingOrder, policy)
 	if errors.Is(err, repository.ErrActiveTaskLimit) {
-		return nil, BadAuthRequest(fmt.Sprintf("同时排队或运行的任务最多 %d 个，请等待已有任务完成", policy.Task.ActiveTaskLimit))
+		return nil, activeTaskLimitError(policy.Task.ActiveTaskLimit)
 	}
 	if errors.Is(err, repository.ErrInsufficientCredits) {
 		return nil, BadAuthRequest("积分不足，请先使用兑换码充值")
@@ -781,4 +781,11 @@ func studioKindFromTaskInput(input map[string]any, taskType string) string {
 		}
 	}
 	return ""
+}
+
+// activeTaskLimitError 带上 details.activeTaskLimit，客户端（如 AI 导演批量生成）据此排队重试，不依赖界面语言。
+func activeTaskLimitError(limit int) *AppError {
+	err := BadAuthRequest(fmt.Sprintf("同时排队或运行的任务最多 %d 个，请等待已有任务完成", limit))
+	err.Details = map[string]any{"activeTaskLimit": limit}
+	return err
 }

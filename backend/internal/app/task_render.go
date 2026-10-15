@@ -88,7 +88,7 @@ func (w *taskWorkerCoordinator) processTimelineRender(task *model.Task, ctx cont
 	}
 	durationMs := planDurationMs(plan)
 	fileName := fmt.Sprintf("timeline-render-%s.mp4", time.Now().Format("20060102-150405"))
-	resource, _, err := s.storeResource(task.UserID, "media", fileName, "video/mp4", stat.Size(), renderWidth, renderHeight, durationMs, file, nil, false)
+	resource, _, err := s.storeResource(task.UserID, "media", fileName, "video/mp4", stat.Size(), plan.Width, plan.Height, durationMs, file, nil, false)
 	if err != nil || resource == nil {
 		return w.failTimelineTask(task, "渲染失败", "保存渲染产物失败")
 	}
@@ -178,6 +178,38 @@ func materializeRenderSources(ctx context.Context, s *Service, userID string, pl
 			cache[resourceID] = path
 		}
 		seg.Source = &renderSource{ResourceID: resourceID, Clip: seg.Clip, Path: path, Ext: filepath.Ext(path)}
+	}
+	for i := range plan.Overlays {
+		overlay := &plan.Overlays[i]
+		resourceID, ok := mediaResourceID(overlay.Clip)
+		if !ok {
+			continue
+		}
+		path, cached := cache[resourceID]
+		if !cached {
+			_, reader, err := s.OpenResource(userID, resourceID)
+			if err != nil || reader == nil {
+				cleanup()
+				return "", nil, fmt.Errorf("无法读取时间线引用的音频，可能已被删除")
+			}
+			path = filepath.Join(tmpDir, fmt.Sprintf("src-%d.audio", len(cache)))
+			file, err := os.Create(path)
+			if err != nil {
+				reader.Close()
+				cleanup()
+				return "", nil, fmt.Errorf("写入临时媒体失败: %w", err)
+			}
+			if _, err := io.Copy(file, reader); err != nil {
+				file.Close()
+				reader.Close()
+				cleanup()
+				return "", nil, fmt.Errorf("读取时间线音频失败: %w", err)
+			}
+			file.Close()
+			reader.Close()
+			cache[resourceID] = path
+		}
+		overlay.Source = &renderSource{ResourceID: resourceID, Clip: overlay.Clip, Path: path, HasAudio: true}
 	}
 	return tmpDir, cleanup, nil
 }

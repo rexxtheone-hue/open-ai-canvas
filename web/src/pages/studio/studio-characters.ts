@@ -1,29 +1,36 @@
 import type { CreationAttachment } from "@/pages/create/creation-assets";
-import type { CharacterRepresentation, ProjectCharacterDetail } from "@/services/api/projects";
 import { resolveResourceUrl } from "@/services/api/resources";
+import type { StudioCharacter } from "@/services/api/studio-agents";
+import type { StudioChatAttachment } from "./studio-chat";
 
-const ROLE_ORDER = ["primary", "turnaround_sheet", "front", "side", "back"];
+/** Studio 自己的角色库：形象图是本人的图片资源，第一张为主图。 */
 
-/** 角色的图片按「主图 → 三视图 → 正面 → 侧面 → 背面」排序，与画布生成时取参考图的顺序一致。 */
-export function studioCharacterImages(detail: ProjectCharacterDetail): CharacterRepresentation[] {
-    const images = detail.character.representations.filter((item) => item.resourceId && (!item.mediaType || item.mediaType.startsWith("image")));
-    const rank = (role: string) => {
-        const index = ROLE_ORDER.indexOf(role);
-        return index < 0 ? ROLE_ORDER.length : index;
-    };
-    return [...images].sort((left, right) => rank(left.role) - rank(right.role));
+export function studioCharacterImageUrl(resourceId: string) {
+    return resolveResourceUrl(`resource:${resourceId}`, "");
 }
 
-export function studioCharacterCover(detail: ProjectCharacterDetail) {
-    const cover = studioCharacterImages(detail)[0];
-    return cover ? resolveResourceUrl(`resource:${cover.resourceId}`, "") : "";
+export function studioCharacterCover(character: StudioCharacter) {
+    const first = character.imageResourceIds[0];
+    return first ? studioCharacterImageUrl(first) : "";
 }
 
-/** 角色主图转成工具页的图片参考。只取一张，避免占满模型的参考图上限。 */
-export function studioCharacterAttachment(detail: ProjectCharacterDetail): CreationAttachment | undefined {
-    const cover = studioCharacterImages(detail)[0];
-    if (!cover) return undefined;
-    const storageKey = `resource:${cover.resourceId}`;
-    const url = resolveResourceUrl(storageKey, "");
-    return { id: `character:${detail.asset.id}:${cover.resourceId}`, name: detail.asset.title, type: "image/png", dataUrl: url, url, storageKey, previewUrl: url };
+/** 角色形象作为参考素材。默认只取主图，避免占满模型的参考图上限。 */
+export function studioCharacterAttachments(character: StudioCharacter, limit = 1): CreationAttachment[] {
+    return character.imageResourceIds.slice(0, limit).map((resourceId, index) => {
+        const storageKey = `resource:${resourceId}`;
+        const url = resolveResourceUrl(storageKey, "");
+        return { id: `character:${character.id}:${resourceId}`, name: index ? `${character.name} ${index + 1}` : character.name, type: "image/png", dataUrl: url, url, storageKey, previewUrl: url };
+    });
+}
+
+export function studioCharacterChatAttachment(character: StudioCharacter): StudioChatAttachment | null {
+    const resourceId = character.imageResourceIds[0];
+    if (!resourceId) return null;
+    return { id: `character:${character.id}:${resourceId}`, kind: "image", name: character.name, url: "", storageKey: `resource:${resourceId}`, mimeType: "image/png" };
+}
+
+/** 角色写进提示词的说明：名字和外形描述。 */
+export function studioCharacterBrief(character: Pick<StudioCharacter, "name" | "description">) {
+    const description = character.description.trim();
+    return description ? `${character.name}：${description}` : character.name;
 }

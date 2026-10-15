@@ -337,6 +337,11 @@ type (
 	StudioCommunityQuery                   = app.StudioCommunityQuery
 	StudioPublishInput                     = app.StudioPublishInput
 	StudioPostAdminInput                   = app.StudioPostAdminInput
+	StudioCharacterInput                   = app.StudioCharacterInput
+	StudioChatMessageInput                 = app.StudioChatMessageInput
+	StudioStoryInput                       = app.StudioStoryInput
+	StudioScenePlan                        = app.StudioScenePlan
+	StudioShotPatch                        = app.StudioShotPatch
 	StudioPlanInput                        = app.StudioPlanInput
 	TextCapabilityConfig                   = app.TextCapabilityConfig
 	TextReferenceConfig                    = app.TextReferenceConfig

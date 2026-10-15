@@ -8,7 +8,6 @@ import { CreditSymbol } from "@/constant/credits";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { useUserStore } from "@/stores/use-user-store";
-import { saveStudioPreference } from "@/services/api/studio";
 import { StudioToolThumb } from "./studio-tool-thumb";
 import { STUDIO_TOOL_TABS, studioToolById } from "./studio-tools";
 import { useStudioPins, useStudioToolCovers } from "./use-studio-tool-meta";
@@ -70,9 +69,6 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
     const covers = useStudioToolCovers();
     const pinnedTools = pins.map((id) => studioToolById(id)).filter((tool) => tool !== undefined);
 
-    const switchToCanvas = () => {
-        if (user) void saveStudioPreference("canvas").catch(() => undefined);
-    };
     const toggleCollapsed = () => {
         setCollapsed((value) => {
             writeJSON(COLLAPSE_KEY, !value);
@@ -185,9 +181,9 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                         ))}
                     </div>
                 )}
-                <Link to="/canvas" className="studio-side-switch" onClick={switchToCanvas} title="切换到 AI Canvas">
+                <Link to="/?choose=1" className="studio-side-switch" title="切换产品">
                     <Waypoints aria-hidden />
-                    {collapsed ? null : <span>切换到 AI Canvas</span>}
+                    {collapsed ? null : <span>切换产品</span>}
                 </Link>
             </nav>
             <div className="studio-main">

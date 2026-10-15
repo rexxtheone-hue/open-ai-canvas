@@ -26,12 +26,12 @@ export function StudioPanelTabs() {
 }
 
 /** 面板底部「对话 / 工具」切换。 */
-export function StudioPanelFooter() {
-    const active = useStudioActiveTab();
+export function StudioPanelFooter({ active = "tools" }: { active?: "chat" | "tools" }) {
+    const tab = useStudioActiveTab();
     return (
         <div className="studio-panel-switch" role="group" aria-label="创作方式">
-            <Link to="/studio/agents"><MessageSquareText aria-hidden />对话</Link>
-            <Link to={studioToolTab(active)?.path || "/studio/video"} aria-current="page"><Wand2 aria-hidden />工具</Link>
+            <Link to="/studio/agents" aria-current={active === "chat" ? "page" : undefined}><MessageSquareText aria-hidden />对话</Link>
+            <Link to={studioToolTab(tab)?.path || "/studio/video"} aria-current={active === "tools" ? "page" : undefined}><Wand2 aria-hidden />工具</Link>
         </div>
     );
 }

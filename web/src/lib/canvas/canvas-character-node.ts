@@ -3,7 +3,7 @@ import { CanvasNodeType, type CanvasNodeData, type Position } from "@/types/canv
 
 type CharacterPayload = Extract<InsertAssetPayload, { kind: "character" }>;
 
-/** 角色卡节点：竖版海报式主视觉，默认 3:4。画布插入和 AI Studio 预置角色共用。 */
+/** 角色卡节点：竖版海报式主视觉，默认 3:4。 */
 export function createCharacterCardNode(payload: CharacterPayload, center: Position): CanvasNodeData {
     const width = 264;
     const height = 352;

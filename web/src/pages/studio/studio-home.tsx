@@ -1,13 +1,11 @@
 import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { App } from "antd";
 import { ArrowUp, Briefcase, Building2, Clapperboard, Megaphone, MicVocal, Sparkles, Store, UserRound, Wand2 } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 
 import { modelDisplayName, selectableModelsByCapability, useEffectiveConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { StudioShell } from "./studio-shell";
-import { startStudioAgentRun } from "./studio-agent";
 import { useAvailableStudioTools } from "./use-available-tools";
 import { listStudioCommunity } from "@/services/api/studio";
 
@@ -29,12 +27,10 @@ const QUICK_STARTS = [
 
 export default function StudioHomePage({ initialMode = "agents" }: { initialMode?: "agents" | "tools" }) {
     const navigate = useNavigate();
-    const { message } = App.useApp();
     const config = useEffectiveConfig();
     const user = useUserStore((state) => state.user);
     const [mode, setMode] = useState<"agents" | "tools">(initialMode);
     const [prompt, setPrompt] = useState("");
-    const [sending, setSending] = useState(false);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const tools = useAvailableStudioTools();
     const templatesQuery = useQuery({ queryKey: ["studio", "home-templates"], queryFn: async () => (await listStudioCommunity({ templates: true, sort: "popular", pageSize: 8 })).posts, enabled: Boolean(user) });
@@ -62,20 +58,15 @@ export default function StudioHomePage({ initialMode = "agents" }: { initialMode
         });
     };
 
-    const send = async () => {
-        if (sending) return;
+    /** 首页的需求交给对话模式，进入后自动发送。 */
+    const send = () => {
+        const text = prompt.trim();
+        if (!text) return;
         if (!user) {
-            navigate(`/login?next=${encodeURIComponent("/studio")}`);
+            navigate(`/login?next=${encodeURIComponent("/studio/agents")}`);
             return;
         }
-        setSending(true);
-        try {
-            navigate(await startStudioAgentRun(prompt));
-        } catch (cause) {
-            message.error(cause instanceof Error ? cause.message : "启动失败，请重试");
-        } finally {
-            setSending(false);
-        }
+        navigate(`/studio/agents?q=${encodeURIComponent(text)}`);
     };
 
     return (
@@ -100,14 +91,14 @@ export default function StudioHomePage({ initialMode = "agents" }: { initialMode
                                     onKeyDown={(event) => {
                                         if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                                             event.preventDefault();
-                                            void send();
+                                            send();
                                         }
                                     }}
                                 />
                                 <div className="studio-composer-bar">
                                     <span className="studio-hint">Enter 发送，Shift + Enter 换行</span>
                                     <span style={{ flex: 1 }} />
-                                    <button type="button" className="studio-icon-button studio-send-button" aria-label="发送" disabled={!prompt.trim() || sending} onClick={() => void send()}>
+                                    <button type="button" className="studio-icon-button studio-send-button" aria-label="发送" disabled={!prompt.trim()} onClick={send}>
                                         <ArrowUp aria-hidden />
                                     </button>
                                 </div>

@@ -1,18 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { App, Popover, Spin } from "antd";
-import { Check, ChevronDown, Download, Filter, ImagePlus, LayoutGrid, LayoutTemplate, Loader2, RefreshCw, Search, Share2, SlidersHorizontal, Star, Trash2, Waypoints, Wand2 } from "lucide-react";
-import { Link, useNavigate } from "react-router";
+import { Check, ChevronDown, Download, Filter, ImagePlus, LayoutGrid, LayoutTemplate, Loader2, RefreshCw, Search, Share2, SlidersHorizontal, Star, Trash2, Wand2, MessageSquarePlus } from "lucide-react";
+import { Link } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal";
 import { CachedResourceImage } from "@/components/cached-resource-image";
 import { CanvasImagePreview } from "@/components/canvas/canvas-image-preview";
-import { createCanvasNode } from "@/lib/canvas/canvas-project-domain";
 import { generationErrorMessage } from "@/lib/generation-error";
 import { getResourceBlob, playbackVariantUrl, resolveResourceUrl, resourceIdFromStorageKey } from "@/services/api/resources";
 import { recoverGenerationTaskMedia, retryGenerationTask } from "@/services/api/task-center";
 import type { StudioKind, StudioMedia, StudioWork } from "@/services/api/studio";
-import { createCanvasProjectWithRemoteSync } from "@/services/user-data-sync";
-import { CanvasNodeType } from "@/types/canvas";
 import { studioSelectionRange, studioWorkFileName, studioWorkIsActive, studioWorkTitle } from "./studio-library-model";
 import { notifyStudioWorksChanged, useStudioWorks, type StudioWorksFilter } from "./use-studio-works";
 import { StudioPublishModal } from "./studio-publish-modal";
@@ -52,32 +49,17 @@ async function downloadStudioMedia(work: StudioWork, index: number) {
     if (revoke) window.setTimeout(() => URL.revokeObjectURL(href), 30_000);
 }
 
-/** 在新画布里放入作品节点，供用户到 AI Canvas 精修（规则 L4）。 */
-async function openWorkInCanvas(work: StudioWork) {
-    const nodeType = work.kind === "video" ? CanvasNodeType.Video : work.kind === "audio" ? CanvasNodeType.Audio : CanvasNodeType.Image;
-    const nodes = work.media.map((media, index) => createCanvasNode(nodeType, { x: 720 + index * 560, y: 420 }, {
-        content: media.storageKey ? resolveResourceUrl(media.storageKey, media.url || "") : media.url,
-        storageKey: media.storageKey,
-        prompt: work.prompt,
-        status: "success",
-        ...(media.width && media.height ? { naturalWidth: media.width, naturalHeight: media.height } : {}),
-    }));
-    if (!nodes.length) throw new Error("作品还没有可用的文件");
-    const created = await createCanvasProjectWithRemoteSync(studioWorkTitle(work), undefined, { nodes, connections: [] });
-    if (!created.id) throw new Error("画布创建失败，请重试");
-    return created.id;
-}
-
 type StudioLibraryProps = {
     /** 固定类型时不显示类型筛选（工具页右侧）；独立素材页显示全部类型。 */
     kind?: StudioKind;
     onUseAsReference?: (work: StudioWork, media: StudioMedia) => void;
     onReuseSettings?: (work: StudioWork) => void;
+    /** 对话模式：把选中的作品加入对话作为素材。 */
+    onAddToChat?: (works: StudioWork[]) => void;
 };
 
-export function StudioLibrary({ kind, onUseAsReference, onReuseSettings }: StudioLibraryProps) {
+export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddToChat }: StudioLibraryProps) {
     const { message, modal } = App.useApp();
-    const navigate = useNavigate();
     const [filter, setFilter] = useState<StudioWorksFilter>({ kind: kind || "all", favorite: false, q: "" });
     const [searchDraft, setSearchDraft] = useState("");
     const { works, loading, loadingMore, error, hasMore, loadMore, refresh, toggleFavorite, removeWorks } = useStudioWorks(filter);
@@ -259,7 +241,6 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings }: Studi
                                     onDownload={() => void run(work.id, () => downloadStudioMedia(work, 0))}
                                     onUseAsReference={onUseAsReference && work.media[0] ? () => onUseAsReference(work, work.media[0]) : undefined}
                                     onReuseSettings={onReuseSettings ? () => onReuseSettings(work) : undefined}
-                                    onOpenInCanvas={() => void run(work.id, async () => navigate(`/canvas/${encodeURIComponent(await openWorkInCanvas(work))}`))}
                                     onRetry={() => void run(work.id, async () => {
                                         if (work.canRecoverMedia) await recoverGenerationTaskMedia(work.id);
                                         else await retryGenerationTask(work.id);
@@ -281,6 +262,12 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings }: Studi
             {selected.size ? (
                 <div className="studio-selection-bar">
                     <span>已选 {selected.size} 个</span>
+                    {onAddToChat ? (
+                        <button type="button" className="studio-mini-button is-primary" disabled={!selectedWorks.some((work) => work.status === "succeeded" && work.media.length)} onClick={() => {
+                            onAddToChat(selectedWorks.filter((work) => work.status === "succeeded" && work.media.length));
+                            setSelected(new Set());
+                        }}><MessageSquarePlus aria-hidden />加入对话</button>
+                    ) : null}
                     <button type="button" className="studio-mini-button" onClick={() => void run("batch", async () => {
                         for (const work of selectedWorks) for (let index = 0; index < work.media.length; index += 1) await downloadStudioMedia(work, index);
                     })}><Download aria-hidden />下载</button>
@@ -307,13 +294,12 @@ type StudioWorkCardProps = {
     onDownload: () => void;
     onUseAsReference?: () => void;
     onReuseSettings?: () => void;
-    onOpenInCanvas: () => void;
     onRetry: () => void;
     onDelete: () => void;
     onPublish?: () => void;
 };
 
-function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite, onDownload, onUseAsReference, onReuseSettings, onOpenInCanvas, onRetry, onDelete, onPublish }: StudioWorkCardProps) {
+function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite, onDownload, onUseAsReference, onReuseSettings, onRetry, onDelete, onPublish }: StudioWorkCardProps) {
     const media = work.media[0];
     const active = studioWorkIsActive(work);
     const failed = work.status === "failed" || work.status === "cancelled";
@@ -344,7 +330,6 @@ function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite,
                     {media ? <button type="button" aria-label="下载" title="下载" disabled={busy} onClick={onDownload}><Download aria-hidden /></button> : null}
                     {media && onUseAsReference ? <button type="button" aria-label="作为参考" title="作为参考" onClick={onUseAsReference}><ImagePlus aria-hidden /></button> : null}
                     {onReuseSettings ? <button type="button" aria-label="用同样设置再生成" title="用同样设置再生成" onClick={onReuseSettings}><Wand2 aria-hidden /></button> : null}
-                    {media ? <button type="button" aria-label="在画布中打开" title="在画布中打开" disabled={busy} onClick={onOpenInCanvas}><Waypoints aria-hidden /></button> : null}
                     {onPublish ? <button type="button" aria-label="发布到社区" title="发布到社区" onClick={onPublish}><Share2 aria-hidden /></button> : null}
                     <button type="button" aria-label="删除" title="删除" onClick={onDelete}><Trash2 aria-hidden /></button>
                 </div>

@@ -230,7 +230,7 @@ func (s *Service) CreateTimelineTranscriptionTask(userID string, req TimelineTra
 	}
 	if err := s.createTaskWithinStorageQuota(&task, nil, policy); err != nil {
 		if errors.Is(err, repository.ErrActiveTaskLimit) {
-			return nil, BadAuthRequest(fmt.Sprintf("同时排队或运行的任务最多 %d 个，请等待已有任务完成", policy.Task.ActiveTaskLimit))
+			return nil, activeTaskLimitError(policy.Task.ActiveTaskLimit)
 		}
 		return nil, err
 	}
@@ -284,7 +284,7 @@ func (s *Service) CreateTimelineRenderTask(userID string, req TimelineRenderCrea
 	}
 	if err := s.createTaskWithinStorageQuota(&task, nil, policy); err != nil {
 		if errors.Is(err, repository.ErrActiveTaskLimit) {
-			return nil, BadAuthRequest(fmt.Sprintf("同时排队或运行的任务最多 %d 个，请等待已有任务完成", policy.Task.ActiveTaskLimit))
+			return nil, activeTaskLimitError(policy.Task.ActiveTaskLimit)
 		}
 		return nil, err
 	}

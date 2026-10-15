@@ -118,3 +118,95 @@ type StudioToolCover struct {
 	ResourceID string    `json:"resourceId" gorm:"size:36"`
 	UpdatedAt  time.Time `json:"updatedAt"`
 }
+
+// StudioCharacter 是 AI Studio 自己的角色库，与 AI Canvas 的角色数据互不相通。
+type StudioCharacter struct {
+	ID          string    `json:"id" gorm:"primaryKey;size:36"`
+	UserID      string    `json:"userId" gorm:"index;size:36"`
+	Name        string    `json:"name" gorm:"size:80"`
+	Description string    `json:"description" gorm:"type:text"`
+	ImagesJSON  string    `json:"-" gorm:"type:text"`
+	VoiceName   string    `json:"voiceName" gorm:"size:120"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+// StudioChatSession 是对话模式或导演模式的一段会话；导演会话关联一个故事。
+type StudioChatSession struct {
+	ID        string    `json:"id" gorm:"primaryKey;size:36"`
+	UserID    string    `json:"userId" gorm:"index;size:36"`
+	Mode      string    `json:"mode" gorm:"size:16;index"`
+	StoryID   string    `json:"storyId,omitempty" gorm:"size:36;index"`
+	Title     string    `json:"title" gorm:"size:120"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt" gorm:"index"`
+}
+
+type StudioChatMessage struct {
+	ID          string `json:"id" gorm:"primaryKey;size:36"`
+	SessionID   string `json:"sessionId" gorm:"index;size:36"`
+	UserID      string `json:"userId" gorm:"index;size:36"`
+	Role        string `json:"role" gorm:"size:16"`
+	Content     string `json:"content" gorm:"type:text"`
+	ActionsJSON string `json:"-" gorm:"type:text"`
+	AttachJSON  string `json:"-" gorm:"type:text"`
+	TaskID      string `json:"taskId,omitempty" gorm:"size:64"`
+	// Seq 是写入顺序（纳秒时间戳）。SQLite 把时间存成文本、会省略小数末尾的 0，按 created_at 排序在同一秒内可能乱序。
+	Seq       int64     `json:"-" gorm:"index"`
+	CreatedAt time.Time `json:"createdAt" gorm:"index"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// StudioStory 是导演项目：故事 → 场景 → 镜头 → 版本。成片由镜头当前版本按顺序合成。
+type StudioStory struct {
+	ID              string    `json:"id" gorm:"primaryKey;size:36"`
+	UserID          string    `json:"userId" gorm:"index;size:36"`
+	Title           string    `json:"title" gorm:"size:120"`
+	Ratio           string    `json:"ratio" gorm:"size:12"`
+	DurationSeconds int       `json:"durationSeconds"`
+	BriefJSON       string    `json:"-" gorm:"type:text"`
+	MemoryJSON      string    `json:"-" gorm:"type:text"`
+	SettingsJSON    string    `json:"-" gorm:"type:text"`
+	Status          string    `json:"status" gorm:"size:24"`
+	RenderTaskID    string    `json:"renderTaskId,omitempty" gorm:"size:64"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt" gorm:"index"`
+}
+
+type StudioScene struct {
+	ID          string    `json:"id" gorm:"primaryKey;size:36"`
+	StoryID     string    `json:"storyId" gorm:"index;size:36"`
+	UserID      string    `json:"userId" gorm:"index;size:36"`
+	Sort        int       `json:"sort"`
+	Title       string    `json:"title" gorm:"size:120"`
+	Description string    `json:"description" gorm:"type:text"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+type StudioShot struct {
+	ID                   string    `json:"id" gorm:"primaryKey;size:36"`
+	StoryID              string    `json:"storyId" gorm:"index;size:36"`
+	SceneID              string    `json:"sceneId" gorm:"index;size:36"`
+	UserID               string    `json:"userId" gorm:"index;size:36"`
+	Sort                 int       `json:"sort"`
+	DurationSeconds      int       `json:"durationSeconds"`
+	FieldsJSON           string    `json:"-" gorm:"type:text"`
+	ActiveImageVersionID string    `json:"activeImageVersionId,omitempty" gorm:"size:36"`
+	ActiveVideoVersionID string    `json:"activeVideoVersionId,omitempty" gorm:"size:36"`
+	ActiveVoiceVersionID string    `json:"activeVoiceVersionId,omitempty" gorm:"size:36"`
+	CreatedAt            time.Time `json:"createdAt"`
+	UpdatedAt            time.Time `json:"updatedAt"`
+}
+
+// StudioShotVersion 是镜头的一次生成结果（画面、视频或配音），指向一个生成任务。
+type StudioShotVersion struct {
+	ID        string    `json:"id" gorm:"primaryKey;size:36"`
+	ShotID    string    `json:"shotId" gorm:"index;size:36"`
+	StoryID   string    `json:"storyId" gorm:"index;size:36"`
+	UserID    string    `json:"userId" gorm:"index;size:36"`
+	Kind      string    `json:"kind" gorm:"size:16"`
+	TaskID    string    `json:"taskId" gorm:"size:64;index"`
+	Seq       int64     `json:"-" gorm:"index"`
+	CreatedAt time.Time `json:"createdAt"`
+}
