@@ -70,6 +70,9 @@ func (s *Service) CreateTopupProduct(actor *model.User, request TopupProductRequ
 	if err != nil {
 		return nil, err
 	}
+	if err := s.validateTopupPlan(product.PlanID); err != nil {
+		return nil, err
+	}
 	if err := s.repo.CreateTopupProduct(product); err != nil {
 		return nil, err
 	}
@@ -94,6 +97,9 @@ func (s *Service) UpdateTopupProduct(actor *model.User, id string, request Topup
 		built, buildErr := topupProductFromRequest(id, actor.ID, request, existing.StockTotal, consumed)
 		if buildErr != nil {
 			return nil, buildErr
+		}
+		if planErr := s.validateTopupPlan(built.PlanID); planErr != nil {
+			return nil, planErr
 		}
 		product = built
 		return built, nil
@@ -121,6 +127,10 @@ func topupProductFromRequest(id, actorID string, request TopupProductRequest, st
 	}
 	if request.CreditsMicrocredits <= 0 || request.CreditsMicrocredits > maxTopupCreditsMicrocredits {
 		return nil, BadAuthRequest("充值积分必须为 0.000001 至 10 亿积分")
+	}
+	currency := normalizedTopupCurrency(request.Currency)
+	if !supportedTopupCurrency(currency) {
+		return nil, BadAuthRequest("不支持的结算币种")
 	}
 	strategy := request.SaleStrategy
 	if strategy == "" {
@@ -150,7 +160,8 @@ func topupProductFromRequest(id, actorID string, request TopupProductRequest, st
 	}
 	return &model.TopupProduct{
 		ID: id, Name: name, Description: truncateRunes(strings.TrimSpace(request.Description), 500),
-		AmountFen: request.AmountFen, CreditsMicrocredits: request.CreditsMicrocredits,
+		AmountFen: request.AmountFen, Currency: currency, CreditsMicrocredits: request.CreditsMicrocredits,
+		PlanID: strings.TrimSpace(request.PlanID),
 		Enabled: request.Enabled, SortOrder: request.SortOrder, SaleStrategy: strategy,
 		PeriodDays: request.PeriodDays, PeriodPurchaseLimit: request.PeriodPurchaseLimit,
 		StockTotal: request.StockTotal, StockRemaining: stockRemaining,

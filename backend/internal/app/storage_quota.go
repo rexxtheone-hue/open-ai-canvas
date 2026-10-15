@@ -91,6 +91,8 @@ func validateStructuredReplacementQuotaWithPolicy(usage repository.UserStorageUs
 }
 
 func (s *Service) createTaskWithinStorageQuota(task *model.Task, billingOrder *model.BillingOrder, policy RuntimePolicySetting) error {
+	// 会员套餐可以提高并发上限；写库时的原子检查必须用同一个上限。
+	policy.Task.ActiveTaskLimit = s.activeTaskLimitForUser(task.UserID, policy.Task.ActiveTaskLimit)
 	s.storageMu.Lock()
 	err := func() error {
 		defer s.storageMu.Unlock()

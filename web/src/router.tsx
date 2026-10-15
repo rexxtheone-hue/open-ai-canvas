@@ -56,6 +56,9 @@ const StudioSpecialtyToolRoute = lazy(() => import("@/pages/studio/studio-pages"
 const StudioDirectorPage = lazy(() => import("@/pages/studio/studio-director-page"));
 const StudioCharactersPage = lazy(() => import("@/pages/studio/studio-characters-page"));
 const StudioBrandPage = lazy(() => import("@/pages/studio/studio-brand"));
+const StudioInspirePage = lazy(() => import("@/pages/studio/studio-inspire"));
+const StudioPricingPage = lazy(() => import("@/pages/studio/studio-pricing"));
+const StudioAdminPage = lazy(() => import("@/pages/admin/studio/studio-admin-page"));
 const ImageWorkbenchPage = lazy(() => import("@/pages/workbench/image-workbench-route"));
 const VideoWorkbenchPage = lazy(() => import("@/pages/workbench/video-workbench-page"));
 const InspirationsPage = lazy(loadInspirationsPage);
@@ -137,6 +140,8 @@ export const router = createBrowserRouter([
             { path: "/studio/director", element: <RequireAuth>{deferred(<StudioDirectorPage />)}</RequireAuth> },
             { path: "/studio/characters", element: <RequireAuth>{deferred(<StudioCharactersPage />)}</RequireAuth> },
             { path: "/studio/brand", element: <RequireAuth>{deferred(<StudioBrandPage />)}</RequireAuth> },
+            { path: "/studio/inspire", element: <RequireAuth>{deferred(<StudioInspirePage />)}</RequireAuth> },
+            { path: "/studio/pricing", element: <RequireAuth>{deferred(<StudioPricingPage />)}</RequireAuth> },
             { path: "/studio/create-image", element: <RequireAuth>{deferred(<StudioToolPage key="create-image" toolId="create-image" />)}</RequireAuth> },
             { path: "/studio/create-video", element: <RequireAuth>{deferred(<StudioToolPage key="create-video" toolId="create-video" />)}</RequireAuth> },
             { path: "/studio/create-audio", element: <RequireAuth>{deferred(<StudioToolPage key="create-audio" toolId="create-audio" />)}</RequireAuth> },
@@ -258,6 +263,7 @@ export const router = createBrowserRouter([
                     { path: "workbench-tools", element: <WorkbenchToolsPage /> },
                     { path: "skill-curation", element: <SkillCurationPage /> },
                     { path: "payments", element: <AdminPaymentsPage /> },
+                    { path: "studio", element: <StudioAdminPage /> },
                     { path: "prompt-templates", element: <StoryboardPromptsPage /> },
                     { path: "storyboard-prompts", element: <Navigate to="/admin/prompt-templates" replace /> },
                     { path: "announcements", element: <AnnouncementsPage /> },

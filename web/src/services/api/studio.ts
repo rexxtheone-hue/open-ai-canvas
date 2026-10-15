@@ -1,5 +1,6 @@
 import { http } from "@/services/api/request";
 import type { GenerationTask } from "@/services/api/task-center";
+import type { TopupProduct } from "@/services/api/payments";
 
 export type StudioKind = "image" | "video" | "audio";
 export type StudioSurface = "studio" | "canvas";
@@ -96,4 +97,123 @@ export function updateStudioBrandKit(id: string, input: StudioBrandKitInput) {
 
 export function deleteStudioBrandKit(id: string) {
     return http.delete<{ deleted: boolean }>(`/studio/brand-kits/${encodeURIComponent(id)}`);
+}
+
+export type StudioPostMedia = { kind: StudioKind; url: string; mimeType?: string; width?: number; height?: number; durationMs?: number };
+
+export type StudioPost = {
+    id: string;
+    kind: StudioKind;
+    tool: string;
+    title: string;
+    /** 作者没开放做同款时为空。 */
+    prompt?: string;
+    settings?: Record<string, unknown>;
+    media: StudioPostMedia[];
+    author: string;
+    mine: boolean;
+    liked: boolean;
+    likeCount: number;
+    remixCount: number;
+    featured: boolean;
+    isTemplate: boolean;
+    allowRemix: boolean;
+    hidden?: boolean;
+    createdAt: string;
+};
+
+export type StudioPostPage = { posts: StudioPost[]; nextOffset?: number };
+
+export type StudioCommunityQuery = {
+    kind?: StudioKind | "all";
+    sort?: "featured" | "latest" | "popular";
+    templates?: boolean;
+    featured?: boolean;
+    mine?: boolean;
+    q?: string;
+    offset?: number;
+    pageSize?: number;
+};
+
+function communityParams(query: StudioCommunityQuery) {
+    return {
+        kind: query.kind && query.kind !== "all" ? query.kind : undefined,
+        sort: query.sort,
+        templates: query.templates ? "true" : undefined,
+        featured: query.featured ? "true" : undefined,
+        mine: query.mine ? "true" : undefined,
+        q: query.q?.trim() || undefined,
+        offset: query.offset || undefined,
+        pageSize: query.pageSize,
+    };
+}
+
+export function listStudioCommunity(query: StudioCommunityQuery = {}, signal?: AbortSignal) {
+    return http.get<StudioPostPage>("/studio/community", { params: communityParams(query), signal });
+}
+
+export function publishStudioWork(id: string, input: { title: string; allowRemix: boolean }) {
+    return http.post<StudioPost>(`/studio/works/${encodeURIComponent(id)}/publish`, input);
+}
+
+export function likeStudioPost(id: string, liked: boolean) {
+    return http.put<{ liked: boolean; likeCount: number }>(`/studio/community/${encodeURIComponent(id)}/like`, { liked });
+}
+
+export type StudioRemix = { kind: StudioKind; tool: string; prompt: string; settings: Record<string, unknown> };
+
+export function remixStudioPost(id: string) {
+    return http.post<StudioRemix>(`/studio/community/${encodeURIComponent(id)}/remix`);
+}
+
+export function deleteStudioPost(id: string) {
+    return http.delete<{ deleted: boolean }>(`/studio/community/${encodeURIComponent(id)}`);
+}
+
+export type StudioPlan = {
+    id: string;
+    name: string;
+    description: string;
+    badge: string;
+    durationDays: number;
+    activeTaskLimit: number;
+    commercialLicense: boolean;
+    enabled: boolean;
+    sortOrder: number;
+};
+
+export type StudioPlanOffer = StudioPlan & { products: TopupProduct[] };
+
+export type StudioMembership = {
+    active: boolean;
+    plan?: StudioPlan;
+    expiresAt?: string;
+    activeTaskLimit: number;
+    commercialLicense: boolean;
+};
+
+export function listStudioPlans() {
+    return http.get<{ plans: StudioPlanOffer[] }>("/studio/plans");
+}
+
+export function getStudioMembership() {
+    return http.get<StudioMembership>("/studio/membership");
+}
+
+export type StudioPlanInput = Omit<StudioPlan, "id">;
+
+export function listAdminStudioPlans() {
+    return http.get<{ plans: StudioPlan[] }>("/admin/studio/plans");
+}
+
+export function saveAdminStudioPlan(id: string | undefined, input: StudioPlanInput) {
+    return id ? http.put<StudioPlan>(`/admin/studio/plans/${encodeURIComponent(id)}`, input) : http.post<StudioPlan>("/admin/studio/plans", input);
+}
+
+export function listAdminStudioCommunity(query: StudioCommunityQuery = {}) {
+    return http.get<StudioPostPage>("/admin/studio/community", { params: communityParams(query) });
+}
+
+export function updateAdminStudioPost(id: string, input: { featured?: boolean; isTemplate?: boolean; hidden?: boolean }) {
+    return http.patch<StudioPost>(`/admin/studio/community/${encodeURIComponent(id)}`, input);
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { App, Spin } from "antd";
-import { Check, Download, ImagePlus, Loader2, RefreshCw, Search, Star, Trash2, Waypoints, Wand2 } from "lucide-react";
+import { Check, Download, ImagePlus, Loader2, RefreshCw, Search, Share2, Star, Trash2, Waypoints, Wand2 } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal";
@@ -15,6 +15,7 @@ import { createCanvasProjectWithRemoteSync } from "@/services/user-data-sync";
 import { CanvasNodeType } from "@/types/canvas";
 import { studioSelectionRange, studioWorkFileName, studioWorkIsActive, studioWorkTitle } from "./studio-library-model";
 import { notifyStudioWorksChanged, useStudioWorks, type StudioWorksFilter } from "./use-studio-works";
+import { StudioPublishModal } from "./studio-publish-modal";
 
 const KIND_LABELS: Record<StudioKind, string> = { image: "图片", video: "视频", audio: "音频" };
 
@@ -82,6 +83,7 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings }: Studi
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const anchorRef = useRef<string | null>(null);
     const [preview, setPreview] = useState<{ work: StudioWork; media: StudioMedia } | null>(null);
+    const [publishTarget, setPublishTarget] = useState<StudioWork | null>(null);
     const [busyId, setBusyId] = useState("");
 
     useEffect(() => {
@@ -195,6 +197,7 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings }: Studi
                                         notifyStudioWorksChanged();
                                     }, work.canRecoverMedia ? "正在重新保存作品" : "已重新提交")}
                                     onDelete={() => confirmDelete([work.id])}
+                                    onPublish={work.status === "succeeded" && work.media.some((item) => item.storageKey?.startsWith("resource:")) ? () => setPublishTarget(work) : undefined}
                                 />
                             ))}
                         </div>
@@ -217,6 +220,7 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings }: Studi
                 </div>
             ) : null}
             {preview?.media.kind === "image" ? <CanvasImagePreview src={preview.media.url} storageKey={preview.media.storageKey} alt={studioWorkTitle(preview.work)} onClose={() => setPreview(null)} /> : null}
+            <StudioPublishModal work={publishTarget} onClose={() => setPublishTarget(null)} />
             <AppModal flush open={preview?.media.kind === "video"} title={null} footer={null} centered destroyOnHidden width="min(1160px, calc(100vw - 32px))" onCancel={() => setPreview(null)}>
                 {preview?.media.kind === "video" ? <video controls autoPlay style={{ width: "100%", maxHeight: "80vh", display: "block", background: "#000" }} src={studioMediaSrc(preview.media)} /> : null}
             </AppModal>
@@ -237,9 +241,10 @@ type StudioWorkCardProps = {
     onOpenInCanvas: () => void;
     onRetry: () => void;
     onDelete: () => void;
+    onPublish?: () => void;
 };
 
-function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite, onDownload, onUseAsReference, onReuseSettings, onOpenInCanvas, onRetry, onDelete }: StudioWorkCardProps) {
+function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite, onDownload, onUseAsReference, onReuseSettings, onOpenInCanvas, onRetry, onDelete, onPublish }: StudioWorkCardProps) {
     const media = work.media[0];
     const active = studioWorkIsActive(work);
     const failed = work.status === "failed" || work.status === "cancelled";
@@ -271,6 +276,7 @@ function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite,
                     {media && onUseAsReference ? <button type="button" aria-label="作为参考" title="作为参考" onClick={onUseAsReference}><ImagePlus aria-hidden /></button> : null}
                     {onReuseSettings ? <button type="button" aria-label="用同样设置再生成" title="用同样设置再生成" onClick={onReuseSettings}><Wand2 aria-hidden /></button> : null}
                     {media ? <button type="button" aria-label="在画布中打开" title="在画布中打开" disabled={busy} onClick={onOpenInCanvas}><Waypoints aria-hidden /></button> : null}
+                    {onPublish ? <button type="button" aria-label="发布到社区" title="发布到社区" onClick={onPublish}><Share2 aria-hidden /></button> : null}
                     <button type="button" aria-label="删除" title="删除" onClick={onDelete}><Trash2 aria-hidden /></button>
                 </div>
             ) : null}

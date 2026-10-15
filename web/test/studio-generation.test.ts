@@ -19,7 +19,8 @@ import {
     studioSubmission,
     type StudioToolState,
 } from "../src/pages/studio/studio-generation";
-import { buildSpecialtyState, defaultSpecialtyOptions, orderedSlotAttachments, specialtyInputError, specialtyPrompt, studioSpecialtyAvailable, studioSpecialtySpec } from "../src/pages/studio/studio-specialty";
+import { buildSpecialtyState, defaultSpecialtyOptions, orderedSlotAttachments, restoreSpecialtyOptions, specialtyInputError, specialtyPrompt, studioSpecialtyAvailable, studioSpecialtySpec } from "../src/pages/studio/studio-specialty";
+import { studioRemixAsWork, studioRemixToolPath } from "../src/pages/studio/studio-community";
 
 function studioConfig(): AiConfig {
     const image = defaultModelCapabilityConfig(undefined, "pic-pro");
@@ -275,5 +276,27 @@ describe("AI Studio 专项工具", () => {
         expect(studioModelSupportsSpecialty(config, "relay::pic-pro", specialty)).toBe(true);
         config.channels[0].modelCosts![0].capabilityConfig!.image!.references.maxImages = 0;
         expect(studioModelSupportsSpecialty(config, "relay::pic-pro", specialty)).toBe(false);
+    });
+});
+
+describe("做同款与选项回填", () => {
+    test("选项随作品保存，回填时只接受仍然有效的取值", () => {
+        const spec = studioSpecialtySpec("relight")!;
+        const specialty = buildSpecialtyState(spec, { subject: attachment("a", "image/png") }, "", { lighting: "neon" });
+        const submission = studioSubmission(studioConfig(), state("image", { specialty, attachments: [attachment("a", "image/png")] }), "relay::pic-pro", { maxImages: 2, maxVideos: 0, maxAudios: 0 });
+        expect(submission.metadata).toMatchObject({ studioPrompt: "", specialtyOptions: { lighting: "neon" } });
+        expect(restoreSpecialtyOptions(spec, { lighting: "neon" })).toEqual({ lighting: "neon" });
+        expect(restoreSpecialtyOptions(spec, { lighting: "gone", extra: "x" })).toEqual({ lighting: "golden" });
+        expect(restoreSpecialtyOptions(spec, undefined)).toEqual({ lighting: "golden" });
+    });
+
+    test("做同款打开原工具；空的补充说明不会被完整指令覆盖", () => {
+        expect(studioRemixToolPath({ kind: "image", tool: "relight" })).toBe("/studio/tools/relight");
+        expect(studioRemixToolPath({ kind: "video", tool: "relight" })).toBe("/studio/create-video");
+        expect(studioRemixToolPath({ kind: "image", tool: "gone" })).toBe("/studio/create-image");
+        const work = studioRemixAsWork({ kind: "image", tool: "relight", prompt: "完整指令", settings: { userPrompt: "" } });
+        expect(work.settings?.userPrompt).toBe("");
+        const plain = studioRemixAsWork({ kind: "image", tool: "create-image", prompt: "一杯咖啡", settings: { size: "1:1" } });
+        expect(plain.settings).toMatchObject({ userPrompt: "一杯咖啡", size: "1:1" });
     });
 });

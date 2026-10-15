@@ -10,6 +10,8 @@ export type PaymentProvider = {
     pluginEnabled: boolean;
     configured: boolean;
     closeAfterMinutes: number;
+    /** 渠道结算币种；旧后端没有该字段时按人民币处理。 */
+    currency?: string;
 };
 
 export type TopupSaleStrategy = "unlimited" | "periodic" | "inventory" | "timed";
@@ -19,7 +21,10 @@ export type TopupProduct = {
     name: string;
     description?: string;
     amountFen: number;
+    currency?: string;
     creditsMicrocredits: number;
+    /** 绑定的会员套餐，购买后同时开通。 */
+    planId?: string;
     enabled: boolean;
     sortOrder: number;
     saleStrategy: TopupSaleStrategy;
@@ -74,6 +79,7 @@ export type PaymentConfigField = {
     secret?: boolean;
     default?: unknown;
     description?: string;
+    values?: string[];
 };
 
 export type AdminPaymentProvider = PaymentProvider & {

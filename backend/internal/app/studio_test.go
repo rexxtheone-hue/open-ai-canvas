@@ -227,3 +227,11 @@ func TestStudioSpecialtyWorkKeepsEmptyUserPrompt(t *testing.T) {
 		t.Fatalf("unexpected work %+v", work)
 	}
 }
+
+func TestStudioSettingsKeepSpecialtyOptions(t *testing.T) {
+	_, settings := studioSettingsFromInput(`{"mode":"image","config":{"model":"m"},"metadata":{"studioTool":"relight","studioPrompt":"","specialtyOptions":{"lighting":"neon","bad":123}}}`)
+	options, ok := settings["specialtyOptions"].(map[string]any)
+	if !ok || options["lighting"] != "neon" || options["bad"] != nil || settings["studioPrompt"] != "" {
+		t.Fatalf("unexpected settings %+v", settings)
+	}
+}

@@ -55,3 +55,59 @@ type StudioBrandKit struct {
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
 }
+
+// StudioPlan 是会员套餐：通过绑定了套餐的充值商品购买，按天数生效。
+type StudioPlan struct {
+	ID                string    `json:"id" gorm:"primaryKey;size:36"`
+	Name              string    `json:"name" gorm:"size:80"`
+	Description       string    `json:"description" gorm:"size:500"`
+	Badge             string    `json:"badge" gorm:"size:24"`
+	DurationDays      int       `json:"durationDays"`
+	ActiveTaskLimit   int       `json:"activeTaskLimit"`
+	CommercialLicense bool      `json:"commercialLicense"`
+	Enabled           bool      `json:"enabled" gorm:"index"`
+	SortOrder         int       `json:"sortOrder"`
+	CreatedAt         time.Time `json:"createdAt"`
+	UpdatedAt         time.Time `json:"updatedAt"`
+}
+
+// UserMembership 记录用户当前会员套餐和到期时间；过期后自动回到普通用户权益。
+type UserMembership struct {
+	UserID    string    `json:"userId" gorm:"primaryKey;size:36"`
+	PlanID    string    `json:"planId" gorm:"size:36;index"`
+	StartedAt time.Time `json:"startedAt"`
+	ExpiresAt time.Time `json:"expiresAt" gorm:"index"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+const (
+	StudioPostPublished = "published"
+	StudioPostHidden    = "hidden"
+)
+
+// StudioPost 是发布到灵感社区的作品。媒体只保存资源存储键，展示时按需签发公开访问地址。
+type StudioPost struct {
+	ID           string    `json:"id" gorm:"primaryKey;size:36"`
+	UserID       string    `json:"userId" gorm:"index;size:36"`
+	TaskID       string    `json:"taskId" gorm:"uniqueIndex;size:64"`
+	Kind         string    `json:"kind" gorm:"size:16;index"`
+	Tool         string    `json:"tool" gorm:"size:40"`
+	Title        string    `json:"title" gorm:"size:120"`
+	Prompt       string    `json:"prompt" gorm:"type:text"`
+	SettingsJSON string    `json:"-" gorm:"type:text"`
+	MediaJSON    string    `json:"-" gorm:"type:text"`
+	Status       string    `json:"status" gorm:"size:16;index"`
+	Featured     bool      `json:"featured" gorm:"index"`
+	IsTemplate   bool      `json:"isTemplate" gorm:"index"`
+	AllowRemix   bool      `json:"allowRemix"`
+	LikeCount    int64     `json:"likeCount" gorm:"index"`
+	RemixCount   int64     `json:"remixCount"`
+	CreatedAt    time.Time `json:"createdAt" gorm:"index"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+}
+
+type StudioPostLike struct {
+	PostID    string    `json:"postId" gorm:"primaryKey;size:36"`
+	UserID    string    `json:"userId" gorm:"primaryKey;size:36;index"`
+	CreatedAt time.Time `json:"createdAt"`
+}

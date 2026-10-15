@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -33,6 +34,8 @@ type PaymentProviderView struct {
 	PluginEnabled     bool   `json:"pluginEnabled"`
 	Configured        bool   `json:"configured"`
 	CloseAfterMinutes int    `json:"closeAfterMinutes"`
+	// Currency 是该渠道的结算币种，钱包只展示同币种的商品。
+	Currency string `json:"currency"`
 }
 
 type AdminPaymentProviderView struct {
@@ -65,6 +68,8 @@ type TopupProductRequest struct {
 	StockTotal          int64                   `json:"stockTotal"`
 	SaleStartAt         *time.Time              `json:"saleStartAt"`
 	SaleEndAt           *time.Time              `json:"saleEndAt"`
+	Currency            string                  `json:"currency"`
+	PlanID              string                  `json:"planId"`
 }
 
 type CreatePaymentOrderRequest struct {
@@ -161,6 +166,25 @@ func (s *Service) CreatePaymentOrder(ctx context.Context, actor *model.User, req
 	if !view.Enabled || !view.Configured || config == nil {
 		return nil, Forbidden("支付渠道未启用或尚未配置")
 	}
+	values, err := s.decryptPaymentConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	productCurrency := normalizedTopupCurrency(product.Currency)
+	if providerCurrency := paymentProviderCurrency(values); providerCurrency != productCurrency {
+		return nil, BadAuthRequest(fmt.Sprintf("该支付渠道只支持 %s 结算，不能购买 %s 商品", providerCurrency, productCurrency))
+	}
+	planID, planDays := "", 0
+	if product.PlanID != "" {
+		plan, err := s.repo.StudioPlan(product.PlanID)
+		if err != nil {
+			return nil, err
+		}
+		if plan == nil || !plan.Enabled || plan.DurationDays <= 0 {
+			return nil, BadAuthRequest("这个会员套餐已下架")
+		}
+		planID, planDays = plan.ID, plan.DurationDays
+	}
 	activeCount, err := s.repo.ActivePaymentOrderCount(actor.ID)
 	if err != nil {
 		return nil, err
@@ -173,7 +197,8 @@ func (s *Service) CreatePaymentOrder(ctx context.Context, actor *model.User, req
 		ID: newID(), UserID: actor.ID, IdempotencyKey: idempotencyKey, MerchantOrderNo: newID(),
 		ProductID: product.ID, ProductName: product.Name, ProviderID: provider.Descriptor().ID,
 		PluginID: provider.Descriptor().PluginID, PluginVersion: provider.Descriptor().PluginVersion, ProviderConfigID: config.ID, ProviderConfigVersion: config.Version,
-		AmountFen: product.AmountFen, Currency: "CNY", CreditsMicrocredits: product.CreditsMicrocredits,
+		AmountFen: product.AmountFen, Currency: productCurrency, CreditsMicrocredits: product.CreditsMicrocredits,
+		PlanID: planID, PlanDurationDays: planDays,
 		Status: model.PaymentOrderCreated, CheckoutMode: provider.Descriptor().CheckoutMode,
 		ExpiresAt: now.Add(time.Duration(config.CloseAfterMinutes) * time.Minute),
 	}
@@ -187,11 +212,6 @@ func (s *Service) CreatePaymentOrder(ctx context.Context, actor *model.User, req
 	if !created {
 		view := paymentOrderView(*order)
 		return &view, nil
-	}
-	values, err := s.decryptPaymentConfig(config)
-	if err != nil {
-		_ = s.repo.SetPaymentOrderCreateFailure(order.ID, safePaymentError(err))
-		return nil, err
 	}
 	baseURL := strings.TrimRight(values["publicBaseUrl"], "/")
 	checkout, err := provider.CreateOrder(ctx, values, payment.CreateRequest{

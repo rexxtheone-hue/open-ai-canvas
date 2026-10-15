@@ -356,6 +356,11 @@ func (r *Repository) CompletePaymentOrder(providerID, merchantOrderNo string, ev
 		}).Error; err != nil {
 			return err
 		}
+		if order.PlanID != "" && order.PlanDurationDays > 0 {
+			if err := extendMembershipTx(tx, order.UserID, order.PlanID, order.PlanDurationDays, now); err != nil {
+				return err
+			}
+		}
 		paidAt := evidence.PaidAt
 		if paidAt.IsZero() {
 			paidAt = now

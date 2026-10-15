@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router";
-import { Clapperboard, FolderOpen, Home, Palette, Sparkles, UserRound, Waypoints, Wand2 } from "lucide-react";
+import { Clapperboard, Compass, Crown, FolderOpen, Home, Palette, Sparkles, UserRound, Waypoints, Wand2 } from "lucide-react";
 
 import { WorkspaceAccountMenu } from "@/components/layout/workspace-account-menu";
 import { WorkspaceWalletHost } from "@/components/layout/workspace-wallet-modal";
@@ -19,6 +19,8 @@ const NAV_ITEMS = [
     { to: "/studio/media", label: "素材", icon: FolderOpen, match: (path: string) => path.startsWith("/studio/media") },
     { to: "/studio/characters", label: "角色", icon: UserRound, match: (path: string) => path.startsWith("/studio/characters") },
     { to: "/studio/brand", label: "品牌", icon: Palette, match: (path: string) => path.startsWith("/studio/brand") },
+    { to: "/studio/inspire", label: "灵感", icon: Compass, match: (path: string) => path.startsWith("/studio/inspire") },
+    { to: "/studio/pricing", label: "会员", icon: Crown, match: (path: string) => path.startsWith("/studio/pricing") },
 ];
 
 export function StudioBrandName() {

@@ -40,6 +40,8 @@ import { AdminDataTable, AdminExportButton, AdminRowActions, AdminStatusBadge, A
 import { AdminUserDetailDrawer } from "../components/admin-user-detail-drawer";
 import "./payments-page.css";
 import { Select } from "@/components/ui/base/select";
+import { formatMoney, TOPUP_CURRENCIES } from "@/lib/money";
+import { listAdminStudioPlans, type StudioPlan } from "@/services/api/studio";
 
 type ProviderFormValues = {
     enabled: boolean;
@@ -51,6 +53,8 @@ type ProductFormValues = {
     name: string;
     description?: string;
     amountYuan: number;
+    currency: string;
+    planId?: string;
     credits: number;
     enabled: boolean;
     sortOrder: number;
@@ -86,6 +90,10 @@ export default function AdminPaymentsPage() {
     const [activeTab, setActiveTab] = useState("providers");
     const [providers, setProviders] = useState<AdminPaymentProvider[]>([]);
     const [products, setProducts] = useState<TopupProduct[]>([]);
+    const [plans, setPlans] = useState<StudioPlan[]>([]);
+    useEffect(() => {
+        listAdminStudioPlans().then((result) => setPlans(result.plans)).catch(() => setPlans([]));
+    }, []);
     const [loading, setLoading] = useState(true);
 
     const [providerDrawer, setProviderDrawer] = useState<AdminPaymentProvider>();
@@ -266,6 +274,8 @@ export default function AdminPaymentsPage() {
                       name: product.name,
                       description: product.description,
                       amountYuan: product.amountFen / 100,
+                      currency: product.currency || "CNY",
+                      planId: product.planId || undefined,
                       credits: product.creditsMicrocredits / 1_000_000,
                       enabled: product.enabled,
                       sortOrder: product.sortOrder,
@@ -276,7 +286,7 @@ export default function AdminPaymentsPage() {
                       saleStartAt: product.saleStartAt ? dayjs(product.saleStartAt) : undefined,
                       saleEndAt: product.saleEndAt ? dayjs(product.saleEndAt) : undefined,
                   }
-                : { enabled: true, sortOrder: products.length * 10, amountYuan: 10, credits: 10, saleStrategy: "unlimited" },
+                : { enabled: true, sortOrder: products.length * 10, amountYuan: 10, currency: "CNY", credits: 10, saleStrategy: "unlimited" },
         );
         setProductDrawer(product || null);
     };
@@ -288,6 +298,8 @@ export default function AdminPaymentsPage() {
             name: values.name.trim(),
             description: values.description?.trim(),
             amountFen: Math.round(values.amountYuan * 100),
+            currency: values.currency || "CNY",
+            planId: values.planId || "",
             creditsMicrocredits: Math.round(values.credits * 1_000_000),
             enabled: values.enabled,
             sortOrder: values.sortOrder || 0,
@@ -447,7 +459,7 @@ export default function AdminPaymentsPage() {
                 </div>
             ),
         },
-        { title: "售价", dataIndex: "amountFen", width: 130, align: "right", render: (value) => <span className="font-medium tabular-nums">¥ {(value / 100).toFixed(2)}</span> },
+        { title: "售价", dataIndex: "amountFen", width: 130, align: "right", render: (value, product) => <span className="font-medium tabular-nums">{formatMoney(value, product.currency)}{product.planId ? <span className="ml-1 text-xs text-foreground/45">含会员</span> : null}</span> },
         { title: "到账积分", dataIndex: "creditsMicrocredits", width: 150, align: "right", render: (value) => <span className="tabular-nums">{formatCredits(value)}</span> },
         { title: "排序", dataIndex: "sortOrder", width: 90, align: "center" },
         {
@@ -556,7 +568,7 @@ export default function AdminPaymentsPage() {
             align: "right",
             render: (_, order) => (
                 <div>
-                    <div className="font-medium tabular-nums">¥ {(order.amountFen / 100).toFixed(2)}</div>
+                    <div className="font-medium tabular-nums">{formatMoney(order.amountFen, order.currency)}</div>
                     <div className="text-xs text-foreground/45">{formatCredits(order.creditsMicrocredits)} 积分</div>
                 </div>
             ),
@@ -871,7 +883,7 @@ export default function AdminPaymentsPage() {
                             },
                             { key: "product", label: "商品", children: selectedOrder.productName },
                             { key: "channel", label: "支付渠道", children: providerNames[selectedOrder.providerId] || selectedOrder.providerId },
-                            { key: "amount", label: "金额 / 积分", children: `¥ ${(selectedOrder.amountFen / 100).toFixed(2)} / ${formatCredits(selectedOrder.creditsMicrocredits)} 积分` },
+                            { key: "amount", label: "金额 / 积分", children: `${formatMoney(selectedOrder.amountFen, selectedOrder.currency)} / ${formatCredits(selectedOrder.creditsMicrocredits)} 积分` },
                             { key: "status", label: "状态", children: paymentOrderStatus[selectedOrder.status]?.label || selectedOrder.status },
                             ...(
                                 [
@@ -907,6 +919,16 @@ export default function AdminPaymentsPage() {
                             tone={providerDrawer.pluginEnabled ? "info" : "warning"}
                             title={providerDrawer.pluginEnabled ? "密钥会加密保存，历史订单固定使用创建时的配置版本。" : "该宿主插件当前已在插件管理中停用；保存配置后仍需开放插件才能接受新订单。"}
                         />
+                        {providerDrawer.configId && providerDrawer.values.publicBaseUrl ? (
+                            <Callout
+                                className="mb-4"
+                                tone="info"
+                                title="支付通知地址（Webhook）"
+                            >
+                                <Typography.Text copyable className="break-all">{`${providerDrawer.values.publicBaseUrl.replace(/\/+$/, "")}/api/payments/notify/${providerDrawer.id}/${providerDrawer.configId}`}</Typography.Text>
+                                <div className="mt-1 text-xs text-foreground/55">每次保存配置都会生成新地址，需要同步更新到支付平台。</div>
+                            </Callout>
+                        ) : null}
                         <Form.Item name="enabled" label="渠道配置启用" valuePropName="checked">
                             <Switch />
                         </Form.Item>
@@ -918,7 +940,9 @@ export default function AdminPaymentsPage() {
                             const rules = field.required && !secretReady ? [{ required: true, message: `请输入${field.label || field.name}` }] : undefined;
                             const placeholder = field.secret && secretReady ? configuredSecretText : field.description || undefined;
                             const input =
-                                field.type === "textarea" ? (
+                                field.values?.length && !field.secret ? (
+                                    <Select aria-label={field.label || field.name} options={field.values.map((value) => ({ value, label: value }))} />
+                                ) : field.type === "textarea" ? (
                                     <Input.TextArea autoSize={{ minRows: 4, maxRows: 10 }} placeholder={placeholder} autoComplete="off" />
                                 ) : field.type === "password" || field.secret ? (
                                     <Input.Password placeholder={placeholder} autoComplete="new-password" />
@@ -955,8 +979,14 @@ export default function AdminPaymentsPage() {
                         <Input.TextArea rows={3} />
                     </Form.Item>
                     <div className="grid grid-cols-2 gap-3">
-                        <Form.Item name="amountYuan" label="售价（元）" rules={[{ required: true }, { type: "number", min: 0.01, max: 1_000_000 }]}>
+                        <Form.Item name="amountYuan" label="售价" rules={[{ required: true }, { type: "number", min: 0.01, max: 1_000_000 }]}>
                             <InputNumber min={0.01} max={1_000_000} precision={2} className="w-full" />
+                        </Form.Item>
+                        <Form.Item name="currency" label="币种" extra="只有同币种的支付渠道能卖这个商品。" rules={[{ required: true }]}>
+                            <Select aria-label="币种" options={TOPUP_CURRENCIES.map((value) => ({ value, label: value }))} />
+                        </Form.Item>
+                        <Form.Item name="planId" label="附带会员套餐" extra="选了套餐，购买后在到账积分之外同时开通会员。">
+                            <Select aria-label="附带会员套餐" allowClear placeholder="不附带" options={plans.map((plan) => ({ value: plan.id, label: `${plan.name}（${plan.durationDays} 天）${plan.enabled ? "" : " · 已停用"}` }))} />
                         </Form.Item>
                         <Form.Item
                             name="credits"

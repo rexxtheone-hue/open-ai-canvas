@@ -10,6 +10,7 @@ import { closePaymentOrder, createPaymentOrder, getPaymentOrder, listPaymentProv
 import { getWallet, redeemCredits, type CreditLedgerEntry, type WalletSummary } from "@/services/api/wallet";
 import { cn } from "@/lib/utils";
 import { openWorkspaceWallet, WORKSPACE_WALLET_OPEN_EVENT, type WorkspaceWalletOpenDetail } from "@/lib/workspace-wallet";
+import { formatMoney } from "@/lib/money";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
 import { useUserStore } from "@/stores/use-user-store";
 
@@ -22,11 +23,13 @@ export function WorkspaceWalletHost() {
     const [open, setOpen] = useState(false);
     const [pendingPaymentOrderId, setPendingPaymentOrderId] = useState("");
     const [paymentInvalid, setPaymentInvalid] = useState(false);
+    const [preferredProductId, setPreferredProductId] = useState("");
 
     const applyOpen = (detail: WorkspaceWalletOpenDetail = {}) => {
         if (!useUserStore.getState().features.creditsEnabled) return;
         setPendingPaymentOrderId(detail.paymentOrderId || "");
         setPaymentInvalid(Boolean(detail.paymentInvalid));
+        setPreferredProductId(detail.productId || "");
         setOpen(true);
     };
 
@@ -54,16 +57,18 @@ export function WorkspaceWalletHost() {
             open={open}
             pendingPaymentOrderId={pendingPaymentOrderId}
             paymentInvalid={paymentInvalid}
+            preferredProductId={preferredProductId}
             onClose={() => {
                 setOpen(false);
                 setPendingPaymentOrderId("");
                 setPaymentInvalid(false);
+                setPreferredProductId("");
             }}
         />
     );
 }
 
-export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, paymentInvalid }: { open: boolean; onClose: () => void; pendingPaymentOrderId?: string; paymentInvalid?: boolean }) {
+export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, paymentInvalid, preferredProductId }: { open: boolean; onClose: () => void; pendingPaymentOrderId?: string; paymentInvalid?: boolean; preferredProductId?: string }) {
     const { message } = App.useApp();
     const redeemPurchaseUrl = useAppearanceStore((state) => state.appearance.redeemPurchaseUrl);
     const [tab, setTab] = useState<WalletModalTab>("topup");
@@ -87,8 +92,10 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
     const completedOrderId = useRef("");
     const requestSequence = useRef(0);
 
-    const selectedProduct = useMemo(() => products.find((item) => item.id === selectedProductId), [products, selectedProductId]);
     const selectedProvider = useMemo(() => providers.find((item) => item.id === selectedProviderId), [providers, selectedProviderId]);
+    // 每个渠道只能收自己币种的钱，所以只展示与所选渠道同币种的商品。
+    const visibleProducts = useMemo(() => products.filter((item) => productCurrency(item) === providerCurrency(selectedProvider)), [products, selectedProvider]);
+    const selectedProduct = useMemo(() => visibleProducts.find((item) => item.id === selectedProductId), [visibleProducts, selectedProductId]);
 
     const reloadWallet = async (targetPage = page) => {
         const sequence = ++requestSequence.current;
@@ -111,10 +118,19 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
         setPaymentsLoading(true);
         Promise.all([listTopupProducts(), listPaymentProviders()])
             .then(([productResult, providerResult]) => {
-                setProducts(productResult.products.filter((item) => item.enabled));
-                setProviders(providerResult.providers.filter((item) => item.enabled && item.pluginEnabled && item.configured));
-                setSelectedProductId((current) => current || productResult.products.find((item) => item.canPurchase)?.id || productResult.products.find((item) => item.enabled)?.id || "");
-                setSelectedProviderId((current) => current || providerResult.providers.find((item) => item.enabled && item.pluginEnabled && item.configured)?.id || "");
+                const enabledProducts = productResult.products.filter((item) => item.enabled);
+                const usableProviders = providerResult.providers.filter((item) => item.enabled && item.pluginEnabled && item.configured);
+                setProducts(enabledProducts);
+                setProviders(usableProviders);
+                const preferred = enabledProducts.find((item) => item.id === preferredProductId);
+                const preferredProvider = preferred ? usableProviders.find((item) => providerCurrency(item) === productCurrency(preferred)) : undefined;
+                if (preferred && preferredProvider) {
+                    setSelectedProductId(preferred.id);
+                    setSelectedProviderId(preferredProvider.id);
+                    return;
+                }
+                setSelectedProviderId((current) => current || usableProviders[0]?.id || "");
+                setSelectedProductId((current) => current || enabledProducts.find((item) => item.canPurchase)?.id || enabledProducts[0]?.id || "");
             })
             .catch((error) => message.error(error instanceof Error ? error.message : "读取充值配置失败"))
             .finally(() => setPaymentsLoading(false));
@@ -128,6 +144,12 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
     useEffect(() => {
         idempotencyKey.current = "";
     }, [selectedProductId, selectedProviderId]);
+
+    // 换渠道后原商品币种不对时，改选同币种的第一个可购买商品。
+    useEffect(() => {
+        if (!selectedProvider || visibleProducts.some((item) => item.id === selectedProductId)) return;
+        setSelectedProductId(visibleProducts.find((item) => item.canPurchase)?.id || visibleProducts[0]?.id || "");
+    }, [selectedProductId, selectedProvider, visibleProducts]);
 
     useEffect(() => {
         if (!paymentOpen || !paymentOrder || !["created", "pending", "closing"].includes(paymentOrder.status)) return;
@@ -309,7 +331,8 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
                                 ) : products.length && providers.length ? (
                                     <>
                                         <div className="workspace-wallet-products">
-                                            {products.map((product) => {
+                                            {visibleProducts.length ? null : <p className="workspace-wallet-empty-products">这个支付方式暂时没有可购买的商品。</p>}
+                                            {visibleProducts.map((product) => {
                                                 const unavailableLabel =
                                                     product.saleStatus === "upcoming"
                                                         ? `发售时间：${product.saleStartAt ? new Date(product.saleStartAt).toLocaleString("zh-CN", { hour12: false }) : "待定"}`
@@ -334,7 +357,8 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
                                                         <span>{product.name}</span>
                                                         <strong>{formatCredits(product.creditsMicrocredits, 6)} 积分</strong>
                                                         <small>
-                                                            ¥ {(product.amountFen / 100).toFixed(2)} · {unavailableLabel}
+                                                            {formatMoney(product.amountFen, productCurrency(product))} · {unavailableLabel}
+                                                            {product.planId ? " · 含会员" : ""}
                                                             {product.description ? ` · ${product.description}` : ""}
                                                         </small>
                                                         {selectedProductId === product.id ? <Check /> : null}
@@ -483,7 +507,7 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
                         <span className="workspace-wallet-payment-icon">
                             <CreditCard />
                         </span>
-                        <strong>¥ {(paymentOrder.amountFen / 100).toFixed(2)}</strong>
+                        <strong>{formatMoney(paymentOrder.amountFen, paymentOrder.currency)}</strong>
                         <p>
                             {paymentOrder.productName} · {formatCredits(paymentOrder.creditsMicrocredits, 6)} 积分
                         </p>
@@ -499,6 +523,14 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
             </AppModal>
         </>
     );
+}
+
+function productCurrency(product: TopupProduct) {
+    return (product.currency || "CNY").toUpperCase();
+}
+
+function providerCurrency(provider: PaymentProvider | undefined) {
+    return (provider?.currency || "CNY").toUpperCase();
 }
 
 function WalletLedgerRow({ entry }: { entry: CreditLedgerEntry }) {

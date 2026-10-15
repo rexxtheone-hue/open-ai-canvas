@@ -231,6 +231,18 @@ func studioSettingsFromInput(raw string) (string, map[string]any) {
 	if value, ok := input.Metadata["brandKitId"].(string); ok && value != "" {
 		settings["brandKitId"] = value
 	}
+	// 专项工具的选项（光线、目标语言等）只保留短字符串值。
+	if options, ok := input.Metadata["specialtyOptions"].(map[string]any); ok {
+		clean := map[string]any{}
+		for key, value := range options {
+			if text, isText := value.(string); isText && len(key) <= 40 && len(text) <= 40 {
+				clean[key] = text
+			}
+		}
+		if len(clean) > 0 {
+			settings["specialtyOptions"] = clean
+		}
+	}
 	// studioPrompt 可以是空字符串（专项工具没写补充说明），空值也要保留，前端据此不回填指令原文。
 	if value, ok := input.Metadata["studioPrompt"].(string); ok {
 		settings["studioPrompt"] = truncateRunes(value, 20000)

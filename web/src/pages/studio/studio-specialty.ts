@@ -170,6 +170,17 @@ export function specialtyPrompt(spec: StudioSpecialtySpec, userText: string, opt
     return spec.instruction(userText, options);
 }
 
+/** 从作品设置里恢复选项，只接受当前工具仍然存在的选项和取值。 */
+export function restoreSpecialtyOptions(spec: StudioSpecialtySpec, saved: unknown) {
+    const next = defaultSpecialtyOptions(spec);
+    if (!saved || typeof saved !== "object") return next;
+    for (const option of spec.options || []) {
+        const value = (saved as Record<string, unknown>)[option.key];
+        if (typeof value === "string" && option.choices.some((choice) => choice.value === value)) next[option.key] = value;
+    }
+    return next;
+}
+
 export function defaultSpecialtyOptions(spec: StudioSpecialtySpec) {
     return Object.fromEntries((spec.options || []).map((option) => [option.key, option.choices[0].value]));
 }
@@ -183,6 +194,7 @@ export function buildSpecialtyState(spec: StudioSpecialtySpec, values: StudioSlo
         operationLabel: spec.operation ? OPERATION_LABELS[spec.operation] || spec.operation : "图片编辑",
         instruction: specialtyPrompt(spec, userText, options),
         userText,
+        options,
         inputError: specialtyInputError(spec, values, userText),
         minImages: spec.slots.filter((slot) => slot.required && slot.accept === "image").length,
     };

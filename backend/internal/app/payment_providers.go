@@ -68,11 +68,16 @@ func (s *Service) PaymentProviders(actor *model.User) ([]PaymentProviderView, er
 	}
 	items := make([]PaymentProviderView, 0)
 	for _, descriptor := range s.paymentRegistry.Descriptors() {
-		view, _, err := s.paymentProviderView(descriptor)
+		view, config, err := s.paymentProviderView(descriptor)
 		if err != nil {
 			return nil, err
 		}
-		if view.Enabled && view.Configured {
+		if view.Enabled && view.Configured && config != nil {
+			values, err := s.decryptPaymentConfig(config)
+			if err != nil {
+				return nil, err
+			}
+			view.Currency = paymentProviderCurrency(values)
 			items = append(items, view)
 		}
 	}

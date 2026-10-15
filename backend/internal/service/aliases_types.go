@@ -334,6 +334,10 @@ type (
 	StudioPreferenceView                   = app.StudioPreferenceView
 	StudioBrandKitView                     = app.StudioBrandKitView
 	StudioBrandKitInput                    = app.StudioBrandKitInput
+	StudioCommunityQuery                   = app.StudioCommunityQuery
+	StudioPublishInput                     = app.StudioPublishInput
+	StudioPostAdminInput                   = app.StudioPostAdminInput
+	StudioPlanInput                        = app.StudioPlanInput
 	TextCapabilityConfig                   = app.TextCapabilityConfig
 	TextReferenceConfig                    = app.TextReferenceConfig
 	TextReplayResult                       = app.TextReplayResult

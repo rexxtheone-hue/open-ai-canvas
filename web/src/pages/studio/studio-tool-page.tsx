@@ -20,7 +20,7 @@ import { StudioLibrary } from "./studio-library";
 import { StudioShell } from "./studio-shell";
 import { studioToolById, STUDIO_TOOLS } from "./studio-tools";
 import { studioAttachmentFromMedia, uploadStudioFile, useStudioTool } from "./use-studio-tool";
-import { buildSpecialtyState, defaultSpecialtyOptions, orderedSlotAttachments, slotAcceptAttribute, slotAccepts, studioSpecialtySpec, type StudioSlot, type StudioSlotValues } from "./studio-specialty";
+import { buildSpecialtyState, defaultSpecialtyOptions, orderedSlotAttachments, restoreSpecialtyOptions, slotAcceptAttribute, slotAccepts, studioSpecialtySpec, type StudioSlot, type StudioSlotValues } from "./studio-specialty";
 import { STUDIO_ATTACH_KEY, STUDIO_REUSE_KEY } from "./studio-agent";
 import type { StudioBrandKit, StudioWork } from "@/services/api/studio";
 
@@ -122,7 +122,10 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
             const work = JSON.parse(raw) as StudioWork;
             if (work.kind !== kind) return;
             applyWorkSettings(work);
-            if (specialtySpec) setSpecialtyText(typeof work.settings?.userPrompt === "string" ? work.settings.userPrompt : "");
+            if (specialtySpec) {
+                setSpecialtyText(typeof work.settings?.userPrompt === "string" ? work.settings.userPrompt : "");
+                setSpecialtyOptions(restoreSpecialtyOptions(specialtySpec, work.settings?.specialtyOptions));
+            }
         } catch {
             // 会话存储不可用时忽略带入。
         }
@@ -484,7 +487,10 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                     } : undefined}
                     onReuseSettings={(work) => {
                         studio.applyWorkSettings(work);
-                        if (specialtySpec) setSpecialtyText(typeof work.settings?.userPrompt === "string" ? work.settings.userPrompt : "");
+                        if (specialtySpec) {
+                            setSpecialtyText(typeof work.settings?.userPrompt === "string" ? work.settings.userPrompt : "");
+                            setSpecialtyOptions(restoreSpecialtyOptions(specialtySpec, work.settings?.specialtyOptions));
+                        }
                         message.success("已填入这个作品的提示词和设置");
                     }}
                 />

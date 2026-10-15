@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { App } from "antd";
 import { ArrowUp, Briefcase, Building2, Clapperboard, Megaphone, MicVocal, Sparkles, Store, UserRound, Wand2 } from "lucide-react";
 import { Link, useNavigate } from "react-router";
@@ -8,6 +9,7 @@ import { useUserStore } from "@/stores/use-user-store";
 import { StudioShell } from "./studio-shell";
 import { startStudioAgentRun } from "./studio-agent";
 import { useAvailableStudioTools } from "./studio-pages";
+import { listStudioCommunity } from "@/services/api/studio";
 
 const SUGGESTIONS = [
     "做一条 15 秒的产品广告，展示一款保温杯的卖点",
@@ -35,6 +37,8 @@ export default function StudioHomePage({ initialMode = "agents" }: { initialMode
     const [sending, setSending] = useState(false);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const tools = useAvailableStudioTools();
+    const templatesQuery = useQuery({ queryKey: ["studio", "home-templates"], queryFn: async () => (await listStudioCommunity({ templates: true, sort: "popular", pageSize: 8 })).posts, enabled: Boolean(user) });
+    const templates = templatesQuery.data || [];
 
     // H5：最新模型只列后台已开启的模型，每类取前几个。
     const latestModels = useMemo(() => {
@@ -142,6 +146,28 @@ export default function StudioHomePage({ initialMode = "agents" }: { initialMode
                         ))}
                     </div>
                 </section>
+
+                {templates.length ? (
+                    <section className="studio-section" aria-labelledby="studio-templates-title">
+                        <div className="studio-section-head">
+                            <div>
+                                <h2 id="studio-templates-title">热门模板</h2>
+                                <p>挑一个喜欢的，一键做同款。</p>
+                            </div>
+                            <Link to="/studio/inspire?tab=templates">全部模板</Link>
+                        </div>
+                        <div className="studio-community-grid">
+                            {templates.map((post) => (
+                                <Link key={post.id} to="/studio/inspire?tab=templates" className="studio-post-card studio-template-card">
+                                    <span className="studio-post-media">
+                                        {post.media[0]?.kind === "video" ? <video src={post.media[0].url} muted playsInline preload="metadata" /> : post.media[0]?.kind === "image" ? <img src={post.media[0].url} alt="" loading="lazy" /> : null}
+                                    </span>
+                                    <span className="studio-post-body"><strong>{post.title}</strong></span>
+                                </Link>
+                            ))}
+                        </div>
+                    </section>
+                ) : null}
 
                 <section className="studio-section" aria-labelledby="studio-tools-title">
                     <div className="studio-section-head">

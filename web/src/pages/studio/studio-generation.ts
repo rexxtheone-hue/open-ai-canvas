@@ -31,6 +31,8 @@ export type StudioSpecialtyState = {
     instruction: string;
     /** 用户自己写的补充说明，作品库「再次生成」时填回。 */
     userText: string;
+    /** 工具选项（光线、目标语言等），做同款时一起填回。 */
+    options: Record<string, string>;
     inputError: string;
     /** 每个槽位需要的最少素材数，用来挑选能放下这些素材的模型。 */
     minImages: number;
@@ -268,6 +270,7 @@ export function studioSubmission(config: AiConfig, state: StudioToolState, model
     const finalPrompt = studioFinalPrompt(state);
     if (state.specialty) {
         metadata.studioPrompt = state.specialty.userText.trim();
+        if (Object.keys(state.specialty.options).length) metadata.specialtyOptions = state.specialty.options;
     } else if (state.kind !== "audio" && state.brand && finalPrompt !== state.prompt.trim()) {
         metadata.brandKitId = state.brand.id;
         metadata.studioPrompt = state.prompt.trim();
