@@ -18,7 +18,7 @@
 | `SD2.5` | 480p（默认）、720p、1080p | 4–30 秒 | 必须显式指定 | 30 / 10 / 10 | 支持 `generate_audio` |
 | `SD2.0` | 480p（默认）、720p、1080p、4k | 4–15 秒 | 默认 1:1 | 9 / 3 / 3，合计最多 12 | 不支持，开启会报 400 |
 | `gemini-omni-flash-1.1` | 720p、1080p、4k | 3–10 秒 | 16:9、9:16 | 10 / 3 / 0 | 不支持参考音频 |
-| `minimax-h3`（别名 `minimax_h3`） | 768p（默认）、1080p、2k | 4–15 秒 | 16:9、9:16、1:1、4:3、3:4、21:9 | 9 / 0 / 3 | 成片自带音轨，不发送 `generate_audio` |
+| `minimax-h3`（别名 `minimax_h3`） | 768p（默认）、1080p、2k | 4–15 秒 | 16:9、9:16、1:1、4:3、3:4、21:9 | 9 / 3 / 3 | 成片自带音轨，不发送 `generate_audio` |
 
 其他走 88API 统一 `/v1/videos` 规范的模型也可使用。模型 ID 以 `gemini-`、`veo-` 开头时，参考视频放顶层 `videos`；其他模型放 `metadata.referenceVideos`，两处不会同时发送。
 
@@ -41,8 +41,8 @@
 
 发送前校验，不符合时不调用上游、不扣费：
 
-- 不支持参考视频。
-- 首尾帧不能和参考图、参考音频一起用。
+- 参考视频放 `metadata.referenceVideos`（88API 确认支持）。
+- 首尾帧不能和参考图、参考视频、参考音频一起用。
 - 参考音频至少需要搭配一张参考图。
 - 分辨率只支持 768p、1080p、2k。
 - 不支持视频续写和视频编辑。
@@ -83,7 +83,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "api88-video",
   "name": "88API 统一视频",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "author": "Rexx",
   "description": "88API 统一视频协议插件（POST /v1/videos，异步轮询），适配 SD2.5、SD2.0 云厂商版、MiniMax H3 与 Gemini Omni、Veo，支持视频续写与视频编辑。",
   "permissions": [
@@ -315,71 +315,6 @@
                   "$eq": [
                     {
                       "$len": {
-                        "$coalesce": [
-                          {
-                            "$ref": "request.videos"
-                          },
-                          []
-                        ]
-                      }
-                    },
-                    0
-                  ]
-                }
-              ]
-            },
-            "message": "MiniMax H3 不支持参考视频，请移除视频，或换一个支持参考视频的模型。"
-          },
-          {
-            "assert": {
-              "$or": [
-                {
-                  "$not": {
-                    "$or": [
-                      {
-                        "$eq": [
-                          {
-                            "$first": {
-                              "$split": [
-                                {
-                                  "$lower": {
-                                    "$coalesce": [
-                                      {
-                                        "$ref": "request.model"
-                                      },
-                                      ""
-                                    ]
-                                  }
-                                },
-                                "-"
-                              ]
-                            }
-                          },
-                          "minimax"
-                        ]
-                      },
-                      {
-                        "$eq": [
-                          {
-                            "$lower": {
-                              "$coalesce": [
-                                {
-                                  "$ref": "request.model"
-                                },
-                                ""
-                              ]
-                            }
-                          },
-                          "minimax_h3"
-                        ]
-                      }
-                    ]
-                  }
-                },
-                {
-                  "$eq": [
-                    {
-                      "$len": {
                         "$filter": {
                           "from": {
                             "$coalesce": [
@@ -456,12 +391,27 @@
                         },
                         0
                       ]
+                    },
+                    {
+                      "$eq": [
+                        {
+                          "$len": {
+                            "$coalesce": [
+                              {
+                                "$ref": "request.videos"
+                              },
+                              []
+                            ]
+                          }
+                        },
+                        0
+                      ]
                     }
                   ]
                 }
               ]
             },
-            "message": "MiniMax H3 的首尾帧不能和参考图、参考音频一起用，请只保留首尾帧两张图。"
+            "message": "MiniMax H3 的首尾帧不能和参考图、参考视频、参考音频一起用，请只保留首尾帧两张图。"
           },
           {
             "assert": {

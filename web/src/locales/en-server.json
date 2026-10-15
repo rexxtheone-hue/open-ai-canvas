@@ -338,6 +338,7 @@
   "MiniMax H3 最多支持 3 个参考视频": "MiniMax H3 supports at most 3 reference videos",
   "MiniMax H3 最多支持 3 个参考音频": "MiniMax H3 supports at most 3 reference audio files",
   "MiniMax H3 最多支持 9 张图片": "MiniMax H3 supports at most 9 images",
+  "MiniMax H3 的首尾帧不能和参考图、参考视频、参考音频一起用，请只保留首尾帧两张图。": "MiniMax H3 cannot combine first & last frames with reference images, videos or audio. Keep only the two frame images.",
   "MiniMax H3 的首尾帧不能和参考图、参考音频一起用，请只保留首尾帧两张图。": "MiniMax H3 cannot combine first & last frames with reference images or audio. Keep only the two frame images.",
   "MiniMax H3 首尾帧模式不能混入普通角色或风格参考图": "MiniMax H3 first/last frame mode cannot be mixed with ordinary character or style reference images",
   "MiniMax Image 独立请求协议插件。": "MiniMax Image standalone request protocol plugin.",

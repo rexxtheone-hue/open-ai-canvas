@@ -280,8 +280,15 @@ func TestAPI88VideoMiniMaxH3(t *testing.T) {
 	if frameMetadata["firstFrame"] != "https://cdn.example/s.jpg" || frameMetadata["lastFrame"] != "https://cdn.example/e.jpg" || frameMetadata["referenceImages"] != nil {
 		t.Fatalf("H3 frame body = %#v", frames)
 	}
+	withVideo, err := build(GenerationRequest{Prompt: "x", Images: []MediaReference{{URL: "https://cdn.example/a.jpg"}}, Videos: []MediaReference{{URL: "https://cdn.example/v.mp4"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if videos, _ := withVideo["metadata"].(map[string]any)["referenceVideos"].([]any); len(videos) != 1 || withVideo["videos"] != nil {
+		t.Fatalf("H3 reference video must go to metadata.referenceVideos: %#v", withVideo)
+	}
 	rejected := []GenerationRequest{
-		{Prompt: "x", Videos: []MediaReference{{URL: "https://cdn.example/v.mp4"}}},
+		{Prompt: "x", Images: []MediaReference{{URL: "https://cdn.example/s.jpg", Role: "first_frame"}}, Videos: []MediaReference{{URL: "https://cdn.example/v.mp4"}}},
 		{Prompt: "x", Images: []MediaReference{{URL: "https://cdn.example/s.jpg", Role: "first_frame"}, {URL: "https://cdn.example/r.jpg"}}},
 		{Prompt: "x", Audios: []MediaReference{{URL: "https://cdn.example/m.mp3"}}},
 		{Prompt: "x", Resolution: "720p"},
