@@ -132,7 +132,7 @@ export function videoModeInputError(mode: VideoMode, input: VideoModeInput): str
     return undefined;
 }
 
-/** 首尾帧模式：前两张图片分别标为首帧、尾帧；其他模式不改动已有角色。 */
+/** 首尾帧模式：前两张图片分别标为首帧、尾帧。图生视频保持不标角色，由各模型按单图首帧的默认语义处理。 */
 export function applyVideoModeImageRoles<T extends { role?: string }>(mode: VideoMode | undefined, images: T[]): T[] {
     if (mode !== "first_last_frame") return images;
     return images.map((image, index) => (index === 0 ? { ...image, role: "first_frame" } : index === 1 ? { ...image, role: "last_frame" } : image));

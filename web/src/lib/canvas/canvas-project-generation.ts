@@ -320,11 +320,10 @@ function resolveVideoEditOperation(
     return resolveVideoOperation(input, storedOperation) as CanvasVideoEditOperation;
 }
 
-/** 首尾帧模式且未在画布上指定首尾帧时，按参考图顺序把前两张标为首帧、尾帧。 */
+/** 手动选择模式时，按参考图顺序标首帧、尾帧角色。 */
 export function videoModeReferenceImages<T extends { role?: string }>(node: CanvasNodeData | undefined, images: T[]): T[] {
     const metadata = node?.metadata;
-    if (metadata?.videoMode !== "first_last_frame" || metadata.videoStartFrameNodeId || metadata.videoEndFrameNodeId) return images;
-    return applyVideoModeImageRoles(metadata.videoMode, images);
+    return applyVideoModeImageRoles(metadata?.videoMode, images);
 }
 
 export function buildVideoGenerationMetadata(
@@ -345,8 +344,10 @@ export function buildVideoGenerationMetadata(
     // 工作流视频把已连接媒体交给字段映射处理，不再把历史首尾帧选择当成硬约束。
     // 工作流视频把已连接媒体交给字段映射处理，不再把历史首尾帧选择当成硬约束。
     const workflowVideo = node?.type === CanvasNodeType.Config && (config?.taskWorkflowProvider === "runninghub" || isCanvasWorkflowProvider(metadata));
-    const startFrame = workflowVideo ? undefined : requireConnectedVideoFrame(metadata?.videoStartFrameNodeId, "首帧", referenceImageIds);
-    const endFrame = workflowVideo ? undefined : requireConnectedVideoFrame(metadata?.videoEndFrameNodeId, "尾帧", referenceImageIds);
+    // 手动选择模式后，首帧尾帧由模式和素材顺序决定，旧的单独指定不再生效。
+    const manualFrames = !workflowVideo && !metadata?.videoMode;
+    const startFrame = manualFrames ? requireConnectedVideoFrame(metadata?.videoStartFrameNodeId, "首帧", referenceImageIds) : undefined;
+    const endFrame = manualFrames ? requireConnectedVideoFrame(metadata?.videoEndFrameNodeId, "尾帧", referenceImageIds) : undefined;
     return {
         ...(config ? generationWorkflowMetadata(config) : {}),
         videoEditOperation: resolveVideoEditOperation(node, context),

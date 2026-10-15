@@ -67,7 +67,8 @@ export function CanvasVideoPromptTools({ metadata, frameOptions, onMetadataChang
         );
     }
 
-    if (!frameOptions.length) return null;
+    // 手动选择视频生成模式后，首帧尾帧由模式和素材顺序决定，不再单独指定。
+    if (!frameOptions.length || metadata?.videoMode) return null;
 
     return (
         <div
