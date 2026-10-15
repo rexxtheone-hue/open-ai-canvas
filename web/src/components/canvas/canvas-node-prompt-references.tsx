@@ -90,12 +90,15 @@ export function ConnectedReferenceShelf({
     onReplaceReferenceFiles,
     unusedReferenceIds,
     unusedReferenceHint,
+    referenceRoles,
 }: {
     targetNodeId?: string;
     references: CanvasResourceReference[];
     /** 当前视频模式不使用的素材：置灰显示，生成时不会发送。 */
     unusedReferenceIds?: ReadonlySet<string>;
     unusedReferenceHint?: string;
+    /** 素材在当前视频模式中的角色，例如首帧、尾帧、原视频。 */
+    referenceRoles?: ReadonlyMap<string, string>;
     theme: CanvasTheme;
     onInsert: (reference: CanvasResourceReference) => void;
     onRemove?: (reference: CanvasResourceReference) => void;
@@ -240,6 +243,11 @@ export function ConnectedReferenceShelf({
                                     onClick={() => (canPreview ? setImagePreview(reference) : onInsert(reference))}
                                 >
                                     <ReferenceThumbnail reference={reference} />
+                                    {referenceRoles?.get(reference.id) ? (
+                                        <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-black/70 py-px text-center text-[10px] font-medium leading-tight text-white">
+                                            {referenceRoles.get(reference.id)}
+                                        </span>
+                                    ) : null}
                                     {canPreview ? (
                                         <span className="canvas-node-reference-preview-hint" aria-hidden="true">
                                             <Maximize2 className="size-3" />

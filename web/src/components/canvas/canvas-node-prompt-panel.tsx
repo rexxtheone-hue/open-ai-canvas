@@ -37,7 +37,7 @@ import { quoteModel, type LogicalModelQuote } from "@/services/api/logical-model
 import { ConnectedReferenceShelf, ReferenceToolsPopover, referenceShelfHeading } from "./canvas-node-prompt-references";
 import { PromptModalResizeHandle, PromptResizeHandle, clampExpandedModalSize, clampPromptHeight, estimatePromptContentHeight, promptEditorBounds } from "./canvas-node-prompt-resize";
 import { audioConfigPatch, buildNodeConfig, defaultMode, modeDisplayName, promptPlaceholder, videoConfigPatch } from "./canvas-node-prompt-config";
-import { videoModeLabel, videoModeShouldReset, videoModeUsesMaterial, type VideoMode } from "@/lib/video-modes";
+import { videoModeLabel, videoModeMaterialRole, videoModeShouldReset, videoModeUsesMaterial, type VideoMode } from "@/lib/video-modes";
 import { CanvasVideoModeMenu } from "@/components/canvas/canvas-video-mode-menu";
 import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
 
@@ -140,16 +140,20 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
         videoCount: activeReferences.filter((item) => item.kind === "video").length,
         audioCount: activeReferences.filter((item) => item.kind === "audio").length,
     };
-    const unusedReferenceIds = (() => {
+    const { unusedReferenceIds, referenceRoles } = (() => {
         const unused = new Set<string>();
-        if (!explicitVideoMode) return unused;
+        const roles = new Map<string, string>();
+        if (!explicitVideoMode) return { unusedReferenceIds: unused, referenceRoles: roles };
         const seen = { image: 0, video: 0, audio: 0 };
         for (const item of activeReferences) {
             const kind = item.kind === "character" ? "image" : item.kind;
             if (kind !== "image" && kind !== "video" && kind !== "audio") continue;
-            if (!videoModeUsesMaterial(explicitVideoMode, kind, seen[kind]++)) unused.add(item.id);
+            const index = seen[kind]++;
+            if (!videoModeUsesMaterial(explicitVideoMode, kind, index)) unused.add(item.id);
+            const role = videoModeMaterialRole(explicitVideoMode, kind, index);
+            if (role) roles.set(item.id, role);
         }
-        return unused;
+        return { unusedReferenceIds: unused, referenceRoles: roles };
     })();
     const usedCount = (kind: string) => activeReferences.filter((item) => item.kind === kind && !unusedReferenceIds.has(item.id)).length;
     const requirements: ModelRequirements = {
@@ -584,6 +588,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                         targetNodeId={node.id}
                         references={resolvedMentionReferences}
                         unusedReferenceIds={unusedReferenceIds}
+                        referenceRoles={referenceRoles}
                         unusedReferenceHint={explicitVideoMode ? `${videoModeLabel(explicitVideoMode)}不使用这个素材，生成时不会发送` : undefined}
                         theme={theme}
                         onInsert={insertPromptReference}

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { applyVideoModeImageRoles, pickVideoModeMaterials, resolveSelectableVideoMode, videoModeShouldReset, videoModeUsedInput, videoModeUsesMaterial, videoModeInputError, videoModeOperation, videoModeUnavailableReason, videoPricingOperation } from "../src/lib/video-modes";
+import { applyVideoModeImageRoles, pickVideoModeMaterials, resolveSelectableVideoMode, videoModeMaterialRole, videoModeShouldReset, videoModeUsedInput, videoModeUsesMaterial, videoModeInputError, videoModeOperation, videoModeUnavailableReason, videoPricingOperation } from "../src/lib/video-modes";
 import { resolveVideoOperation } from "../src/lib/model-selection";
 import type { VideoCapabilityConfig } from "../src/lib/model-capabilities";
 
@@ -55,6 +55,15 @@ describe("video modes", () => {
         expect(pickVideoModeMaterials(undefined, "audio", ["a1"])).toEqual(["a1"]);
         expect(videoModeUsesMaterial("image_to_video", "audio", 0)).toBe(false);
         expect(videoModeUsedInput("image_to_video", { imageCount: 3, videoCount: 1, audioCount: 1 })).toEqual({ imageCount: 1, videoCount: 0, audioCount: 0 });
+    });
+
+    test("material role labels", () => {
+        expect(videoModeMaterialRole("first_last_frame", "image", 0)).toBe("首帧");
+        expect(videoModeMaterialRole("first_last_frame", "image", 1)).toBe("尾帧");
+        expect(videoModeMaterialRole("image_to_video", "image", 0)).toBe("首帧");
+        expect(videoModeMaterialRole("extend", "video", 0)).toBe("原视频");
+        expect(videoModeMaterialRole("reference_to_video", "image", 0)).toBeUndefined();
+        expect(videoModeMaterialRole(undefined, "image", 0)).toBeUndefined();
     });
 
     test("only model support or text-to-video conflicts reset a manual choice", () => {

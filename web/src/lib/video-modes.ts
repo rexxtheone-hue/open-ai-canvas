@@ -46,6 +46,14 @@ export function videoModeUsesMaterial(mode: VideoMode | undefined, kind: VideoMa
     return !mode || index < MATERIAL_LIMITS[mode][kind];
 }
 
+/** 素材在当前模式里的角色标签，例如首尾帧的「首帧」「尾帧」；没有特定角色时返回空。 */
+export function videoModeMaterialRole(mode: VideoMode | undefined, kind: VideoMaterialKind, index: number): string | undefined {
+    if (kind === "image" && index === 0 && (mode === "image_to_video" || mode === "first_last_frame")) return "首帧";
+    if (kind === "image" && index === 1 && mode === "first_last_frame") return "尾帧";
+    if (kind === "video" && index === 0 && (mode === "extend" || mode === "inpaint")) return "原视频";
+    return undefined;
+}
+
 /** 只保留当前模式会用到的素材，保持原有顺序。 */
 export function pickVideoModeMaterials<T>(mode: VideoMode | undefined, kind: VideoMaterialKind, items: T[]): T[] {
     if (!mode) return items;

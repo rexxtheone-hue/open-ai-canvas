@@ -35,7 +35,7 @@ import { countOptions, modeLabels, qualityOptions, resolutionOptions, type Creat
 import "./creation-product.css";
 import "./creation-scrollbars.css";
 import { CreationAttachmentThumbnail, CreationMediaPreviewModal } from "./creation-workspace-messages";
-import { VIDEO_MODES, videoModeLabel, videoModeUnavailableReason, videoModeUsesMaterial, type VideoMode, type VideoModeInput } from "@/lib/video-modes";
+import { VIDEO_MODES, videoModeLabel, videoModeMaterialRole, videoModeUnavailableReason, videoModeUsesMaterial, type VideoMode, type VideoModeInput } from "@/lib/video-modes";
 
 export { CreationHistoryDrawer } from "./creation-workspace-history";
 export { CreationMessageView } from "./creation-workspace-messages";
@@ -211,16 +211,20 @@ export function CreationComposer(props: ComposerProps) {
         return counts;
     }, { image: 0, video: 0, audio: 0, file: 0 }), [props.attachments]);
     // 手动选择视频模式后，该模式不使用的素材置灰，提交时也不会发送。
-    const unusedAttachmentIds = useMemo(() => {
+    const { unusedAttachmentIds, attachmentRoles } = useMemo(() => {
         const unused = new Set<string>();
-        if (props.mode !== "video" || !props.videoModeExplicit) return unused;
+        const roles = new Map<string, string>();
+        if (props.mode !== "video" || !props.videoModeExplicit) return { unusedAttachmentIds: unused, attachmentRoles: roles };
         const seen = { image: 0, video: 0, audio: 0 };
         for (const attachment of props.attachments) {
             const kind = creationAttachmentKind(attachment);
             if (kind === "file") continue;
-            if (!videoModeUsesMaterial(props.videoMode, kind, seen[kind]++)) unused.add(attachment.id);
+            const index = seen[kind]++;
+            if (!videoModeUsesMaterial(props.videoMode, kind, index)) unused.add(attachment.id);
+            const role = videoModeMaterialRole(props.videoMode, kind, index);
+            if (role) roles.set(attachment.id, role);
         }
-        return unused;
+        return { unusedAttachmentIds: unused, attachmentRoles: roles };
     }, [props.attachments, props.mode, props.videoMode, props.videoModeExplicit]);
     const visibleAttachments = useMemo(() => referenceFilter === "all"
         ? props.attachments
@@ -379,6 +383,7 @@ export function CreationComposer(props: ComposerProps) {
                                     }}
                                 >
                                     <CreationAttachmentThumbnail item={item} onPreview={previewAttachment} onRemove={props.onRemoveAttachment} />
+                                    {attachmentRoles.get(item.id) ? <span className="creation-reference-role-badge" aria-hidden="true">{attachmentRoles.get(item.id)}</span> : null}
                                 </Reorder.Item>)}
                                 {!visibleAttachments.length && props.attachments.length ? <li className="creation-reference-filter-empty">该类型暂无参考内容</li> : null}
                                 {referencesSupported ? <li className="creation-reference-add-slot"><Tooltip title={addReferenceLabel}><button type="button" className="creation-reference-add-button" onClick={props.onOpenLibrary} disabled={interactionBusy || !canAddMoreReferences} aria-label={addReferenceLabel}><Plus aria-hidden="true" /><span>参考内容</span></button></Tooltip></li> : null}
