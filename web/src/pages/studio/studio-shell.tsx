@@ -2,6 +2,8 @@ import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import { ChevronDown, ChevronRight, Clapperboard, Compass, Crown, FolderOpen, Grid2x2, Home, LayoutTemplate, MessageSquareText, PanelLeft, Palette, Pin, UserRound, Waypoints, Wand2 } from "lucide-react";
 
+import "@fontsource-variable/bricolage-grotesque";
+
 import { WorkspaceAccountMenu } from "@/components/layout/workspace-account-menu";
 import { WorkspaceWalletHost } from "@/components/layout/workspace-wallet-modal";
 import { CreditSymbol } from "@/constant/credits";

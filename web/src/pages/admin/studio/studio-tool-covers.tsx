@@ -3,13 +3,14 @@ import { App, Button } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { StudioToolThumb } from "@/pages/studio/studio-tool-thumb";
+import { STUDIO_QUICK_STARTS } from "@/pages/studio/studio-quickstarts";
 import { STUDIO_TOOLS } from "@/pages/studio/studio-tools";
 import { useStudioToolCovers } from "@/pages/studio/use-studio-tool-meta";
 import { resourceIdFromStorageKey } from "@/services/api/resources";
 import { setAdminStudioToolCover } from "@/services/api/studio";
 import { uploadImage } from "@/services/image-storage";
 
-/** 工具封面：在工具列表、网格和侧栏固定区显示。建议用 1:1 的效果示意图。 */
+/** 工具封面：在工具列表、网格和侧栏固定区显示，建议 1:1。快速开始封面：首页和 AI 导演的行业海报卡片，建议 4:3 竖构图偏上。 */
 export function StudioToolCoversPanel() {
     const { message } = App.useApp();
     const queryClient = useQueryClient();
@@ -35,13 +36,17 @@ export function StudioToolCoversPanel() {
         }
     };
 
+    const entries = [
+        ...STUDIO_QUICK_STARTS.map((item) => ({ id: item.coverId, label: `快速开始 · ${item.label}`, tool: { ...STUDIO_TOOLS[0], id: item.coverId, label: item.label, icon: item.icon, gradient: item.gradient } })),
+        ...STUDIO_TOOLS.map((tool) => ({ id: tool.id, label: tool.label, tool })),
+    ];
     return (
         <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
-            {STUDIO_TOOLS.map((tool) => (
-                <div key={tool.id} className="flex items-center gap-3 rounded-xl border border-foreground/10 p-3">
+            {entries.map(({ id, label, tool }) => (
+                <div key={id} className="flex items-center gap-3 rounded-xl border border-foreground/10 p-3">
                     <StudioToolThumb tool={tool} cover={covers[tool.id]} size={64} />
                     <div className="min-w-0 flex-1">
-                        <div className="truncate font-medium">{tool.label}</div>
+                        <div className="truncate font-medium">{label}</div>
                         <div className="mt-2 flex gap-2">
                             <label className="cursor-pointer">
                                 <span className="inline-flex h-7 items-center rounded-lg bg-foreground/10 px-3 text-xs">{busy === tool.id ? "上传中…" : "上传封面"}</span>

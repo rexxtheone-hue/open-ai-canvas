@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App, Popover } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, Check, ChevronDown, Loader2, MessageSquarePlus, Paperclip, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
+import { ArrowUp, AudioLines, Check, ChevronDown, Clapperboard, ImageIcon, Loader2, MessageSquarePlus, Paperclip, Pencil, Plus, Sparkles, Trash2, UserRound, X } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { useGenerationCredits } from "@/hooks/use-generation-credits";
@@ -50,7 +50,11 @@ type ChatMessage = StudioChatMessage<StudioChatAction, StudioChatAttachment>;
 
 const RUN_MODE_KEY = "studio.chat.run-mode.v1";
 const TEXT_MODEL_KEY = "studio.chat.text-model.v1";
-const SUGGESTIONS = ["做一张咖啡新品海报，暖色调，留出标题位置", "把这张产品图做成 5 秒的旋转展示视频", "写一段 15 秒的促销口播并配音"];
+const SUGGESTIONS = [
+    { icon: ImageIcon, label: "做一张新品海报", text: "做一张咖啡新品海报，暖色调，留出标题位置" },
+    { icon: Clapperboard, label: "产品图做成视频", text: "把这张产品图做成 5 秒的旋转展示视频" },
+    { icon: AudioLines, label: "写口播并配音", text: "写一段 15 秒的促销口播并配音" },
+];
 
 function readLocal(key: string) {
     try {
@@ -407,7 +411,7 @@ export default function StudioChatPage() {
                                 <h2>说出想法，马上做出来</h2>
                                 <p>描述你要的图片、视频或配音，可以附上参考素材。</p>
                                 <div className="studio-suggestions">
-                                    {SUGGESTIONS.map((item) => <button key={item} type="button" onClick={() => { setDraft(item); inputRef.current?.focus(); }}>{item}</button>)}
+                                    {SUGGESTIONS.map((item) => <button key={item.label} type="button" onClick={() => { setDraft(item.text); inputRef.current?.focus(); }}><item.icon aria-hidden />{item.label}</button>)}
                                 </div>
                             </div>
                         ) : null}
@@ -488,14 +492,19 @@ export default function StudioChatPage() {
                                 event.target.value = "";
                                 if (files.length) void uploadFiles(files);
                             }} />
-                            <div className="studio-chat-mode" role="group" aria-label="执行方式">
-                                <button type="button" aria-pressed={runMode === "ask"} title="先给出生成计划，确认后再生成" onClick={() => setRunMode("ask")}>先问我</button>
-                                <button type="button" aria-pressed={runMode === "auto"} title="直接按计划生成" onClick={() => setRunMode("auto")}>直接做</button>
-                            </div>
-                            <select className="studio-chat-model" aria-label="对话模型" value={textModel} onChange={(event) => { setTextModelChoice(event.target.value); writeLocal(TEXT_MODEL_KEY, event.target.value); }}>
-                                {textModels.length ? textModels.map((model) => <option key={model} value={model}>{modelDisplayName(config, model) || model}</option>) : <option value="">无可用模型</option>}
-                            </select>
                             <span style={{ flex: 1 }} />
+                            <label className="studio-pill-select is-small" title={runMode === "ask" ? "先给出生成计划，确认后再生成" : "直接按计划生成"}>
+                                <select aria-label="执行方式" value={runMode} onChange={(event) => setRunMode(event.target.value as StudioRunMode)}>
+                                    <option value="ask">先问我</option>
+                                    <option value="auto">直接做</option>
+                                </select>
+                            </label>
+                            <label className="studio-pill-select is-small">
+                                <Sparkles aria-hidden />
+                                <select aria-label="对话模型" value={textModel} onChange={(event) => { setTextModelChoice(event.target.value); writeLocal(TEXT_MODEL_KEY, event.target.value); }}>
+                                    {textModels.length ? textModels.map((model) => <option key={model} value={model}>{modelDisplayName(config, model) || model}</option>) : <option value="">无可用模型</option>}
+                                </select>
+                            </label>
                             <button type="button" className="studio-icon-button studio-send-button" aria-label="发送" disabled={busy || uploading > 0 || (!draft.trim() && !pending.length)} onClick={() => void send()}>
                                 {busy ? <Loader2 className="studio-spin" aria-hidden /> : <ArrowUp aria-hidden />}
                             </button>

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { App } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, Briefcase, Building2, Clapperboard, Film, Megaphone, MicVocal, Plus, Sparkles, Store, Trash2, UserRound } from "lucide-react";
+import { ArrowUp, ArrowUpLeft, Clapperboard, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal/app-modal";
@@ -21,20 +21,15 @@ import {
     type DirectorGenre,
     type DirectorRunMode,
 } from "./studio-director";
+import { StudioPosterCard } from "./studio-poster-card";
+import { STUDIO_QUICK_STARTS } from "./studio-quickstarts";
 import { StudioShell } from "./studio-shell";
+import { useStudioToolCovers } from "./use-studio-tool-meta";
 import { useStudioBrandChoice } from "./use-studio-brand";
 
 const MAX_CHARACTERS = 3;
 const RUN_MODE_KEY = "studio.director.run-mode.v1";
-const QUICK_STARTS: Array<{ id: DirectorGenre; icon: typeof Megaphone; cta: string }> = [
-    { id: "product-ad", icon: Megaphone, cta: "做产品广告" },
-    { id: "ugc", icon: UserRound, cta: "做 UGC 口播" },
-    { id: "real-estate", icon: Building2, cta: "做楼盘视频" },
-    { id: "food", icon: Store, cta: "做探店视频" },
-    { id: "presenter", icon: MicVocal, cta: "做讲解视频" },
-    { id: "brand-film", icon: Briefcase, cta: "做品牌片" },
-    { id: "short-drama", icon: Film, cta: "做短剧" },
-];
+const EXAMPLES = ["做一支咖啡店开业宣传片", "做一个外卖小哥逆袭的短剧", "做一条楼盘样板间展示视频"];
 const STATUS_LABEL: Record<string, string> = { planning: "写分镜中", producing: "生成中", rendering: "合成中", done: "已完成" };
 
 function readRunMode(): DirectorRunMode {
@@ -58,6 +53,8 @@ export default function StudioDirectorPage() {
     const [runMode, setRunModeState] = useState<DirectorRunMode>(readRunMode);
     const [brief, setBrief] = useState<DirectorBrief | null>(null);
     const [starting, setStarting] = useState(false);
+    const covers = useStudioToolCovers();
+    const handoffRef = useRef(false);
     const brand = useStudioBrandChoice(true);
     const charactersQuery = useStudioCharacters();
     const characters = charactersQuery.data || [];
@@ -137,15 +134,26 @@ export default function StudioDirectorPage() {
         });
     };
 
+    useEffect(() => {
+        const text = searchParams.get("q")?.trim();
+        if (!text || handoffRef.current || !user) return;
+        handoffRef.current = true;
+        setSearchParams({}, { replace: true });
+        void start({ ...DEFAULT_DIRECTOR_BRIEF, genre: "free", subject: Array.from(text).slice(0, 200).join(""), points: "", ratio, durationSeconds: duration }, text);
+        // start 只在首次带入时触发一次。
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams, user]);
+
     const genre = brief ? directorGenre(brief.genre) : undefined;
     const setField = <K extends keyof DirectorBrief>(key: K, value: DirectorBrief[K]) => setBrief((current) => (current ? { ...current, [key]: value } : current));
 
     return (
         <StudioShell title="AI 导演">
             <div className="studio-home">
-                <section className="studio-hero" aria-labelledby="studio-director-title">
+                <section className="studio-director-hero" aria-labelledby="studio-director-title">
                     <h1 id="studio-director-title">让 AI 导演你的下一支视频</h1>
-                    <div className="studio-composer">
+                    <p>和 AI 聊聊，就能做出一支完整的视频。</p>
+                    <div className="studio-composer is-hero">
                         <textarea
                             value={prompt}
                             placeholder="说说你想拍什么：产品、故事、风格、给谁看……"
@@ -159,60 +167,55 @@ export default function StudioDirectorPage() {
                             }}
                         />
                         <div className="studio-composer-bar">
-                            <div className="studio-chat-mode" role="group" aria-label="执行方式">
-                                <button type="button" aria-pressed={runMode === "guide"} title="每一步先给你看，确认后再继续" onClick={() => setRunMode("guide")}>引导我</button>
-                                <button type="button" aria-pressed={runMode === "auto"} title="写完分镜直接生成到成片" onClick={() => setRunMode("auto")}>直接做</button>
-                            </div>
-                            <select className="studio-chat-model" aria-label="画面比例" value={ratio} onChange={(event) => setRatio(event.target.value)}>
-                                {DIRECTOR_RATIOS.map((item) => <option key={item} value={item}>{item}</option>)}
-                            </select>
-                            <select className="studio-chat-model" aria-label="成片时长" value={duration} onChange={(event) => setDuration(Number(event.target.value))}>
-                                {DIRECTOR_DURATIONS.map((item) => <option key={item} value={item}>{item} 秒</option>)}
-                            </select>
+                            <label className="studio-pill-select">
+                                <select aria-label="画面比例" value={ratio} onChange={(event) => setRatio(event.target.value)}>
+                                    {DIRECTOR_RATIOS.map((item) => <option key={item} value={item}>{item}</option>)}
+                                </select>
+                            </label>
+                            <label className="studio-pill-select">
+                                <select aria-label="成片时长" value={duration} onChange={(event) => setDuration(Number(event.target.value))}>
+                                    {DIRECTOR_DURATIONS.map((item) => <option key={item} value={item}>{item} 秒</option>)}
+                                </select>
+                            </label>
                             <span style={{ flex: 1 }} />
-                            <button type="button" className="studio-icon-button studio-send-button" aria-label="开始导演" disabled={!prompt.trim() || starting} onClick={startFromPrompt}><ArrowUp aria-hidden /></button>
+                            <label className="studio-pill-select">
+                                <select aria-label="执行方式" value={runMode} onChange={(event) => setRunMode(event.target.value as DirectorRunMode)}>
+                                    <option value="guide">引导我</option>
+                                    <option value="auto">直接做</option>
+                                </select>
+                            </label>
+                            <button type="button" className="studio-send-orb" aria-label="开始导演" disabled={!prompt.trim() || starting} onClick={startFromPrompt}><ArrowUp aria-hidden /></button>
                         </div>
+                    </div>
+                    <div className="studio-example-chips">
+                        {EXAMPLES.map((text) => <button key={text} type="button" onClick={() => setPrompt(text)}>{text}<ArrowUpLeft aria-hidden /></button>)}
                     </div>
                 </section>
 
                 <section className="studio-section" aria-labelledby="studio-director-quick">
                     <div className="studio-section-head">
-                        <div>
-                            <h2 id="studio-director-quick">按行业快速开始</h2>
-                            <p>填几项关键信息，导演按行业写法出分镜。</p>
-                        </div>
+                        <h2 id="studio-director-quick">按行业快速开始</h2>
                     </div>
-                    <div className="studio-card-row">
-                        {QUICK_STARTS.map((item) => {
-                            const definition = directorGenre(item.id);
-                            return (
-                                <button key={item.id} type="button" className="studio-entry-card" onClick={() => setBrief({ ...DEFAULT_DIRECTOR_BRIEF, genre: item.id })}>
-                                    <item.icon className="studio-entry-icon" aria-hidden />
-                                    <strong>{definition.label}</strong>
-                                    <span>{definition.description}</span>
-                                </button>
-                            );
-                        })}
+                    <div className="studio-poster-grid">
+                        {STUDIO_QUICK_STARTS.map((item) => (
+                            <StudioPosterCard key={item.genre} title={item.label} icon={item.icon} gradient={item.gradient} cover={covers[item.coverId]} badge={item.badge} onClick={() => setBrief({ ...DEFAULT_DIRECTOR_BRIEF, genre: item.genre })} />
+                        ))}
                     </div>
                 </section>
 
                 <section className="studio-section" aria-labelledby="studio-director-projects">
                     <div className="studio-section-head">
-                        <div>
-                            <h2 id="studio-director-projects">导演项目</h2>
-                            <p>分镜、对话和生成记录都保存在项目里，随时回来继续。</p>
-                        </div>
+                        <h2 id="studio-director-projects">导演项目</h2>
                     </div>
-                    <div className="studio-card-row">
-                        <button type="button" className="studio-entry-card" onClick={() => setBrief({ ...DEFAULT_DIRECTOR_BRIEF, genre: "free" })}>
-                            <Plus className="studio-entry-icon" aria-hidden />
+                    <div className="studio-poster-grid">
+                        <button type="button" className="studio-create-tile" onClick={() => setBrief({ ...DEFAULT_DIRECTOR_BRIEF, genre: "free" })}>
+                            <Plus aria-hidden />
                             <strong>新建项目</strong>
-                            <span>从空白简报开始</span>
                         </button>
                         {stories.map((story) => (
-                            <div key={story.id} className="studio-entry-card studio-story-card">
+                            <div key={story.id} className="studio-story-card">
                                 <Link to={`/studio/director/${encodeURIComponent(story.id)}`} className="studio-story-link">
-                                    <Clapperboard className="studio-entry-icon" aria-hidden />
+                                    <span className="studio-story-art" aria-hidden><Clapperboard /></span>
                                     <strong>{story.title}</strong>
                                     <span>{story.ratio} · {story.durationSeconds} 秒 · {STATUS_LABEL[story.status] || story.status}</span>
                                     <small>{new Date(story.updatedAt).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</small>

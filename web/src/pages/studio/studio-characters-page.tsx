@@ -122,31 +122,41 @@ export default function StudioCharactersPage() {
                             <Search aria-hidden />
                             <input value={keyword} placeholder="搜索角色" aria-label="搜索角色" onChange={(event) => setKeyword(event.target.value)} />
                         </label>
-                        <button type="button" className="studio-upgrade-button" onClick={() => setDraft({ ...EMPTY_DRAFT })}><Plus aria-hidden />新建角色</button>
                     </div>
                 </div>
 
                 {charactersQuery.isError ? <div className="studio-empty"><strong>角色读取失败</strong><span>{charactersQuery.error instanceof Error ? charactersQuery.error.message : ""}</span></div> : null}
                 {charactersQuery.isLoading ? <div className="studio-empty"><Loader2 className="studio-spin" aria-hidden /></div> : null}
-                {!charactersQuery.isLoading && !charactersQuery.isError && !characters.length ? (
-                    <div className="studio-empty"><UserRound aria-hidden /><strong>{keyword.trim() ? "没有找到相关角色" : "还没有角色"}</strong><span>{keyword.trim() ? "换个关键词试试。" : "点「新建角色」上传几张形象图即可。"}</span></div>
+                {!charactersQuery.isLoading && !charactersQuery.isError && keyword.trim() && !characters.length ? (
+                    <div className="studio-empty"><UserRound aria-hidden /><strong>没有找到相关角色</strong><span>换个关键词试试。</span></div>
                 ) : null}
                 <div className="studio-character-grid">
+                    {!keyword.trim() ? (
+                        <button type="button" className="studio-create-tile is-portrait" onClick={() => setDraft({ ...EMPTY_DRAFT })}>
+                            <Plus aria-hidden />
+                            <strong>新建角色</strong>
+                            <span>上传几张形象图，之后生成都是同一张脸</span>
+                        </button>
+                    ) : null}
                     {characters.map((character) => {
                         const cover = studioCharacterCover(character);
                         return (
                             <article key={character.id} className="studio-character-card">
-                                <div className="studio-character-cover">{cover ? <img src={cover} alt={character.name} loading="lazy" /> : <UserRound aria-hidden />}</div>
-                                <div className="studio-character-body">
-                                    <strong>{character.name}</strong>
-                                    <span className="studio-hint">{character.imageResourceIds.length ? `${character.imageResourceIds.length} 张形象图` : "缺少形象图"}{character.description ? ` · ${character.description}` : ""}</span>
-                                    <div className="studio-character-actions">
-                                        <button type="button" className="studio-mini-button" onClick={() => sendToTool(character, "image")}><ImageIcon aria-hidden />生成图片</button>
-                                        <button type="button" className="studio-mini-button" onClick={() => sendToTool(character, "video")}><Clapperboard aria-hidden />生成视频</button>
-                                        <button type="button" className="studio-mini-button" onClick={() => navigate(`/studio/director?character=${encodeURIComponent(character.id)}`)}><Sparkles aria-hidden />交给 AI 导演</button>
-                                        <button type="button" className="studio-mini-button" aria-label={`编辑 ${character.name}`} onClick={() => setDraft({ id: character.id, name: character.name, description: character.description, imageResourceIds: character.imageResourceIds })}><Pencil aria-hidden /></button>
-                                        <button type="button" className="studio-mini-button is-danger" aria-label={`删除 ${character.name}`} onClick={() => remove(character)}><Trash2 aria-hidden /></button>
+                                <div className="studio-character-cover">
+                                    {cover ? <img src={cover} alt={character.name} loading="lazy" /> : <UserRound aria-hidden />}
+                                    <div className="studio-character-caption">
+                                        <strong>{character.name}</strong>
+                                        <span>{character.imageResourceIds.length ? `${character.imageResourceIds.length} 张形象图` : "缺少形象图"}</span>
                                     </div>
+                                    <div className="studio-character-tools">
+                                        <button type="button" className="studio-icon-button" title="编辑" aria-label={`编辑 ${character.name}`} onClick={() => setDraft({ id: character.id, name: character.name, description: character.description, imageResourceIds: character.imageResourceIds })}><Pencil aria-hidden /></button>
+                                        <button type="button" className="studio-icon-button is-danger" title="删除" aria-label={`删除 ${character.name}`} onClick={() => remove(character)}><Trash2 aria-hidden /></button>
+                                    </div>
+                                </div>
+                                <div className="studio-character-actions">
+                                    <button type="button" title="生成图片" aria-label={`用 ${character.name} 生成图片`} onClick={() => sendToTool(character, "image")}><ImageIcon aria-hidden />图片</button>
+                                    <button type="button" title="生成视频" aria-label={`用 ${character.name} 生成视频`} onClick={() => sendToTool(character, "video")}><Clapperboard aria-hidden />视频</button>
+                                    <button type="button" title="交给 AI 导演" aria-label={`把 ${character.name} 交给 AI 导演`} onClick={() => navigate(`/studio/director?character=${encodeURIComponent(character.id)}`)}><Sparkles aria-hidden />导演</button>
                                 </div>
                             </article>
                         );
