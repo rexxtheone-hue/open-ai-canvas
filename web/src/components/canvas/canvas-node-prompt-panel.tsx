@@ -37,7 +37,7 @@ import { quoteModel, type LogicalModelQuote } from "@/services/api/logical-model
 import { ConnectedReferenceShelf, ReferenceToolsPopover, referenceShelfHeading } from "./canvas-node-prompt-references";
 import { PromptModalResizeHandle, PromptResizeHandle, clampExpandedModalSize, clampPromptHeight, estimatePromptContentHeight, promptEditorBounds } from "./canvas-node-prompt-resize";
 import { audioConfigPatch, buildNodeConfig, defaultMode, modeDisplayName, promptPlaceholder, videoConfigPatch } from "./canvas-node-prompt-config";
-import { videoModeUnavailableReason, type VideoMode } from "@/lib/video-modes";
+import { videoModeLabel, videoModeShouldReset, videoModeUsesMaterial, type VideoMode } from "@/lib/video-modes";
 import { CanvasVideoModeMenu } from "@/components/canvas/canvas-video-mode-menu";
 import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
 
@@ -133,17 +133,36 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     const activeMotionTool = activeMotionTools[0];
     const normalizedSavedPrompt = useMemo(() => normalizeCanvasNodeMentionTokens(savedPrompt, mentionReferences), [mentionReferences, savedPrompt]);
     const activeReferences = resolvedMentionReferences.filter((item) => item.active && item.kind !== "skill" && item.kind !== "tool");
+    const explicitVideoMode = mode === "video" ? node.metadata?.videoMode : undefined;
+    // 角色卡在视频请求里按图片发送，因此和图片一起计数。
+    const videoModeInput = {
+        imageCount: activeReferences.filter((item) => item.kind === "image" || item.kind === "character").length,
+        videoCount: activeReferences.filter((item) => item.kind === "video").length,
+        audioCount: activeReferences.filter((item) => item.kind === "audio").length,
+    };
+    const unusedReferenceIds = (() => {
+        const unused = new Set<string>();
+        if (!explicitVideoMode) return unused;
+        const seen = { image: 0, video: 0, audio: 0 };
+        for (const item of activeReferences) {
+            const kind = item.kind === "character" ? "image" : item.kind;
+            if (kind !== "image" && kind !== "video" && kind !== "audio") continue;
+            if (!videoModeUsesMaterial(explicitVideoMode, kind, seen[kind]++)) unused.add(item.id);
+        }
+        return unused;
+    })();
+    const usedCount = (kind: string) => activeReferences.filter((item) => item.kind === kind && !unusedReferenceIds.has(item.id)).length;
     const requirements: ModelRequirements = {
         capability: mode,
         input: {
             textCount: (prompt.trim() ? 1 : 0) + activeReferences.filter((item) => item.kind === "text").length,
-            imageCount: activeReferences.filter((item) => item.kind === "image").length,
-            videoCount: activeReferences.filter((item) => item.kind === "video").length,
-            audioCount: activeReferences.filter((item) => item.kind === "audio").length,
-            characterCount: activeReferences.filter((item) => item.kind === "character").length,
+            imageCount: usedCount("image"),
+            videoCount: usedCount("video"),
+            audioCount: usedCount("audio"),
+            characterCount: usedCount("character"),
         },
         videoOperation: node.metadata?.videoEditOperation,
-        videoMode: mode === "video" ? node.metadata?.videoMode : undefined,
+        videoMode: explicitVideoMode,
         videoSeconds: mode === "video" ? node.metadata?.seconds ?? globalConfig.videoSeconds : undefined,
         options: modelRequestOptions({
             ...globalConfig,
@@ -162,16 +181,14 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     };
     const config = buildNodeConfig(globalConfig, node, mode, requirements);
     const videoProfile = mode === "video" ? modelCapabilityConfigFor(config, config.model).video : undefined;
-    const explicitVideoMode = node.metadata?.videoMode;
-    const videoModeInput = { imageCount: requirements.input!.imageCount + requirements.input!.characterCount, videoCount: requirements.input!.videoCount, audioCount: requirements.input!.audioCount };
     const effectiveVideoMode: VideoMode = explicitVideoMode || (() => {
         const operation = inferVideoOperation(requirements.input!);
         return operation === "text_to_video" || operation === "image_to_video" ? operation : "reference_to_video";
     })();
     useEffect(() => {
         // 换成不支持当前模式的模型时，回到按连线素材自动判断。
-        if (mode === "video" && explicitVideoMode && videoModeUnavailableReason(videoProfile, explicitVideoMode, videoModeInput)) onConfigChange(node.id, { videoMode: undefined });
-    }, [explicitVideoMode, mode, node.id, onConfigChange, videoProfile, videoModeInput.imageCount, videoModeInput.videoCount, videoModeInput.audioCount]);
+        if (explicitVideoMode && videoModeShouldReset(videoProfile, explicitVideoMode, videoModeInput)) onConfigChange(node.id, { videoMode: undefined });
+    }, [explicitVideoMode, node.id, onConfigChange, videoProfile, videoModeInput.imageCount, videoModeInput.videoCount, videoModeInput.audioCount]);
     const resolvedRequirements: ModelRequirements = {
         ...requirements,
         options: modelRequestOptions(config, mode),
@@ -566,6 +583,8 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                     <ConnectedReferenceShelf
                         targetNodeId={node.id}
                         references={resolvedMentionReferences}
+                        unusedReferenceIds={unusedReferenceIds}
+                        unusedReferenceHint={explicitVideoMode ? `${videoModeLabel(explicitVideoMode)}不使用这个素材，生成时不会发送` : undefined}
                         theme={theme}
                         onInsert={insertPromptReference}
                         onRemove={(reference) => onRemoveReference?.(node.id, reference)}

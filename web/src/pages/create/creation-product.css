@@ -297,3 +297,8 @@ html:not(.dark) .app-product-overlays .creation-control-popover-surface {
 .creation-video-mode-text em { overflow: hidden; color: var(--creation-muted, #858c97); font-size: 11px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 .creation-video-mode-check { width: 14px; height: 14px; flex: none; }
 .creation-video-mode-hint { margin: 6px 8px 2px; color: var(--creation-muted, #858c97); font-size: 11px; }
+
+.creation-reference-stack-card.is-unused {
+    opacity: 0.35;
+    filter: grayscale(1);
+}

@@ -18,6 +18,7 @@ import { isCanvasWorkflowProvider } from "@/lib/canvas/canvas-workflow";
 import { nodeGenerationPrompt } from "@/lib/canvas/generation-contract";
 import type { ModelReferenceLimits } from "@/lib/model-selection";
 import type { Asset } from "@/stores/use-asset-store";
+import { pickVideoModeMaterials, videoModeUsesMaterial, type VideoMode } from "@/lib/video-modes";
 import { resourceIdFromStorageKey } from "@/services/api/resources";
 
 export type CharacterGenerationReference = {
@@ -720,5 +721,25 @@ function readReferenceAudio(node: CanvasNodeData): ReferenceAudio | null {
         storageKey: node.metadata.storageKey,
         bytes: node.metadata.bytes,
         durationMs: node.metadata.durationMs,
+    };
+}
+
+/** 视频节点手动选择模式后，只保留该模式实际使用的素材；与输入框里的置灰提示一致。 */
+export function applyVideoModeToGenerationContext<T extends NodeGenerationContext>(mode: VideoMode | undefined, context: T): T {
+    if (!mode) return context;
+    const referenceImages = pickVideoModeMaterials(mode, "image", context.referenceImages);
+    const referenceVideos = pickVideoModeMaterials(mode, "video", context.referenceVideos);
+    const referenceAudios = pickVideoModeMaterials(mode, "audio", context.referenceAudios);
+    const keepsImages = videoModeUsesMaterial(mode, "image", 0);
+    return {
+        ...context,
+        referenceImages,
+        referenceVideos,
+        referenceAudios,
+        referenceImageSlots: pickVideoModeMaterials(mode, "image", context.referenceImageSlots),
+        characterReferences: keepsImages ? context.characterReferences : [],
+        imageCount: referenceImages.length,
+        videoCount: referenceVideos.length,
+        audioCount: referenceAudios.length,
     };
 }

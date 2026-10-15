@@ -29,18 +29,73 @@ export function videoModeOperation(mode: VideoMode) {
     return mode === "first_last_frame" ? "image_to_video" : mode;
 }
 
-/** 已放入的素材与模式冲突时返回原因：有素材不能文生视频，有视频不能图生视频或首尾帧。 */
+export type VideoMaterialKind = "image" | "video" | "audio";
+
+/** 每个模式实际使用的素材数量；超出部分在界面置灰，提交时不发送。 */
+const MATERIAL_LIMITS: Record<VideoMode, Record<VideoMaterialKind, number>> = {
+    text_to_video: { image: 0, video: 0, audio: 0 },
+    reference_to_video: { image: Infinity, video: Infinity, audio: Infinity },
+    image_to_video: { image: 1, video: 0, audio: 0 },
+    first_last_frame: { image: 2, video: 0, audio: 0 },
+    inpaint: { image: Infinity, video: 1, audio: 0 },
+    extend: { image: 0, video: 1, audio: 0 },
+};
+
+/** 同类素材里第 index 个是否会被当前模式使用；未手动选择模式时全部使用。 */
+export function videoModeUsesMaterial(mode: VideoMode | undefined, kind: VideoMaterialKind, index: number) {
+    return !mode || index < MATERIAL_LIMITS[mode][kind];
+}
+
+/** 只保留当前模式会用到的素材，保持原有顺序。 */
+export function pickVideoModeMaterials<T>(mode: VideoMode | undefined, kind: VideoMaterialKind, items: T[]): T[] {
+    if (!mode) return items;
+    const limit = MATERIAL_LIMITS[mode][kind];
+    return limit >= items.length ? items : items.slice(0, limit);
+}
+
+/** 当前模式实际使用的素材数量。 */
+export function videoModeUsedInput(mode: VideoMode | undefined, input: VideoModeInput): VideoModeInput {
+    if (!mode) return input;
+    const limits = MATERIAL_LIMITS[mode];
+    return { imageCount: Math.min(input.imageCount, limits.image), videoCount: Math.min(input.videoCount, limits.video), audioCount: Math.min(input.audioCount, limits.audio) };
+}
+
+/** 有素材时不能文生视频；手动选的文生视频遇到素材会自动退回按素材判断。 */
 export function videoModeMaterialConflict(mode: VideoMode, input: VideoModeInput | undefined): string | undefined {
     if (!input) return undefined;
     if (mode === "text_to_video" && input.imageCount + input.videoCount + input.audioCount > 0) return "已放入参考素材，请移除后再用文生视频";
-    if ((mode === "image_to_video" || mode === "first_last_frame") && input.videoCount > 0) return "已放入参考视频，请用全能参考";
     return undefined;
 }
 
-/** 模型不支持或与已放素材冲突时返回原因，用于下拉置灰提示。 */
+/** 模式缺少必需素材时返回原因。 */
+export function videoModeMissingMaterial(mode: VideoMode, input: VideoModeInput | undefined): string | undefined {
+    if (!input) return undefined;
+    switch (mode) {
+        case "image_to_video":
+            return input.imageCount >= 1 ? undefined : "需要先放入一张图片";
+        case "first_last_frame":
+            return input.imageCount >= 2 ? undefined : "需要先放入两张图片";
+        case "reference_to_video":
+            return input.imageCount + input.videoCount + input.audioCount > 0 ? undefined : "需要先放入参考素材";
+        case "extend":
+        case "inpaint":
+            return input.videoCount >= 1 ? undefined : "需要先放入一段视频";
+        default:
+            return undefined;
+    }
+}
+
+/** 应该清除手动选择的情况：模型不支持，或已有素材却选着文生视频。缺素材时保留选择，等用户补素材。 */
+export function videoModeShouldReset(profile: VideoCapabilityConfig | undefined, mode: VideoMode, input: VideoModeInput | undefined) {
+    return Boolean(videoModeMaterialConflict(mode, input) || videoModeModelReason(profile, mode));
+}
+
+/** 模型不支持、与素材冲突或缺少必需素材时返回原因，用于下拉置灰提示。 */
 export function videoModeUnavailableReason(profile: VideoCapabilityConfig | undefined, mode: VideoMode, input?: VideoModeInput): string | undefined {
-    const conflict = videoModeMaterialConflict(mode, input);
-    if (conflict) return conflict;
+    return videoModeMaterialConflict(mode, input) || videoModeModelReason(profile, mode) || videoModeMissingMaterial(mode, input);
+}
+
+function videoModeModelReason(profile: VideoCapabilityConfig | undefined, mode: VideoMode): string | undefined {
     if (!profile) return undefined;
     const operations = profile.operations || [];
     const references = profile.references;
@@ -60,25 +115,13 @@ export function videoModeUnavailableReason(profile: VideoCapabilityConfig | unde
     }
 }
 
-/** 选中的模式与已放素材不匹配时返回提示；返回空表示可以提交。 */
+/** 提交前的最终检查：按模式实际使用的素材判断；返回空表示可以提交。 */
 export function videoModeInputError(mode: VideoMode, input: VideoModeInput): string | undefined {
-    const { imageCount, videoCount, audioCount } = input;
-    switch (mode) {
-        case "text_to_video":
-            return imageCount + videoCount + audioCount > 0 ? "文生视频不使用参考素材，请移除素材，或切换到全能参考、图生视频" : undefined;
-        case "image_to_video":
-            if (imageCount < 1) return "图生视频需要一张图片作为首帧";
-            return videoCount > 0 ? "图生视频不能使用参考视频，请切换到全能参考" : undefined;
-        case "first_last_frame":
-            if (imageCount < 2) return "首尾帧需要两张图片：第一张作为首帧，第二张作为尾帧";
-            return videoCount > 0 ? "首尾帧不能使用参考视频，请切换到全能参考" : undefined;
-        case "reference_to_video":
-            return imageCount + videoCount + audioCount > 0 ? undefined : "全能参考至少需要一个参考素材";
-        case "extend":
-            return videoCount > 0 ? undefined : "视频续写需要先放入一段原视频";
-        case "inpaint":
-            return videoCount > 0 ? undefined : "视频编辑需要先放入一段原视频";
-    }
+    const used = videoModeUsedInput(mode, input);
+    const missing = videoModeMissingMaterial(mode, used);
+    if (missing) return missing;
+    if (mode === "text_to_video" && input.imageCount + input.videoCount + input.audioCount > 0) return "文生视频不使用参考素材，请移除素材，或切换到全能参考、图生视频";
+    return undefined;
 }
 
 /** 首尾帧模式：前两张图片分别标为首帧、尾帧；其他模式不改动已有角色。 */

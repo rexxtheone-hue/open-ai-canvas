@@ -41,7 +41,7 @@ import { CreationAgentEntry } from "./creation-agent-entry";
 import { createCreationSubmitGate } from "./creation-submit-gate";
 import { creationVideoConfig } from "./creation-generation-config";
 import { CreationLoginDialog } from "./creation-login-dialog";
-import { applyVideoModeImageRoles, videoModeInputError, videoModeOperation, videoModeUnavailableReason, type VideoMode } from "@/lib/video-modes";
+import { applyVideoModeImageRoles, pickVideoModeMaterials, videoModeInputError, videoModeOperation, videoModeShouldReset, videoModeUsedInput, type VideoMode } from "@/lib/video-modes";
 
 const AssetLibraryPickerModal = lazy(() => import("@/components/assets/asset-library-picker-modal").then((module) => ({ default: module.AssetLibraryPickerModal })));
 const loadCreationRuntime = () => import("./creation-runtime");
@@ -147,13 +147,17 @@ export default function CreatePage() {
     );
     const preferredModel = mode === "text" ? config.textModel : mode === "image" ? config.imageModel : config.videoModel;
     const hasPrompt = Boolean(prompt.trim());
+    const attachedImageCount = attachments.filter(isImageAttachment).length;
+    const attachedVideoCount = attachments.filter(isVideoAttachment).length;
+    const attachedAudioCount = attachments.filter((attachment) => creationAttachmentKind(attachment) === "audio").length;
+    const videoModeInput = useMemo(() => ({ imageCount: attachedImageCount, videoCount: attachedVideoCount, audioCount: attachedAudioCount }), [attachedImageCount, attachedVideoCount, attachedAudioCount]);
+    // 手动选择模式后，只有该模式实际使用的素材参与模型筛选和计价。
+    const usedVideoModeInput = useMemo(() => videoModeUsedInput(mode === "video" ? explicitVideoMode : undefined, videoModeInput), [explicitVideoMode, mode, videoModeInput]);
     const modelRequirements = useMemo<ModelRequirements>(() => ({
         capability: mode,
         input: {
             textCount: hasPrompt ? 1 : 0,
-            imageCount: attachments.filter(isImageAttachment).length,
-            videoCount: attachments.filter(isVideoAttachment).length,
-            audioCount: attachments.filter((attachment) => creationAttachmentKind(attachment) === "audio").length,
+            ...usedVideoModeInput,
             characterCount: 0,
         },
         videoSeconds: mode === "video" ? seconds : undefined,
@@ -164,7 +168,7 @@ export default function CreatePage() {
 			: mode === "video"
 				? { size: ratio, videoSeconds: Number(seconds), vquality: videoQuality }
 				: {},
-    }), [attachments, config, preferredModel, count, explicitVideoMode, hasPrompt, imageResolution, imageParameters, mode, quality, ratio, seconds, videoQuality]);
+    }), [usedVideoModeInput, config, preferredModel, count, explicitVideoMode, hasPrompt, imageResolution, imageParameters, mode, quality, ratio, seconds, videoQuality]);
     const selectedModel = resolveCompatibleModel(config, preferredModel, modelRequirements) || preferredModel;
     const generationConfig = useMemo(() => mode === "video"
         ? creationVideoConfig(config, selectedModel, { ratio, seconds, videoQuality })
@@ -176,11 +180,9 @@ export default function CreatePage() {
         return operation === "text_to_video" || operation === "image_to_video" ? operation : "reference_to_video";
     }, [modelRequirements.input]);
     const effectiveVideoMode = explicitVideoMode || inferredVideoMode;
-    const { imageCount: modeImageCount, videoCount: modeVideoCount, audioCount: modeAudioCount } = modelRequirements.input!;
-    const videoModeInput = useMemo(() => ({ imageCount: modeImageCount, videoCount: modeVideoCount, audioCount: modeAudioCount }), [modeImageCount, modeVideoCount, modeAudioCount]);
     useEffect(() => {
-        // 换模型或增删素材后与当前模式冲突时，回到按素材自动判断，避免提交必然失败的组合。
-        if (explicitVideoMode && videoModeUnavailableReason(videoProfile, explicitVideoMode, videoModeInput)) setExplicitVideoMode(undefined);
+        // 换成不支持的模型，或已有素材却选着文生视频时，回到按素材自动判断。
+        if (explicitVideoMode && videoModeShouldReset(videoProfile, explicitVideoMode, videoModeInput)) setExplicitVideoMode(undefined);
     }, [explicitVideoMode, videoProfile, videoModeInput]);
     // 同名逻辑模型可能把文生视频、图生视频和全模态参考拆到不同路由。
     // 入口需要展示整个模型组的引用能力，添加素材后再由兼容路由选择具体模型。
@@ -646,10 +648,9 @@ export default function CreatePage() {
         const settings = { ratio, seconds, quality, videoQuality, count };
         const references = selectedCreationReferences(text, mentionReferences);
         // 后端对图片和视频使用不同的参考字段；这里先拆分，避免媒体类型在写入任务时被误判。
-        const split = splitCreationAttachments(attachments);
-        const { referenceVideos, referenceAudios } = split;
+        const allSplit = splitCreationAttachments(attachments);
         if (mode === "video" && explicitVideoMode) {
-            const modeError = videoModeInputError(explicitVideoMode, { imageCount: split.referenceImages.length, videoCount: referenceVideos.length, audioCount: referenceAudios.length });
+            const modeError = videoModeInputError(explicitVideoMode, { imageCount: allSplit.referenceImages.length, videoCount: allSplit.referenceVideos.length, audioCount: allSplit.referenceAudios.length });
             if (modeError) {
                 toast.error(modeError);
                 releaseRetryLock();
@@ -657,6 +658,14 @@ export default function CreatePage() {
                 return;
             }
         }
+        // 手动选择模式后，界面上置灰的素材不发送。
+        const submitVideoMode = mode === "video" ? explicitVideoMode : undefined;
+        const split = {
+            referenceImages: pickVideoModeMaterials(submitVideoMode, "image", allSplit.referenceImages),
+            referenceVideos: pickVideoModeMaterials(submitVideoMode, "video", allSplit.referenceVideos),
+            referenceAudios: pickVideoModeMaterials(submitVideoMode, "audio", allSplit.referenceAudios),
+        };
+        const { referenceVideos, referenceAudios } = split;
         // 首尾帧模式：前两张图片分别标为首帧、尾帧，由后端与插件写入对应字段。
         const referenceImages = mode === "video" ? applyVideoModeImageRoles(explicitVideoMode, split.referenceImages) : split.referenceImages;
         const videoOperation = explicitVideoMode ? videoModeOperation(explicitVideoMode) : inferVideoOperation({

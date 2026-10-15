@@ -35,7 +35,7 @@ import { countOptions, modeLabels, qualityOptions, resolutionOptions, type Creat
 import "./creation-product.css";
 import "./creation-scrollbars.css";
 import { CreationAttachmentThumbnail, CreationMediaPreviewModal } from "./creation-workspace-messages";
-import { VIDEO_MODES, videoModeLabel, videoModeUnavailableReason, type VideoMode, type VideoModeInput } from "@/lib/video-modes";
+import { VIDEO_MODES, videoModeLabel, videoModeUnavailableReason, videoModeUsesMaterial, type VideoMode, type VideoModeInput } from "@/lib/video-modes";
 
 export { CreationHistoryDrawer } from "./creation-workspace-history";
 export { CreationMessageView } from "./creation-workspace-messages";
@@ -210,6 +210,18 @@ export function CreationComposer(props: ComposerProps) {
         counts[kind] += 1;
         return counts;
     }, { image: 0, video: 0, audio: 0, file: 0 }), [props.attachments]);
+    // 手动选择视频模式后，该模式不使用的素材置灰，提交时也不会发送。
+    const unusedAttachmentIds = useMemo(() => {
+        const unused = new Set<string>();
+        if (props.mode !== "video" || !props.videoModeExplicit) return unused;
+        const seen = { image: 0, video: 0, audio: 0 };
+        for (const attachment of props.attachments) {
+            const kind = creationAttachmentKind(attachment);
+            if (kind === "file") continue;
+            if (!videoModeUsesMaterial(props.videoMode, kind, seen[kind]++)) unused.add(attachment.id);
+        }
+        return unused;
+    }, [props.attachments, props.mode, props.videoMode, props.videoModeExplicit]);
     const visibleAttachments = useMemo(() => referenceFilter === "all"
         ? props.attachments
         : props.attachments.filter((attachment) => creationAttachmentKind(attachment) === referenceFilter), [props.attachments, referenceFilter]);
@@ -347,7 +359,8 @@ export function CreationComposer(props: ComposerProps) {
                                     value={item}
                                     layout="position"
                                     drag={trackState.isExpanded && canDragReferences && !interactionBusy}
-                                    className="creation-reference-stack-card"
+                                    className={`creation-reference-stack-card${unusedAttachmentIds.has(item.id) ? " is-unused" : ""}`}
+                                    title={unusedAttachmentIds.has(item.id) ? `${videoModeLabel(props.videoMode)}不使用这个素材，生成时不会发送` : undefined}
                                     onPointerDown={beginCardDrag}
                                     onPointerMove={moveCardDrag}
                                     onPointerUp={endCardDrag}

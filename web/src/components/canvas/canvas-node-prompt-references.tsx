@@ -88,9 +88,14 @@ export function ConnectedReferenceShelf({
     onReorder,
     onReplaceReference,
     onReplaceReferenceFiles,
+    unusedReferenceIds,
+    unusedReferenceHint,
 }: {
     targetNodeId?: string;
     references: CanvasResourceReference[];
+    /** 当前视频模式不使用的素材：置灰显示，生成时不会发送。 */
+    unusedReferenceIds?: ReadonlySet<string>;
+    unusedReferenceHint?: string;
     theme: CanvasTheme;
     onInsert: (reference: CanvasResourceReference) => void;
     onRemove?: (reference: CanvasResourceReference) => void;
@@ -129,9 +134,11 @@ export function ConnectedReferenceShelf({
                     {activeReferences.map((reference, index) => {
                         const canPreview = Boolean(reference.previewUrl) && (reference.kind === "image" || reference.kind === "character" || reference.kind === "video");
                         const isDropTarget = dropTargetReferenceId === reference.id;
+                        const unused = unusedReferenceIds?.has(reference.id);
                         return (
                             <span
                                 key={reference.id}
+                                title={unused ? unusedReferenceHint : undefined}
                                 className="canvas-node-reference-chip relative"
                                 data-reference-chip="true"
                                 data-reference-id={reference.id}
@@ -143,6 +150,8 @@ export function ConnectedReferenceShelf({
                                 data-drop-target={isDropTarget ? "true" : undefined}
                                 style={{
                                     boxShadow: isDropTarget ? "0 0 0 2px #3b82f6, 0 0 16px rgba(59, 130, 246, 0.45)" : undefined,
+                                    opacity: unused ? 0.35 : undefined,
+                                    filter: unused ? "grayscale(1)" : undefined,
                                 }}
                                 onDragOver={(event) => {
                                     if (draggedReferenceId) {

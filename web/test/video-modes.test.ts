@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { applyVideoModeImageRoles, resolveSelectableVideoMode, videoModeInputError, videoModeOperation, videoModeUnavailableReason, videoPricingOperation } from "../src/lib/video-modes";
+import { applyVideoModeImageRoles, pickVideoModeMaterials, resolveSelectableVideoMode, videoModeShouldReset, videoModeUsedInput, videoModeUsesMaterial, videoModeInputError, videoModeOperation, videoModeUnavailableReason, videoPricingOperation } from "../src/lib/video-modes";
 import { resolveVideoOperation } from "../src/lib/model-selection";
 import type { VideoCapabilityConfig } from "../src/lib/model-capabilities";
 
@@ -35,11 +35,33 @@ describe("video modes", () => {
         const oneImage = { imageCount: 1, videoCount: 0, audioCount: 0 };
         expect(videoModeUnavailableReason(gemini, "text_to_video", oneImage)).toBeTruthy();
         expect(videoModeUnavailableReason(gemini, "image_to_video", oneImage)).toBeUndefined();
-        expect(videoModeUnavailableReason(gemini, "first_last_frame", oneImage)).toBeUndefined();
+        expect(videoModeUnavailableReason(gemini, "first_last_frame", oneImage)).toContain("两张");
+        expect(videoModeUnavailableReason(gemini, "first_last_frame", { imageCount: 2, videoCount: 0, audioCount: 1 })).toBeUndefined();
         const oneVideo = { imageCount: 0, videoCount: 1, audioCount: 0 };
         expect(videoModeUnavailableReason(gemini, "image_to_video", oneVideo)).toBeTruthy();
+        expect(videoModeUnavailableReason(gemini, "image_to_video", { imageCount: 1, videoCount: 1, audioCount: 1 })).toBeUndefined();
         expect(videoModeUnavailableReason(gemini, "extend", oneVideo)).toBeUndefined();
         expect(videoModeUnavailableReason(gemini, "text_to_video", { imageCount: 0, videoCount: 0, audioCount: 0 })).toBeUndefined();
+    });
+
+    test("each mode only uses its own materials", () => {
+        const images = ["i1", "i2", "i3"];
+        expect(pickVideoModeMaterials("image_to_video", "image", images)).toEqual(["i1"]);
+        expect(pickVideoModeMaterials("first_last_frame", "image", images)).toEqual(["i1", "i2"]);
+        expect(pickVideoModeMaterials("image_to_video", "audio", ["a1"])).toEqual([]);
+        expect(pickVideoModeMaterials("extend", "image", images)).toEqual([]);
+        expect(pickVideoModeMaterials("inpaint", "image", images)).toEqual(images);
+        expect(pickVideoModeMaterials("reference_to_video", "audio", ["a1", "a2"])).toEqual(["a1", "a2"]);
+        expect(pickVideoModeMaterials(undefined, "audio", ["a1"])).toEqual(["a1"]);
+        expect(videoModeUsesMaterial("image_to_video", "audio", 0)).toBe(false);
+        expect(videoModeUsedInput("image_to_video", { imageCount: 3, videoCount: 1, audioCount: 1 })).toEqual({ imageCount: 1, videoCount: 0, audioCount: 0 });
+    });
+
+    test("only model support or text-to-video conflicts reset a manual choice", () => {
+        const gemini = profile(["text_to_video", "image_to_video", "reference_to_video", "extend", "inpaint"]);
+        expect(videoModeShouldReset(gemini, "text_to_video", { imageCount: 1, videoCount: 0, audioCount: 0 })).toBe(true);
+        expect(videoModeShouldReset(gemini, "first_last_frame", { imageCount: 0, videoCount: 0, audioCount: 0 })).toBe(false);
+        expect(videoModeShouldReset(profile(["text_to_video"]), "extend", { imageCount: 0, videoCount: 1, audioCount: 0 })).toBe(true);
     });
 
     test("input errors block mismatched submissions", () => {

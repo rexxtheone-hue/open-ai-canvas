@@ -2,7 +2,7 @@ import { isCanvasNodeGenerating } from "@/lib/canvas/canvas-node-task-state";
 import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 import { App } from "antd";
 
-import { buildNodeGenerationContext, hydrateNodeGenerationContext } from "@/components/canvas/canvas-node-generation";
+import { applyVideoModeToGenerationContext, buildNodeGenerationContext, hydrateNodeGenerationContext } from "@/components/canvas/canvas-node-generation";
 import type { CanvasNodeGenerationMode } from "@/components/canvas/canvas-node-prompt-panel";
 import { buildGenerationConfig, isGenerationCanceled } from "@/lib/canvas/canvas-project-generation";
 import { canvasGenerationPromptMetadata, canvasGenerationRequestFingerprint, runCanvasGenerationSubmissionOnce } from "@/lib/canvas/canvas-generation-submission";
@@ -175,21 +175,23 @@ export function useCanvasGenerationExecutor({
                     const usesWorkflowProvider = Boolean(mode !== "text" && generationConfig.taskWorkflowProvider && generationConfig.taskWorkflowProvider !== "model");
                     // 普通视频协议只保留输入框文本（显式 @文本 引用仍会展开为真实内容）；声明式工作流还要保留连接媒体。
                     const promptOnly = mode === "video" && !usesWorkflowProvider;
+                    // 手动选择的视频模式决定哪些连线素材会被发送；工作流按自身字段映射接收全部素材。
+                    const selectedVideoMode = mode === "video" && !usesWorkflowProvider ? sourceNode?.metadata?.videoMode : undefined;
                     try {
-                        const baseContext = buildNodeGenerationContext(
+                        const baseContext = applyVideoModeToGenerationContext(selectedVideoMode, buildNodeGenerationContext(
                             nodeId,
                             nodesRef.current,
                             connectionsRef.current,
                             editingTextNode ? buildTextRewritePrompt(sourceTextContent, prompt) : generationPrompt,
                             assets,
                             promptOnly,
-                        );
+                        ));
                         const requirements = generationModelRequirements(mode, baseContext, sourceNode, generationConfig, true);
                         generationConfig = buildGenerationConfig(effectiveConfig, sourceNode, mode, requirements);
                         const compatibilityError = usesWorkflowProvider ? "" : modelCompatibilityError(generationConfig, generationConfig.model, requirements);
                         if (compatibilityError) throw new Error(`当前模型无法支持这组输入和参数：${compatibilityError}`);
                         const referenceLimits = usesWorkflowProvider ? undefined : modelGroupReferenceLimits(effectiveConfig, generationConfig.model, mode, requirements);
-                        rawGenerationContext = await hydrateNodeGenerationContext(baseContext, projectId, domainProjectId, mode, mode === "video" && Boolean(referenceLimits?.maxAudios), !promptOnly, referenceLimits, false);
+                        rawGenerationContext = applyVideoModeToGenerationContext(selectedVideoMode, await hydrateNodeGenerationContext(baseContext, projectId, domainProjectId, mode, mode === "video" && Boolean(referenceLimits?.maxAudios), !promptOnly, referenceLimits, false));
                         const hydratedRequirements = generationModelRequirements(mode, rawGenerationContext, sourceNode, generationConfig);
                         generationConfig = buildGenerationConfig(effectiveConfig, sourceNode, mode, hydratedRequirements);
                         const hydratedCompatibilityError = usesWorkflowProvider ? "" : modelCompatibilityError(generationConfig, generationConfig.model, hydratedRequirements);
@@ -461,6 +463,7 @@ function generationModelRequirements(
             characterCount: includeCharacterMinimum ? input.characterReferences.length : 0,
         },
         videoOperation: sourceNode?.metadata?.videoEditOperation,
+        videoMode: mode === "video" ? sourceNode?.metadata?.videoMode : undefined,
         videoSeconds: config.videoSeconds,
         options: config.taskWorkflowProvider === "model" ? modelRequestOptions(config, mode) : undefined,
     };
