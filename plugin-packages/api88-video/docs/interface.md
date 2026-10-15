@@ -17,8 +17,8 @@
 | --- | --- | --- | --- | --- | --- |
 | `SD2.5` | 480p（默认）、720p、1080p | 4–30 秒 | 必须显式指定 | 30 / 10 / 10 | 支持 `generate_audio` |
 | `SD2.0` | 480p（默认）、720p、1080p、4k | 4–15 秒 | 默认 1:1 | 9 / 3 / 3，合计最多 12 | 不支持，开启会报 400 |
-
 | `gemini-omni-flash-1.1` | 720p、1080p、4k | 3–10 秒 | 16:9、9:16 | 10 / 3 / 0 | 不支持参考音频 |
+| `minimax-h3`（别名 `minimax_h3`） | 768p（默认）、1080p、2k | 4–15 秒 | 16:9、9:16、1:1、4:3、3:4、21:9 | 9 / 0 / 3 | 成片自带音轨，不发送 `generate_audio` |
 
 其他走 88API 统一 `/v1/videos` 规范的模型也可使用。模型 ID 以 `gemini-`、`veo-` 开头时，参考视频放顶层 `videos`；其他模型放 `metadata.referenceVideos`，两处不会同时发送。
 
@@ -33,9 +33,21 @@
 | `generateAudio` | `generate_audio` | 仅开启时发送 `true` |
 | `images`（首帧角色） | `metadata.firstFrame` | 与普通参考素材互斥 |
 | `images`（尾帧角色） | `metadata.lastFrame` | 必须同时有首帧 |
-| `images`（其他角色） | `images` | 参考图网址数组 |
+| `images`（其他角色） | `images`，MiniMax H3 为 `metadata.referenceImages` | 参考图网址数组。H3 收到 2 张顶层图片会当成首尾帧，所以普通参考图必须放 metadata |
 | `videos` | `metadata.referenceVideos`，Gemini/Veo 为顶层 `videos` | 参考视频网址数组 |
 | `audios` | `metadata.referenceAudios` | 参考音频网址数组 |
+
+## MiniMax H3 规则
+
+发送前校验，不符合时不调用上游、不扣费：
+
+- 不支持参考视频。
+- 首尾帧不能和参考图、参考音频一起用。
+- 参考音频至少需要搭配一张参考图。
+- 分辨率只支持 768p、1080p、2k。
+- 不支持视频续写和视频编辑。
+
+生成耗时：16:9、9:16 的文生或参考图请求，768P 约 2–3 分钟，1080P、2K 约 5–8 分钟；其他比例、只给首帧或高分辨率首尾帧可能需要 10–60 分钟。
 
 ## 视频续写与视频编辑
 
@@ -71,9 +83,9 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "api88-video",
   "name": "88API 统一视频",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": "Rexx",
-  "description": "88API 统一视频协议插件（POST /v1/videos，异步轮询），适配 SD2.5、SD2.0 云厂商版与 Gemini Omni、Veo，支持视频续写与视频编辑。",
+  "description": "88API 统一视频协议插件（POST /v1/videos，异步轮询），适配 SD2.5、SD2.0 云厂商版、MiniMax H3 与 Gemini Omni、Veo，支持视频续写与视频编辑。",
   "permissions": [
     "generation.run",
     "media.read"
@@ -252,6 +264,375 @@
               ]
             },
             "message": "该模型不支持视频局部修改，请改用 gemini-omni-flash-1.1。"
+          },
+          {
+            "assert": {
+              "$or": [
+                {
+                  "$not": {
+                    "$or": [
+                      {
+                        "$eq": [
+                          {
+                            "$first": {
+                              "$split": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$ref": "request.model"
+                                      },
+                                      ""
+                                    ]
+                                  }
+                                },
+                                "-"
+                              ]
+                            }
+                          },
+                          "minimax"
+                        ]
+                      },
+                      {
+                        "$eq": [
+                          {
+                            "$lower": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "request.model"
+                                },
+                                ""
+                              ]
+                            }
+                          },
+                          "minimax_h3"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "$eq": [
+                    {
+                      "$len": {
+                        "$coalesce": [
+                          {
+                            "$ref": "request.videos"
+                          },
+                          []
+                        ]
+                      }
+                    },
+                    0
+                  ]
+                }
+              ]
+            },
+            "message": "MiniMax H3 不支持参考视频，请移除视频，或换一个支持参考视频的模型。"
+          },
+          {
+            "assert": {
+              "$or": [
+                {
+                  "$not": {
+                    "$or": [
+                      {
+                        "$eq": [
+                          {
+                            "$first": {
+                              "$split": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$ref": "request.model"
+                                      },
+                                      ""
+                                    ]
+                                  }
+                                },
+                                "-"
+                              ]
+                            }
+                          },
+                          "minimax"
+                        ]
+                      },
+                      {
+                        "$eq": [
+                          {
+                            "$lower": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "request.model"
+                                },
+                                ""
+                              ]
+                            }
+                          },
+                          "minimax_h3"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "$eq": [
+                    {
+                      "$len": {
+                        "$filter": {
+                          "from": {
+                            "$coalesce": [
+                              {
+                                "$ref": "request.images"
+                              },
+                              []
+                            ]
+                          },
+                          "as": "media",
+                          "where": {
+                            "$in": [
+                              {
+                                "$ref": "media.role"
+                              },
+                              [
+                                "first_frame",
+                                "last_frame"
+                              ]
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    0
+                  ]
+                },
+                {
+                  "$and": [
+                    {
+                      "$eq": [
+                        {
+                          "$len": {
+                            "$filter": {
+                              "from": {
+                                "$coalesce": [
+                                  {
+                                    "$ref": "request.images"
+                                  },
+                                  []
+                                ]
+                              },
+                              "as": "media",
+                              "where": {
+                                "$not": {
+                                  "$in": [
+                                    {
+                                      "$ref": "media.role"
+                                    },
+                                    [
+                                      "first_frame",
+                                      "last_frame"
+                                    ]
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    {
+                      "$eq": [
+                        {
+                          "$len": {
+                            "$coalesce": [
+                              {
+                                "$ref": "request.audios"
+                              },
+                              []
+                            ]
+                          }
+                        },
+                        0
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "message": "MiniMax H3 的首尾帧不能和参考图、参考音频一起用，请只保留首尾帧两张图。"
+          },
+          {
+            "assert": {
+              "$or": [
+                {
+                  "$not": {
+                    "$or": [
+                      {
+                        "$eq": [
+                          {
+                            "$first": {
+                              "$split": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$ref": "request.model"
+                                      },
+                                      ""
+                                    ]
+                                  }
+                                },
+                                "-"
+                              ]
+                            }
+                          },
+                          "minimax"
+                        ]
+                      },
+                      {
+                        "$eq": [
+                          {
+                            "$lower": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "request.model"
+                                },
+                                ""
+                              ]
+                            }
+                          },
+                          "minimax_h3"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "$eq": [
+                    {
+                      "$len": {
+                        "$coalesce": [
+                          {
+                            "$ref": "request.audios"
+                          },
+                          []
+                        ]
+                      }
+                    },
+                    0
+                  ]
+                },
+                {
+                  "$gt": [
+                    {
+                      "$len": {
+                        "$filter": {
+                          "from": {
+                            "$coalesce": [
+                              {
+                                "$ref": "request.images"
+                              },
+                              []
+                            ]
+                          },
+                          "as": "media",
+                          "where": {
+                            "$not": {
+                              "$in": [
+                                {
+                                  "$ref": "media.role"
+                                },
+                                [
+                                  "first_frame",
+                                  "last_frame"
+                                ]
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    },
+                    0
+                  ]
+                }
+              ]
+            },
+            "message": "MiniMax H3 使用参考音频时，至少需要一张参考图。"
+          },
+          {
+            "assert": {
+              "$or": [
+                {
+                  "$not": {
+                    "$or": [
+                      {
+                        "$eq": [
+                          {
+                            "$first": {
+                              "$split": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$ref": "request.model"
+                                      },
+                                      ""
+                                    ]
+                                  }
+                                },
+                                "-"
+                              ]
+                            }
+                          },
+                          "minimax"
+                        ]
+                      },
+                      {
+                        "$eq": [
+                          {
+                            "$lower": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "request.model"
+                                },
+                                ""
+                              ]
+                            }
+                          },
+                          "minimax_h3"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "$in": [
+                    {
+                      "$lower": {
+                        "$coalesce": [
+                          {
+                            "$ref": "request.resolution"
+                          },
+                          {
+                            "$ref": "request.providerOptions.api88-video.resolution"
+                          },
+                          ""
+                        ]
+                      }
+                    },
+                    [
+                      "",
+                      "768p",
+                      "1080p",
+                      "2k"
+                    ]
+                  ]
+                }
+              ]
+            },
+            "message": "MiniMax H3 只支持 768P、1080P、2K 分辨率。"
           }
         ],
         "parameters": [
@@ -273,8 +654,8 @@
             "name": "images",
             "type": "media[]",
             "required": false,
-            "mapping": "images / metadata.firstFrame / metadata.lastFrame",
-            "description": "参考图；角色为首帧、尾帧的图片放入 metadata.firstFrame、metadata.lastFrame。"
+            "mapping": "images / metadata.referenceImages / metadata.firstFrame / metadata.lastFrame",
+            "description": "参考图；角色为首帧、尾帧的图片放入 metadata.firstFrame、metadata.lastFrame；MiniMax H3 的普通参考图放 metadata.referenceImages。"
           },
           {
             "name": "videos",
@@ -309,7 +690,7 @@
             "type": "string",
             "required": false,
             "mapping": "resolution",
-            "description": "分辨率：480p、720p、1080p、4k，按模型支持选择。"
+            "description": "分辨率：480p、720p、768p、1080p、2k、4k，按模型支持选择。"
           },
           {
             "name": "generateAudio",
@@ -654,7 +1035,54 @@
               "$omitEmpty": {
                 "$if": {
                   "condition": {
-                    "$ref": "request.generateAudio"
+                    "$and": [
+                      {
+                        "$ref": "request.generateAudio"
+                      },
+                      {
+                        "$not": {
+                          "$or": [
+                            {
+                              "$eq": [
+                                {
+                                  "$first": {
+                                    "$split": [
+                                      {
+                                        "$lower": {
+                                          "$coalesce": [
+                                            {
+                                              "$ref": "request.model"
+                                            },
+                                            ""
+                                          ]
+                                        }
+                                      },
+                                      "-"
+                                    ]
+                                  }
+                                },
+                                "minimax"
+                              ]
+                            },
+                            {
+                              "$eq": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$ref": "request.model"
+                                      },
+                                      ""
+                                    ]
+                                  }
+                                },
+                                "minimax_h3"
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    ]
                   },
                   "then": true,
                   "else": null
@@ -673,38 +1101,84 @@
             },
             "images": {
               "$omitEmpty": {
-                "$map": {
-                  "from": {
-                    "$filter": {
-                      "from": {
-                        "$ref": "request.images"
-                      },
-                      "as": "media",
-                      "where": {
-                        "$not": {
-                          "$in": [
-                            {
-                              "$ref": "media.role"
-                            },
-                            [
-                              "first_frame",
-                              "last_frame"
-                            ]
-                          ]
-                        }
-                      }
-                    }
-                  },
-                  "as": "media",
-                  "in": {
-                    "$coalesce": [
+                "$if": {
+                  "condition": {
+                    "$or": [
                       {
-                        "$ref": "media.url"
+                        "$eq": [
+                          {
+                            "$first": {
+                              "$split": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$ref": "request.model"
+                                      },
+                                      ""
+                                    ]
+                                  }
+                                },
+                                "-"
+                              ]
+                            }
+                          },
+                          "minimax"
+                        ]
                       },
                       {
-                        "$ref": "media.dataUrl"
+                        "$eq": [
+                          {
+                            "$lower": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "request.model"
+                                },
+                                ""
+                              ]
+                            }
+                          },
+                          "minimax_h3"
+                        ]
                       }
                     ]
+                  },
+                  "then": null,
+                  "else": {
+                    "$map": {
+                      "from": {
+                        "$filter": {
+                          "from": {
+                            "$ref": "request.images"
+                          },
+                          "as": "media",
+                          "where": {
+                            "$not": {
+                              "$in": [
+                                {
+                                  "$ref": "media.role"
+                                },
+                                [
+                                  "first_frame",
+                                  "last_frame"
+                                ]
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      "as": "media",
+                      "in": {
+                        "$coalesce": [
+                          {
+                            "$ref": "media.url"
+                          },
+                          {
+                            "$ref": "media.dataUrl"
+                          }
+                        ]
+                      }
+                    }
                   }
                 }
               }
@@ -859,6 +1333,90 @@
                           ]
                         }
                       }
+                    }
+                  }
+                },
+                "referenceImages": {
+                  "$omitEmpty": {
+                    "$if": {
+                      "condition": {
+                        "$or": [
+                          {
+                            "$eq": [
+                              {
+                                "$first": {
+                                  "$split": [
+                                    {
+                                      "$lower": {
+                                        "$coalesce": [
+                                          {
+                                            "$ref": "request.model"
+                                          },
+                                          ""
+                                        ]
+                                      }
+                                    },
+                                    "-"
+                                  ]
+                                }
+                              },
+                              "minimax"
+                            ]
+                          },
+                          {
+                            "$eq": [
+                              {
+                                "$lower": {
+                                  "$coalesce": [
+                                    {
+                                      "$ref": "request.model"
+                                    },
+                                    ""
+                                  ]
+                                }
+                              },
+                              "minimax_h3"
+                            ]
+                          }
+                        ]
+                      },
+                      "then": {
+                        "$map": {
+                          "from": {
+                            "$filter": {
+                              "from": {
+                                "$ref": "request.images"
+                              },
+                              "as": "media",
+                              "where": {
+                                "$not": {
+                                  "$in": [
+                                    {
+                                      "$ref": "media.role"
+                                    },
+                                    [
+                                      "first_frame",
+                                      "last_frame"
+                                    ]
+                                  ]
+                                }
+                              }
+                            }
+                          },
+                          "as": "media",
+                          "in": {
+                            "$coalesce": [
+                              {
+                                "$ref": "media.url"
+                              },
+                              {
+                                "$ref": "media.dataUrl"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "else": null
                     }
                   }
                 },

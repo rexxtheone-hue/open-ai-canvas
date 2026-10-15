@@ -251,3 +251,52 @@ func TestAPI88VideoValidatesExtendAndEditSupport(t *testing.T) {
 		}
 	}
 }
+
+func TestAPI88VideoMiniMaxH3(t *testing.T) {
+	adapter := loadAPI88VideoAdapter(t)
+	build := func(request GenerationRequest) (map[string]any, error) {
+		request.Model = "minimax-h3"
+		create, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.88api.ai", Request: request})
+		if err != nil {
+			return nil, err
+		}
+		return create.Body.(map[string]any), nil
+	}
+	body, err := build(GenerationRequest{Prompt: "dance", Duration: 6, AspectRatio: "9:16", Resolution: "1080P", GenerateAudio: true,
+		Images: []MediaReference{{URL: "https://cdn.example/a.jpg"}, {URL: "https://cdn.example/b.jpg"}}, Audios: []MediaReference{{URL: "https://cdn.example/m.mp3"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	metadata, _ := body["metadata"].(map[string]any)
+	refs, _ := metadata["referenceImages"].([]any)
+	if body["images"] != nil || len(refs) != 2 || body["resolution"] != "1080p" || body["ratio"] != "9:16" || body["generate_audio"] != nil || metadata["referenceAudios"] == nil {
+		t.Fatalf("H3 reference body = %#v", body)
+	}
+	frames, err := build(GenerationRequest{Prompt: "sea", Images: []MediaReference{{URL: "https://cdn.example/s.jpg", Role: "first_frame"}, {URL: "https://cdn.example/e.jpg", Role: "last_frame"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	frameMetadata := frames["metadata"].(map[string]any)
+	if frameMetadata["firstFrame"] != "https://cdn.example/s.jpg" || frameMetadata["lastFrame"] != "https://cdn.example/e.jpg" || frameMetadata["referenceImages"] != nil {
+		t.Fatalf("H3 frame body = %#v", frames)
+	}
+	rejected := []GenerationRequest{
+		{Prompt: "x", Videos: []MediaReference{{URL: "https://cdn.example/v.mp4"}}},
+		{Prompt: "x", Images: []MediaReference{{URL: "https://cdn.example/s.jpg", Role: "first_frame"}, {URL: "https://cdn.example/r.jpg"}}},
+		{Prompt: "x", Audios: []MediaReference{{URL: "https://cdn.example/m.mp3"}}},
+		{Prompt: "x", Resolution: "720p"},
+		{Prompt: "x", Operation: "extend", Videos: []MediaReference{{URL: "https://cdn.example/v.mp4"}}},
+	}
+	for index, request := range rejected {
+		if _, err := build(request); err == nil {
+			t.Fatalf("case %d must be rejected", index)
+		}
+	}
+	sd, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.88api.ai", Request: GenerationRequest{Model: "SD2.5", Prompt: "x", GenerateAudio: true, Images: []MediaReference{{URL: "https://cdn.example/a.jpg"}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sdBody := sd.Body.(map[string]any); sdBody["images"] == nil || sdBody["generate_audio"] != true {
+		t.Fatalf("SD2.5 must keep top-level images and audio flag: %#v", sdBody)
+	}
+}
