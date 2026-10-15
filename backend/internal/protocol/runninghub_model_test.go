@@ -171,3 +171,75 @@ func TestRunningHubModelRejectsFirstLastFrames(t *testing.T) {
 		t.Fatal("ref2va has no frame fields; first/last frame requests must be rejected")
 	}
 }
+
+func loadRunningHubWanAdapter(t *testing.T) Adapter {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "plugin-packages", "runninghub-model.yingce-plugin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg, err := ParsePluginPackage(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	adapters, err := LoadInstalledProviders(pkg.ManifestRaw, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, adapter := range adapters {
+		if adapter.Metadata().ID == "runninghub-wan" {
+			return adapter
+		}
+	}
+	t.Fatal("runninghub-wan provider adapter not found")
+	return nil
+}
+
+func TestRunningHubWanReferenceToVideo(t *testing.T) {
+	adapter := loadRunningHubWanAdapter(t)
+	if !adapter.Metadata().RequiresPublicMediaURLs {
+		t.Fatal("wan reference-to-video sends media as URLs")
+	}
+	build := func(request GenerationRequest) (RequestSpec, error) {
+		request.Model = "alibaba/wan-3.0/reference-to-video"
+		return adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://www.runninghub.cn", Request: request})
+	}
+	create, err := build(GenerationRequest{Prompt: "视频1中的角色抱着图1中的物件", Duration: 12, AspectRatio: "9:16", Resolution: "720p", GenerateAudio: true,
+		Images: []MediaReference{{URL: "https://cdn.example/a.jpg"}}, Videos: []MediaReference{{URL: "https://cdn.example/v.mp4"}}, Audios: []MediaReference{{URL: "https://cdn.example/m.mp3"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if create.Path != "/openapi/v2/alibaba/wan-3.0/reference-to-video" || !create.OriginPath {
+		t.Fatalf("create spec = %#v", create)
+	}
+	body := create.Body.(map[string]any)
+	images, _ := body["imageUrls"].([]any)
+	videos, _ := body["videoUrls"].([]any)
+	audios, _ := body["audioUrls"].([]any)
+	if len(images) != 1 || len(videos) != 1 || len(audios) != 1 || body["resolution"] != "720P" || body["aspectRatio"] != "9:16" || body["duration"] != "12" || body["audio"] != true {
+		t.Fatalf("wan body = %#v", body)
+	}
+	defaults, err := build(GenerationRequest{Prompt: "a cat"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body := defaults.Body.(map[string]any); body["resolution"] != "1080P" || body["aspectRatio"] != "adaptive" || body["duration"] != "5" || body["audio"] != false || body["imageUrls"] != nil {
+		t.Fatalf("wan defaults = %#v", body)
+	}
+	for index, request := range []GenerationRequest{
+		{Prompt: ""},
+		{Prompt: "x", Images: []MediaReference{{URL: "https://cdn.example/s.jpg", Role: "first_frame"}}},
+		{Prompt: "x", Operation: "extend", Videos: []MediaReference{{URL: "https://cdn.example/v.mp4"}}},
+		{Prompt: "x", Resolution: "2k"},
+		{Prompt: "x", AspectRatio: "21:9"},
+		{Prompt: "x", Duration: 31},
+	} {
+		if _, err := build(request); err == nil {
+			t.Fatalf("case %d must be rejected", index)
+		}
+	}
+	succeeded, err := adapter.ParsePoll(context.Background(), PollContext{TaskID: "t1"}, []byte(`{"taskId":"t1","status":"SUCCESS","results":[{"url":"https://rh.example/out.mp4","outputType":"mp4"}]}`))
+	if err != nil || succeeded.Status != StatusSucceeded || succeeded.Result == nil || len(succeeded.Result.Videos) != 1 {
+		t.Fatalf("succeeded = %#v, err = %v", succeeded, err)
+	}
+}

@@ -16,6 +16,7 @@
 | 上游模型 ID | 说明 |
 | --- | --- |
 | `rhart-video/minimax-h3-rh-enhanced/ref2va` | MiniMax H3 RH Enhanced 多参考生视频：最多 9 张参考图、3 段参考视频、驱动音频与音色参考 |
+| `alibaba/wan-3.0/reference-to-video`、`alibaba/wan-3.0-prime/reference-to-video` | 万相 3.0 参考生视频（另一个 Provider，见下文） |
 
 ## 统一字段映射
 
@@ -42,6 +43,25 @@
 - 视频：`results[]` 中 `outputType` 为 mp4、mov、webm、mkv、avi 的 `url`。链接 24 小时后失效，标记为临时结果由宿主转存。
 - 错误：`errorCode`、`errorMessage`。
 
+## 万相 3.0 参考生视频（Provider `runninghub-wan`）
+
+- 创建：`POST /openapi/v2/{model}`，`model` 为 `alibaba/wan-3.0/reference-to-video` 或 `alibaba/wan-3.0-prime/reference-to-video`（高速版）。
+- 查询与结果解析与 MiniMax H3 相同。
+- 参考素材以公网网址发送（`requiresPublicMediaUrls`）。
+
+| 统一字段 | 上游字段 | 说明 |
+| --- | --- | --- |
+| `prompt` | `prompt` | 必填，可用「视频1 / 图1 / 音频1」按上传顺序指代参考素材 |
+| `images` | `imageUrls` | 最多 10 张，不支持首尾帧角色 |
+| `videos` | `videoUrls` | 最多 5 段，单段 1–15 秒且总时长不超过 15 秒 |
+| `audios` | `audioUrls` | 最多 5 段，单段 1–15 秒且总时长不超过 15 秒 |
+| `resolution` | `resolution` | 480P、720P、1080P，大写发送，默认 1080P |
+| `aspectRatio` | `aspectRatio` | adaptive、16:9、4:3、1:1、3:4、9:16；未指定或自适应时发送 adaptive |
+| `duration` | `duration` | 2–30 秒，以字符串发送；未指定时为 "5"；有参考视频时输入与输出总时长不超过 30 秒 |
+| `generateAudio` | `audio` | 布尔值，有声与无声同价 |
+
+扩展键：`providerOptions.runninghub-wan.seed`、`duration`（可填 `auto` 智能时长）、`aspectRatio`、`resolution`。
+
 <!-- YINGCE_MANIFEST_CONTRACT_START -->
 ## Manifest 完整接口定义
 
@@ -52,9 +72,9 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "runninghub-model",
   "name": "RunningHub 标准模型 API",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "author": "Rexx",
-  "description": "RunningHub 标准模型 API 视频协议插件（异步任务），首个适配 MiniMax H3 RH Enhanced 多参考生视频。",
+  "description": "RunningHub 标准模型 API 视频协议插件（异步任务），适配 MiniMax H3 RH Enhanced 多参考生视频与万相 3.0 参考生视频。",
   "permissions": [
     "generation.run",
     "media.read"
@@ -993,6 +1013,612 @@
             "refVideoAudio2": {
               "$omitEmpty": {
                 "$ref": "request.providerOptions.runninghub-model.refVideoAudio2"
+              }
+            }
+          }
+        },
+        "poll": {
+          "method": "POST",
+          "path": "/openapi/v2/query",
+          "originPath": true,
+          "contentType": "application/json",
+          "body": {
+            "taskId": {
+              "$ref": "taskId"
+            }
+          }
+        },
+        "response": {
+          "taskId": {
+            "$coalesce": [
+              {
+                "$ref": "response.taskId"
+              },
+              {
+                "$ref": "taskId"
+              }
+            ]
+          },
+          "status": {
+            "$if": {
+              "condition": {
+                "$and": [
+                  {
+                    "$eq": [
+                      {
+                        "$len": {
+                          "$coalesce": [
+                            {
+                              "$ref": "response.status"
+                            },
+                            ""
+                          ]
+                        }
+                      },
+                      0
+                    ]
+                  },
+                  {
+                    "$gt": [
+                      {
+                        "$len": {
+                          "$coalesce": [
+                            {
+                              "$ref": "response.errorCode"
+                            },
+                            ""
+                          ]
+                        }
+                      },
+                      0
+                    ]
+                  }
+                ]
+              },
+              "then": "FAILED",
+              "else": {
+                "$coalesce": [
+                  {
+                    "$ref": "response.status"
+                  },
+                  "QUEUED"
+                ]
+              }
+            }
+          },
+          "message": {
+            "$coalesce": [
+              {
+                "$ref": "response.errorMessage"
+              },
+              {
+                "$ref": "response.msg"
+              },
+              {
+                "$ref": "response.message"
+              }
+            ]
+          },
+          "videos": {
+            "$filter": {
+              "from": {
+                "$ref": "response.results"
+              },
+              "as": "item",
+              "where": {
+                "$in": [
+                  {
+                    "$lower": {
+                      "$coalesce": [
+                        {
+                          "$ref": "item.outputType"
+                        },
+                        "mp4"
+                      ]
+                    }
+                  },
+                  [
+                    "mp4",
+                    "mov",
+                    "webm",
+                    "mkv",
+                    "avi"
+                  ]
+                ]
+              }
+            }
+          },
+          "usage": {
+            "$ref": "response.usage"
+          },
+          "errorPaths": [
+            "errorCode",
+            "code"
+          ],
+          "resultEphemeral": true,
+          "messagePaths": [
+            "errorMessage",
+            "msg",
+            "message"
+          ]
+        }
+      },
+      {
+        "id": "runninghub-wan",
+        "label": "RunningHub 万相 3.0 参考生视频",
+        "capabilities": [
+          "video"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation",
+          "agent"
+        ],
+        "baseUrl": "https://www.runninghub.cn",
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey"
+        },
+        "requiresPublicMediaUrls": true,
+        "validations": [
+          {
+            "assert": {
+              "$gt": [
+                {
+                  "$len": {
+                    "$coalesce": [
+                      {
+                        "$ref": "request.prompt"
+                      },
+                      ""
+                    ]
+                  }
+                },
+                0
+              ]
+            },
+            "message": "万相 3.0 必须填写提示词。"
+          },
+          {
+            "assert": {
+              "$not": {
+                "$in": [
+                  {
+                    "$ref": "request.operation"
+                  },
+                  [
+                    "extend",
+                    "inpaint",
+                    "replace_element",
+                    "style_transfer",
+                    "camera_motion",
+                    "edit"
+                  ]
+                ]
+              }
+            },
+            "message": "万相 3.0 参考生视频不支持视频续写或局部修改。"
+          },
+          {
+            "assert": {
+              "$eq": [
+                {
+                  "$len": {
+                    "$filter": {
+                      "from": {
+                        "$coalesce": [
+                          {
+                            "$ref": "request.images"
+                          },
+                          []
+                        ]
+                      },
+                      "as": "media",
+                      "where": {
+                        "$in": [
+                          {
+                            "$ref": "media.role"
+                          },
+                          [
+                            "first_frame",
+                            "last_frame"
+                          ]
+                        ]
+                      }
+                    }
+                  }
+                },
+                0
+              ]
+            },
+            "message": "万相 3.0 参考生视频不支持首尾帧，请改用全能参考。"
+          },
+          {
+            "assert": {
+              "$lte": [
+                {
+                  "$len": {
+                    "$coalesce": [
+                      {
+                        "$ref": "request.images"
+                      },
+                      []
+                    ]
+                  }
+                },
+                10
+              ]
+            },
+            "message": "万相 3.0 最多 10 张参考图。"
+          },
+          {
+            "assert": {
+              "$lte": [
+                {
+                  "$len": {
+                    "$coalesce": [
+                      {
+                        "$ref": "request.videos"
+                      },
+                      []
+                    ]
+                  }
+                },
+                5
+              ]
+            },
+            "message": "万相 3.0 最多 5 段参考视频，总时长不超过 15 秒。"
+          },
+          {
+            "assert": {
+              "$lte": [
+                {
+                  "$len": {
+                    "$coalesce": [
+                      {
+                        "$ref": "request.audios"
+                      },
+                      []
+                    ]
+                  }
+                },
+                5
+              ]
+            },
+            "message": "万相 3.0 最多 5 段参考音频，总时长不超过 15 秒。"
+          },
+          {
+            "assert": {
+              "$lte": [
+                {
+                  "$coalesce": [
+                    {
+                      "$ref": "request.duration"
+                    },
+                    0
+                  ]
+                },
+                30
+              ]
+            },
+            "message": "万相 3.0 输出时长最长 30 秒。"
+          },
+          {
+            "assert": {
+              "$in": [
+                {
+                  "$upper": {
+                    "$coalesce": [
+                      {
+                        "$ref": "request.resolution"
+                      },
+                      {
+                        "$ref": "request.providerOptions.runninghub-wan.resolution"
+                      },
+                      "1080P"
+                    ]
+                  }
+                },
+                [
+                  "480P",
+                  "720P",
+                  "1080P"
+                ]
+              ]
+            },
+            "message": "万相 3.0 只支持 480P、720P、1080P 分辨率。"
+          },
+          {
+            "assert": {
+              "$in": [
+                {
+                  "$if": {
+                    "condition": {
+                      "$in": [
+                        {
+                          "$lower": {
+                            "$coalesce": [
+                              {
+                                "$ref": "request.aspectRatio"
+                              },
+                              ""
+                            ]
+                          }
+                        },
+                        [
+                          "",
+                          "auto",
+                          "adaptive",
+                          "自适应",
+                          "智能"
+                        ]
+                      ]
+                    },
+                    "then": {
+                      "$coalesce": [
+                        {
+                          "$ref": "request.providerOptions.runninghub-wan.aspectRatio"
+                        },
+                        "adaptive"
+                      ]
+                    },
+                    "else": {
+                      "$ref": "request.aspectRatio"
+                    }
+                  }
+                },
+                [
+                  "adaptive",
+                  "16:9",
+                  "4:3",
+                  "1:1",
+                  "3:4",
+                  "9:16"
+                ]
+              ]
+            },
+            "message": "万相 3.0 只支持自适应、16:9、4:3、1:1、3:4、9:16 比例。"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "endpoint path",
+            "description": "接口路径（/openapi/v2/ 之后的部分）：alibaba/wan-3.0/reference-to-video 或 alibaba/wan-3.0-prime/reference-to-video。"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt",
+            "description": "提示词，可用「视频1 / 图1 / 音频1」按上传顺序指代参考素材。"
+          },
+          {
+            "name": "images",
+            "type": "media[]",
+            "required": false,
+            "mapping": "imageUrls",
+            "description": "参考图，最多 10 张。"
+          },
+          {
+            "name": "videos",
+            "type": "media[]",
+            "required": false,
+            "mapping": "videoUrls",
+            "description": "参考视频，最多 5 段，单段 1–15 秒且总时长不超过 15 秒。"
+          },
+          {
+            "name": "audios",
+            "type": "media[]",
+            "required": false,
+            "mapping": "audioUrls",
+            "description": "参考音频，最多 5 段，单段 1–15 秒且总时长不超过 15 秒。"
+          },
+          {
+            "name": "duration",
+            "type": "integer",
+            "required": false,
+            "mapping": "duration",
+            "description": "输出时长 2–30 秒，以字符串发送；有参考视频时输入与输出总时长不超过 30 秒。"
+          },
+          {
+            "name": "aspectRatio",
+            "type": "string",
+            "required": false,
+            "mapping": "aspectRatio",
+            "description": "比例：adaptive、16:9、4:3、1:1、3:4、9:16。"
+          },
+          {
+            "name": "resolution",
+            "type": "string",
+            "required": false,
+            "mapping": "resolution",
+            "description": "分辨率：480P、720P、1080P，默认 1080P。"
+          },
+          {
+            "name": "generateAudio",
+            "type": "boolean",
+            "required": false,
+            "mapping": "audio",
+            "description": "是否有声，有声与无声同价。"
+          },
+          {
+            "name": "providerOptions",
+            "type": "object",
+            "required": false,
+            "mapping": "provider-specific fields",
+            "description": "扩展字段：seed、duration（可填 auto 智能时长）、aspectRatio、resolution。"
+          }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/openapi/v2/{{model}}",
+          "originPath": true,
+          "contentType": "application/json",
+          "body": {
+            "prompt": {
+              "$ref": "request.prompt"
+            },
+            "imageUrls": {
+              "$omitEmpty": {
+                "$map": {
+                  "from": {
+                    "$ref": "request.images"
+                  },
+                  "as": "media",
+                  "in": {
+                    "$coalesce": [
+                      {
+                        "$ref": "media.url"
+                      },
+                      {
+                        "$ref": "media.dataUrl"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "videoUrls": {
+              "$omitEmpty": {
+                "$map": {
+                  "from": {
+                    "$ref": "request.videos"
+                  },
+                  "as": "media",
+                  "in": {
+                    "$coalesce": [
+                      {
+                        "$ref": "media.url"
+                      },
+                      {
+                        "$ref": "media.dataUrl"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "audioUrls": {
+              "$omitEmpty": {
+                "$map": {
+                  "from": {
+                    "$ref": "request.audios"
+                  },
+                  "as": "media",
+                  "in": {
+                    "$coalesce": [
+                      {
+                        "$ref": "media.url"
+                      },
+                      {
+                        "$ref": "media.dataUrl"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "resolution": {
+              "$upper": {
+                "$coalesce": [
+                  {
+                    "$ref": "request.resolution"
+                  },
+                  {
+                    "$ref": "request.providerOptions.runninghub-wan.resolution"
+                  },
+                  "1080P"
+                ]
+              }
+            },
+            "aspectRatio": {
+              "$if": {
+                "condition": {
+                  "$in": [
+                    {
+                      "$lower": {
+                        "$coalesce": [
+                          {
+                            "$ref": "request.aspectRatio"
+                          },
+                          ""
+                        ]
+                      }
+                    },
+                    [
+                      "",
+                      "auto",
+                      "adaptive",
+                      "自适应",
+                      "智能"
+                    ]
+                  ]
+                },
+                "then": {
+                  "$coalesce": [
+                    {
+                      "$ref": "request.providerOptions.runninghub-wan.aspectRatio"
+                    },
+                    "adaptive"
+                  ]
+                },
+                "else": {
+                  "$ref": "request.aspectRatio"
+                }
+              }
+            },
+            "duration": {
+              "$if": {
+                "condition": {
+                  "$gt": [
+                    {
+                      "$coalesce": [
+                        {
+                          "$ref": "request.duration"
+                        },
+                        0
+                      ]
+                    },
+                    0
+                  ]
+                },
+                "then": {
+                  "$toString": {
+                    "$toInt": {
+                      "$ref": "request.duration"
+                    }
+                  }
+                },
+                "else": {
+                  "$toString": {
+                    "$coalesce": [
+                      {
+                        "$ref": "request.providerOptions.runninghub-wan.duration"
+                      },
+                      "5"
+                    ]
+                  }
+                }
+              }
+            },
+            "audio": {
+              "$toBool": {
+                "$coalesce": [
+                  {
+                    "$ref": "request.generateAudio"
+                  },
+                  false
+                ]
+              }
+            },
+            "seed": {
+              "$omitEmpty": {
+                "$ref": "request.providerOptions.runninghub-wan.seed"
               }
             }
           }
