@@ -8,7 +8,7 @@ import { modelDisplayName, selectableModelsByCapability, useEffectiveConfig } fr
 import { useUserStore } from "@/stores/use-user-store";
 import { StudioShell } from "./studio-shell";
 import { startStudioAgentRun } from "./studio-agent";
-import { useAvailableStudioTools } from "./studio-pages";
+import { useAvailableStudioTools } from "./use-available-tools";
 import { listStudioCommunity } from "@/services/api/studio";
 
 const SUGGESTIONS = [
@@ -175,7 +175,7 @@ export default function StudioHomePage({ initialMode = "agents" }: { initialMode
                             <h2 id="studio-tools-title">工具</h2>
                             <p>每个工具专做一件事，打开就能用。</p>
                         </div>
-                        <Link to="/studio/tools">全部工具</Link>
+                        <Link to="/studio/video">全部工具</Link>
                     </div>
                     <div className="studio-card-row">
                         {tools.slice(0, 8).map((tool) => (

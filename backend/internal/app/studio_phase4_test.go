@@ -182,3 +182,39 @@ func TestStudioCommunityPublishLikeRemixAndPrivacy(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestStudioToolCoverAdminOnlyAndOwnedImage(t *testing.T) {
+	svc, db := newStudioTestService(t)
+	admin := &model.User{ID: "admin", Role: "admin"}
+	if err := db.Create(admin).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&model.Resource{ID: "cover", UserID: "admin", Kind: "image", Status: model.ResourceStatusReady, MimeType: "image/png"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&model.Resource{ID: "other", UserID: "user", Kind: "image", Status: model.ResourceStatusReady, MimeType: "image/png"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetStudioToolCover(&model.User{ID: "user"}, "lip-sync", "cover"); err == nil {
+		t.Fatal("non-admin must not set covers")
+	}
+	if err := svc.SetStudioToolCover(admin, "../x", "cover"); err == nil {
+		t.Fatal("invalid tool id must be rejected")
+	}
+	if err := svc.SetStudioToolCover(admin, "lip-sync", "other"); err == nil {
+		t.Fatal("cover must be the admin's own resource")
+	}
+	if err := svc.SetStudioToolCover(admin, "lip-sync", "cover"); err != nil {
+		t.Fatal(err)
+	}
+	covers, err := svc.repo.StudioToolCovers()
+	if err != nil || len(covers) != 1 || covers[0].ResourceID != "cover" {
+		t.Fatalf("unexpected covers %+v %v", covers, err)
+	}
+	if err := svc.SetStudioToolCover(admin, "lip-sync", ""); err != nil {
+		t.Fatal(err)
+	}
+	if covers, _ := svc.repo.StudioToolCovers(); len(covers) != 0 {
+		t.Fatal("empty resource id must clear the cover")
+	}
+}

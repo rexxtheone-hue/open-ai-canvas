@@ -115,6 +115,7 @@ func Models() []any {
 		&model.UserMembership{},
 		&model.StudioPost{},
 		&model.StudioPostLike{},
+		&model.StudioToolCover{},
 		&model.CanvasShare{},
 		&model.PromptTemplate{},
 		&model.UserPromptCustomization{},

@@ -217,3 +217,11 @@ export function listAdminStudioCommunity(query: StudioCommunityQuery = {}) {
 export function updateAdminStudioPost(id: string, input: { featured?: boolean; isTemplate?: boolean; hidden?: boolean }) {
     return http.patch<StudioPost>(`/admin/studio/community/${encodeURIComponent(id)}`, input);
 }
+
+export function listStudioToolCovers() {
+    return http.get<{ covers: Record<string, string> }>("/studio/tool-covers");
+}
+
+export function setAdminStudioToolCover(toolId: string, resourceId: string) {
+    return http.put<{ saved: boolean }>(`/admin/studio/tool-covers/${encodeURIComponent(toolId)}`, { resourceId });
+}

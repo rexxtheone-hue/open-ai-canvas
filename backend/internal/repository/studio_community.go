@@ -182,3 +182,17 @@ func (r *Repository) UserDisplayNames(ids []string) (map[string]string, error) {
 	}
 	return names, nil
 }
+
+func (r *Repository) StudioToolCovers() ([]model.StudioToolCover, error) {
+	var covers []model.StudioToolCover
+	err := r.db.Order("tool_id").Find(&covers).Error
+	return covers, err
+}
+
+func (r *Repository) SaveStudioToolCover(cover model.StudioToolCover) error {
+	return r.db.Save(&cover).Error
+}
+
+func (r *Repository) DeleteStudioToolCover(toolID string) error {
+	return r.db.Where("tool_id = ?", toolID).Delete(&model.StudioToolCover{}).Error
+}

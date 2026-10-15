@@ -53,6 +53,7 @@ const StudioToolPage = lazy(() => import("@/pages/studio/studio-tool-page"));
 const StudioToolsPage = lazy(() => import("@/pages/studio/studio-pages").then((module) => ({ default: module.StudioToolsPage })));
 const StudioMediaPage = lazy(() => import("@/pages/studio/studio-pages").then((module) => ({ default: module.StudioMediaPage })));
 const StudioSpecialtyToolRoute = lazy(() => import("@/pages/studio/studio-pages").then((module) => ({ default: module.StudioSpecialtyToolRoute })));
+const StudioToolsBrowser = lazy(() => import("@/pages/studio/studio-workspace").then((module) => ({ default: module.StudioToolsBrowser })));
 const StudioDirectorPage = lazy(() => import("@/pages/studio/studio-director-page"));
 const StudioCharactersPage = lazy(() => import("@/pages/studio/studio-characters-page"));
 const StudioBrandPage = lazy(() => import("@/pages/studio/studio-brand"));
@@ -136,6 +137,7 @@ export const router = createBrowserRouter([
             { path: "/studio/agents", element: <RequireAuth>{deferred(<StudioHomePage initialMode="agents" />)}</RequireAuth> },
             { path: "/studio/tools", element: <RequireAuth>{deferred(<StudioToolsPage />)}</RequireAuth> },
             { path: "/studio/tools/:toolId", element: <RequireAuth>{deferred(<StudioSpecialtyToolRoute />)}</RequireAuth> },
+            ...(["video", "image", "audio", "character"] as const).map((tab) => ({ path: `/studio/${tab}`, element: <RequireAuth>{deferred(<StudioToolsBrowser />)}</RequireAuth> })),
             { path: "/studio/media", element: <RequireAuth>{deferred(<StudioMediaPage />)}</RequireAuth> },
             { path: "/studio/director", element: <RequireAuth>{deferred(<StudioDirectorPage />)}</RequireAuth> },
             { path: "/studio/characters", element: <RequireAuth>{deferred(<StudioCharactersPage />)}</RequireAuth> },

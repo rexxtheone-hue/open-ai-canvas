@@ -143,6 +143,28 @@ func RegisterStudioCommunityRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		ok(c, plan)
 	}
+	r.GET("/studio/tool-covers", withUser(func(c *gin.Context, _ *model.User) {
+		covers, err := svc.StudioToolCovers()
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, gin.H{"covers": covers})
+	}))
+	r.PUT("/admin/studio/tool-covers/:toolId", withUser(func(c *gin.Context, user *model.User) {
+		var req struct {
+			ResourceID string `json:"resourceId"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			fail(c, http.StatusBadRequest, err)
+			return
+		}
+		if err := svc.SetStudioToolCover(user, c.Param("toolId"), req.ResourceID); err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, gin.H{"saved": true})
+	}))
 	r.POST("/admin/studio/plans", withUser(func(c *gin.Context, user *model.User) { savePlan(c, user, "") }))
 	r.PUT("/admin/studio/plans/:id", withUser(func(c *gin.Context, user *model.User) { savePlan(c, user, c.Param("id")) }))
 }

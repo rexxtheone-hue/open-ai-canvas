@@ -1,54 +1,22 @@
-import { Link, Navigate, useNavigate, useParams } from "react-router";
-import { useEffectiveConfig } from "@/stores/use-config-store";
+import { Navigate, useNavigate, useParams } from "react-router";
 
 import type { StudioWork } from "@/services/api/studio";
 import { STUDIO_REUSE_KEY } from "./studio-agent";
 import { StudioLibrary } from "./studio-library";
 import { StudioShell } from "./studio-shell";
-import { STUDIO_TOOL_CATEGORIES, STUDIO_TOOLS, studioSpecialtyToolById, studioToolById, studioToolForKind } from "./studio-tools";
-import { studioSpecialtyAvailable } from "./studio-specialty";
+import { studioSpecialtyToolById, studioToolById, studioToolForKind } from "./studio-tools";
 import StudioToolPage from "./studio-tool-page";
-
-/** H6：后台没有能用的模型时，专项工具不出现在列表里。 */
-export function useAvailableStudioTools() {
-    const config = useEffectiveConfig();
-    return STUDIO_TOOLS.filter((tool) => !tool.specialty || studioSpecialtyAvailable(config, tool.id));
-}
 
 export function StudioSpecialtyToolRoute() {
     const { toolId } = useParams<{ toolId: string }>();
     const tool = studioSpecialtyToolById(toolId);
-    if (!tool) return <Navigate to="/studio/tools" replace />;
+    if (!tool) return <Navigate to="/studio/video" replace />;
     return <StudioToolPage key={tool.id} toolId={tool.id} />;
 }
 
+/** 旧地址 /studio/tools 进入视频工具清单。 */
 export function StudioToolsPage() {
-    const available = useAvailableStudioTools();
-    return (
-        <StudioShell title="工具">
-            <div className="studio-home">
-                {STUDIO_TOOL_CATEGORIES.map((category) => {
-                    const tools = available.filter((tool) => tool.category === category.id);
-                    if (!tools.length) return null;
-                    return (
-                        <section key={category.id} className="studio-section" aria-labelledby={`studio-tools-${category.id}`}>
-                            <div className="studio-section-head"><h2 id={`studio-tools-${category.id}`}>{category.label}</h2></div>
-                            <div className="studio-card-row">
-                                {tools.map((tool) => (
-                                    <Link key={tool.id} to={tool.path} className="studio-entry-card">
-                                        <tool.icon className="studio-entry-icon" aria-hidden />
-                                        {tool.badge ? <span className="studio-badge">{tool.badge}</span> : null}
-                                        <strong>{tool.label}</strong>
-                                        <span>{tool.description}</span>
-                                    </Link>
-                                ))}
-                            </div>
-                        </section>
-                    );
-                })}
-            </div>
-        </StudioShell>
-    );
+    return <Navigate to="/studio/video" replace />;
 }
 
 export function StudioMediaPage() {

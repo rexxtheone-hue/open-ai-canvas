@@ -695,3 +695,8 @@ function modelMenuMeta(model: string, capability?: ModelCapability): { descripti
 export function ModelIcon({ config, model, icon }: { config?: AiConfig; model?: string; icon?: string }) {
     return <ModelLogo icon={icon || (config && model ? modelIcon(config, model) : "")} size={14} />;
 }
+
+/** 模型价格摘要（列表展示用），与模型菜单的价格算法一致。 */
+export function ModelPriceSummary({ config, model, capability, requirements }: { config: AiConfig; model: string; capability?: ModelCapability; requirements?: ModelRequirements }) {
+    return <ModelPrice price={modelMenuPrice(config, model, capability, true, requirements)} />;
+}

@@ -1,0 +1,57 @@
+import { useState } from "react";
+import { App, Button } from "antd";
+import { useQueryClient } from "@tanstack/react-query";
+
+import { StudioToolThumb } from "@/pages/studio/studio-tool-thumb";
+import { STUDIO_TOOLS } from "@/pages/studio/studio-tools";
+import { useStudioToolCovers } from "@/pages/studio/use-studio-tool-meta";
+import { resourceIdFromStorageKey } from "@/services/api/resources";
+import { setAdminStudioToolCover } from "@/services/api/studio";
+import { uploadImage } from "@/services/image-storage";
+
+/** 工具封面：在工具列表、网格和侧栏固定区显示。建议用 1:1 的效果示意图。 */
+export function StudioToolCoversPanel() {
+    const { message } = App.useApp();
+    const queryClient = useQueryClient();
+    const covers = useStudioToolCovers();
+    const [busy, setBusy] = useState("");
+
+    const save = async (toolId: string, file: File | undefined | null) => {
+        setBusy(toolId);
+        try {
+            let resourceId = "";
+            if (file) {
+                if (!file.type.startsWith("image/")) throw new Error("封面需要是图片");
+                resourceId = resourceIdFromStorageKey((await uploadImage(file)).storageKey);
+                if (!resourceId) throw new Error("封面没有保存到云端，请稍后重试");
+            }
+            await setAdminStudioToolCover(toolId, resourceId);
+            await queryClient.invalidateQueries({ queryKey: ["studio", "tool-covers"] });
+            message.success(file ? "封面已更新" : "已恢复默认封面");
+        } catch (cause) {
+            message.error(cause instanceof Error ? cause.message : "保存失败");
+        } finally {
+            setBusy("");
+        }
+    };
+
+    return (
+        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
+            {STUDIO_TOOLS.map((tool) => (
+                <div key={tool.id} className="flex items-center gap-3 rounded-xl border border-foreground/10 p-3">
+                    <StudioToolThumb tool={tool} cover={covers[tool.id]} size={64} />
+                    <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{tool.label}</div>
+                        <div className="mt-2 flex gap-2">
+                            <label className="cursor-pointer">
+                                <span className="inline-flex h-7 items-center rounded-lg bg-foreground/10 px-3 text-xs">{busy === tool.id ? "上传中…" : "上传封面"}</span>
+                                <input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" disabled={Boolean(busy)} onChange={(event) => { void save(tool.id, event.target.files?.[0]); event.target.value = ""; }} />
+                            </label>
+                            {covers[tool.id] ? <Button size="small" disabled={Boolean(busy)} onClick={() => void save(tool.id, null)}>恢复默认</Button> : null}
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}

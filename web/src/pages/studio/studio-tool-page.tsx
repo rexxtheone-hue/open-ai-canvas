@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { App, Popover, Switch } from "antd";
-import { AudioLines, ChevronLeft, ChevronRight, Film, ImagePlus, Music, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
+import { AudioLines, ChevronRight, Film, ImagePlus, Music, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 
 import { AudioSettingsPanel } from "@/components/audio-settings-panel";
 import { ImageSettingsPanel } from "@/components/image-settings-panel";
-import { ModelPicker } from "@/components/model-picker";
 import { VideoSettingsPanel } from "@/components/video-settings-panel";
 import { CreditSymbol } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -15,20 +14,18 @@ import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { creationAttachmentKind, type CreationAttachment } from "@/pages/create/creation-assets";
 import { resolveResourceUrl } from "@/services/api/resources";
 import type { StudioKind } from "@/services/api/studio";
-import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { StudioLibrary } from "./studio-library";
 import { StudioShell } from "./studio-shell";
 import { studioToolById, STUDIO_TOOLS } from "./studio-tools";
 import { studioAttachmentFromMedia, uploadStudioFile, useStudioTool } from "./use-studio-tool";
+import { StudioPanelFooter, StudioPanelTabs, StudioToolSwitcher } from "./studio-workspace";
+import { StudioToolThumb } from "./studio-tool-thumb";
+import { StudioModelCard, StudioModelPanel } from "./studio-model-panel";
+import { studioModelSupportsSpecialty } from "./studio-generation";
+import { useStudioToolCovers } from "./use-studio-tool-meta";
 import { buildSpecialtyState, defaultSpecialtyOptions, orderedSlotAttachments, restoreSpecialtyOptions, slotAcceptAttribute, slotAccepts, studioSpecialtySpec, type StudioSlot, type StudioSlotValues } from "./studio-specialty";
 import { STUDIO_ATTACH_KEY, STUDIO_REUSE_KEY } from "./studio-agent";
 import type { StudioBrandKit, StudioWork } from "@/services/api/studio";
-
-const KIND_TABS: Array<{ kind: StudioKind; label: string; path: string }> = [
-    { kind: "video", label: "视频", path: "/studio/create-video" },
-    { kind: "image", label: "图片", path: "/studio/create-image" },
-    { kind: "audio", label: "音频", path: "/studio/create-audio" },
-];
 
 function promptMaxChars(config: Parameters<typeof modelCapabilityConfigFor>[0], kind: StudioKind, model: string) {
     if (!model || kind === "audio") return kind === "audio" ? 10000 : 0;
@@ -54,7 +51,8 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     const tool = studioToolById(toolId) || STUDIO_TOOLS[0];
     const kind = tool.kind;
     const { message } = App.useApp();
-    const theme = canvasThemes[useActiveTheme()] ?? canvasThemes.dark;
+    // Studio 固定深色界面，设置面板也用深色主题。
+    const theme = canvasThemes.dark;
     const specialtySpec = studioSpecialtySpec(tool.id);
     const [slotValues, setSlotValues] = useState<StudioSlotValues>({});
     const [specialtyText, setSpecialtyText] = useState("");
@@ -64,6 +62,9 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     const studio = useStudioTool(kind, tool.id, { specialty, brand: !specialtySpec });
     const { state, config, resolvedModel, generationConfig, limits, overflowIds, maxCount, credits, creditsEnabled, blockReason, submitting, uploading } = studio;
     const [outputOpen, setOutputOpen] = useState(false);
+    const [switcherOpen, setSwitcherOpen] = useState(false);
+    const [modelPanelOpen, setModelPanelOpen] = useState(false);
+    const covers = useStudioToolCovers();
     const [searchParams, setSearchParams] = useSearchParams();
     const { update, applyWorkSettings, addAttachments } = studio;
 
@@ -196,36 +197,17 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     });
 
     return (
-        <StudioShell title={tool.label}>
-            <div className="studio-tool">
-                <section className="studio-panel" aria-label={`${tool.label}参数`}>
-                    <div className="studio-panel-scroll">
-                        {specialtySpec ? (
-                            <Link to="/studio/tools" className="studio-back-link"><ChevronLeft aria-hidden />全部工具</Link>
-                        ) : (
-                            <nav className="studio-kind-tabs" aria-label="生成类型">
-                                {KIND_TABS.map((tab) => (
-                                    <Link key={tab.kind} to={tab.path} aria-current={tab.kind === kind ? "page" : undefined}>{tab.label}</Link>
-                                ))}
-                            </nav>
-                        )}
-                        <div className="studio-tool-header">
-                            <tool.icon aria-hidden />
-                            <div><strong>{tool.label}</strong><span>{tool.description}</span></div>
-                        </div>
-                        <div className="studio-block">
-                            <div className="studio-block-title">模型</div>
-                            <ModelPicker
-                                config={config}
-                                value={state.model}
-                                onChange={(model) => studio.update({ model })}
-                                capability={kind}
-                                requirements={studio.requirements}
-                                fullWidth
-                                variant="creation"
-                                placeholder="选择模型"
-                            />
-                        </div>
+        <StudioShell title="创作" subtitle={tool.label}>
+            <div className="studio-workspace">
+                <section className="studio-left-panel" aria-label={`${tool.label}参数`}>
+                    <StudioPanelTabs />
+                    <div className="studio-left-scroll studio-panel-scroll">
+                        <button type="button" className="studio-tool-hero" aria-label={`切换工具（当前：${tool.label}）`} aria-expanded={switcherOpen} onClick={() => { setSwitcherOpen((value) => !value); setModelPanelOpen(false); }}>
+                            <StudioToolThumb tool={tool} cover={covers[tool.id]} size={48} />
+                            <span className="studio-tool-hero-text"><strong>{tool.label}</strong><small>{tool.description}</small></span>
+                            <ChevronRight aria-hidden />
+                        </button>
+                        <StudioModelCard config={config} model={resolvedModel || state.model} open={modelPanelOpen} onToggle={() => { setModelPanelOpen((value) => !value); setSwitcherOpen(false); }} />
 
                         {specialtySpec ? (
                             <div className="studio-block">
@@ -475,7 +457,21 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                             ) : studio.creditsEstimated ? "价格为预估值，以实际结算为准" : ""}
                         </p>
                     </div>
+                    <StudioPanelFooter />
                 </section>
+                <div className="studio-right-panel">
+                {switcherOpen ? <StudioToolSwitcher toolId={tool.id} onClose={() => setSwitcherOpen(false)} /> : null}
+                {modelPanelOpen ? (
+                    <StudioModelPanel
+                        config={config}
+                        kind={kind}
+                        value={state.model}
+                        requirements={studio.requirements}
+                        filter={specialty ? (model) => studioModelSupportsSpecialty(config, model, specialty) : undefined}
+                        onChange={(model) => studio.update({ model })}
+                        onClose={() => setModelPanelOpen(false)}
+                    />
+                ) : null}
                 <StudioLibrary
                     kind={kind}
                     onUseAsReference={specialtySpec ? (work, media) => {
@@ -494,6 +490,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                         message.success("已填入这个作品的提示词和设置");
                     }}
                 />
+                </div>
             </div>
         </StudioShell>
     );

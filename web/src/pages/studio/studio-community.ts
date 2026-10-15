@@ -5,7 +5,7 @@ import { studioToolById, studioToolForKind } from "./studio-tools";
 export function studioRemixToolPath(remix: Pick<StudioRemix, "kind" | "tool">) {
     const original = remix.tool ? studioToolById(remix.tool) : undefined;
     if (original && original.kind === remix.kind) return original.path;
-    return studioToolForKind(remix.kind)?.path || "/studio/tools";
+    return studioToolForKind(remix.kind)?.path || "/studio/video";
 }
 
 /** 转成工具页「用同样设置再生成」能读取的作品结构，复用同一条回填逻辑。 */

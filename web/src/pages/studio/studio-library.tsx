@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { App, Spin } from "antd";
-import { Check, Download, ImagePlus, Loader2, RefreshCw, Search, Share2, Star, Trash2, Waypoints, Wand2 } from "lucide-react";
-import { useNavigate } from "react-router";
+import { App, Popover, Spin } from "antd";
+import { Check, ChevronDown, Download, Filter, ImagePlus, LayoutGrid, LayoutTemplate, Loader2, RefreshCw, Search, Share2, SlidersHorizontal, Star, Trash2, Waypoints, Wand2 } from "lucide-react";
+import { Link, useNavigate } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal";
 import { CachedResourceImage } from "@/components/cached-resource-image";
@@ -18,6 +18,7 @@ import { notifyStudioWorksChanged, useStudioWorks, type StudioWorksFilter } from
 import { StudioPublishModal } from "./studio-publish-modal";
 
 const KIND_LABELS: Record<StudioKind, string> = { image: "图片", video: "视频", audio: "音频" };
+const CARD_SIZE_KEY = "studio.library.card-size.v1";
 
 export function studioMediaSrc(media: StudioMedia, purpose: "display" | "download" = "display") {
     const resourceId = resourceIdFromStorageKey(media.storageKey);
@@ -85,6 +86,25 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings }: Studi
     const [preview, setPreview] = useState<{ work: StudioWork; media: StudioMedia } | null>(null);
     const [publishTarget, setPublishTarget] = useState<StudioWork | null>(null);
     const [busyId, setBusyId] = useState("");
+    const [collectionOpen, setCollectionOpen] = useState(false);
+    const [typeOpen, setTypeOpen] = useState(false);
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [cardSize, setCardSize] = useState(() => {
+        try {
+            const value = Number(window.localStorage.getItem(CARD_SIZE_KEY));
+            return value >= 120 && value <= 320 ? value : 180;
+        } catch {
+            return 180;
+        }
+    });
+    const changeCardSize = (value: number) => {
+        setCardSize(value);
+        try {
+            window.localStorage.setItem(CARD_SIZE_KEY, String(value));
+        } catch {
+            // 浏览器存储不可用时只在本页生效。
+        }
+    };
 
     useEffect(() => {
         setFilter((current) => (kind && current.kind !== kind ? { ...current, kind } : current));
@@ -149,24 +169,73 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings }: Studi
     return (
         <section className={`studio-library${selected.size ? " is-selecting" : ""}`} aria-label="作品库">
             <div className="studio-library-toolbar">
-                {!kind ? (
-                    <div className="studio-filter" role="group" aria-label="作品类型">
-                        {(["all", "image", "video", "audio"] as const).map((value) => (
-                            <button key={value} type="button" aria-pressed={filter.kind === value} onClick={() => setFilter((current) => ({ ...current, kind: value }))}>
-                                {value === "all" ? "全部" : KIND_LABELS[value]}
-                            </button>
-                        ))}
-                    </div>
+                <Popover
+                    trigger="click"
+                    placement="bottomLeft"
+                    arrow={false}
+                    open={collectionOpen}
+                    onOpenChange={setCollectionOpen}
+                    content={
+                        <div className="studio-menu" role="menu">
+                            {[{ favorite: false, label: "全部作品" }, { favorite: true, label: "收藏" }].map((item) => (
+                                <button key={item.label} type="button" role="menuitemradio" aria-checked={filter.favorite === item.favorite} onClick={() => { setFilter((current) => ({ ...current, favorite: item.favorite })); setCollectionOpen(false); }}>
+                                    {item.favorite ? <Star aria-hidden /> : <LayoutGrid aria-hidden />}{item.label}{filter.favorite === item.favorite ? <Check className="studio-menu-check" aria-hidden /> : null}
+                                </button>
+                            ))}
+                        </div>
+                    }
+                >
+                    <button type="button" className="studio-collection-pill" aria-haspopup="menu" aria-label="作品范围">
+                        {filter.favorite ? <Star aria-hidden /> : <LayoutGrid aria-hidden />}
+                        {filter.favorite ? "收藏" : "全部作品"}
+                        <ChevronDown aria-hidden />
+                    </button>
+                </Popover>
+                <Link to="/studio/inspire?tab=templates" className="studio-toolbar-link"><LayoutTemplate aria-hidden />模板</Link>
+                <span className="studio-toolbar-spacer" />
+                {searchOpen || searchDraft ? (
+                    <label className="studio-search is-compact">
+                        <Search aria-hidden />
+                        <input id={`studio-search-${kind || "all"}`} autoFocus value={searchDraft} placeholder="搜索提示词" aria-label="搜索作品提示词" onChange={(event) => setSearchDraft(event.target.value)} onBlur={() => { if (!searchDraft) setSearchOpen(false); }} />
+                    </label>
                 ) : null}
-                <div className="studio-filter" role="group" aria-label="收藏筛选">
-                    <button type="button" aria-pressed={!filter.favorite} onClick={() => setFilter((current) => ({ ...current, favorite: false }))}>全部作品</button>
-                    <button type="button" aria-pressed={filter.favorite} onClick={() => setFilter((current) => ({ ...current, favorite: true }))}>收藏</button>
-                </div>
-                <label className="studio-search">
-                    <Search aria-hidden />
-                    <input id={`studio-search-${kind || "all"}`} value={searchDraft} placeholder="搜索提示词" aria-label="搜索作品提示词" onChange={(event) => setSearchDraft(event.target.value)} />
-                </label>
-                <button type="button" className="studio-mini-button" onClick={() => void refresh()} aria-label="刷新作品库"><RefreshCw aria-hidden />刷新</button>
+                <Popover
+                    trigger="click"
+                    placement="bottomRight"
+                    arrow={false}
+                    content={
+                        <div className="studio-menu is-slider">
+                            <div className="studio-menu-title">缩略图大小</div>
+                            <div className="studio-size-row"><span>S</span><input type="range" min={120} max={320} step={20} value={cardSize} aria-label="缩略图大小" onChange={(event) => changeCardSize(Number(event.target.value))} /><span>L</span></div>
+                        </div>
+                    }
+                >
+                    <button type="button" className="studio-toolbar-icon" aria-label="缩略图大小" title="缩略图大小"><SlidersHorizontal aria-hidden /></button>
+                </Popover>
+                {!kind ? (
+                    <Popover
+                        trigger="click"
+                        placement="bottomRight"
+                        arrow={false}
+                        open={typeOpen}
+                        onOpenChange={setTypeOpen}
+                        content={
+                            <div className="studio-menu" role="menu">
+                                <div className="studio-menu-title">类型</div>
+                                {(["all", "image", "video", "audio"] as const).map((value) => (
+                                    <button key={value} type="button" role="menuitemradio" aria-checked={filter.kind === value} onClick={() => { setFilter((current) => ({ ...current, kind: value })); setTypeOpen(false); }}>
+                                        {value === "all" ? "全部作品" : KIND_LABELS[value]}{filter.kind === value ? <Check className="studio-menu-check" aria-hidden /> : null}
+                                    </button>
+                                ))}
+                            </div>
+                        }
+                    >
+                        <button type="button" className={`studio-toolbar-icon${filter.kind !== "all" ? " is-active" : ""}`} aria-label="类型筛选" title="类型筛选"><Filter aria-hidden /></button>
+                    </Popover>
+                ) : null}
+                <button type="button" className={`studio-toolbar-icon${filter.favorite ? " is-active" : ""}`} aria-pressed={filter.favorite} aria-label="只看收藏" title="只看收藏" onClick={() => setFilter((current) => ({ ...current, favorite: !current.favorite }))}><Star aria-hidden /></button>
+                <button type="button" className="studio-toolbar-icon" aria-label="刷新作品库" title="刷新" onClick={() => void refresh()}><RefreshCw aria-hidden /></button>
+                <button type="button" className={`studio-toolbar-icon${searchOpen || searchDraft ? " is-active" : ""}`} aria-label="搜索" title="搜索" onClick={() => setSearchOpen((value) => !value)}><Search aria-hidden /></button>
             </div>
             <div className="studio-library-scroll">
                 {loading ? (
@@ -177,7 +246,7 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings }: Studi
                     <div className="studio-empty"><strong>{filter.favorite ? "还没有收藏的作品" : filter.q ? "没有找到相关作品" : "还没有作品"}</strong><span>{filter.favorite || filter.q ? "换个条件试试。" : "在左边写下想法，点生成，作品会出现在这里。"}</span></div>
                 ) : (
                     <>
-                        <div className="studio-grid">
+                        <div className="studio-grid" style={{ ["--studio-card-min" as string]: `${cardSize}px` }}>
                             {works.map((work) => (
                                 <StudioWorkCard
                                     key={work.id}

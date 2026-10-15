@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const CurrentSchemaVersion int64 = 57
+const CurrentSchemaVersion int64 = 58
 
 const baselineSchemaChecksum = "sha256:open-ai-canvas-schema-v1-20260830"
 const schemaMigrationAppliedAtIndexChecksum = "sha256:schema-migrations-applied-at-index-v2-20260830"
@@ -195,6 +195,9 @@ var schemaMigrations = []migration{
 			return err
 		}
 		return tx.Model(&model.TopupProduct{}).Where("currency IS NULL OR currency = ''").Update("currency", "CNY").Error
+	}},
+	{version: 58, name: "ai_studio_tool_covers", checksum: "sha256:ai-studio-tool-covers-v58-20261015", apply: func(tx *gorm.DB) error {
+		return tx.AutoMigrate(&model.StudioToolCover{})
 	}},
 }
 

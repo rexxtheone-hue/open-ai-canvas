@@ -111,3 +111,10 @@ type StudioPostLike struct {
 	UserID    string    `json:"userId" gorm:"primaryKey;size:36;index"`
 	CreatedAt time.Time `json:"createdAt"`
 }
+
+// StudioToolCover 是管理员为 AI Studio 工具设置的封面图（资源 ID），工具列表和固定栏使用。
+type StudioToolCover struct {
+	ToolID     string    `json:"toolId" gorm:"primaryKey;size:40"`
+	ResourceID string    `json:"resourceId" gorm:"size:36"`
+	UpdatedAt  time.Time `json:"updatedAt"`
+}
