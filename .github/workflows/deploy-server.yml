@@ -35,14 +35,29 @@ jobs:
         if: steps.secrets.outputs.ready == 'true'
         run: |
           install -m 700 -d ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          # 从 Windows 终端复制的私钥常带 \r 和行尾空格，先清理再校验。
+          printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | sed '/^$/d' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          if ! ssh-keygen -y -f ~/.ssh/deploy_key > ~/.ssh/deploy_key.pub; then
+            echo "::error::DEPLOY_SSH_KEY 不是有效的私钥：请从 -----BEGIN OPENSSH PRIVATE KEY----- 到 -----END OPENSSH PRIVATE KEY----- 整段重新复制"
+            exit 1
+          fi
+          echo "私钥对应的公钥：$(cat ~/.ssh/deploy_key.pub)"
           if [ -n "$DEPLOY_KNOWN_HOSTS" ]; then
-            printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+            printf '%s\n' "$DEPLOY_KNOWN_HOSTS" | tr -d '\r' > ~/.ssh/known_hosts
           else
-            ssh-keyscan -H "$DEPLOY_HOST" > ~/.ssh/known_hosts
+            ssh-keyscan -T 15 "$DEPLOY_HOST" > ~/.ssh/known_hosts 2>/dev/null || true
           fi
           chmod 600 ~/.ssh/known_hosts
+          if ! timeout 10 bash -c "</dev/tcp/$DEPLOY_HOST/22"; then
+            echo "::error::连不上 $DEPLOY_HOST 的 22 端口：检查服务器防火墙（DigitalOcean Cloud Firewall / ufw）是否只允许了你自己的 IP"
+            exit 1
+          fi
+          if ! ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o ConnectTimeout=15 "$DEPLOY_USER@$DEPLOY_HOST" true 2> ssh.log; then
+            cat ssh.log
+            echo "::error::SSH 登录失败：$(tail -n 1 ssh.log)。请确认上面这把公钥在服务器的 ~/.ssh/authorized_keys 里"
+            exit 1
+          fi
 
       - name: Update server
         if: steps.secrets.outputs.ready == 'true'
