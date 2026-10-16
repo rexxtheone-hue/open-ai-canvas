@@ -85,8 +85,12 @@ func studioSeq() int64 {
 
 // ---------------- 角色库 ----------------
 
+// studioAssetKinds 是「角色与世界」资产库里可保存的类型。
+var studioAssetKinds = map[string]bool{"character": true, "object": true, "background": true, "style": true}
+
 type StudioCharacterInput struct {
 	Name             string   `json:"name"`
+	Kind             string   `json:"kind"`
 	Description      string   `json:"description"`
 	ImageResourceIDs []string `json:"imageResourceIds"`
 	VoiceName        string   `json:"voiceName"`
@@ -95,6 +99,7 @@ type StudioCharacterInput struct {
 type StudioCharacterView struct {
 	ID               string    `json:"id"`
 	Name             string    `json:"name"`
+	Kind             string    `json:"kind"`
 	Description      string    `json:"description"`
 	ImageResourceIDs []string  `json:"imageResourceIds"`
 	VoiceName        string    `json:"voiceName,omitempty"`
@@ -104,7 +109,11 @@ type StudioCharacterView struct {
 func studioCharacterView(item model.StudioCharacter) StudioCharacterView {
 	images := []string{}
 	_ = json.Unmarshal([]byte(item.ImagesJSON), &images)
-	return StudioCharacterView{ID: item.ID, Name: item.Name, Description: item.Description, ImageResourceIDs: images, VoiceName: item.VoiceName, UpdatedAt: item.UpdatedAt}
+	kind := item.Kind
+	if kind == "" {
+		kind = "character"
+	}
+	return StudioCharacterView{ID: item.ID, Name: item.Name, Kind: kind, Description: item.Description, ImageResourceIDs: images, VoiceName: item.VoiceName, UpdatedAt: item.UpdatedAt}
 }
 
 func (s *Service) normalizeStudioCharacter(userID string, input StudioCharacterInput) (model.StudioCharacter, error) {
@@ -115,6 +124,13 @@ func (s *Service) normalizeStudioCharacter(userID string, input StudioCharacterI
 	}
 	if item.Name == "" {
 		return item, BadAuthRequest("请填写角色名称")
+	}
+	item.Kind = strings.TrimSpace(input.Kind)
+	if item.Kind == "" {
+		item.Kind = "character"
+	}
+	if !studioAssetKinds[item.Kind] {
+		return item, BadAuthRequest("资产类型无效")
 	}
 	if item.Description, err = limitText(input.Description, 1000, "角色描述太长"); err != nil {
 		return item, err

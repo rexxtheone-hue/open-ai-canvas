@@ -8,8 +8,14 @@ import { listStudioCharacters, type StudioCharacter } from "@/services/api/studi
 import { studioCharacterChatAttachment, studioCharacterCover } from "./studio-characters";
 import type { StudioChatAttachment } from "./studio-chat";
 
-export function useStudioCharacters(enabled = true) {
+/** 「角色与世界」资产库里的全部素材（角色、物体、背景、风格）。 */
+export function useStudioAssets(enabled = true) {
     return useQuery({ queryKey: ["studio", "characters"], queryFn: async () => (await listStudioCharacters()).items, enabled });
+}
+
+/** 只要角色：对话、导演按人物使用。 */
+export function useStudioCharacters(enabled = true) {
+    return useQuery({ queryKey: ["studio", "characters"], queryFn: async () => (await listStudioCharacters()).items, enabled, select: (items) => items.filter((item) => (item.kind || "character") === "character") });
 }
 
 /** 角色多选网格：对话、导演和工具页共用。 */

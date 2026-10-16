@@ -23,14 +23,22 @@ func TestStudioCharacterLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if created.Name != "小美" || len(created.ImageResourceIDs) != 1 {
+	if created.Name != "小美" || created.Kind != "character" || len(created.ImageResourceIDs) != 1 {
 		t.Fatalf("unexpected character %+v", created)
+	}
+	style, err := svc.SaveStudioCharacter("user-a", "", StudioCharacterInput{Name: "胶片感", Kind: "style", ImageResourceIDs: []string{"face-1"}})
+	if err != nil || style.Kind != "style" {
+		t.Fatalf("style asset not saved %+v %v", style, err)
+	}
+	if err := svc.DeleteStudioCharacter("user-a", style.ID); err != nil {
+		t.Fatal(err)
 	}
 	for _, input := range []StudioCharacterInput{
 		{Name: ""},
 		{Name: "x", ImageResourceIDs: []string{"face-other"}},
 		{Name: "x", ImageResourceIDs: []string{"clip-1"}},
 		{Name: strings.Repeat("长", 41)},
+		{Name: "x", Kind: "spaceship"},
 	} {
 		if _, err := svc.SaveStudioCharacter("user-a", "", input); err == nil {
 			t.Fatalf("expected validation error for %+v", input)

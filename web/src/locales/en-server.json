@@ -5229,6 +5229,7 @@
   "资产拆分": "Asset breakdown",
   "资产文件夹不为空，无法删除": "Asset folder is not empty and cannot be deleted",
   "资产版本设定必须是有效 JSON": "The asset version setting must be valid JSON",
+  "资产类型无效": "Invalid asset type",
   "资源 ID 无效": "Invalid asset ID",
   "资源 {0} 使用了不支持的存储类型 {1}": "Resource {0} uses an unsupported storage type {1}",
   "资源 {0} 的存储路径为空": "The storage path of resource {0} is empty",

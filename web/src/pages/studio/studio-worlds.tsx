@@ -321,20 +321,61 @@ export function StudioCreateWorldModal({ open, onClose, initialPrompt = "", onCr
     );
 }
 
-type LibraryProps = { open: boolean; onClose: () => void; onCreate: (prompt?: string) => void };
-
-/** 世界库：我的世界（全景草稿）和世界模板；可以环视、放进场景或拍漫游镜头。 */
-export function StudioWorldLibraryModal({ open, onClose, onCreate }: LibraryProps) {
-    const [tab, setTab] = useState<"mine" | "templates">("mine");
-    const [filter, setFilter] = useState<"all" | "3d" | "draft">("all");
+/** 我的世界网格：全景草稿，可以环视、放进场景或拍漫游镜头。 */
+export function StudioWorldGrid({ enabled = true, filter = "all", onCreate, onUsed }: { enabled?: boolean; filter?: "all" | "3d" | "draft"; onCreate: () => void; onUsed?: () => void }) {
     const [viewing, setViewing] = useState<StudioWork | null>(null);
     const handoff = useWorldHandoff();
-    const worlds = useQuery({ queryKey: ["studio", "worlds"], queryFn: async ({ signal }) => panoWorks((await listStudioWorks({ kind: "image", tool: PANO_TOOL, pageSize: 60 }, signal)).works), enabled: open && tab === "mine" });
+    const worlds = useQuery({ queryKey: ["studio", "worlds"], queryFn: async ({ signal }) => panoWorks((await listStudioWorks({ kind: "image", tool: PANO_TOOL, pageSize: 60 }, signal)).works), enabled });
     const list = filter === "3d" ? [] : worlds.data || [];
     const use = (work: StudioWork, target: "cast-in-scene" | "world-cam") => {
         handoff(studioAttachmentFromMedia(work, work.media[0]), target);
-        onClose();
+        onUsed?.();
     };
+    return (
+        <>
+            {worlds.isLoading ? <p className="studio-hint">正在加载…</p> : list.length ? (
+                <div className="studio-world-grid">
+                    {list.map((work) => (
+                        <article key={work.id} className="studio-world-card">
+                            <img src={studioMediaSrc(work.media[0])} alt="" loading="lazy" />
+                            <div className="studio-world-card-body">
+                                <b title={work.prompt}>{work.prompt || "未命名世界"}</b>
+                                <small>全景草稿</small>
+                                <div className="studio-voice-sample-actions">
+                                    <button type="button" className="studio-mini-button" onClick={() => setViewing(work)}><Compass aria-hidden />进入</button>
+                                    <Popover trigger="click" arrow={false} content={(
+                                        <div className="studio-popup studio-menu">
+                                            <button type="button" className="studio-menu-item" onClick={() => use(work, "cast-in-scene")}>把角色放进这个世界</button>
+                                            <button type="button" className="studio-menu-item" onClick={() => use(work, "world-cam")}>在这个世界拍漫游镜头</button>
+                                        </div>
+                                    )}>
+                                        <button type="button" className="studio-mini-button is-primary"><Check aria-hidden />使用</button>
+                                    </Popover>
+                                </div>
+                            </div>
+                        </article>
+                    ))}
+                </div>
+            ) : (
+                <div className="studio-voice-empty">
+                    <p>{filter === "3d" ? "还没有 3D 世界。后台支持 3D 世界后，可以把全景草稿做成 3D 世界。" : "还没有世界。"}</p>
+                    <button type="button" className="studio-mini-button is-primary" onClick={onCreate}><Plus aria-hidden />创建世界</button>
+                </div>
+            )}
+            <AppModal rootClassName="studio-modal" open={Boolean(viewing)} width="min(1100px, calc(100vw - 32px))" title={viewing?.prompt || "世界"} footer={null} onCancel={() => setViewing(null)} destroyOnHidden>
+                {viewing ? <StudioPanoViewer src={studioMediaSrc(viewing.media[0])} /> : null}
+                <p className="studio-hint">按住拖动环视四周，滚轮缩放。</p>
+            </AppModal>
+        </>
+    );
+}
+
+type LibraryProps = { open: boolean; onClose: () => void; onCreate: (prompt?: string) => void };
+
+/** 世界库：我的世界（全景草稿）和世界模板。 */
+export function StudioWorldLibraryModal({ open, onClose, onCreate }: LibraryProps) {
+    const [tab, setTab] = useState<"mine" | "templates">("mine");
+    const [filter, setFilter] = useState<"all" | "3d" | "draft">("all");
     return (
         <AppModal rootClassName="studio-modal" open={open} width="min(920px, calc(100vw - 32px))" title="世界库" footer={null} onCancel={onClose}>
             <div className="studio-popup studio-voice-library">
@@ -350,35 +391,7 @@ export function StudioWorldLibraryModal({ open, onClose, onCreate }: LibraryProp
                     ) : null}
                 </div>
                 {tab === "mine" ? (
-                    worlds.isLoading ? <p className="studio-hint">正在加载…</p> : list.length ? (
-                        <div className="studio-world-grid">
-                            {list.map((work) => (
-                                <article key={work.id} className="studio-world-card">
-                                    <img src={studioMediaSrc(work.media[0])} alt="" loading="lazy" />
-                                    <div className="studio-world-card-body">
-                                        <b title={work.prompt}>{work.prompt || "未命名世界"}</b>
-                                        <small>全景草稿</small>
-                                        <div className="studio-voice-sample-actions">
-                                            <button type="button" className="studio-mini-button" onClick={() => setViewing(work)}><Compass aria-hidden />进入</button>
-                                            <Popover trigger="click" arrow={false} content={(
-                                                <div className="studio-popup studio-menu">
-                                                    <button type="button" className="studio-menu-item" onClick={() => use(work, "cast-in-scene")}>把角色放进这个世界</button>
-                                                    <button type="button" className="studio-menu-item" onClick={() => use(work, "world-cam")}>在这个世界拍漫游镜头</button>
-                                                </div>
-                                            )}>
-                                                <button type="button" className="studio-mini-button is-primary"><Check aria-hidden />使用</button>
-                                            </Popover>
-                                        </div>
-                                    </div>
-                                </article>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="studio-voice-empty">
-                            <p>{filter === "3d" ? "还没有 3D 世界。后台支持 3D 世界后，可以把全景草稿做成 3D 世界。" : "还没有世界。"}</p>
-                            <button type="button" className="studio-mini-button is-primary" onClick={() => { onClose(); onCreate(); }}><Plus aria-hidden />创建世界</button>
-                        </div>
-                    )
+                    <StudioWorldGrid enabled={open} filter={filter} onUsed={onClose} onCreate={() => { onClose(); onCreate(); }} />
                 ) : (
                     <div className="studio-voice-list">
                         {STUDIO_WORLD_TEMPLATES.map((template) => (
@@ -391,10 +404,6 @@ export function StudioWorldLibraryModal({ open, onClose, onCreate }: LibraryProp
                     </div>
                 )}
             </div>
-            <AppModal rootClassName="studio-modal" open={Boolean(viewing)} width="min(1100px, calc(100vw - 32px))" title={viewing?.prompt || "世界"} footer={null} onCancel={() => setViewing(null)} destroyOnHidden>
-                {viewing ? <StudioPanoViewer src={studioMediaSrc(viewing.media[0])} /> : null}
-                <p className="studio-hint">按住拖动环视四周，滚轮缩放。</p>
-            </AppModal>
         </AppModal>
     );
 }

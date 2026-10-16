@@ -1272,3 +1272,7 @@ button.studio-entry-tile { font: inherit; font-size: 13.5px; font-weight: 650; c
 .studio-pano-viewer { position: relative; width: 100%; height: min(70vh, 640px); border-radius: 12px; overflow: hidden; background: #000; cursor: grab; }
 .studio-pano-viewer canvas { display: block; touch-action: none; }
 .studio-pano-viewer .studio-hint { position: absolute; inset: auto 12px 12px; }
+
+/* 角色与世界资产库 */
+.studio-asset-section { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.studio-asset-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 16px; }

@@ -3,16 +3,20 @@ import type { StudioWork } from "@/services/api/studio";
 
 // AI Studio 自有的角色库、对话模式和导演模式。数据只属于 Studio，与画布不互通。
 
+/** 「角色与世界」资产库的类型：角色、物体、背景、风格。 */
+export type StudioAssetKind = "character" | "object" | "background" | "style";
+
 export type StudioCharacter = {
     id: string;
     name: string;
+    kind?: StudioAssetKind;
     description: string;
     imageResourceIds: string[];
     voiceName?: string;
     updatedAt: string;
 };
 
-export type StudioCharacterInput = Pick<StudioCharacter, "name" | "description" | "imageResourceIds"> & { voiceName?: string };
+export type StudioCharacterInput = Pick<StudioCharacter, "name" | "description" | "imageResourceIds"> & { voiceName?: string; kind?: StudioAssetKind };
 
 export function listStudioCharacters() {
     return http.get<{ items: StudioCharacter[] }>("/studio/characters");

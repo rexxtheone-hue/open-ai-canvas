@@ -7,7 +7,7 @@ import type { CreationAttachment } from "@/pages/create/creation-assets";
 import { resolveResourceUrl } from "@/services/api/resources";
 import { listStudioWorks, type StudioKind, type StudioWork } from "@/services/api/studio";
 import { listStudioUploads, type StudioUpload } from "@/services/api/studio-agents";
-import { useStudioCharacters } from "./studio-character-picker";
+import { useStudioAssets } from "./studio-character-picker";
 import { studioCharacterAttachments, studioCharacterCover } from "./studio-characters";
 import { studioMediaSrc } from "./studio-library";
 import { onStudioUploadsChanged, studioAttachmentFromMedia, uploadStudioFile } from "./use-studio-tool";
@@ -81,7 +81,7 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
         queryFn: async ({ signal }) => (await listStudioUploads(mediaKind, signal)).items,
         enabled: open && Boolean(mediaKind) && source === "uploads",
     });
-    const charactersQuery = useStudioCharacters(open && kind === "character");
+    const charactersQuery = useStudioAssets(open && kind === "character");
 
     const items = useMemo(() => {
         if (kind === "character") {

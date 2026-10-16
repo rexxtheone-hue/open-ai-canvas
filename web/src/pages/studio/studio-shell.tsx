@@ -159,7 +159,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                         {section("assets", "资产", (
                             <div className="studio-side-links">
                                 {link("/studio/media", "作品", FolderOpen)}
-                                {link("/studio/characters", "角色库", UserRound)}
+                                {link("/studio/characters", "角色与世界", UserRound)}
                                 {link("/studio/brand", "品牌套件", Palette)}
                             </div>
                         ))}

@@ -124,6 +124,8 @@ type StudioCharacter struct {
 	ID          string    `json:"id" gorm:"primaryKey;size:36"`
 	UserID      string    `json:"userId" gorm:"index;size:36"`
 	Name        string    `json:"name" gorm:"size:80"`
+	// Kind 区分角色、物体、背景和风格，都放在「角色与世界」资产库里。
+	Kind        string    `json:"kind" gorm:"size:16;default:character"`
 	Description string    `json:"description" gorm:"type:text"`
 	ImagesJSON  string    `json:"-" gorm:"type:text"`
 	VoiceName   string    `json:"voiceName" gorm:"size:120"`
