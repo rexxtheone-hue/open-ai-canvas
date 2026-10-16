@@ -14,7 +14,8 @@ export function notifyStudioWorksChanged() {
 const POLL_INTERVAL_MS = 4000;
 const PAGE_SIZE = 40;
 
-export type StudioWorksFilter = { kind: StudioKind | "all"; favorite: boolean; q: string };
+/** folder 为文件夹 ID 或 unsorted；label 为标签 ID。 */
+export type StudioWorksFilter = { kind: StudioKind | "all"; favorite: boolean; q: string; folder?: string; label?: string };
 
 export function useStudioWorks(filter: StudioWorksFilter) {
     const userId = useUserStore((state) => state.user?.id || "");
@@ -25,8 +26,8 @@ export function useStudioWorks(filter: StudioWorksFilter) {
     const [error, setError] = useState("");
     const worksRef = useRef(works);
     worksRef.current = works;
-    const query: StudioWorkQuery = { kind: filter.kind, favorite: filter.favorite, q: filter.q, pageSize: PAGE_SIZE };
-    const queryKey = `${userId}|${filter.kind}|${filter.favorite}|${filter.q.trim()}`;
+    const query: StudioWorkQuery = { kind: filter.kind, favorite: filter.favorite, q: filter.q, folder: filter.folder, label: filter.label, pageSize: PAGE_SIZE };
+    const queryKey = `${userId}|${filter.kind}|${filter.favorite}|${filter.q.trim()}|${filter.folder || ""}|${filter.label || ""}`;
     const queryRef = useRef(query);
     queryRef.current = query;
     const generationRef = useRef(0);

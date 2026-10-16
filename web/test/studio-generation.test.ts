@@ -174,6 +174,7 @@ describe("AI Studio 品牌套件", () => {
     test("品牌要求只输出填写过的字段", () => {
         expect(brand.prompt).toBe("品牌：暖杯\n品牌介绍：316 不锈钢保温杯\n品牌调性：温暖、简约\n品牌色：#D9A441、#0A0A0A\n品牌口号：温暖随身（画面需要文字时使用）\n避免：竞品 Logo");
         expect(studioBrandPrompt({ id: "k", name: " 极简 " })).toBe("品牌：极简");
+        expect(studioBrandPrompt({ id: "k", name: "暖杯", typography: " 标题思源黑体 " })).toBe("品牌：暖杯\n字体规范：标题思源黑体（画面需要文字时遵循）");
     });
 
     test("图片和视频追加品牌要求，配音文案保持原样", () => {

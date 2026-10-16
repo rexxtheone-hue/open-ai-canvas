@@ -48,6 +48,16 @@ const VOICE_OVER_SAMPLES = [
     { label: "品牌故事", text: "十年前，我们在一间小小的工作室里，做出了第一件作品。那时我们只有一个信念：把每一个细节做到最好。" },
 ];
 
+/** 品牌素材或风格参考图，作为图片参考加入。 */
+export function studioBrandImageAttachments(kit: StudioBrandKit, kind: "asset" | "style"): CreationAttachment[] {
+    const ids = (kind === "asset" ? kit.assetResourceIds : kit.styleResourceIds) || [];
+    return ids.map((resourceId, index) => {
+        const storageKey = `resource:${resourceId}`;
+        const url = resolveResourceUrl(storageKey, "");
+        return { id: `brand-${kind}:${kit.id}:${resourceId}`, name: `${kit.name} ${kind === "asset" ? "品牌素材" : "风格参考"} ${index + 1}`, type: "image/png", dataUrl: url, url, storageKey, previewUrl: url };
+    });
+}
+
 /** 品牌 Logo 作为一张图片参考，和上传的图片走同一套上限检查。 */
 export function studioBrandLogoAttachment(kit: StudioBrandKit): CreationAttachment | undefined {
     if (!kit.logoResourceId) return undefined;
@@ -646,6 +656,20 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                             >
                                                 <ImagePlus aria-hidden />加入 Logo 参考
                                             </button>
+                                        ) : null}
+                                        {limits.maxImages > 0 && (studio.brandKit.assetResourceIds?.length || studio.brandKit.styleResourceIds?.length) ? (
+                                            <div className="studio-voice-sample-actions">
+                                                {studio.brandKit.assetResourceIds?.length ? <button type="button" className="studio-mini-button" onClick={() => {
+                                                    const reason = studio.addAttachments(studioBrandImageAttachments(studio.brandKit!, "asset"));
+                                                    if (reason) message.warning(reason);
+                                                    else message.success("已加入品牌素材");
+                                                }}><ImagePlus aria-hidden />加入品牌素材</button> : null}
+                                                {studio.brandKit.styleResourceIds?.length ? <button type="button" className="studio-mini-button" onClick={() => {
+                                                    const reason = studio.addAttachments(studioBrandImageAttachments(studio.brandKit!, "style"));
+                                                    if (reason) message.warning(reason);
+                                                    else message.success("已加入风格参考");
+                                                }}><ImagePlus aria-hidden />加入风格参考</button> : null}
+                                            </div>
                                         ) : null}
                                     </>
                                 ) : !studio.brandKits.length ? <p className="studio-hint">还没有品牌套件，<Link to="/studio/brand">去创建</Link>。</p> : null}

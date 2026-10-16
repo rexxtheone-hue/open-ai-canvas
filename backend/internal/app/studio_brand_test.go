@@ -26,6 +26,18 @@ func TestStudioBrandKitLifecycle(t *testing.T) {
 	if !first.IsDefault || first.Name != "暖杯" || strings.Join(first.Colors, ",") != "#C9A84C,#0A0A0A" || first.LogoURL == "" {
 		t.Fatalf("unexpected first kit %+v", first)
 	}
+	withAssets, err := svc.UpdateStudioBrandKit("user-a", first.ID, StudioBrandKitInput{Name: "暖杯", LogoResourceID: "logo-1", Typography: " 标题：思源黑体 ", Assets: []string{"logo-1", "logo-1"}, Styles: []string{"logo-1"}})
+	if err != nil || withAssets.Typography != "标题：思源黑体" || len(withAssets.Assets) != 1 || len(withAssets.Styles) != 1 {
+		t.Fatalf("brand assets not saved %+v %v", withAssets, err)
+	}
+	for _, input := range []StudioBrandKitInput{
+		{Name: "x", Assets: []string{"audio-1"}},
+		{Name: "x", Styles: []string{"logo-other"}},
+	} {
+		if _, err := svc.UpdateStudioBrandKit("user-a", first.ID, input); err == nil {
+			t.Fatalf("expected brand image validation error for %+v", input)
+		}
+	}
 	second, err := svc.CreateStudioBrandKit("user-a", StudioBrandKitInput{Name: "第二品牌"})
 	if err != nil {
 		t.Fatal(err)

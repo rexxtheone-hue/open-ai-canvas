@@ -41,19 +41,24 @@ type StudioHiddenTask struct {
 
 // StudioBrandKit 是用户的品牌套件：生成时把品牌信息并入提示词，Logo 可加为参考图。
 type StudioBrandKit struct {
-	ID             string    `json:"id" gorm:"primaryKey;size:36"`
-	UserID         string    `json:"userId" gorm:"index;size:36"`
-	Name           string    `json:"name" gorm:"size:80"`
-	Intro          string    `json:"intro" gorm:"type:text"`
-	Audience       string    `json:"audience" gorm:"size:400"`
-	Tone           string    `json:"tone" gorm:"size:400"`
-	Slogan         string    `json:"slogan" gorm:"size:200"`
-	ColorsJSON     string    `json:"-" gorm:"type:text"`
-	LogoResourceID string    `json:"logoResourceId" gorm:"size:36"`
-	Avoid          string    `json:"avoid" gorm:"size:600"`
-	IsDefault      bool      `json:"isDefault"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	ID             string `json:"id" gorm:"primaryKey;size:36"`
+	UserID         string `json:"userId" gorm:"index;size:36"`
+	Name           string `json:"name" gorm:"size:80"`
+	Intro          string `json:"intro" gorm:"type:text"`
+	Audience       string `json:"audience" gorm:"size:400"`
+	Tone           string `json:"tone" gorm:"size:400"`
+	Slogan         string `json:"slogan" gorm:"size:200"`
+	ColorsJSON     string `json:"-" gorm:"type:text"`
+	LogoResourceID string `json:"logoResourceId" gorm:"size:36"`
+	Avoid          string `json:"avoid" gorm:"size:600"`
+	// Typography 是字体规范，例如「标题：思源黑体 Bold；正文：思源宋体」。
+	Typography string `json:"typography" gorm:"size:400"`
+	// AssetsJSON、StylesJSON 是品牌素材图和风格参考图的资源 ID 列表。
+	AssetsJSON string    `json:"-" gorm:"type:text"`
+	StylesJSON string    `json:"-" gorm:"type:text"`
+	IsDefault  bool      `json:"isDefault"`
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
 // StudioPlan 是会员套餐：通过绑定了套餐的充值商品购买，按天数生效。
@@ -121,9 +126,9 @@ type StudioToolCover struct {
 
 // StudioCharacter 是 AI Studio 自己的角色库，与 AI Canvas 的角色数据互不相通。
 type StudioCharacter struct {
-	ID          string    `json:"id" gorm:"primaryKey;size:36"`
-	UserID      string    `json:"userId" gorm:"index;size:36"`
-	Name        string    `json:"name" gorm:"size:80"`
+	ID     string `json:"id" gorm:"primaryKey;size:36"`
+	UserID string `json:"userId" gorm:"index;size:36"`
+	Name   string `json:"name" gorm:"size:80"`
 	// Kind 区分角色、物体、背景和风格，都放在「角色与世界」资产库里。
 	Kind        string    `json:"kind" gorm:"size:16;default:character"`
 	Description string    `json:"description" gorm:"type:text"`
@@ -256,4 +261,39 @@ type StudioSiteContent struct {
 	Key       string    `json:"key" gorm:"primaryKey;size:32"`
 	Content   string    `json:"content" gorm:"type:text"`
 	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// StudioFolder 是素材页里的文件夹，一个作品最多放进一个文件夹。
+type StudioFolder struct {
+	ID        string    `json:"id" gorm:"primaryKey;size:36"`
+	UserID    string    `json:"userId" gorm:"index;size:36"`
+	Name      string    `json:"name" gorm:"size:60"`
+	Seq       int64     `json:"-" gorm:"index"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+// StudioLabel 是素材页里的标签，一个作品可以有多个标签。
+type StudioLabel struct {
+	ID        string    `json:"id" gorm:"primaryKey;size:36"`
+	UserID    string    `json:"userId" gorm:"index;size:36"`
+	Name      string    `json:"name" gorm:"size:40"`
+	Color     string    `json:"color" gorm:"size:16"`
+	Seq       int64     `json:"-" gorm:"index"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+// StudioWorkFolder 记录作品所在的文件夹。
+type StudioWorkFolder struct {
+	UserID    string `gorm:"primaryKey;size:36"`
+	TaskID    string `gorm:"primaryKey;size:36"`
+	FolderID  string `gorm:"index;size:36"`
+	CreatedAt time.Time
+}
+
+// StudioWorkLabel 记录作品打上的标签。
+type StudioWorkLabel struct {
+	UserID    string `gorm:"primaryKey;size:36"`
+	TaskID    string `gorm:"primaryKey;size:36"`
+	LabelID   string `gorm:"primaryKey;size:36;index"`
+	CreatedAt time.Time
 }

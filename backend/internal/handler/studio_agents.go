@@ -48,6 +48,80 @@ func RegisterStudioAgentRoutes(r *gin.RouterGroup, svc *service.Service) {
 		respond(c, gin.H{"works": works}, err)
 	}))
 
+	r.GET("/studio/organize", withUser(func(c *gin.Context, user *model.User) {
+		data, err := svc.StudioOrganizeData(user.ID)
+		respond(c, data, err)
+	}))
+	r.POST("/studio/folders", withUser(func(c *gin.Context, user *model.User) {
+		var req struct {
+			Name string `json:"name"`
+		}
+		if !bind(c, &req) {
+			return
+		}
+		item, err := svc.CreateStudioFolder(user.ID, req.Name)
+		respond(c, item, err)
+	}))
+	r.PATCH("/studio/folders/:id", withUser(func(c *gin.Context, user *model.User) {
+		var req struct {
+			Name string `json:"name"`
+		}
+		if !bind(c, &req) {
+			return
+		}
+		respond(c, gin.H{"updated": true}, svc.RenameStudioFolder(user.ID, c.Param("id"), req.Name))
+	}))
+	r.DELETE("/studio/folders/:id", withUser(func(c *gin.Context, user *model.User) {
+		respond(c, gin.H{"deleted": true}, svc.DeleteStudioFolder(user.ID, c.Param("id")))
+	}))
+	r.POST("/studio/labels", withUser(func(c *gin.Context, user *model.User) {
+		var req struct {
+			Name  string `json:"name"`
+			Color string `json:"color"`
+		}
+		if !bind(c, &req) {
+			return
+		}
+		item, err := svc.CreateStudioLabel(user.ID, req.Name, req.Color)
+		respond(c, item, err)
+	}))
+	r.PATCH("/studio/labels/:id", withUser(func(c *gin.Context, user *model.User) {
+		var req struct {
+			Name  string `json:"name"`
+			Color string `json:"color"`
+		}
+		if !bind(c, &req) {
+			return
+		}
+		respond(c, gin.H{"updated": true}, svc.UpdateStudioLabel(user.ID, c.Param("id"), req.Name, req.Color))
+	}))
+	r.DELETE("/studio/labels/:id", withUser(func(c *gin.Context, user *model.User) {
+		respond(c, gin.H{"deleted": true}, svc.DeleteStudioLabel(user.ID, c.Param("id")))
+	}))
+	r.POST("/studio/works/folder", withUser(func(c *gin.Context, user *model.User) {
+		var req struct {
+			TaskIDs  []string `json:"taskIds"`
+			FolderID string   `json:"folderId"`
+		}
+		if !bind(c, &req) {
+			return
+		}
+		moved, err := svc.MoveStudioWorks(user.ID, req.TaskIDs, req.FolderID)
+		respond(c, gin.H{"moved": moved}, err)
+	}))
+	r.POST("/studio/works/labels", withUser(func(c *gin.Context, user *model.User) {
+		var req struct {
+			TaskIDs []string `json:"taskIds"`
+			LabelID string   `json:"labelId"`
+			Add     bool     `json:"add"`
+		}
+		if !bind(c, &req) {
+			return
+		}
+		updated, err := svc.LabelStudioWorks(user.ID, req.TaskIDs, req.LabelID, req.Add)
+		respond(c, gin.H{"updated": updated}, err)
+	}))
+
 	r.POST("/studio/feedback", withUser(func(c *gin.Context, user *model.User) {
 		var req struct {
 			Category string `json:"category"`

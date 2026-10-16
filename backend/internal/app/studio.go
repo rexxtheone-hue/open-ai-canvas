@@ -30,6 +30,8 @@ type StudioWork struct {
 	Error    string         `json:"error,omitempty"`
 	Media    []StudioMedia  `json:"media"`
 	Settings map[string]any `json:"settings,omitempty"`
+	FolderID string         `json:"folderId,omitempty"`
+	LabelIDs []string       `json:"labelIds,omitempty"`
 }
 
 type StudioWorkPage struct {
@@ -43,6 +45,8 @@ type StudioWorkQuery struct {
 	Search        string
 	ActiveOnly    bool
 	Tool          string
+	Folder        string
+	Label         string
 	Cursor        string
 	Limit         int
 }
@@ -99,7 +103,7 @@ func (s *Service) StudioWorks(userID string, query StudioWorkQuery) (StudioWorkP
 	if tool != "" && !studioToolIDPattern.MatchString(tool) {
 		return StudioWorkPage{}, BadAuthRequest("工具 ID 无效")
 	}
-	tasks, hasMore, err := s.repo.StudioTasks(userID, repository.StudioTaskQuery{Kinds: kinds, FavoritesOnly: query.FavoritesOnly, Search: query.Search, ActiveOnly: query.ActiveOnly, Tool: tool, Cursor: cursor, Limit: query.Limit})
+	tasks, hasMore, err := s.repo.StudioTasks(userID, repository.StudioTaskQuery{Kinds: kinds, FavoritesOnly: query.FavoritesOnly, Search: query.Search, ActiveOnly: query.ActiveOnly, Tool: tool, Folder: query.Folder, Label: query.Label, Cursor: cursor, Limit: query.Limit})
 	if err != nil {
 		return StudioWorkPage{}, err
 	}
@@ -111,6 +115,14 @@ func (s *Service) StudioWorks(userID string, query StudioWorkQuery) (StudioWorkP
 	if err != nil {
 		return StudioWorkPage{}, err
 	}
+	folders, err := s.repo.StudioWorkFolders(userID, ids)
+	if err != nil {
+		return StudioWorkPage{}, err
+	}
+	labels, err := s.repo.StudioWorkLabels(userID, ids)
+	if err != nil {
+		return StudioWorkPage{}, err
+	}
 	orders, err := s.repo.BillingOrdersByTaskIDs(userID, taskBillingTaskIDs(tasks))
 	if err != nil {
 		return StudioWorkPage{}, err
@@ -118,7 +130,9 @@ func (s *Service) StudioWorks(userID string, query StudioWorkQuery) (StudioWorkP
 	summaries := taskSummariesForOutputWithBilling(tasks, orders)
 	page := StudioWorkPage{Works: make([]StudioWork, 0, len(tasks))}
 	for index, task := range tasks {
-		page.Works = append(page.Works, studioWorkFromTask(task, summaries[index], favorites[task.ID]))
+		work := studioWorkFromTask(task, summaries[index], favorites[task.ID])
+		work.FolderID, work.LabelIDs = folders[task.ID], labels[task.ID]
+		page.Works = append(page.Works, work)
 	}
 	if hasMore && len(tasks) > 0 {
 		page.NextCursor = encodeStudioCursor(tasks[len(tasks)-1])

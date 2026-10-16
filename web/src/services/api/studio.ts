@@ -23,6 +23,9 @@ export type StudioWork = Omit<GenerationTask, "inputJson" | "resultJson" | "atte
     media: StudioMedia[];
     settings?: Record<string, unknown>;
     attempts?: number;
+    /** 所在文件夹；未归类时为空。 */
+    folderId?: string;
+    labelIds?: string[];
 };
 
 export type StudioWorkPage = { works: StudioWork[]; nextCursor?: string };
@@ -34,6 +37,9 @@ export type StudioWorkQuery = {
     activeOnly?: boolean;
     /** 只看某个工具的作品，例如 create-pano（世界库）。 */
     tool?: string;
+    /** 文件夹 ID；unsorted 表示没放进任何文件夹。 */
+    folder?: string;
+    label?: string;
     cursor?: string;
     pageSize?: number;
 };
@@ -46,6 +52,8 @@ export function listStudioWorks(query: StudioWorkQuery = {}, signal?: AbortSigna
             q: query.q?.trim() || undefined,
             activeOnly: query.activeOnly ? "true" : undefined,
             tool: query.tool || undefined,
+            folder: query.folder || undefined,
+            label: query.label || undefined,
             cursor: query.cursor || undefined,
             pageSize: query.pageSize,
         },
@@ -55,6 +63,47 @@ export function listStudioWorks(query: StudioWorkQuery = {}, signal?: AbortSigna
 
 export function setStudioWorkFavorite(id: string, favorite: boolean) {
     return http.put<{ favorite: boolean }>(`/studio/works/${encodeURIComponent(id)}/favorite`, { favorite });
+}
+
+export type StudioLabelColor = "gray" | "red" | "orange" | "yellow" | "green" | "blue" | "purple" | "pink";
+export type StudioFolder = { id: string; name: string; count: number; createdAt: string };
+export type StudioLabel = { id: string; name: string; color: StudioLabelColor; createdAt: string };
+
+export function getStudioOrganize(signal?: AbortSignal) {
+    return http.get<{ folders: StudioFolder[]; labels: StudioLabel[] }>("/studio/organize", { signal });
+}
+
+export function createStudioFolder(name: string) {
+    return http.post<StudioFolder>("/studio/folders", { name });
+}
+
+export function renameStudioFolder(id: string, name: string) {
+    return http.patch<{ updated: boolean }>(`/studio/folders/${encodeURIComponent(id)}`, { name });
+}
+
+export function deleteStudioFolder(id: string) {
+    return http.delete<{ deleted: boolean }>(`/studio/folders/${encodeURIComponent(id)}`);
+}
+
+export function createStudioLabel(name: string, color: StudioLabelColor) {
+    return http.post<StudioLabel>("/studio/labels", { name, color });
+}
+
+export function updateStudioLabel(id: string, input: { name?: string; color?: StudioLabelColor }) {
+    return http.patch<{ updated: boolean }>(`/studio/labels/${encodeURIComponent(id)}`, input);
+}
+
+export function deleteStudioLabel(id: string) {
+    return http.delete<{ deleted: boolean }>(`/studio/labels/${encodeURIComponent(id)}`);
+}
+
+/** 把作品放进文件夹；folderId 为空表示移出文件夹。 */
+export function moveStudioWorks(taskIds: string[], folderId: string) {
+    return http.post<{ moved: number }>("/studio/works/folder", { taskIds, folderId });
+}
+
+export function labelStudioWorks(taskIds: string[], labelId: string, add: boolean) {
+    return http.post<{ updated: number }>("/studio/works/labels", { taskIds, labelId, add });
 }
 
 export function deleteStudioWorks(ids: string[]) {
@@ -80,6 +129,12 @@ export type StudioBrandKit = {
     logoResourceId?: string;
     logoUrl?: string;
     avoid: string;
+    /** 字体规范，例如「标题：思源黑体 Bold；正文：思源宋体」。 */
+    typography: string;
+    /** 品牌素材图（产品、包装、吉祥物等）。 */
+    assetResourceIds: string[];
+    /** 风格参考图。 */
+    styleResourceIds: string[];
     isDefault: boolean;
     updatedAt: string;
 };

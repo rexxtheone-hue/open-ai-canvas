@@ -23,9 +23,12 @@ type StudioTaskQuery struct {
 	Search        string
 	ActiveOnly    bool
 	// Tool 只列出某个 Studio 工具生成的作品（metadata.studioTool）。
-	Tool          string
-	Cursor        *StudioTaskCursor
-	Limit         int
+	Tool string
+	// Folder 为文件夹 ID；"unsorted" 表示没放进任何文件夹。
+	Folder string
+	Label  string
+	Cursor *StudioTaskCursor
+	Limit  int
 }
 
 var studioTaskColumns = []string{"id", "project_id", "type", "workbench_kind", "status", "stage", "media_stage", "media_recovery_json", "progress", "prompt", "operation", "provider", "model", "input_json", "result_json", "error", "billing_order_id", "provider_request_id", "provider_cancel_status", "provider_cancel_error", "provider_cancel_attempts", "provider_cancel_requested_at", "provider_cancelled_at", "attempts", "started_at", "completed_at", "created_at", "updated_at"}
@@ -53,6 +56,16 @@ func (r *Repository) StudioTasks(userID string, query StudioTaskQuery) ([]model.
 	}
 	if tool := strings.TrimSpace(query.Tool); tool != "" {
 		db = db.Where("input_json LIKE ? ESCAPE '\\'", "%"+escapeLike(`"studioTool":"`+tool+`"`)+"%")
+	}
+	switch folder := strings.TrimSpace(query.Folder); folder {
+	case "":
+	case "unsorted":
+		db = db.Where("id NOT IN (?)", r.db.Model(&model.StudioWorkFolder{}).Select("task_id").Where("user_id = ?", userID))
+	default:
+		db = db.Where("id IN (?)", r.db.Model(&model.StudioWorkFolder{}).Select("task_id").Where("user_id = ? AND folder_id = ?", userID, folder))
+	}
+	if label := strings.TrimSpace(query.Label); label != "" {
+		db = db.Where("id IN (?)", r.db.Model(&model.StudioWorkLabel{}).Select("task_id").Where("user_id = ? AND label_id = ?", userID, label))
 	}
 	if query.Cursor != nil {
 		db = db.Where("(created_at < ?) OR (created_at = ? AND id < ?)", query.Cursor.CreatedAt, query.Cursor.CreatedAt, query.Cursor.ID)

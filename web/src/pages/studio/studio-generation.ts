@@ -50,7 +50,7 @@ export type StudioSpecialtyState = {
 
 export type StudioBrandContext = { id: string; name: string; prompt: string };
 
-export type StudioBrandKitLike = { id: string; name: string; intro?: string; audience?: string; tone?: string; slogan?: string; colors?: string[]; avoid?: string };
+export type StudioBrandKitLike = { id: string; name: string; intro?: string; audience?: string; tone?: string; slogan?: string; colors?: string[]; avoid?: string; typography?: string };
 
 /** 品牌套件编译成追加在提示词后的一段要求；空字段不输出。 */
 export function studioBrandPrompt(kit: StudioBrandKitLike) {
@@ -60,6 +60,7 @@ export function studioBrandPrompt(kit: StudioBrandKitLike) {
         kit.tone?.trim() ? `品牌调性：${kit.tone.trim()}` : "",
         kit.colors?.length ? `品牌色：${kit.colors.join("、")}` : "",
         kit.slogan?.trim() ? `品牌口号：${kit.slogan.trim()}（画面需要文字时使用）` : "",
+        kit.typography?.trim() ? `字体规范：${kit.typography.trim()}（画面需要文字时遵循）` : "",
         kit.avoid?.trim() ? `避免：${kit.avoid.trim()}` : "",
     ].filter(Boolean);
     return [`品牌：${kit.name.trim()}`, ...lines].join("\n");

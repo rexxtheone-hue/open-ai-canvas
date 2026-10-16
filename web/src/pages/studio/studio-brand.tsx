@@ -9,11 +9,12 @@ import { StudioShell } from "./studio-shell";
 import { studioBrandPrompt } from "./studio-generation";
 import { useStudioBrandKits } from "./use-studio-brand";
 
-const EMPTY_FORM: StudioBrandKitInput = { name: "", intro: "", audience: "", tone: "", slogan: "", colors: [], logoResourceId: "", avoid: "", isDefault: false };
+const EMPTY_FORM: StudioBrandKitInput = { name: "", intro: "", audience: "", tone: "", slogan: "", colors: [], logoResourceId: "", avoid: "", typography: "", assetResourceIds: [], styleResourceIds: [], isDefault: false };
+const MAX_BRAND_IMAGES = 8;
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
 function formFromKit(kit: StudioBrandKit): StudioBrandKitInput {
-    return { name: kit.name, intro: kit.intro, audience: kit.audience, tone: kit.tone, slogan: kit.slogan, colors: kit.colors, logoResourceId: kit.logoResourceId || "", avoid: kit.avoid, isDefault: kit.isDefault };
+    return { name: kit.name, intro: kit.intro, audience: kit.audience, tone: kit.tone, slogan: kit.slogan, colors: kit.colors, logoResourceId: kit.logoResourceId || "", avoid: kit.avoid, typography: kit.typography || "", assetResourceIds: kit.assetResourceIds || [], styleResourceIds: kit.styleResourceIds || [], isDefault: kit.isDefault };
 }
 
 function logoSrc(resourceId?: string) {
@@ -86,6 +87,47 @@ export default function StudioBrandPage() {
             setUploading(false);
         }
     };
+
+    const [uploadingField, setUploadingField] = useState("");
+    /** 品牌素材、风格参考：多张图片，最多 8 张。 */
+    const uploadImages = async (field: "assetResourceIds" | "styleResourceIds", files: File[]) => {
+        const room = MAX_BRAND_IMAGES - form[field].length;
+        if (files.length > room) message.warning(`最多 ${MAX_BRAND_IMAGES} 张`);
+        setUploadingField(field);
+        try {
+            const added: string[] = [];
+            for (const file of files.slice(0, Math.max(0, room))) {
+                if (!file.type.startsWith("image/")) continue;
+                const uploaded = await uploadImage(file);
+                const resourceId = resourceIdFromStorageKey(uploaded.storageKey);
+                if (resourceId) added.push(resourceId);
+            }
+            setForm((current) => ({ ...current, [field]: [...current[field], ...added].slice(0, MAX_BRAND_IMAGES) }));
+        } catch (cause) {
+            message.error(cause instanceof Error ? cause.message : "上传失败");
+        } finally {
+            setUploadingField("");
+        }
+    };
+    const imageField = (field: "assetResourceIds" | "styleResourceIds", label: string, hint: string) => (
+        <div className="studio-field is-wide">
+            <span>{label} <em>{hint}</em></span>
+            <div className="studio-character-images">
+                {form[field].map((resourceId, index) => (
+                    <span key={resourceId} className="studio-chat-pending">
+                        <span className="studio-chat-thumb"><img src={logoSrc(resourceId)} alt={`${label} ${index + 1}`} /></span>
+                        <button type="button" aria-label={`移除${label} ${index + 1}`} onClick={() => setForm((current) => ({ ...current, [field]: current[field].filter((id) => id !== resourceId) }))}><X aria-hidden /></button>
+                    </span>
+                ))}
+                {form[field].length < MAX_BRAND_IMAGES ? (
+                    <label className="studio-chat-thumb studio-upload-tile" aria-disabled={Boolean(uploadingField)} title={`上传${label}`}>
+                        {uploadingField === field ? "…" : <Plus aria-hidden />}
+                        <input type="file" hidden multiple accept="image/png,image/jpeg,image/webp" disabled={Boolean(uploadingField)} onChange={(event) => { const files = [...(event.target.files || [])]; event.target.value = ""; void uploadImages(field, files); }} />
+                    </label>
+                ) : null}
+            </div>
+        </div>
+    );
 
     const save = async () => {
         if (!form.name.trim()) {
@@ -203,6 +245,12 @@ export default function StudioBrandPage() {
                                     {form.logoResourceId ? <button type="button" className="studio-mini-button" onClick={() => set("logoResourceId", "")}>移除</button> : null}
                                 </div>
                             </div>
+                            <label className="studio-field">
+                                <span>字体规范</span>
+                                <input value={form.typography} maxLength={120} onChange={(event) => set("typography", event.target.value)} placeholder="例如：标题思源黑体 Bold，正文思源宋体" />
+                            </label>
+                            {imageField("assetResourceIds", "品牌素材", "产品、包装、吉祥物等，生成时可一键加入参考")}
+                            {imageField("styleResourceIds", "风格参考", "想要的画面风格，生成时可一键加入参考")}
                             <label className="studio-field">
                                 <span>避免内容</span>
                                 <input value={form.avoid} maxLength={200} onChange={(event) => set("avoid", event.target.value)} placeholder="例如：竞品 Logo、夸大功效" />

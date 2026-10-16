@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const CurrentSchemaVersion int64 = 63
+const CurrentSchemaVersion int64 = 65
 
 const baselineSchemaChecksum = "sha256:open-ai-canvas-schema-v1-20260830"
 const schemaMigrationAppliedAtIndexChecksum = "sha256:schema-migrations-applied-at-index-v2-20260830"
@@ -216,6 +216,12 @@ var schemaMigrations = []migration{
 			return err
 		}
 		return tx.Model(&model.StudioCharacter{}).Where("kind IS NULL OR kind = ''").Update("kind", "character").Error
+	}},
+	{version: 64, name: "ai_studio_folders_labels", checksum: "sha256:ai-studio-folders-labels-v64-20261016", apply: func(tx *gorm.DB) error {
+		return tx.AutoMigrate(&model.StudioFolder{}, &model.StudioLabel{}, &model.StudioWorkFolder{}, &model.StudioWorkLabel{})
+	}},
+	{version: 65, name: "ai_studio_brand_assets", checksum: "sha256:ai-studio-brand-assets-v65-20261016", apply: func(tx *gorm.DB) error {
+		return tx.AutoMigrate(&model.StudioBrandKit{})
 	}},
 }
 

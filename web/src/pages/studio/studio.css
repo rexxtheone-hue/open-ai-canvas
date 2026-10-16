@@ -1276,3 +1276,17 @@ button.studio-entry-tile { font: inherit; font-size: 13.5px; font-weight: 650; c
 /* 角色与世界资产库 */
 .studio-asset-section { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
 .studio-asset-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 16px; }
+
+/* 素材整理：文件夹与标签 */
+.studio-organize-row { display: flex; align-items: center; gap: 2px; }
+.studio-organize-row > button:first-child { flex: 1; min-width: 0; }
+.studio-organize-row > button:first-child span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.studio-organize-row small { color: var(--studio-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.studio-label-dot { display: inline-block; width: 9px; height: 9px; flex: none; border-radius: 50%; }
+.studio-label-colors { display: flex; flex-wrap: wrap; gap: 8px; }
+.studio-label-colors button { display: grid; place-items: center; width: 28px; height: 28px; border: 2px solid transparent; border-radius: 50%; color: #111; cursor: pointer; }
+.studio-label-colors button[aria-checked="true"] { border-color: var(--studio-fg); }
+.studio-label-colors svg { width: 14px; height: 14px; }
+.studio-work-labels { position: absolute; left: 8px; bottom: 8px; display: flex; flex-wrap: wrap; gap: 4px; max-width: calc(100% - 16px); pointer-events: none; }
+.studio-work-label { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; border-radius: 999px; background: rgba(0, 0, 0, 0.6); color: #fff; font-size: 11px; backdrop-filter: blur(6px); }
+.studio-work:hover .studio-work-labels, .studio-work:focus-within .studio-work-labels { opacity: 0; }

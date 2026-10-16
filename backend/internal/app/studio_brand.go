@@ -13,7 +13,10 @@ import (
 	"gorm.io/gorm"
 )
 
-const studioBrandKitLimit = 20
+const (
+	studioBrandKitLimit    = 20
+	studioBrandImagesLimit = 8
+)
 
 var studioBrandColorPattern = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
@@ -26,6 +29,9 @@ type StudioBrandKitInput struct {
 	Colors         []string `json:"colors"`
 	LogoResourceID string   `json:"logoResourceId"`
 	Avoid          string   `json:"avoid"`
+	Typography     string   `json:"typography"`
+	Assets         []string `json:"assetResourceIds"`
+	Styles         []string `json:"styleResourceIds"`
 	IsDefault      bool     `json:"isDefault"`
 }
 
@@ -40,8 +46,19 @@ type StudioBrandKitView struct {
 	LogoResourceID string    `json:"logoResourceId,omitempty"`
 	LogoURL        string    `json:"logoUrl,omitempty"`
 	Avoid          string    `json:"avoid"`
+	Typography     string    `json:"typography"`
+	Assets         []string  `json:"assetResourceIds"`
+	Styles         []string  `json:"styleResourceIds"`
 	IsDefault      bool      `json:"isDefault"`
 	UpdatedAt      time.Time `json:"updatedAt"`
+}
+
+func decodeBrandIDs(raw string) []string {
+	ids := []string{}
+	if raw != "" {
+		_ = json.Unmarshal([]byte(raw), &ids)
+	}
+	return ids
 }
 
 func studioBrandKitView(kit model.StudioBrandKit) StudioBrandKitView {
@@ -51,7 +68,8 @@ func studioBrandKitView(kit model.StudioBrandKit) StudioBrandKitView {
 	}
 	view := StudioBrandKitView{
 		ID: kit.ID, Name: kit.Name, Intro: kit.Intro, Audience: kit.Audience, Tone: kit.Tone, Slogan: kit.Slogan,
-		Colors: colors, LogoResourceID: kit.LogoResourceID, Avoid: kit.Avoid, IsDefault: kit.IsDefault, UpdatedAt: kit.UpdatedAt,
+		Colors: colors, LogoResourceID: kit.LogoResourceID, Avoid: kit.Avoid, Typography: kit.Typography,
+		Assets: decodeBrandIDs(kit.AssetsJSON), Styles: decodeBrandIDs(kit.StylesJSON), IsDefault: kit.IsDefault, UpdatedAt: kit.UpdatedAt,
 	}
 	if kit.LogoResourceID != "" {
 		view.LogoURL = resourceFileURL(kit.LogoResourceID)
@@ -65,6 +83,35 @@ func studioBrandText(value string, limit int, tooLong string) (string, error) {
 		return "", BadAuthRequest(tooLong)
 	}
 	return value, nil
+}
+
+// studioBrandImages 校验品牌图片列表：本人名下的图片、去重、最多 8 张。
+func (s *Service) studioBrandImages(userID string, ids []string, missing, notImage, tooMany string) (string, error) {
+	images := make([]string, 0, len(ids))
+	seen := map[string]bool{}
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		resource, err := s.repo.ResourceForUser(userID, id)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", BadAuthRequest(missing)
+		}
+		if err != nil {
+			return "", err
+		}
+		if resource.Kind != "image" && !strings.HasPrefix(resource.MimeType, "image/") {
+			return "", BadAuthRequest(notImage)
+		}
+		images = append(images, id)
+	}
+	if len(images) > studioBrandImagesLimit {
+		return "", BadAuthRequest(tooMany)
+	}
+	encoded, _ := json.Marshal(images)
+	return string(encoded), nil
 }
 
 func (s *Service) normalizeStudioBrandKit(userID string, input StudioBrandKitInput) (model.StudioBrandKit, error) {
@@ -89,6 +136,15 @@ func (s *Service) normalizeStudioBrandKit(userID string, input StudioBrandKitInp
 		return kit, err
 	}
 	if kit.Avoid, err = studioBrandText(input.Avoid, 200, "避免内容太长"); err != nil {
+		return kit, err
+	}
+	if kit.Typography, err = studioBrandText(input.Typography, 120, "字体规范太长"); err != nil {
+		return kit, err
+	}
+	if kit.AssetsJSON, err = s.studioBrandImages(userID, input.Assets, "品牌素材图片不存在", "品牌素材需要是图片", "品牌素材最多 8 张"); err != nil {
+		return kit, err
+	}
+	if kit.StylesJSON, err = s.studioBrandImages(userID, input.Styles, "风格参考图片不存在", "风格参考需要是图片", "风格参考最多 8 张"); err != nil {
 		return kit, err
 	}
 	colors := make([]string, 0, len(input.Colors))

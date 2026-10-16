@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { App, Popover, Spin } from "antd";
-import { Check, ChevronDown, Download, Filter, ImagePlus, LayoutGrid, LayoutTemplate, Loader2, RefreshCw, Search, Share2, SlidersHorizontal, Star, Trash2, UserPlus, Wand2, MessageSquarePlus } from "lucide-react";
+import { Check, ChevronDown, Download, Filter, Folder, FolderOpen, ImagePlus, LayoutGrid, LayoutTemplate, Loader2, RefreshCw, Search, Share2, SlidersHorizontal, Star, Trash2, UserPlus, Wand2, MessageSquarePlus } from "lucide-react";
 import { Link } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal";
@@ -9,11 +9,12 @@ import { CanvasImagePreview } from "@/components/canvas/canvas-image-preview";
 import { generationErrorMessage } from "@/lib/generation-error";
 import { getResourceBlob, playbackVariantUrl, resolveResourceUrl, resourceIdFromStorageKey } from "@/services/api/resources";
 import { recoverGenerationTaskMedia, retryGenerationTask } from "@/services/api/task-center";
-import type { StudioKind, StudioMedia, StudioWork } from "@/services/api/studio";
+import type { StudioKind, StudioLabel, StudioMedia, StudioWork } from "@/services/api/studio";
 import { studioSelectionRange, studioWorkFileName, studioWorkIsActive, studioWorkTitle } from "./studio-library-model";
 import { notifyStudioWorksChanged, useStudioWorks, type StudioWorksFilter } from "./use-studio-works";
 import { StudioPublishModal } from "./studio-publish-modal";
 import { StudioSaveCharacterModal } from "./studio-save-character";
+import { StudioFolderSection, StudioLabelDot, StudioLabelFilter, StudioLabelWorks, StudioMoveToFolder, useStudioOrganize } from "./studio-organize";
 
 const KIND_LABELS: Record<StudioKind, string> = { image: "图片", video: "视频", audio: "音频" };
 const CARD_SIZE_KEY = "studio.library.card-size.v1";
@@ -71,6 +72,15 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
     const [characterTarget, setCharacterTarget] = useState<StudioWork | null>(null);
     const [busyId, setBusyId] = useState("");
     const [collectionOpen, setCollectionOpen] = useState(false);
+    const organize = useStudioOrganize();
+    const labelsById = new Map((organize.data?.labels || []).map((label) => [label.id, label]));
+    const currentFolder = filter.folder && filter.folder !== "unsorted" ? organize.data?.folders.find((folder) => folder.id === filter.folder) : undefined;
+    const scopeLabel = filter.favorite ? "收藏" : filter.folder === "unsorted" ? "未归类" : currentFolder ? currentFolder.name : "全部作品";
+    const ScopeIcon = filter.favorite ? Star : filter.folder === "unsorted" ? FolderOpen : currentFolder ? Folder : LayoutGrid;
+    const chooseScope = (patch: Partial<StudioWorksFilter>) => {
+        setFilter((current) => ({ ...current, favorite: false, folder: undefined, ...patch }));
+        setCollectionOpen(false);
+    };
     const [typeOpen, setTypeOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const [cardSize, setCardSize] = useState(() => {
@@ -161,17 +171,22 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                     onOpenChange={setCollectionOpen}
                     content={
                         <div className="studio-menu" role="menu">
-                            {[{ favorite: false, label: "全部作品" }, { favorite: true, label: "收藏" }].map((item) => (
-                                <button key={item.label} type="button" role="menuitemradio" aria-checked={filter.favorite === item.favorite} onClick={() => { setFilter((current) => ({ ...current, favorite: item.favorite })); setCollectionOpen(false); }}>
-                                    {item.favorite ? <Star aria-hidden /> : <LayoutGrid aria-hidden />}{item.label}{filter.favorite === item.favorite ? <Check className="studio-menu-check" aria-hidden /> : null}
-                                </button>
-                            ))}
+                            <button type="button" role="menuitemradio" aria-checked={!filter.favorite && !filter.folder} onClick={() => chooseScope({})}>
+                                <LayoutGrid aria-hidden />全部作品{!filter.favorite && !filter.folder ? <Check className="studio-menu-check" aria-hidden /> : null}
+                            </button>
+                            <button type="button" role="menuitemradio" aria-checked={filter.folder === "unsorted"} title="没有放进任何文件夹的作品" onClick={() => chooseScope({ folder: "unsorted" })}>
+                                <FolderOpen aria-hidden />未归类{filter.folder === "unsorted" ? <Check className="studio-menu-check" aria-hidden /> : null}
+                            </button>
+                            <button type="button" role="menuitemradio" aria-checked={filter.favorite} onClick={() => chooseScope({ favorite: true })}>
+                                <Star aria-hidden />收藏{filter.favorite ? <Check className="studio-menu-check" aria-hidden /> : null}
+                            </button>
+                            <StudioFolderSection current={filter.folder} onSelect={(folder) => chooseScope({ folder })} />
                         </div>
                     }
                 >
                     <button type="button" className="studio-collection-pill" aria-haspopup="menu" aria-label="作品范围">
-                        {filter.favorite ? <Star aria-hidden /> : <LayoutGrid aria-hidden />}
-                        {filter.favorite ? "收藏" : "全部作品"}
+                        <ScopeIcon aria-hidden />
+                        {scopeLabel}
                         <ChevronDown aria-hidden />
                     </button>
                 </Popover>
@@ -217,6 +232,7 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                         <button type="button" className={`studio-toolbar-icon${filter.kind !== "all" ? " is-active" : ""}`} aria-label="类型筛选" title="类型筛选"><Filter aria-hidden /></button>
                     </Popover>
                 ) : null}
+                <StudioLabelFilter current={filter.label} onSelect={(label) => setFilter((current) => ({ ...current, label }))} />
                 <button type="button" className={`studio-toolbar-icon${filter.favorite ? " is-active" : ""}`} aria-pressed={filter.favorite} aria-label="只看收藏" title="只看收藏" onClick={() => setFilter((current) => ({ ...current, favorite: !current.favorite }))}><Star aria-hidden /></button>
                 <button type="button" className="studio-toolbar-icon" aria-label="刷新作品库" title="刷新" onClick={() => void refresh()}><RefreshCw aria-hidden /></button>
                 <button type="button" className={`studio-toolbar-icon${searchOpen || searchDraft ? " is-active" : ""}`} aria-label="搜索" title="搜索" onClick={() => setSearchOpen((value) => !value)}><Search aria-hidden /></button>
@@ -250,6 +266,7 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                                     }, work.canRecoverMedia ? "正在重新保存作品" : "已重新提交")}
                                     onDelete={() => confirmDelete([work.id])}
                                     onPublish={work.status === "succeeded" && work.media.some((item) => item.storageKey?.startsWith("resource:")) ? () => setPublishTarget(work) : undefined}
+                                    labels={(work.labelIds || []).flatMap((id) => labelsById.get(id) || [])}
                                     onSaveCharacter={work.status === "succeeded" && work.media[0]?.kind === "image" && resourceIdFromStorageKey(work.media[0].storageKey) ? () => setCharacterTarget(work) : undefined}
                                 />
                             ))}
@@ -274,6 +291,8 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                     <button type="button" className="studio-mini-button" onClick={() => void run("batch", async () => {
                         for (const work of selectedWorks) for (let index = 0; index < work.media.length; index += 1) await downloadStudioMedia(work, index);
                     })}><Download aria-hidden />下载</button>
+                    <StudioMoveToFolder works={selectedWorks} onDone={() => { setSelected(new Set()); void refresh(); }} />
+                    <StudioLabelWorks works={selectedWorks} onDone={() => { setSelected(new Set()); void refresh(); }} />
                     <button type="button" className="studio-mini-button" onClick={() => confirmDelete([...selected])}><Trash2 aria-hidden />删除</button>
                     <button type="button" className="studio-mini-button" onClick={() => setSelected(new Set())}>取消选择</button>
                 </div>
@@ -302,9 +321,10 @@ type StudioWorkCardProps = {
     onDelete: () => void;
     onPublish?: () => void;
     onSaveCharacter?: () => void;
+    labels?: StudioLabel[];
 };
 
-function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite, onDownload, onUseAsReference, onReuseSettings, onRetry, onDelete, onPublish, onSaveCharacter }: StudioWorkCardProps) {
+function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite, onDownload, onUseAsReference, onReuseSettings, onRetry, onDelete, onPublish, onSaveCharacter, labels = [] }: StudioWorkCardProps) {
     const media = work.media[0];
     const active = studioWorkIsActive(work);
     const failed = work.status === "failed" || work.status === "cancelled";
@@ -326,6 +346,7 @@ function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite,
             ) : null}
             {!active && !failed && !media ? <div className="studio-work-state"><p>作品文件暂时不可用</p></div> : null}
             <span className="studio-work-kind">{KIND_LABELS[work.kind]}{work.media.length > 1 ? ` ×${work.media.length}` : ""}</span>
+            {labels.length ? <span className="studio-work-labels" title={labels.map((label) => label.name).join("、")}>{labels.map((label) => <span key={label.id} className="studio-work-label"><StudioLabelDot label={label} />{label.name}</span>)}</span> : null}
             <button type="button" className="studio-work-select" aria-pressed={selected} aria-label={selected ? "取消选择" : "选择作品"} onClick={(event) => onSelect(event.shiftKey)}>
                 {selected ? <Check aria-hidden /> : null}
             </button>
