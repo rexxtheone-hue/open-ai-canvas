@@ -430,3 +430,91 @@ func (s *Service) StudioWorksByIDs(userID string, ids []string) ([]StudioWork, e
 	}
 	return works, nil
 }
+
+// ---------------- 上传素材 ----------------
+
+type StudioUploadView struct {
+	ID         string    `json:"id"`
+	ResourceID string    `json:"resourceId"`
+	Kind       string    `json:"kind"`
+	Name       string    `json:"name"`
+	MimeType   string    `json:"mimeType"`
+	Width      int       `json:"width,omitempty"`
+	Height     int       `json:"height,omitempty"`
+	DurationMs int64     `json:"durationMs,omitempty"`
+	CreatedAt  time.Time `json:"createdAt"`
+}
+
+func studioUploadKind(resource *model.Resource) string {
+	for _, kind := range []string{"image", "video", "audio"} {
+		if resource.Kind == kind || strings.HasPrefix(resource.MimeType, kind+"/") {
+			return kind
+		}
+	}
+	return ""
+}
+
+func studioUploadView(item model.StudioUpload, resource *model.Resource) StudioUploadView {
+	view := StudioUploadView{ID: item.ID, ResourceID: item.ResourceID, Kind: item.Kind, Name: item.Name, CreatedAt: item.CreatedAt}
+	if resource != nil {
+		view.MimeType, view.Width, view.Height, view.DurationMs = resource.MimeType, resource.Width, resource.Height, resource.DurationMs
+	}
+	return view
+}
+
+// RegisterStudioUpload 登记一个已上传到本人名下的图片、视频或音频资源。
+func (s *Service) RegisterStudioUpload(userID, resourceID, name string) (StudioUploadView, error) {
+	resource, err := s.repo.ResourceForUser(userID, strings.TrimSpace(resourceID))
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return StudioUploadView{}, BadAuthRequest("素材不存在")
+	}
+	if err != nil {
+		return StudioUploadView{}, err
+	}
+	kind := studioUploadKind(resource)
+	if kind == "" {
+		return StudioUploadView{}, BadAuthRequest("只能登记图片、视频或音频")
+	}
+	if name, err = limitText(name, 200, "文件名太长"); err != nil {
+		return StudioUploadView{}, err
+	}
+	item := model.StudioUpload{ID: newID(), UserID: userID, ResourceID: resource.ID, Kind: kind, Name: name, Seq: studioSeq(), CreatedAt: time.Now().UTC()}
+	if err := s.repo.SaveStudioUpload(&item); err != nil {
+		return StudioUploadView{}, err
+	}
+	return studioUploadView(item, resource), nil
+}
+
+// StudioUploads 列出本人在 Studio 上传的素材；资源已被删除的记录不返回。
+func (s *Service) StudioUploads(userID, kind string) ([]StudioUploadView, error) {
+	if kind != "" && kind != "image" && kind != "video" && kind != "audio" {
+		return nil, BadAuthRequest("素材类型无效")
+	}
+	items, err := s.repo.StudioUploads(userID, kind, 200)
+	if err != nil {
+		return nil, err
+	}
+	views := make([]StudioUploadView, 0, len(items))
+	for _, item := range items {
+		resource, err := s.repo.ResourceForUser(userID, item.ResourceID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		views = append(views, studioUploadView(item, resource))
+	}
+	return views, nil
+}
+
+func (s *Service) DeleteStudioUpload(userID, id string) error {
+	deleted, err := s.repo.DeleteStudioUpload(userID, strings.TrimSpace(id))
+	if err != nil {
+		return err
+	}
+	if !deleted {
+		return NotFound("素材不存在")
+	}
+	return nil
+}

@@ -105,7 +105,8 @@ describe("AI Studio 生成规则", () => {
     test("T6 图片数量不超过模型最多出图数，配置里每个任务固定 1 张", () => {
         const config = studioConfig();
         expect(studioMaxCount(config, "image", "relay::pic-pro")).toBe(4);
-        expect(studioMaxCount(config, "video", "relay::clip-pro")).toBe(1);
+        expect(studioMaxCount(config, "video", "relay::clip-pro")).toBe(8);
+        expect(studioMaxCount(config, "audio", "relay::voice")).toBe(1);
         const submission = studioSubmission(config, state("image", { count: 9 }), "relay::pic-pro", { maxImages: 2, maxVideos: 0, maxAudios: 0 });
         expect(submission.count).toBe(4);
         expect(submission.config.count).toBe("1");
@@ -209,7 +210,7 @@ describe("AI Studio 专项工具", () => {
         const spec = studioSpecialtySpec("lip-sync")!;
         const empty = buildSpecialtyState(spec, {}, "", {});
         expect(studioPreferredModel(studioConfig(), "video", "", empty)).toBe("");
-        expect(studioBlockReason(studioConfig(), state("video", { specialty: empty }), "", ready)).toBe("后台还没有支持对口型的模型");
+        expect(studioBlockReason(studioConfig(), state("video", { specialty: empty }), "", ready)).toBe("后台还没有支持「对口型」的模型，请管理员在模型能力里开启");
         expect(studioPreferredModel(lipConfig(), "video", "relay::clip-mute", empty)).toBe("relay::clip-pro");
         expect(studioSpecialtyAvailable(studioConfig(), "lip-sync")).toBe(false);
         expect(studioSpecialtyAvailable(lipConfig(), "lip-sync")).toBe(true);

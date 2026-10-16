@@ -168,3 +168,27 @@ export function addStudioShotVersion(storyId: string, shotId: string, kind: "ima
 export function setStudioStoryRender(storyId: string, taskId: string) {
     return http.put<StudioStory>(`/studio/stories/${encodeURIComponent(storyId)}/render`, { taskId });
 }
+
+export type StudioUpload = {
+    id: string;
+    resourceId: string;
+    kind: "image" | "video" | "audio";
+    name: string;
+    mimeType: string;
+    width?: number;
+    height?: number;
+    durationMs?: number;
+    createdAt: string;
+};
+
+export function listStudioUploads(kind?: "image" | "video" | "audio", signal?: AbortSignal) {
+    return http.get<{ items: StudioUpload[] }>("/studio/uploads", { params: { kind }, signal });
+}
+
+export function registerStudioUpload(resourceId: string, name: string) {
+    return http.post<StudioUpload>("/studio/uploads", { resourceId, name });
+}
+
+export function deleteStudioUpload(id: string) {
+    return http.delete<{ deleted: boolean }>(`/studio/uploads/${encodeURIComponent(id)}`);
+}

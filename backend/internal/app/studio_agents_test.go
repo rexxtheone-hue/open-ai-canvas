@@ -243,3 +243,53 @@ func TestActiveTaskLimitErrorCarriesMachineReadableDetail(t *testing.T) {
 		t.Fatalf("unexpected limit error %+v", err)
 	}
 }
+
+func TestStudioUploadsRegistry(t *testing.T) {
+	svc, db := newStudioTestService(t)
+	for _, resource := range []model.Resource{
+		{ID: "img", UserID: "user-a", Kind: "image", Status: model.ResourceStatusReady, MimeType: "image/png"},
+		{ID: "vid", UserID: "user-a", Kind: "video", Status: model.ResourceStatusReady, MimeType: "video/mp4", DurationMs: 3000},
+		{ID: "doc", UserID: "user-a", Kind: "file", Status: model.ResourceStatusReady, MimeType: "application/pdf"},
+		{ID: "other", UserID: "user-b", Kind: "image", Status: model.ResourceStatusReady, MimeType: "image/png"},
+	} {
+		if err := db.Create(&resource).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	first, err := svc.RegisterStudioUpload("user-a", "img", "a.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := svc.RegisterStudioUpload("user-a", "img", "a.png")
+	if err != nil || again.ID != first.ID {
+		t.Fatalf("re-registering the same resource must return the existing row: %+v %v", again, err)
+	}
+	if _, err := svc.RegisterStudioUpload("user-a", "vid", "b.mp4"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.RegisterStudioUpload("user-a", "doc", "c.pdf"); err == nil {
+		t.Fatal("documents are not studio media")
+	}
+	if _, err := svc.RegisterStudioUpload("user-a", "other", "x.png"); err == nil {
+		t.Fatal("other users' resources must be rejected")
+	}
+	videos, err := svc.StudioUploads("user-a", "video")
+	if err != nil || len(videos) != 1 || videos[0].DurationMs != 3000 {
+		t.Fatalf("unexpected video uploads %+v %v", videos, err)
+	}
+	all, _ := svc.StudioUploads("user-a", "")
+	if len(all) != 2 || all[0].Kind != "video" {
+		t.Fatalf("newest upload must come first: %+v", all)
+	}
+	db.Delete(&model.Resource{}, "id = ?", "img")
+	all, _ = svc.StudioUploads("user-a", "")
+	if len(all) != 1 {
+		t.Fatalf("uploads whose resource was deleted must be hidden: %+v", all)
+	}
+	if err := svc.DeleteStudioUpload("user-b", videos[0].ID); err == nil {
+		t.Fatal("other users must not delete the upload")
+	}
+	if err := svc.DeleteStudioUpload("user-a", videos[0].ID); err != nil {
+		t.Fatal(err)
+	}
+}

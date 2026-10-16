@@ -48,6 +48,25 @@ func RegisterStudioAgentRoutes(r *gin.RouterGroup, svc *service.Service) {
 		respond(c, gin.H{"works": works}, err)
 	}))
 
+	r.GET("/studio/uploads", withUser(func(c *gin.Context, user *model.User) {
+		items, err := svc.StudioUploads(user.ID, c.Query("kind"))
+		respond(c, gin.H{"items": items}, err)
+	}))
+	r.POST("/studio/uploads", withUser(func(c *gin.Context, user *model.User) {
+		var req struct {
+			ResourceID string `json:"resourceId"`
+			Name       string `json:"name"`
+		}
+		if !bind(c, &req) {
+			return
+		}
+		item, err := svc.RegisterStudioUpload(user.ID, req.ResourceID, req.Name)
+		respond(c, item, err)
+	}))
+	r.DELETE("/studio/uploads/:id", withUser(func(c *gin.Context, user *model.User) {
+		respond(c, gin.H{"deleted": true}, svc.DeleteStudioUpload(user.ID, c.Param("id")))
+	}))
+
 	r.GET("/studio/characters", withUser(func(c *gin.Context, user *model.User) {
 		items, err := svc.StudioCharacters(user.ID)
 		respond(c, gin.H{"items": items}, err)

@@ -210,3 +210,14 @@ type StudioShotVersion struct {
 	Seq       int64     `json:"-" gorm:"index"`
 	CreatedAt time.Time `json:"createdAt"`
 }
+
+// StudioUpload 记录用户在 AI Studio 上传的素材，供「添加参考」面板的「上传」分页列出。
+type StudioUpload struct {
+	ID         string    `json:"id" gorm:"primaryKey;size:36"`
+	UserID     string    `json:"userId" gorm:"index;size:36;uniqueIndex:idx_studio_uploads_user_resource,priority:1"`
+	ResourceID string    `json:"resourceId" gorm:"size:36;uniqueIndex:idx_studio_uploads_user_resource,priority:2"`
+	Kind       string    `json:"kind" gorm:"index;size:16"`
+	Name       string    `json:"name" gorm:"size:200"`
+	Seq        int64     `json:"-" gorm:"index"`
+	CreatedAt  time.Time `json:"createdAt"`
+}

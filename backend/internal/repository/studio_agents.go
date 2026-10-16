@@ -243,3 +243,33 @@ func (r *Repository) UserTasksByIDs(userID string, ids []string) ([]model.Task, 
 	err := r.db.Where("user_id = ? AND id IN ?", userID, ids).Find(&tasks).Error
 	return tasks, err
 }
+
+// ---- 上传素材 ----
+
+func (r *Repository) StudioUploads(userID, kind string, limit int) ([]model.StudioUpload, error) {
+	var items []model.StudioUpload
+	query := r.db.Where("user_id = ?", userID)
+	if kind != "" {
+		query = query.Where("kind = ?", kind)
+	}
+	err := query.Order("seq desc, id").Limit(limit).Find(&items).Error
+	return items, err
+}
+
+// SaveStudioUpload 同一资源只记一次：重复登记时返回已有记录。
+func (r *Repository) SaveStudioUpload(item *model.StudioUpload) error {
+	existing, err := firstOrNil[model.StudioUpload](r.db, "user_id = ? AND resource_id = ?", item.UserID, item.ResourceID)
+	if err != nil {
+		return err
+	}
+	if existing != nil {
+		*item = *existing
+		return nil
+	}
+	return r.db.Create(item).Error
+}
+
+func (r *Repository) DeleteStudioUpload(userID, id string) (bool, error) {
+	result := r.db.Where("id = ? AND user_id = ?", id, userID).Delete(&model.StudioUpload{})
+	return result.RowsAffected > 0, result.Error
+}

@@ -12,7 +12,8 @@ import { submitBackendGenerationTask } from "@/services/api/generation-task";
 import type { StudioKind, StudioMedia, StudioWork } from "@/services/api/studio";
 import { uploadMediaFile } from "@/services/file-storage";
 import { uploadImage } from "@/services/image-storage";
-import { resolveResourceUrl } from "@/services/api/resources";
+import { resolveResourceUrl, resourceIdFromStorageKey } from "@/services/api/resources";
+import { registerStudioUpload } from "@/services/api/studio-agents";
 import { useEffectiveConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
 import {
@@ -84,10 +85,26 @@ export function studioAttachmentFromMedia(work: StudioWork, media: StudioMedia, 
 
 /** 上传单个素材，返回可直接提交的参考素材；类型不支持时抛出原因。 */
 export async function uploadStudioFile(file: File): Promise<CreationAttachment> {
-    if (file.type.startsWith("image/")) return creationAttachmentFromImage(file, await uploadImage(file));
-    if (file.type.startsWith("video/")) return creationAttachmentFromVideo(file, await uploadMediaFile(file, "studio-upload"));
-    if (file.type.startsWith("audio/")) return creationAttachmentFromAudio(file, await uploadMediaFile(file, "studio-upload"));
-    throw new Error(`${file.name} 不是图片、视频或音频`);
+    let attachment: CreationAttachment;
+    if (file.type.startsWith("image/")) attachment = creationAttachmentFromImage(file, await uploadImage(file));
+    else if (file.type.startsWith("video/")) attachment = creationAttachmentFromVideo(file, await uploadMediaFile(file, "studio-upload"));
+    else if (file.type.startsWith("audio/")) attachment = creationAttachmentFromAudio(file, await uploadMediaFile(file, "studio-upload"));
+    else throw new Error(`${file.name} 不是图片、视频或音频`);
+    // 记进「添加参考」面板的「上传」分页；登记失败不影响这次使用。
+    const resourceId = resourceIdFromStorageKey(attachment.storageKey);
+    if (resourceId) void registerStudioUpload(resourceId, file.name).then(notifyStudioUploadsChanged).catch(() => undefined);
+    return attachment;
+}
+
+const UPLOADS_CHANGED = "studio:uploads-changed";
+
+export function notifyStudioUploadsChanged() {
+    window.dispatchEvent(new CustomEvent(UPLOADS_CHANGED));
+}
+
+export function onStudioUploadsChanged(listener: () => void) {
+    window.addEventListener(UPLOADS_CHANGED, listener);
+    return () => window.removeEventListener(UPLOADS_CHANGED, listener);
 }
 
 export function useStudioTool(kind: StudioKind, tool: string, options: { specialty?: StudioSpecialtyState; brand?: boolean } = {}) {
@@ -148,8 +165,9 @@ export function useStudioTool(kind: StudioKind, tool: string, options: { special
                 const mode = current.video.mode && videoModeShouldReset(videoProfile, current.video.mode, counts) ? undefined : current.video.mode;
                 const generateAudio = videoProfile.generateAudio.supported ? current.video.generateAudio : false;
                 const next = { ratio: normalized.ratio, seconds: normalized.seconds, videoQuality: normalized.resolution.replace(/p$/i, ""), generateAudio, mode };
-                if (JSON.stringify(next) === JSON.stringify(current.video)) return current;
-                return { ...current, video: next, count: 1 };
+                const count = Math.max(1, Math.min(studioMaxCount(config, "video", resolvedModel), current.count));
+                if (JSON.stringify(next) === JSON.stringify(current.video) && count === current.count) return current;
+                return { ...current, video: next, count };
             }
             const audioConfig = { ...config, model: resolvedModel, audioModel: resolvedModel };
             const next = { voice: normalizeAudioVoiceForConfig(audioConfig, current.audio.voice), format: normalizeAudioFormatForConfig(audioConfig, current.audio.format), speed: normalizeAudioSpeedValue(current.audio.speed) };
@@ -165,14 +183,18 @@ export function useStudioTool(kind: StudioKind, tool: string, options: { special
 
     const creditsEnabled = useUserStore((store) => store.features.creditsEnabled);
     const { availableMicrocredits } = useWalletBalance(user?.id, creditsEnabled);
-    const { credits, estimated } = useGenerationCredits({
+    // 一次提交的任务数：多条指令时每条一个任务，否则按数量（视频专项不允许多个时为 1）。
+    const batch = specialty?.variants?.length || (kind === "audio" || (kind === "video" && specialty && !specialty.allowCount) ? 1 : Math.max(1, Math.min(state.count, maxCount)));
+    const { credits: unitCredits, estimated } = useGenerationCredits({
         config: generationConfig,
         model: resolvedModel,
         mode: kind,
-        count: kind === "image" ? Math.min(state.count, maxCount) : 1,
+        count: kind === "image" ? batch : 1,
         seconds: state.video.seconds,
         requirements,
     });
+    // 图片按数量报价；视频报的是单个任务，乘以任务数。
+    const credits = unitCredits !== null && kind === "video" ? unitCredits * batch : unitCredits;
     const baseBlockReason = studioBlockReason(config, state, resolvedModel, {
         loggedIn: Boolean(user),
         creditsEnabled,
@@ -219,6 +241,21 @@ export function useStudioTool(kind: StudioKind, tool: string, options: { special
 
     const removeAttachment = useCallback((id: string) => setState((current) => ({ ...current, attachments: current.attachments.filter((item) => item.id !== id) })), []);
 
+    /** 把素材排到同类素材的最前面（设为首帧）。 */
+    const moveAttachmentFirst = useCallback((id: string) => setState((current) => {
+        const target = current.attachments.find((item) => item.id === id);
+        if (!target) return current;
+        return { ...current, attachments: [target, ...current.attachments.filter((item) => item.id !== id)] };
+    }), []);
+
+    /** 交换前两张图片的顺序（首帧和尾帧对调）。 */
+    const swapFirstImages = useCallback(() => setState((current) => {
+        const images = current.attachments.filter((item) => creationAttachmentKind(item) === "image");
+        if (images.length < 2) return current;
+        const [first, second] = images;
+        return { ...current, attachments: current.attachments.map((item) => (item.id === first.id ? second : item.id === second.id ? first : item)) };
+    }), []);
+
     /** 用作品的设置填回面板（「用同样设置再生成」）。只恢复当前模型仍支持的值，其余由 T5 归一。 */
     const applyWorkSettings = useCallback((work: StudioWork) => {
         const settings = work.settings || {};
@@ -233,16 +270,24 @@ export function useStudioTool(kind: StudioKind, tool: string, options: { special
     }, []);
 
     /** T9：任务建好就解锁，可以继续提交；同一次点击不会重复提交。 */
-    const submit = useCallback(async () => {
+    /** promptOverride：自动润色后的提示词，直接用它提交（同时写回输入框由页面负责）。 */
+    const submit = useCallback(async (promptOverride?: string) => {
         if (submitLockRef.current) return { created: 0, failed: 0, error: "上一次提交还在进行，请稍候" };
         if (blockReason || !resolvedModel) return { created: 0, failed: 0, error: blockReason || "后台还没有可用的模型" };
         submitLockRef.current = true;
         setSubmitting(true);
-        const submission = studioSubmission(config, state, resolvedModel, limits);
+        const submitState = promptOverride !== undefined && !state.specialty ? { ...state, prompt: promptOverride } : state;
+        // 多条指令（多语言配音、全部角度）：每条指令一个任务。
+        const variants = state.specialty?.variants;
+        const submissions = variants?.length
+            ? variants.map((instruction) => studioSubmission(config, { ...submitState, count: 1, specialty: { ...state.specialty!, instruction } }, resolvedModel, limits))
+            : [studioSubmission(config, submitState, resolvedModel, limits)];
+        const jobs = submissions.flatMap((submission) => Array.from({ length: submission.count }, () => submission));
         try {
             // 同一批依次建任务：避免并发写入争用数据库锁，任务顺序也和数量一致。
             const settled: PromiseSettledResult<unknown>[] = [];
-            for (let batchIndex = 0; batchIndex < submission.count; batchIndex += 1) {
+            for (let batchIndex = 0; batchIndex < jobs.length; batchIndex += 1) {
+                const submission = jobs[batchIndex];
                 try {
                     const task = await submitBackendGenerationTask({
                         mode: submission.mode,
@@ -251,7 +296,7 @@ export function useStudioTool(kind: StudioKind, tool: string, options: { special
                         referenceImages: submission.referenceImages,
                         referenceVideos: submission.referenceVideos,
                         referenceAudios: submission.referenceAudios,
-                        metadata: submission.count > 1 ? { ...submission.metadata, batchIndex, batchCount: submission.count } : submission.metadata,
+                        metadata: jobs.length > 1 ? { ...submission.metadata, batchIndex, batchCount: jobs.length } : submission.metadata,
                         clientOperationId: crypto.randomUUID(),
                     });
                     settled.push({ status: "fulfilled", value: task });
@@ -295,6 +340,8 @@ export function useStudioTool(kind: StudioKind, tool: string, options: { special
         addAttachments,
         uploadFiles,
         removeAttachment,
+        moveAttachmentFirst,
+        swapFirstImages,
         applyWorkSettings,
         submit,
         brandKits: brand.kits,

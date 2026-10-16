@@ -1,9 +1,9 @@
-import { useEffectiveConfig } from "@/stores/use-config-store";
-import { studioSpecialtyAvailable } from "./studio-specialty";
 import { STUDIO_TOOLS } from "./studio-tools";
 
-/** H6：后台没有能用的模型时，专项工具不出现在任何列表里。 */
+/**
+ * 工具清单：所有工具都显示（与参考产品一致）。面板可以正常上传、选择和填写；
+ * 后台没有能运行它的模型时，工具页的生成按钮置灰并写明原因（见 studioBlockReason），不会假装能生成。
+ */
 export function useAvailableStudioTools() {
-    const config = useEffectiveConfig();
-    return STUDIO_TOOLS.filter((tool) => !tool.specialty || studioSpecialtyAvailable(config, tool.id));
+    return STUDIO_TOOLS;
 }

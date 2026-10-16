@@ -28,7 +28,15 @@ export type StudioToolState = {
 export type StudioSpecialtyState = {
     operation?: string;
     operationLabel: string;
+    /** 还没有接入协议的能力：没有模型可用。 */
+    unsupported?: boolean;
+    /** 作品类型；没有专项操作的视频工具按视频模型的参考上限挑模型。 */
+    kind?: StudioKind;
+    /** 视频专项是否允许一次生成多个。 */
+    allowCount?: boolean;
     instruction: string;
+    /** 多条指令时每条提交一个任务（多语言、全部角度）。 */
+    variants?: string[];
     /** 用户自己写的补充说明，作品库「再次生成」时填回。 */
     userText: string;
     /** 工具选项（光线、目标语言等），做同款时一起填回。 */
@@ -70,7 +78,15 @@ export type StudioReferenceLimits = { maxImages: number; maxVideos: number; maxA
 /** 专项工具只考虑支持该操作（视频）或能放下必需参考图（图片）的模型。 */
 export function studioModelSupportsSpecialty(config: AiConfig, model: string, specialty: StudioSpecialtyState | undefined) {
     if (!specialty) return true;
+    if (specialty.unsupported) return false;
     const profile = modelCapabilityConfigFor(config, model);
+    if (specialty.kind === "video" && !specialty.operation) {
+        // 普通视频生成（智能分镜、世界漫游）：有必需图片时模型要能图生视频或参考生视频。
+        const video = profile.video;
+        if (!video) return false;
+        if (!specialty.minImages) return true;
+        return video.references.maxImages >= specialty.minImages && (video.operations.includes("image_to_video") || video.operations.includes("reference_to_video"));
+    }
     if (specialty.operation) {
         const video = profile.video;
         if (!video?.operations.includes(specialty.operation)) return false;
@@ -250,7 +266,7 @@ export type StudioBlockContext = {
 /** T4、T7、T8：生成按钮置灰的原因。返回空字符串表示可以提交。顺序即提示优先级。 */
 export function studioBlockReason(config: AiConfig, state: StudioToolState, model: string, context: StudioBlockContext) {
     if (!context.loggedIn) return "请先登录";
-    if (!model) return state.specialty ? `后台还没有支持${state.specialty.operationLabel}的模型` : "后台还没有可用的模型";
+    if (!model) return state.specialty ? `后台还没有支持「${state.specialty.operationLabel}」的模型，请管理员在模型能力里开启` : "后台还没有可用的模型";
     if (state.specialty?.inputError) return state.specialty.inputError;
     const prompt = studioFinalPrompt(state);
     if (!prompt) return state.kind === "audio" ? "请输入要朗读的文案" : "请输入提示词";
@@ -300,10 +316,11 @@ export function studioSubmission(config: AiConfig, state: StudioToolState, model
         metadata.brandKitId = state.brand.id;
         metadata.studioPrompt = state.prompt.trim();
     }
+    const videoCount = state.specialty && !state.specialty.allowCount ? 1 : Math.max(1, Math.min(studioMaxCount(config, "video", model), Math.floor(state.count) || 1));
     if (state.kind === "video" && state.specialty?.operation) {
         // 专项操作按槽位顺序发送全部素材，不走视频模式的素材挑选。
         metadata.videoEditOperation = state.specialty.operation;
-        return { mode: "video", prompt: finalPrompt, config: generationConfig, count: 1, referenceImages: split.referenceImages, referenceVideos: split.referenceVideos, referenceAudios: split.referenceAudios, metadata };
+        return { mode: "video", prompt: finalPrompt, config: generationConfig, count: videoCount, referenceImages: split.referenceImages, referenceVideos: split.referenceVideos, referenceAudios: split.referenceAudios, metadata };
     }
     if (state.kind === "video") {
         const mode = state.video.mode;
@@ -313,7 +330,7 @@ export function studioSubmission(config: AiConfig, state: StudioToolState, model
         const operation = mode ? videoModeOperation(mode) : inferVideoOperation({ textCount: 1, imageCount: referenceImages.length, videoCount: referenceVideos.length, audioCount: referenceAudios.length, characterCount: 0 });
         if (mode) metadata.videoMode = mode;
         metadata.videoEditOperation = operation;
-        return { mode: "video", prompt: finalPrompt, config: generationConfig, count: 1, referenceImages, referenceVideos, referenceAudios, metadata };
+        return { mode: "video", prompt: finalPrompt, config: generationConfig, count: videoCount, referenceImages, referenceVideos, referenceAudios, metadata };
     }
     if (state.kind === "image") {
         const maxOutputs = modelCapabilityConfigFor(config, model).image!.maxOutputs;
@@ -324,8 +341,9 @@ export function studioSubmission(config: AiConfig, state: StudioToolState, model
     return { mode: "audio", prompt, config: generationConfig, count: 1, referenceImages: split.referenceImages, referenceVideos: [], referenceAudios: split.referenceAudios, metadata };
 }
 
-/** 生成按钮上的数量上限：图片按模型最多出图数，其余固定 1。 */
+/** 生成按钮上的数量上限：图片按模型最多出图数；视频最多 8 个（每个一个任务）；配音固定 1。 */
 export function studioMaxCount(config: AiConfig, kind: StudioKind, model: string) {
-    if (kind !== "image" || !model) return 1;
+    if (!model || kind === "audio") return 1;
+    if (kind === "video") return 8;
     return Math.max(1, Math.min(8, modelCapabilityConfigFor(config, model).image!.maxOutputs || 1));
 }

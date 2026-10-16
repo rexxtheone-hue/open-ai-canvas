@@ -4,7 +4,7 @@ import { defaultModelCapabilityConfig } from "../src/lib/model-capabilities";
 import { defaultConfig, type AiConfig } from "../src/stores/use-config-store";
 import { studioModelChips } from "../src/pages/studio/studio-model-chips";
 import { STUDIO_TOOL_TABS, STUDIO_TOOLS, studioToolForKind, studioToolsInTab, studioToolTab } from "../src/pages/studio/studio-tools";
-import { buildSpecialtyState, defaultSpecialtyOptions, studioSpecialtyAvailable, studioSpecialtySpec } from "../src/pages/studio/studio-specialty";
+import { buildSpecialtyState, defaultSpecialtyOptions, orderedSlotAttachments, restoreSpecialtyOptions, specialtyInputError, studioSpecialtyAvailable, studioSpecialtySpec } from "../src/pages/studio/studio-specialty";
 
 describe("AI Studio 工具分类", () => {
     test("工具 ID 唯一，每个工具至少属于一个分类，专项工具都有槽位定义", () => {
@@ -22,9 +22,9 @@ describe("AI Studio 工具分类", () => {
 
     test("分类清单与生成工具对应", () => {
         expect(studioToolsInTab(STUDIO_TOOLS, "video").map((tool) => tool.id)).toContain("lip-sync");
-        expect(studioToolsInTab(STUDIO_TOOLS, "character").map((tool) => tool.id)).toEqual(["character-image", "character-video", "cast-in-scene", "replace-character", "motion-sync", "lip-sync", "multi-view", "face-swap"]);
-        expect(studioToolsInTab(STUDIO_TOOLS, "world").map((tool) => tool.id)).toEqual(["create-pano", "cast-in-scene"]);
-        expect(studioToolsInTab(STUDIO_TOOLS, "audio").map((tool) => tool.id)).toEqual(["create-audio", "video-dubbing"]);
+        expect(studioToolsInTab(STUDIO_TOOLS, "character").map((tool) => tool.id)).toEqual(["create-character", "character-image", "character-video", "cast-in-scene", "replace-character", "motion-sync", "lip-sync", "multi-view", "face-swap"]);
+        expect(studioToolsInTab(STUDIO_TOOLS, "world").map((tool) => tool.id)).toEqual(["create-pano", "world-cam", "cast-in-scene"]);
+        expect(studioToolsInTab(STUDIO_TOOLS, "audio").map((tool) => tool.id)).toEqual(["create-audio", "create-music", "create-sound-effect", "voice-clone", "voice-changer", "video-dubbing", "add-sound-effect"]);
         expect(studioToolForKind("video")?.id).toBe("create-video");
         expect(studioToolForKind("image")?.id).toBe("create-image");
         expect(STUDIO_TOOL_TABS.every((tab) => tab.path === `/studio/${tab.id}`)).toBe(true);
@@ -94,17 +94,18 @@ describe("新增专项工具", () => {
         const extend = studioSpecialtySpec("extend-video")!;
         expect(buildSpecialtyState(extend, {}, "", {}).inputError).toBe("请添加原视频");
         const video = { id: "v", name: "v.mp4", type: "video/mp4", url: "https://x/v.mp4", previewUrl: "" };
-        expect(buildSpecialtyState(extend, { source: video }, " ", {}).inputError).toBe("请填写接下来发生什么");
+        expect(buildSpecialtyState(extend, { source: video }, " ", {}).inputError).toBe("请描述视频接下来怎么发展");
         const state = buildSpecialtyState(extend, { source: video }, "她转身离开", {});
         expect(state).toMatchObject({ operation: "extend", operationLabel: "视频延长", inputError: "", minVideos: 1, minImages: 0 });
         expect(state.instruction).toContain("她转身离开");
 
         const angle = studioSpecialtySpec("camera-angle")!;
-        const prompt = buildSpecialtyState(angle, {}, "", { yaw: "left45", pitch: "high30", lens: "close" }).instruction;
-        expect(prompt).toContain("左前方 45 度");
+        const prompt = buildSpecialtyState(angle, {}, "", { yaw: "-45", pitch: "30", lens: "close" }).instruction;
+        expect(prompt).toContain("向左绕主体旋转 45 度");
+        expect(buildSpecialtyState(angle, {}, "", { yaw: "left45" }).instruction).toContain("正面，平视");
         expect(prompt).toContain("30 度俯拍");
         expect(prompt).toContain("特写镜头");
-        expect(defaultSpecialtyOptions(studioSpecialtySpec("restyle-video")!)).toEqual({ style: "lego" });
+        expect(defaultSpecialtyOptions(studioSpecialtySpec("restyle-video")!)).toEqual({ style: "lego", strength: "1.2" });
         expect(buildSpecialtyState(studioSpecialtySpec("face-swap")!, {}, "", {}).minImages).toBe(2);
     });
 
@@ -115,5 +116,62 @@ describe("新增专项工具", () => {
         expect(text.presetMode).toBe("text_to_video");
         expect(frame.path).toBe("/studio/frame-to-video");
         expect(frame.specialty).toBeUndefined();
+    });
+});
+
+describe("OpenArt 式工具面板", () => {
+    const image = (id: string) => ({ id, name: id, type: "image/png", url: `https://x/${id}.png`, previewUrl: `https://x/${id}.png` });
+    const video = (id: string) => ({ id, name: id, type: "video/mp4", url: `https://x/${id}.mp4`, previewUrl: `https://x/${id}.mp4` });
+
+    test("多语言配音每种语言一个任务；未选语言时不能生成", () => {
+        const spec = studioSpecialtySpec("video-dubbing")!;
+        expect(buildSpecialtyState(spec, { source: video("v") }, "", defaultSpecialtyOptions(spec)).inputError).toBe("请选择目标语言");
+        const one = buildSpecialtyState(spec, { source: video("v") }, "", { language: "ms", lipsync: "on" });
+        expect(one.inputError).toBe("");
+        expect(one.variants).toBeUndefined();
+        const many = buildSpecialtyState(spec, { source: video("v") }, "", { language: "en,ms", lipsync: "off" });
+        expect(many.variants).toHaveLength(2);
+        expect(many.variants![1]).toContain("马来语");
+        expect(many.variants![0]).toContain("保持原画面不变");
+    });
+
+    test("一次生成全部角度按 6 个机位拆成 6 条指令；滑块角度写进指令", () => {
+        const spec = studioSpecialtySpec("camera-angle")!;
+        const single = buildSpecialtyState(spec, { source: image("a") }, "", { ...defaultSpecialtyOptions(spec), yaw: "-30", pitch: "15" });
+        expect(single.instruction).toContain("向左绕主体旋转 30 度");
+        expect(single.instruction).toContain("从上方 15 度俯拍");
+        expect(single.variants).toBeUndefined();
+        expect(buildSpecialtyState(spec, { source: image("a") }, "", { ...defaultSpecialtyOptions(spec), all: "on" }).variants).toHaveLength(6);
+        expect(restoreSpecialtyOptions(spec, { yaw: "200", pitch: "-10", all: "maybe" })).toMatchObject({ yaw: "0", pitch: "-10", all: "off" });
+    });
+
+    test("多素材槽位按顺序发送并限制数量", () => {
+        const spec = studioSpecialtySpec("smart-shot")!;
+        const values = { environment: image("env"), characters: [image("c1"), image("c2")] };
+        expect(orderedSlotAttachments(spec, values).map((item) => item.id)).toEqual(["c1", "c2", "env"]);
+        expect(specialtyInputError(spec, { characters: [image("1"), image("2"), image("3"), image("4")] }, "雨夜")).toBe("角色与物体最多 3 个");
+        const plan = buildSpecialtyState(spec, values, "雨夜", defaultSpecialtyOptions(spec), { plan: "镜头1：远景" });
+        expect(plan.instruction).toContain("镜头1：远景");
+        expect(buildSpecialtyState(spec, values, "雨夜", defaultSpecialtyOptions(spec)).instruction).toContain("拆成 5 个镜头");
+    });
+
+    test("尚未接入的音频能力没有模型可用，生成按钮说明原因", () => {
+        const config = toolConfig({ operations: ["image_to_video", "reference_to_video"], maxVideos: 1, maxImages: 2 }, 4);
+        for (const id of ["create-music", "create-sound-effect", "voice-clone", "voice-changer", "add-sound-effect"]) expect(studioSpecialtyAvailable(config, id)).toBe(false);
+        expect(buildSpecialtyState(studioSpecialtySpec("create-music")!, {}, "", {}).operationLabel).toBe("音乐生成");
+    });
+
+    test("没有专项操作的视频工具按图生视频能力挑模型", () => {
+        expect(studioSpecialtyAvailable(toolConfig({ operations: ["text_to_video"], maxVideos: 0, maxImages: 0 }, 4), "world-cam")).toBe(false);
+        expect(studioSpecialtyAvailable(toolConfig({ operations: ["image_to_video"], maxVideos: 0, maxImages: 1 }, 4), "world-cam")).toBe(true);
+        expect(studioSpecialtyAvailable(toolConfig({ operations: ["text_to_video"], maxVideos: 0, maxImages: 0 }, 4), "smart-shot")).toBe(true);
+    });
+
+    test("框选区域写进指令；扩图画幅取比例部分", () => {
+        const vfx = studioSpecialtySpec("vfx")!;
+        expect(buildSpecialtyState(vfx, { source: video("v") }, "火焰", {}, { regions: "区域1：左上" }).instruction).toContain("以下区域保持完全不变，不加任何特效：区域1：左上");
+        const expand = studioSpecialtySpec("expand-image")!;
+        expect(expand.instruction("", { ratio: "4:5@ig-post" }, {})).toContain("4:5 画幅");
+        expect(expand.instruction("", { ratio: "original" }, {})).toContain("保持原图比例");
     });
 });
