@@ -48,6 +48,46 @@ func RegisterStudioAgentRoutes(r *gin.RouterGroup, svc *service.Service) {
 		respond(c, gin.H{"works": works}, err)
 	}))
 
+	r.POST("/studio/feedback", withUser(func(c *gin.Context, user *model.User) {
+		var req struct {
+			Category string `json:"category"`
+			Content  string `json:"content"`
+			Contact  string `json:"contact"`
+			Page     string `json:"page"`
+		}
+		if !bind(c, &req) {
+			return
+		}
+		item, err := svc.SubmitStudioFeedback(user.ID, req.Category, req.Content, req.Contact, req.Page)
+		respond(c, gin.H{"id": item.ID}, err)
+	}))
+	r.GET("/studio/site-content", withUser(func(c *gin.Context, _ *model.User) {
+		content, err := svc.StudioSiteContent()
+		respond(c, content, err)
+	}))
+	r.GET("/admin/studio/feedback", withUser(func(c *gin.Context, user *model.User) {
+		items, err := svc.AdminStudioFeedback(user, c.Query("status"))
+		respond(c, gin.H{"items": items}, err)
+	}))
+	r.PATCH("/admin/studio/feedback/:id", withUser(func(c *gin.Context, user *model.User) {
+		var req struct {
+			Status string `json:"status"`
+		}
+		if !bind(c, &req) {
+			return
+		}
+		respond(c, gin.H{"updated": true}, svc.SetStudioFeedbackStatus(user, c.Param("id"), req.Status))
+	}))
+	r.PUT("/admin/studio/site-content/:key", withUser(func(c *gin.Context, user *model.User) {
+		var req struct {
+			Content string `json:"content"`
+		}
+		if !bind(c, &req) {
+			return
+		}
+		respond(c, gin.H{"saved": true}, svc.SaveStudioSiteContent(user, c.Param("key"), req.Content))
+	}))
+
 	r.GET("/studio/voices", withUser(func(c *gin.Context, user *model.User) {
 		items, err := svc.StudioVoices(user.ID)
 		respond(c, gin.H{"items": items}, err)

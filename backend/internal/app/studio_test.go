@@ -123,6 +123,16 @@ func TestStudioWorksFiltersSearchFavoritesAndHide(t *testing.T) {
 	if _, err := svc.StudioWorks("u1", StudioWorkQuery{Kind: "text"}); err == nil {
 		t.Fatal("unknown kind must be rejected")
 	}
+	byTool, err := svc.StudioWorks("u1", StudioWorkQuery{Tool: "create-image"})
+	if err != nil || len(byTool.Works) != 1 || byTool.Works[0].ID != "img" {
+		t.Fatalf("tool filter = %#v, err %v", byTool, err)
+	}
+	if none, _ := svc.StudioWorks("u1", StudioWorkQuery{Tool: "create-pano"}); len(none.Works) != 0 {
+		t.Fatalf("other tools must not match: %#v", none)
+	}
+	if _, err := svc.StudioWorks("u1", StudioWorkQuery{Tool: "bad%tool"}); err == nil {
+		t.Fatal("invalid tool ids must be rejected")
+	}
 	search, _ := svc.StudioWorks("u1", StudioWorkQuery{Search: "100%"})
 	if len(search.Works) != 1 || search.Works[0].ID != "vid" {
 		t.Fatalf("search must treat %% literally: %#v", search.Works)

@@ -7,6 +7,7 @@ import { Switch } from "@/pages/admin/ui/controls";
 import { listAdminStudioCommunity, listAdminStudioPlans, saveAdminStudioPlan, updateAdminStudioPost, type StudioPlan, type StudioPlanInput, type StudioPost } from "@/services/api/studio";
 import { AdminPageFrame } from "../components/admin-shell";
 import { StudioToolCoversPanel } from "./studio-tool-covers";
+import { StudioFeedbackPanel, StudioSiteContentPanel } from "./studio-help-admin";
 
 const EMPTY_PLAN: StudioPlanInput = { name: "", description: "", badge: "", durationDays: 30, activeTaskLimit: 10, commercialLicense: true, enabled: true, sortOrder: 0 };
 
@@ -119,6 +120,8 @@ export default function StudioAdminPage() {
                     },
                     { key: "community", label: "灵感社区", children: <Table rowKey="id" size="middle" loading={loading} columns={postColumns} dataSource={posts} pagination={false} /> },
                     { key: "covers", label: "工具封面", children: <StudioToolCoversPanel /> },
+                    { key: "feedback", label: "用户反馈", children: <StudioFeedbackPanel /> },
+                    { key: "site-content", label: "帮助与条款", children: <StudioSiteContentPanel /> },
                 ]}
             />
             <Drawer title={editing === "new" ? "新增会员套餐" : "编辑会员套餐"} width={480} open={editing !== null} destroyOnHidden onClose={() => setEditing(null)} extra={<Button type="primary" loading={saving} onClick={() => void savePlan()}>保存</Button>}>

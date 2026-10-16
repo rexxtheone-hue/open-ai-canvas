@@ -59,6 +59,7 @@ func RegisterStudioRoutes(r *gin.RouterGroup, svc *service.Service) {
 			FavoritesOnly: c.Query("favorite") == "true",
 			Search:        c.Query("q"),
 			ActiveOnly:    c.Query("activeOnly") == "true",
+			Tool:          c.Query("tool"),
 			Cursor:        c.Query("cursor"),
 			Limit:         limit,
 		})

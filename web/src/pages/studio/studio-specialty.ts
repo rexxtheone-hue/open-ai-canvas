@@ -701,6 +701,22 @@ export const STUDIO_SPECIALTY_SPECS: Record<string, StudioSpecialtySpec> = {
     },
 
     // ---- 角色与世界 ----
+    "create-character": {
+        kind: "image",
+        slots: [{ key: "reference", label: "参考图", accept: "image", required: false, hint: "可选，参考这张图的长相或风格" }],
+        options: [
+            { key: "gender", label: "性别", choices: [{ value: "any", label: "不限", prompt: "" }, { value: "female", label: "女性", prompt: "女性" }, { value: "male", label: "男性", prompt: "男性" }] },
+            { key: "age", label: "年龄", type: "select", choices: [{ value: "any", label: "不限", prompt: "" }, { value: "child", label: "儿童", prompt: "儿童" }, { value: "teen", label: "少年", prompt: "十几岁的少年" }, { value: "young", label: "青年", prompt: "二十多岁的青年" }, { value: "adult", label: "中年", prompt: "四十岁左右的中年人" }, { value: "senior", label: "老年", prompt: "六十岁以上的老人" }] },
+            { key: "style", label: "画风", type: "select", choices: [{ value: "realistic", label: "写实照片", prompt: "写实摄影风格" }, { value: "anime", label: "日系动漫", prompt: "日系动漫风格" }, { value: "3d", label: "3D 动画", prompt: "3D 动画角色风格" }, { value: "illustration", label: "插画", prompt: "精致插画风格" }] },
+            { key: "framing", label: "画面", choices: [{ value: "sheet", label: "角色设定图", prompt: "角色设定图：同一角色的正面、侧面、背面全身三视图并排，加一张面部特写" }, { value: "portrait", label: "半身像", prompt: "清晰的正面半身像" }, { value: "full", label: "全身像", prompt: "正面全身站姿" }] },
+        ],
+        prompt: { label: "描述你的角色", placeholder: "例如：齐肩黑发，戴圆框眼镜，穿米色风衣，温柔的笑容。", required: false },
+        instruction: (text, options) => {
+            const pick = (key: string, value: string | undefined) => CREATE_CHARACTER_OPTIONS.find((option) => option.key === key)?.choices.find((choice) => choice.value === value)?.prompt || "";
+            const traits = [pick("gender", options.gender), pick("age", options.age)].filter(Boolean).join("，");
+            return `设计一个原创角色，${pick("framing", options.framing || "sheet") || "角色设定图"}，纯白或浅灰干净背景，光线均匀，五官和服装细节清晰，方便之后在其他画面里保持同一个角色。${pick("style", options.style || "realistic")}。${traits ? `角色：${traits}。` : ""}${text.trim() ? `外形：${text.trim()}。` : ""}如果提供了参考图，参考它的长相或风格。不出现文字。`;
+        },
+    },
     "character-image": {
         kind: "image",
         slots: [{ key: "character", label: "角色", accept: "image", required: true, hint: "角色形象图，可以从角色库带入" }],
@@ -726,7 +742,7 @@ export const STUDIO_SPECIALTY_SPECS: Record<string, StudioSpecialtySpec> = {
     "create-pano": {
         kind: "image",
         outputRatio: "2:1",
-        slots: [{ key: "reference", label: "参考图", accept: "image", required: false, hint: "可选，延续这张图的场景和风格" }],
+        slots: [{ key: "reference", label: "参考图", accept: "image", required: false, max: 4, hint: "可选，延续这些图的场景和风格" }],
         prompt: { label: "描述世界", placeholder: "例如：黄昏时分的江南水乡古镇，石桥和灯笼。", required: true },
         instruction: (text) => `生成一张 2:1 等距柱状投影（equirectangular）的 360° 全景图，左右边缘无缝衔接，地平线水平居中，没有文字和水印。场景：${text.trim()}。如果提供了参考图，延续参考图的场景和风格。`,
     },
@@ -738,6 +754,8 @@ export const STUDIO_SPECIALTY_SPECS: Record<string, StudioSpecialtySpec> = {
         instruction: (text, options) => withNote(`以这张图为起始画面，在这个场景里拍一段连续的镜头：${choicePrompt(worldPathOption, options.path)}。场景结构、光线和风格保持一致，画面稳定，没有人物突然出现。`, text),
     },
 };
+
+const CREATE_CHARACTER_OPTIONS = STUDIO_SPECIALTY_SPECS["create-character"].options || [];
 
 export function studioSpecialtySpec(toolId: string): StudioSpecialtySpec | undefined {
     return STUDIO_SPECIALTY_SPECS[toolId];

@@ -22,6 +22,8 @@ type StudioTaskQuery struct {
 	FavoritesOnly bool
 	Search        string
 	ActiveOnly    bool
+	// Tool 只列出某个 Studio 工具生成的作品（metadata.studioTool）。
+	Tool          string
 	Cursor        *StudioTaskCursor
 	Limit         int
 }
@@ -48,6 +50,9 @@ func (r *Repository) StudioTasks(userID string, query StudioTaskQuery) ([]model.
 	}
 	if search := strings.TrimSpace(query.Search); search != "" {
 		db = db.Where("LOWER(prompt) LIKE ? ESCAPE '\\'", "%"+escapeLike(strings.ToLower(search))+"%")
+	}
+	if tool := strings.TrimSpace(query.Tool); tool != "" {
+		db = db.Where("input_json LIKE ? ESCAPE '\\'", "%"+escapeLike(`"studioTool":"`+tool+`"`)+"%")
 	}
 	if query.Cursor != nil {
 		db = db.Where("(created_at < ?) OR (created_at = ? AND id < ?)", query.Cursor.CreatedAt, query.Cursor.CreatedAt, query.Cursor.ID)

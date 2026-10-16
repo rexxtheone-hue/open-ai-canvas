@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { AudioLines, LayoutGrid, List, MessageSquareText, Mic, Pin, Plus, UserRound, Wand2, X } from "lucide-react";
+import { AudioLines, Globe, LayoutGrid, Library, List, MessageSquareText, Mic, Pin, Plus, UserRound, Wand2, X } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 
 import type { StudioWork } from "@/services/api/studio";
@@ -12,6 +12,7 @@ import { STUDIO_TOOL_TABS, studioToolById, studioToolForKind, studioToolsInTab, 
 import { useStudioPins, useStudioToolCovers } from "./use-studio-tool-meta";
 import { StudioCreateVoiceModal, StudioVoiceLibraryModal, STUDIO_VOICE_KEY, type StudioVoicePick } from "./studio-voices";
 import { useEffectiveConfig } from "@/stores/use-config-store";
+import { StudioCreateCharacterModal, StudioCreateWorldModal, StudioWorldLibraryModal } from "./studio-worlds";
 
 const VIEW_KEY = "studio.tools.view.v1";
 
@@ -148,7 +149,8 @@ export function StudioToolsBrowser() {
     const reuse = useReuseNavigation();
     const navigate = useNavigate();
     const config = useEffectiveConfig();
-    const [voiceDialog, setVoiceDialog] = useState<"" | "create" | "library">("");
+    const [voiceDialog, setVoiceDialog] = useState<"" | "create" | "library" | "world-create" | "world-library" | "character-create">("");
+    const [worldPrompt, setWorldPrompt] = useState("");
     if (!tab) return <Navigate to="/studio/video" replace />;
     // 声音库里点「使用」：带着选择去配音页。
     const openVoice = (pick: StudioVoicePick) => {
@@ -167,8 +169,14 @@ export function StudioToolsBrowser() {
                     <>
                         {tab.id === "character" ? (
                             <div className="studio-entry-pair">
-                                <Link to="/studio/characters?create=1" className="studio-entry-tile"><Plus aria-hidden /><span>创建角色</span></Link>
+                                <button type="button" className="studio-entry-tile is-accent" onClick={() => setVoiceDialog("character-create")}><Plus aria-hidden /><span>创建角色</span></button>
                                 <Link to="/studio/characters" className="studio-entry-tile"><UserRound aria-hidden /><span>角色库</span></Link>
+                            </div>
+                        ) : null}
+                        {tab.id === "world" ? (
+                            <div className="studio-entry-pair">
+                                <button type="button" className="studio-entry-tile is-accent" onClick={() => { setWorldPrompt(""); setVoiceDialog("world-create"); }}><Globe aria-hidden /><span>创建世界</span></button>
+                                <button type="button" className="studio-entry-tile" onClick={() => setVoiceDialog("world-library")}><Library aria-hidden /><span>世界库</span></button>
                             </div>
                         ) : null}
                         {tab.id === "audio" ? (
@@ -182,6 +190,9 @@ export function StudioToolsBrowser() {
                 }
                 library={<StudioLibrary onReuseSettings={reuse} />}
             />
+            {voiceDialog === "character-create" ? <StudioCreateCharacterModal open onClose={() => setVoiceDialog("")} /> : null}
+            {voiceDialog === "world-create" ? <StudioCreateWorldModal open initialPrompt={worldPrompt} onClose={() => setVoiceDialog("")} /> : null}
+            {voiceDialog === "world-library" ? <StudioWorldLibraryModal open onClose={() => setVoiceDialog("")} onCreate={(prompt) => { setWorldPrompt(prompt || ""); setVoiceDialog("world-create"); }} /> : null}
             {tab.id === "audio" ? (
                 <>
                     <StudioCreateVoiceModal open={voiceDialog === "create"} onClose={() => setVoiceDialog("")} />

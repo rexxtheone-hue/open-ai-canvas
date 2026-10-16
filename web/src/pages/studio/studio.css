@@ -1213,3 +1213,62 @@ button.studio-entry-tile { font: inherit; font-size: 13.5px; font-weight: 650; c
 .studio-voice-avatar[data-gender="female"] { background: rgba(243, 166, 216, 0.16); color: #f3a6d8; }
 .studio-voice-avatar[data-gender="male"] { background: rgba(120, 170, 255, 0.16); color: #8fb4ff; }
 .studio-voice-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 60px 0; color: var(--studio-muted); }
+
+/* 顶部栏：帮助菜单、活动中心；帮助中心与条款页 */
+.studio-topbar-icon { position: relative; display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 999px; background: transparent; color: var(--studio-soft); cursor: pointer; }
+.studio-topbar-icon:hover { background: var(--studio-hover); color: var(--studio-fg); }
+.studio-topbar-icon svg { width: 18px; height: 18px; }
+.studio-topbar-dot { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: #ff5f5f; }
+.studio-menu { display: flex; flex-direction: column; min-width: 200px; padding: 4px; }
+.studio-menu-item, .studio-root .studio-menu-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 10px; border: 0; border-radius: 10px; background: transparent; color: var(--studio-fg); font: inherit; font-size: 13px; text-align: left; text-decoration: none; cursor: pointer; }
+.studio-menu-item:hover { background: var(--studio-hover); color: var(--studio-fg); }
+.studio-menu-item svg { width: 16px; height: 16px; color: var(--studio-soft); }
+.studio-gift { display: flex; flex-direction: column; gap: 10px; width: min(360px, calc(100vw - 32px)); max-height: 480px; overflow-y: auto; }
+.studio-gift-item { display: flex; gap: 10px; padding: 10px; border-radius: 12px; border: 1px solid var(--studio-line); background: var(--studio-panel-raised); }
+.studio-gift-item img { width: 64px; height: 64px; flex: none; border-radius: 8px; object-fit: cover; }
+.studio-gift-item b { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.studio-gift-item p { margin: 4px 0; color: var(--studio-soft); font-size: 12px; line-height: 1.5; }
+.studio-gift-item small { color: var(--studio-muted); font-size: 11px; }
+.studio-feedback { display: flex; flex-direction: column; gap: 12px; }
+.studio-doc { display: flex; flex-direction: column; gap: 16px; max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+.studio-doc h1 { margin: 0; font-size: 28px; }
+.studio-doc h2 { margin: 0 0 8px; font-size: 18px; }
+.studio-doc-tabs { flex-wrap: wrap; }
+.studio-doc-section { display: flex; flex-direction: column; gap: 6px; scroll-margin-top: 80px; }
+.studio-faq { border-radius: 12px; border: 1px solid var(--studio-line); background: var(--studio-panel-raised); }
+.studio-faq-q { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 0; background: transparent; color: var(--studio-fg); font: inherit; font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; }
+.studio-faq-q svg { width: 16px; height: 16px; flex: none; transition: transform 0.15s; }
+.studio-faq[data-open="true"] .studio-faq-q svg { transform: rotate(180deg); }
+.studio-faq-a { display: flex; align-items: flex-start; gap: 8px; padding: 0 14px 12px; color: var(--studio-soft); font-size: 13.5px; line-height: 1.7; }
+.studio-faq-a p { flex: 1; margin: 0; }
+.studio-doc-markdown { color: var(--studio-soft); font-size: 14px; line-height: 1.8; }
+.studio-doc-markdown h1, .studio-doc-markdown h2, .studio-doc-markdown h3 { color: var(--studio-fg); }
+.studio-doc-markdown a { color: var(--studio-accent); }
+
+/* 世界：创建世界、世界库、全景查看器 */
+.studio-world-actions { display: flex; flex-direction: column; gap: 8px; }
+.studio-world-actions > .studio-hint { margin: 0; }
+.studio-world-action { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--studio-line); background: var(--studio-panel-raised); color: var(--studio-fg); font: inherit; text-align: left; cursor: pointer; }
+.studio-world-action:not(:disabled):hover { border-color: var(--studio-accent); }
+.studio-world-action:disabled { opacity: 0.5; cursor: not-allowed; }
+.studio-world-action svg { width: 22px; height: 22px; color: var(--studio-accent); flex: none; }
+.studio-world-action span { display: flex; flex: 1; flex-direction: column; gap: 2px; }
+.studio-world-action small { color: var(--studio-muted); font-size: 11.5px; }
+.studio-world-action em { display: inline-flex; align-items: center; gap: 3px; font-style: normal; font-variant-numeric: tabular-nums; }
+.studio-world-images { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.studio-world-images .studio-ref-slot { width: 100%; height: auto; aspect-ratio: 1; }
+.studio-world-drop { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px; border-radius: 14px; border: 1px dashed var(--studio-line-strong); color: var(--studio-muted); text-align: center; }
+.studio-world-drop > svg { width: 22px; height: 22px; }
+.studio-world-history { display: flex; flex-direction: column; gap: 8px; width: min(420px, calc(100vw - 48px)); }
+.studio-world-history-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 320px; overflow-y: auto; }
+.studio-world-history-grid button { padding: 0; border: 1px solid var(--studio-line); border-radius: 8px; overflow: hidden; background: none; cursor: pointer; aspect-ratio: 1; }
+.studio-world-history-grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.studio-world-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; max-height: 60vh; overflow-y: auto; }
+.studio-world-card { border-radius: 14px; border: 1px solid var(--studio-line); background: var(--studio-panel-raised); overflow: hidden; }
+.studio-world-card img { display: block; width: 100%; aspect-ratio: 2 / 1; object-fit: cover; }
+.studio-world-card-body { display: flex; flex-direction: column; gap: 6px; padding: 10px; }
+.studio-world-card-body b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.studio-world-card-body small { color: var(--studio-muted); font-size: 11.5px; }
+.studio-pano-viewer { position: relative; width: 100%; height: min(70vh, 640px); border-radius: 12px; overflow: hidden; background: #000; cursor: grab; }
+.studio-pano-viewer canvas { display: block; touch-action: none; }
+.studio-pano-viewer .studio-hint { position: absolute; inset: auto 12px 12px; }

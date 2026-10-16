@@ -246,12 +246,15 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
         try {
             const raw = window.sessionStorage.getItem(STUDIO_ATTACH_KEY);
             if (!raw) return;
-            const payload = JSON.parse(raw) as { kind?: StudioKind; attachments?: CreationAttachment[]; prompt?: string };
+            const payload = JSON.parse(raw) as { kind?: StudioKind; attachments?: CreationAttachment[]; prompt?: string; slot?: string };
             if (payload.kind !== kind) return;
             window.sessionStorage.removeItem(STUDIO_ATTACH_KEY);
             if (payload.prompt) update({ prompt: payload.prompt });
             if (specialtySpec) {
-                payload.attachments?.forEach((attachment) => attachToSlot(attachment));
+                // 指定了格子（例如世界库「用作场景」）就直接放进那一格。
+                const slot = payload.slot ? specialtySpec.slots.find((item) => item.key === payload.slot) : undefined;
+                if (slot && payload.attachments?.length) fillSlot(slot, payload.attachments);
+                else payload.attachments?.forEach((attachment) => attachToSlot(attachment));
                 return;
             }
             const reason = payload.attachments?.length ? addAttachments(payload.attachments) : undefined;
@@ -259,7 +262,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
         } catch {
             // 会话存储不可用时忽略带入。
         }
-    }, [addAttachments, attachToSlot, kind, message, resolvedModel, specialtySpec, update]);
+    }, [addAttachments, attachToSlot, fillSlot, kind, message, resolvedModel, specialtySpec, update]);
     /** 声音库的选择：系统音色直接选上；我的声音作为参考音频复刻音色。 */
     const { updateAudio } = studio;
     const applyVoicePick = useCallback((pick: StudioVoicePick) => {

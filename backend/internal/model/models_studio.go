@@ -234,3 +234,24 @@ type StudioVoice struct {
 	LastUsedAt  *time.Time `json:"lastUsedAt"`
 	CreatedAt   time.Time  `json:"createdAt"`
 }
+
+// StudioFeedback 是用户在 AI Studio 帮助菜单里提交的反馈，管理员在后台处理。
+type StudioFeedback struct {
+	ID        string    `json:"id" gorm:"primaryKey;size:36"`
+	UserID    string    `json:"userId" gorm:"index;size:36"`
+	Category  string    `json:"category" gorm:"size:16"`
+	Content   string    `json:"content" gorm:"type:text"`
+	Contact   string    `json:"contact" gorm:"size:200"`
+	Page      string    `json:"page" gorm:"size:300"`
+	Status    string    `json:"status" gorm:"index;size:16"`
+	Seq       int64     `json:"-" gorm:"index"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// StudioSiteContent 保存帮助中心的客服说明、服务条款和隐私政策，由管理员编辑。
+type StudioSiteContent struct {
+	Key       string    `json:"key" gorm:"primaryKey;size:32"`
+	Content   string    `json:"content" gorm:"type:text"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}

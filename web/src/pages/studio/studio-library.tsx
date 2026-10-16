@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { App, Popover, Spin } from "antd";
-import { Check, ChevronDown, Download, Filter, ImagePlus, LayoutGrid, LayoutTemplate, Loader2, RefreshCw, Search, Share2, SlidersHorizontal, Star, Trash2, Wand2, MessageSquarePlus } from "lucide-react";
+import { Check, ChevronDown, Download, Filter, ImagePlus, LayoutGrid, LayoutTemplate, Loader2, RefreshCw, Search, Share2, SlidersHorizontal, Star, Trash2, UserPlus, Wand2, MessageSquarePlus } from "lucide-react";
 import { Link } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal";
@@ -13,6 +13,7 @@ import type { StudioKind, StudioMedia, StudioWork } from "@/services/api/studio"
 import { studioSelectionRange, studioWorkFileName, studioWorkIsActive, studioWorkTitle } from "./studio-library-model";
 import { notifyStudioWorksChanged, useStudioWorks, type StudioWorksFilter } from "./use-studio-works";
 import { StudioPublishModal } from "./studio-publish-modal";
+import { StudioSaveCharacterModal } from "./studio-save-character";
 
 const KIND_LABELS: Record<StudioKind, string> = { image: "图片", video: "视频", audio: "音频" };
 const CARD_SIZE_KEY = "studio.library.card-size.v1";
@@ -67,6 +68,7 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
     const anchorRef = useRef<string | null>(null);
     const [preview, setPreview] = useState<{ work: StudioWork; media: StudioMedia } | null>(null);
     const [publishTarget, setPublishTarget] = useState<StudioWork | null>(null);
+    const [characterTarget, setCharacterTarget] = useState<StudioWork | null>(null);
     const [busyId, setBusyId] = useState("");
     const [collectionOpen, setCollectionOpen] = useState(false);
     const [typeOpen, setTypeOpen] = useState(false);
@@ -248,6 +250,7 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                                     }, work.canRecoverMedia ? "正在重新保存作品" : "已重新提交")}
                                     onDelete={() => confirmDelete([work.id])}
                                     onPublish={work.status === "succeeded" && work.media.some((item) => item.storageKey?.startsWith("resource:")) ? () => setPublishTarget(work) : undefined}
+                                    onSaveCharacter={work.status === "succeeded" && work.media[0]?.kind === "image" && resourceIdFromStorageKey(work.media[0].storageKey) ? () => setCharacterTarget(work) : undefined}
                                 />
                             ))}
                         </div>
@@ -277,6 +280,7 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
             ) : null}
             {preview?.media.kind === "image" ? <CanvasImagePreview src={preview.media.url} storageKey={preview.media.storageKey} alt={studioWorkTitle(preview.work)} onClose={() => setPreview(null)} /> : null}
             <StudioPublishModal work={publishTarget} onClose={() => setPublishTarget(null)} />
+            <StudioSaveCharacterModal work={characterTarget} onClose={() => setCharacterTarget(null)} />
             <AppModal flush open={preview?.media.kind === "video"} title={null} footer={null} centered destroyOnHidden width="min(1160px, calc(100vw - 32px))" onCancel={() => setPreview(null)}>
                 {preview?.media.kind === "video" ? <video controls autoPlay style={{ width: "100%", maxHeight: "80vh", display: "block", background: "#000" }} src={studioMediaSrc(preview.media)} /> : null}
             </AppModal>
@@ -297,9 +301,10 @@ type StudioWorkCardProps = {
     onRetry: () => void;
     onDelete: () => void;
     onPublish?: () => void;
+    onSaveCharacter?: () => void;
 };
 
-function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite, onDownload, onUseAsReference, onReuseSettings, onRetry, onDelete, onPublish }: StudioWorkCardProps) {
+function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite, onDownload, onUseAsReference, onReuseSettings, onRetry, onDelete, onPublish, onSaveCharacter }: StudioWorkCardProps) {
     const media = work.media[0];
     const active = studioWorkIsActive(work);
     const failed = work.status === "failed" || work.status === "cancelled";
@@ -331,6 +336,7 @@ function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite,
                     {media && onUseAsReference ? <button type="button" aria-label="作为参考" title="作为参考" onClick={onUseAsReference}><ImagePlus aria-hidden /></button> : null}
                     {onReuseSettings ? <button type="button" aria-label="用同样设置再生成" title="用同样设置再生成" onClick={onReuseSettings}><Wand2 aria-hidden /></button> : null}
                     {onPublish ? <button type="button" aria-label="发布到社区" title="发布到社区" onClick={onPublish}><Share2 aria-hidden /></button> : null}
+                    {onSaveCharacter ? <button type="button" aria-label="存为角色" title="存为角色" onClick={onSaveCharacter}><UserPlus aria-hidden /></button> : null}
                     <button type="button" aria-label="删除" title="删除" onClick={onDelete}><Trash2 aria-hidden /></button>
                 </div>
             ) : null}

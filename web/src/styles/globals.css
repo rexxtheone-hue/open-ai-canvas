@@ -17218,6 +17218,30 @@ html:not(.dark) .creation-home .creation-user-message-copy-wrap { box-shadow: 0 
     gap: 2px;
 }
 
+.workspace-wallet-ledger-filters {
+    display: flex;
+    gap: 6px;
+    padding: 0 0 10px;
+}
+
+.workspace-wallet-ledger-filters button {
+    height: 30px;
+    padding: 0 12px;
+    border: 1px solid var(--line, rgba(127, 127, 127, 0.24));
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 12.5px;
+    opacity: 0.7;
+    cursor: pointer;
+}
+
+.workspace-wallet-ledger-filters button[aria-selected="true"] {
+    opacity: 1;
+    border-color: currentColor;
+}
+
 .workspace-wallet-ledger-row {
     display: grid;
     grid-template-columns: 38px minmax(0, 1fr) auto auto;

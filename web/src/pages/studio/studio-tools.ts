@@ -73,7 +73,7 @@ export const STUDIO_TOOLS: StudioToolDefinition[] = [
     { id: "voice-clone", label: "声音克隆", description: "用一段样本复刻声音来朗读文案", icon: MicVocal, path: "/studio/tools/voice-clone", tabs: ["audio"], kind: "audio", specialty: true, gradient: ["#1d976c", "#93f9b9"] },
     { id: "voice-changer", label: "变声", description: "把录音换成另一种声音", icon: AudioWaveform, path: "/studio/tools/voice-changer", tabs: ["audio"], kind: "audio", specialty: true, gradient: ["#e44d26", "#f16529"] },
     // 角色
-    { id: "create-character", label: "创建角色", description: "上传照片建立可复用的角色", icon: UserPlus, path: "/studio/characters", tabs: ["character"], kind: "image", gradient: ["#ee9ca7", "#ffdde1"] },
+    { id: "create-character", label: "创建角色", description: "描述或搭建一个原创角色，生成后存进角色库", icon: UserPlus, path: "/studio/tools/create-character", tabs: ["character"], kind: "image", specialty: true, gradient: ["#ee9ca7", "#ffdde1"] },
     { id: "character-image", label: "角色图片", description: "让你的角色出现在新画面里", icon: UserPen, path: "/studio/tools/character-image", tabs: ["character"], kind: "image", specialty: true, gradient: ["#f857a6", "#ff5858"] },
     { id: "character-video", label: "角色视频", description: "让你的角色动起来", icon: Film, path: "/studio/tools/character-video", tabs: ["character"], kind: "video", specialty: true, gradient: ["#6a3093", "#a044ff"] },
     { id: "cast-in-scene", label: "角色入景", description: "把角色放进任意场景", icon: MountainSnow, path: "/studio/tools/cast-in-scene", tabs: ["character", "world"], kind: "image", specialty: true, gradient: ["#2c3e50", "#4ca1af"] },

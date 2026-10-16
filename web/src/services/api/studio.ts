@@ -32,6 +32,8 @@ export type StudioWorkQuery = {
     favorite?: boolean;
     q?: string;
     activeOnly?: boolean;
+    /** 只看某个工具的作品，例如 create-pano（世界库）。 */
+    tool?: string;
     cursor?: string;
     pageSize?: number;
 };
@@ -43,6 +45,7 @@ export function listStudioWorks(query: StudioWorkQuery = {}, signal?: AbortSigna
             favorite: query.favorite ? "true" : undefined,
             q: query.q?.trim() || undefined,
             activeOnly: query.activeOnly ? "true" : undefined,
+            tool: query.tool || undefined,
             cursor: query.cursor || undefined,
             pageSize: query.pageSize,
         },

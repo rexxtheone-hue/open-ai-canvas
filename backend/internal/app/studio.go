@@ -42,6 +42,7 @@ type StudioWorkQuery struct {
 	FavoritesOnly bool
 	Search        string
 	ActiveOnly    bool
+	Tool          string
 	Cursor        string
 	Limit         int
 }
@@ -94,7 +95,11 @@ func (s *Service) StudioWorks(userID string, query StudioWorkQuery) (StudioWorkP
 	if err != nil {
 		return StudioWorkPage{}, err
 	}
-	tasks, hasMore, err := s.repo.StudioTasks(userID, repository.StudioTaskQuery{Kinds: kinds, FavoritesOnly: query.FavoritesOnly, Search: query.Search, ActiveOnly: query.ActiveOnly, Cursor: cursor, Limit: query.Limit})
+	tool := strings.TrimSpace(query.Tool)
+	if tool != "" && !studioToolIDPattern.MatchString(tool) {
+		return StudioWorkPage{}, BadAuthRequest("工具 ID 无效")
+	}
+	tasks, hasMore, err := s.repo.StudioTasks(userID, repository.StudioTaskQuery{Kinds: kinds, FavoritesOnly: query.FavoritesOnly, Search: query.Search, ActiveOnly: query.ActiveOnly, Tool: tool, Cursor: cursor, Limit: query.Limit})
 	if err != nil {
 		return StudioWorkPage{}, err
 	}

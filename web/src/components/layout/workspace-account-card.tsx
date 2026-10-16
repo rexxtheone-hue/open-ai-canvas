@@ -1,14 +1,15 @@
 import { Button } from "antd";
-import { ArrowUpRight, Coins, LogOut, RefreshCw, Settings, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, Coins, Crown, History, LogOut, RefreshCw, Settings, ShieldCheck } from "lucide-react";
 import { Link } from "react-router";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
 import { useWorkspaceLogout } from "@/hooks/use-workspace-logout";
+import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { useUserStore } from "@/stores/use-user-store";
 import { UserAvatar } from "./user-avatar";
 import "./workspace-account-card.css";
 
 /** 同一账户卡片用于顶部和侧栏；余额与退出均复用真实服务。 */
-export function WorkspaceAccountCard({ onWallet, onNavigate }: { onWallet: () => void; onNavigate: () => void }) {
+export function WorkspaceAccountCard({ onWallet, onNavigate, studio = false }: { onWallet: () => void; onNavigate: () => void; studio?: boolean }) {
     const user = useUserStore((state) => state.user);
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
     const { availableMicrocredits, refreshing, refresh } = useWalletBalance(user?.id, creditsEnabled);
@@ -26,6 +27,8 @@ export function WorkspaceAccountCard({ onWallet, onNavigate }: { onWallet: () =>
         </div> : null}
         <nav className="workspace-account-card-actions" aria-label="账户操作">
             <Link to="/settings?section=profile" onClick={onNavigate}><Settings /><span>账户与设置</span><ArrowUpRight /></Link>
+            {studio && creditsEnabled ? <Link to="/studio/pricing" onClick={onNavigate}><Crown /><span>订阅与会员</span><ArrowUpRight /></Link> : null}
+            {studio && creditsEnabled ? <button type="button" onClick={() => { onNavigate(); openWorkspaceWallet({ tab: "history" }); }}><History /><span>积分记录</span><ArrowUpRight /></button> : null}
             {user.role === "admin" ? <Link to="/admin" onClick={onNavigate}><ShieldCheck /><span>管理员后台</span><ArrowUpRight /></Link> : null}
             <Button danger type="text" icon={<LogOut />} loading={loggingOut} onClick={() => void handleLogout()}>退出登录</Button>
         </nav>

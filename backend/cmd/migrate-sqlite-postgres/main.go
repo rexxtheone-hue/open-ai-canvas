@@ -475,6 +475,8 @@ func migrations() []tableMigration {
 		migrateTable[model.StudioShotVersion]("studio_shot_versions"),
 		migrateTable[model.StudioUpload]("studio_uploads"),
 		migrateTable[model.StudioVoice]("studio_voices"),
+		migrateTable[model.StudioFeedback]("studio_feedbacks"),
+		migrateTable[model.StudioSiteContent]("studio_site_contents"),
 		migrateTable[model.CloudAgentExecution]("cloud_agent_executions"),
 		migrateTable[model.CloudAgentEventRecord]("cloud_agent_event_records"),
 		migrateTable[model.CloudAgentMessageRecord]("cloud_agent_message_records"),

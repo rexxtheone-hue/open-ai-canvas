@@ -13,7 +13,7 @@ import { useUserStore } from "@/stores/use-user-store";
 import { LanguageSwitch } from "@/lib/i18n/language-switch";
 
 /** 顶部与侧栏复用同一账户卡片；顶部额外保留版本和主题偏好。 */
-export function WorkspaceAccountMenu() {
+export function WorkspaceAccountMenu({ studio = false }: { studio?: boolean } = {}) {
     const theme = useThemeStore((state) => state.theme);
     const setTheme = useThemeStore((state) => state.setTheme);
     const user = useUserStore((state) => state.user);
@@ -34,7 +34,7 @@ export function WorkspaceAccountMenu() {
             onOpenChange={setMenuOpen}
             content={(
                 <div className="workspace-topbar-account-menu">
-                    <WorkspaceAccountCard onNavigate={() => setMenuOpen(false)} onWallet={() => { setMenuOpen(false); openWorkspaceWallet(); }} />
+                    <WorkspaceAccountCard studio={studio} onNavigate={() => setMenuOpen(false)} onWallet={() => { setMenuOpen(false); openWorkspaceWallet(); }} />
 
                     <div className="workspace-topbar-account-section">
                         <AppChangelogButton className="flex h-8 w-full items-center gap-2 rounded px-2 text-[var(--fs-label)] text-foreground/58 hover:bg-surface-hover hover:text-foreground [&_svg]:size-3.5" showLabel showVersion versionClassName="ml-auto text-[var(--fs-micro)] tabular-nums text-foreground/32" />

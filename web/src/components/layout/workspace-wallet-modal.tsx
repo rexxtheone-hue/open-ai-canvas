@@ -24,12 +24,14 @@ export function WorkspaceWalletHost() {
     const [pendingPaymentOrderId, setPendingPaymentOrderId] = useState("");
     const [paymentInvalid, setPaymentInvalid] = useState(false);
     const [preferredProductId, setPreferredProductId] = useState("");
+    const [initialTab, setInitialTab] = useState<WalletModalTab | undefined>();
 
     const applyOpen = (detail: WorkspaceWalletOpenDetail = {}) => {
         if (!useUserStore.getState().features.creditsEnabled) return;
         setPendingPaymentOrderId(detail.paymentOrderId || "");
         setPaymentInvalid(Boolean(detail.paymentInvalid));
         setPreferredProductId(detail.productId || "");
+        setInitialTab(detail.tab);
         setOpen(true);
     };
 
@@ -58,6 +60,7 @@ export function WorkspaceWalletHost() {
             pendingPaymentOrderId={pendingPaymentOrderId}
             paymentInvalid={paymentInvalid}
             preferredProductId={preferredProductId}
+            initialTab={initialTab}
             onClose={() => {
                 setOpen(false);
                 setPendingPaymentOrderId("");
@@ -68,7 +71,7 @@ export function WorkspaceWalletHost() {
     );
 }
 
-export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, paymentInvalid, preferredProductId }: { open: boolean; onClose: () => void; pendingPaymentOrderId?: string; paymentInvalid?: boolean; preferredProductId?: string }) {
+export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, paymentInvalid, preferredProductId, initialTab }: { open: boolean; onClose: () => void; pendingPaymentOrderId?: string; paymentInvalid?: boolean; preferredProductId?: string; initialTab?: WalletModalTab }) {
     const { message } = App.useApp();
     const redeemPurchaseUrl = useAppearanceStore((state) => state.appearance.redeemPurchaseUrl);
     const [tab, setTab] = useState<WalletModalTab>("topup");
@@ -97,12 +100,13 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
     const visibleProducts = useMemo(() => products.filter((item) => productCurrency(item) === providerCurrency(selectedProvider)), [products, selectedProvider]);
     const selectedProduct = useMemo(() => visibleProducts.find((item) => item.id === selectedProductId), [visibleProducts, selectedProductId]);
 
-    const reloadWallet = async (targetPage = page) => {
+    const [ledgerType, setLedgerType] = useState<LedgerFilter>("all");
+    const reloadWallet = async (targetPage = page, type: LedgerFilter = ledgerType) => {
         const sequence = ++requestSequence.current;
         setWalletLoading(true);
         setWalletError("");
         try {
-            const result = await getWallet(targetPage, 20, "all");
+            const result = await getWallet(targetPage, 20, type);
             if (sequence === requestSequence.current) setWallet(result);
         } catch (error) {
             if (sequence === requestSequence.current) setWalletError(error instanceof Error ? error.message : "读取积分账户失败");
@@ -113,8 +117,10 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
 
     useEffect(() => {
         if (!open) return;
+        if (initialTab) setTab(initialTab);
         setPage(1);
-        void reloadWallet(1);
+        setLedgerType("all");
+        void reloadWallet(1, "all");
         setPaymentsLoading(true);
         Promise.all([listTopupProducts(), listPaymentProviders()])
             .then(([productResult, providerResult]) => {
@@ -434,6 +440,23 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
                                     刷新
                                 </Button>
                             </div>
+                            <div className="workspace-wallet-ledger-filters" role="tablist" aria-label="记录类型">
+                                {LEDGER_FILTERS.map((filter) => (
+                                    <button
+                                        key={filter.value}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={ledgerType === filter.value}
+                                        onClick={() => {
+                                            setLedgerType(filter.value);
+                                            setPage(1);
+                                            void reloadWallet(1, filter.value);
+                                        }}
+                                    >
+                                        {filter.label}
+                                    </button>
+                                ))}
+                            </div>
                             <div className="workspace-wallet-history-scroll">
                                 {walletError ? (
                                     <div className="workspace-wallet-inline-state is-error">
@@ -455,8 +478,8 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
                                 ) : (
                                     <div className="workspace-wallet-empty">
                                         <History />
-                                        <strong>还没有积分记录</strong>
-                                        <span>完成充值、兑换或生成任务后，记录会显示在这里。</span>
+                                        <strong>{ledgerType === "all" ? "还没有积分记录" : "这里还没有记录"}</strong>
+                                        <span>{LEDGER_FILTERS.find((filter) => filter.value === ledgerType)?.empty}</span>
                                     </div>
                                 )}
                             </div>
@@ -532,6 +555,16 @@ function productCurrency(product: TopupProduct) {
 function providerCurrency(provider: PaymentProvider | undefined) {
     return (provider?.currency || "CNY").toUpperCase();
 }
+
+type LedgerFilter = "all" | "consume" | "income" | "refund";
+
+/** 积分记录的类型筛选，与后台 /wallet?type= 一致。 */
+const LEDGER_FILTERS: Array<{ value: LedgerFilter; label: string; empty: string }> = [
+    { value: "all", label: "全部", empty: "完成充值、兑换或生成任务后，记录会显示在这里。" },
+    { value: "consume", label: "消耗", empty: "还没有消耗过积分。" },
+    { value: "income", label: "获得", empty: "还没有获得赠送或兑换的积分。" },
+    { value: "refund", label: "退款", empty: "还没有退还的积分。" },
+];
 
 function WalletLedgerRow({ entry }: { entry: CreditLedgerEntry }) {
     const positive = entry.amountMicrocredits > 0;

@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, Clapperboard, Compass, Crown, FolderOpen, Gr
 import "@fontsource-variable/bricolage-grotesque";
 
 import { WorkspaceAccountMenu } from "@/components/layout/workspace-account-menu";
+import { StudioGiftCenter, StudioHelpMenu } from "./studio-help";
 import { WorkspaceWalletHost } from "@/components/layout/workspace-wallet-modal";
 import { CreditSymbol } from "@/constant/credits";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
@@ -194,6 +195,8 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                         {subtitle ? <span>· {subtitle}</span> : null}
                     </div>
                     <div className="studio-topbar-spacer" />
+                    <StudioHelpMenu />
+                    <StudioGiftCenter />
                     {creditsEnabled ? (
                         <button type="button" className="studio-credit-pill" aria-label={`打开积分中心，可用 ${balance} 积分`} onClick={() => openWorkspaceWallet()}>
                             <CreditSymbol />
@@ -201,7 +204,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                         </button>
                     ) : null}
                     {creditsEnabled ? <Link to="/studio/pricing" className="studio-upgrade-button">升级</Link> : null}
-                    <WorkspaceAccountMenu />
+                    <WorkspaceAccountMenu studio />
                 </header>
                 <div className="studio-content">{children}</div>
             </div>

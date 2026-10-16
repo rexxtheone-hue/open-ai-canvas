@@ -226,3 +226,39 @@ export function markStudioVoiceUsed(id: string) {
 export function deleteStudioVoice(id: string) {
     return http.delete<{ deleted: boolean }>(`/studio/voices/${encodeURIComponent(id)}`);
 }
+
+export type StudioFeedbackCategory = "bug" | "idea" | "billing" | "other";
+export type StudioSiteContentKey = "support" | "terms" | "privacy";
+export type StudioSiteContent = Record<StudioSiteContentKey, string>;
+
+export type StudioFeedback = {
+    id: string;
+    userId: string;
+    username: string;
+    category: StudioFeedbackCategory;
+    content: string;
+    contact: string;
+    page: string;
+    status: "open" | "done";
+    createdAt: string;
+};
+
+export function submitStudioFeedback(input: { category: StudioFeedbackCategory; content: string; contact?: string; page?: string }) {
+    return http.post<{ id: string }>("/studio/feedback", input);
+}
+
+export function getStudioSiteContent(signal?: AbortSignal) {
+    return http.get<StudioSiteContent>("/studio/site-content", { signal });
+}
+
+export function listAdminStudioFeedback(status?: "open" | "done", signal?: AbortSignal) {
+    return http.get<{ items: StudioFeedback[] }>("/admin/studio/feedback", { params: { status }, signal });
+}
+
+export function setAdminStudioFeedbackStatus(id: string, status: "open" | "done") {
+    return http.patch<{ updated: boolean }>(`/admin/studio/feedback/${encodeURIComponent(id)}`, { status });
+}
+
+export function saveAdminStudioSiteContent(key: StudioSiteContentKey, content: string) {
+    return http.put<{ saved: boolean }>(`/admin/studio/site-content/${key}`, { content });
+}
