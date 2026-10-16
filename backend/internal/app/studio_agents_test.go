@@ -293,3 +293,52 @@ func TestStudioUploadsRegistry(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestStudioVoices(t *testing.T) {
+	svc, db := newStudioTestService(t)
+	for _, resource := range []model.Resource{
+		{ID: "rec", UserID: "user-a", Kind: "audio", Status: model.ResourceStatusReady, MimeType: "audio/webm", DurationMs: 8000},
+		{ID: "img", UserID: "user-a", Kind: "image", Status: model.ResourceStatusReady, MimeType: "image/png"},
+		{ID: "other", UserID: "user-b", Kind: "audio", Status: model.ResourceStatusReady, MimeType: "audio/mpeg"},
+	} {
+		if err := db.Create(&resource).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	voice, err := svc.CreateStudioVoice("user-a", " 我的声音 ", "record", "rec", "")
+	if err != nil || voice.Name != "我的声音" || voice.DurationMs != 8000 {
+		t.Fatalf("unexpected voice %+v %v", voice, err)
+	}
+	if _, err := svc.CreateStudioVoice("user-a", "x", "record", "img", ""); err == nil {
+		t.Fatal("images are not voice samples")
+	}
+	if _, err := svc.CreateStudioVoice("user-a", "x", "record", "other", ""); err == nil {
+		t.Fatal("other users' audio must be rejected")
+	}
+	if _, err := svc.CreateStudioVoice("user-a", "x", "design", "rec", ""); err == nil {
+		t.Fatal("design voices are not supported yet")
+	}
+	if _, err := svc.CreateStudioVoice("user-a", "  ", "upload", "rec", ""); err == nil {
+		t.Fatal("name is required")
+	}
+	if err := svc.RenameStudioVoice("user-b", voice.ID, "偷改"); err == nil {
+		t.Fatal("other users must not rename the voice")
+	}
+	if err := svc.RenameStudioVoice("user-a", voice.ID, "旁白"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.TouchStudioVoice("user-a", voice.ID); err != nil {
+		t.Fatal(err)
+	}
+	items, _ := svc.StudioVoices("user-a")
+	if len(items) != 1 || items[0].Name != "旁白" || items[0].LastUsedAt == nil {
+		t.Fatalf("unexpected voices %+v", items)
+	}
+	db.Delete(&model.Resource{}, "id = ?", "rec")
+	if items, _ = svc.StudioVoices("user-a"); len(items) != 0 {
+		t.Fatalf("voices whose sample was deleted must be hidden: %+v", items)
+	}
+	if err := svc.DeleteStudioVoice("user-a", voice.ID); err != nil {
+		t.Fatal(err)
+	}
+}

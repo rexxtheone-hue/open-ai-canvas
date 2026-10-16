@@ -45,6 +45,7 @@ export type StudioSpecialtyState = {
     /** 必填槽位需要的最少素材数，用来挑选能放下这些素材的模型。 */
     minImages: number;
     minVideos?: number;
+    minAudios?: number;
 };
 
 export type StudioBrandContext = { id: string; name: string; prompt: string };
@@ -79,6 +80,11 @@ export type StudioReferenceLimits = { maxImages: number; maxVideos: number; maxA
 export function studioModelSupportsSpecialty(config: AiConfig, model: string, specialty: StudioSpecialtyState | undefined) {
     if (!specialty) return true;
     if (specialty.unsupported) return false;
+    if (specialty.kind === "audio") {
+        // 配音专项（声音克隆）靠参考音频复刻音色，只有豆包流式语音接受参考音频。
+        const maxAudios = isDoubaoAudioConfig({ ...config, model, audioModel: model }) ? 3 : 0;
+        return maxAudios >= (specialty.minAudios || 0);
+    }
     const profile = modelCapabilityConfigFor(config, model);
     if (specialty.kind === "video" && !specialty.operation) {
         // 普通视频生成（智能分镜、世界漫游）：有必需图片时模型要能图生视频或参考生视频。
@@ -337,7 +343,7 @@ export function studioSubmission(config: AiConfig, state: StudioToolState, model
         const count = Math.max(1, Math.min(maxOutputs || 1, Math.floor(state.count) || 1));
         return { mode: "image", prompt: finalPrompt, config: generationConfig, count, referenceImages: split.referenceImages, referenceVideos: [], referenceAudios: [], metadata };
     }
-    const prompt = audioGenerationPrompt(generationConfig, state.prompt.trim(), split.referenceAudios.length, split.referenceImages.length);
+    const prompt = audioGenerationPrompt(generationConfig, state.specialty ? finalPrompt : state.prompt.trim(), split.referenceAudios.length, split.referenceImages.length);
     return { mode: "audio", prompt, config: generationConfig, count: 1, referenceImages: split.referenceImages, referenceVideos: [], referenceAudios: split.referenceAudios, metadata };
 }
 

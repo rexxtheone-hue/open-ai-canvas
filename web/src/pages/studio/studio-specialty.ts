@@ -687,7 +687,6 @@ export const STUDIO_SPECIALTY_SPECS: Record<string, StudioSpecialtySpec> = {
     },
     "voice-clone": {
         kind: "audio",
-        unsupported: "声音克隆",
         slots: [{ key: "voice", label: "声音样本", accept: "audio", required: true, hint: "上传或录制一段清晰的人声", constraint: "最长 90 秒", record: "audio" }],
         prompt: { label: "配音文案", placeholder: "输入要用这个声音朗读的文案。", required: true, maxChars: 5000 },
         instruction: (text) => text.trim(),
@@ -841,7 +840,7 @@ export function buildSpecialtyState(spec: StudioSpecialtySpec, values: StudioSlo
     const requiredCount = (accept: StudioSlotAccept) => spec.slots.filter((slot) => slot.required && slot.accept === accept).length;
     return {
         operation: spec.operation,
-        operationLabel: spec.unsupported || (spec.operation ? OPERATION_LABELS[spec.operation] || spec.operation : spec.kind === "video" ? "视频生成" : "图片编辑"),
+        operationLabel: spec.unsupported || (spec.operation ? OPERATION_LABELS[spec.operation] || spec.operation : spec.kind === "video" ? "视频生成" : spec.kind === "audio" ? "声音克隆" : "图片编辑"),
         unsupported: Boolean(spec.unsupported),
         kind: spec.kind,
         allowCount: Boolean(spec.count),
@@ -852,6 +851,7 @@ export function buildSpecialtyState(spec: StudioSpecialtySpec, values: StudioSlo
         inputError: specialtyInputError(spec, values, userText, options),
         minImages: requiredCount("image"),
         minVideos: requiredCount("video"),
+        minAudios: requiredCount("audio"),
     };
 }
 

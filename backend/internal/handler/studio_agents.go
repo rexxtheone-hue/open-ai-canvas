@@ -48,6 +48,39 @@ func RegisterStudioAgentRoutes(r *gin.RouterGroup, svc *service.Service) {
 		respond(c, gin.H{"works": works}, err)
 	}))
 
+	r.GET("/studio/voices", withUser(func(c *gin.Context, user *model.User) {
+		items, err := svc.StudioVoices(user.ID)
+		respond(c, gin.H{"items": items}, err)
+	}))
+	r.POST("/studio/voices", withUser(func(c *gin.Context, user *model.User) {
+		var req struct {
+			Name        string `json:"name"`
+			Source      string `json:"source"`
+			ResourceID  string `json:"resourceId"`
+			Description string `json:"description"`
+		}
+		if !bind(c, &req) {
+			return
+		}
+		item, err := svc.CreateStudioVoice(user.ID, req.Name, req.Source, req.ResourceID, req.Description)
+		respond(c, item, err)
+	}))
+	r.PATCH("/studio/voices/:id", withUser(func(c *gin.Context, user *model.User) {
+		var req struct {
+			Name string `json:"name"`
+		}
+		if !bind(c, &req) {
+			return
+		}
+		respond(c, gin.H{"updated": true}, svc.RenameStudioVoice(user.ID, c.Param("id"), req.Name))
+	}))
+	r.POST("/studio/voices/:id/use", withUser(func(c *gin.Context, user *model.User) {
+		respond(c, gin.H{"updated": true}, svc.TouchStudioVoice(user.ID, c.Param("id")))
+	}))
+	r.DELETE("/studio/voices/:id", withUser(func(c *gin.Context, user *model.User) {
+		respond(c, gin.H{"deleted": true}, svc.DeleteStudioVoice(user.ID, c.Param("id")))
+	}))
+
 	r.GET("/studio/uploads", withUser(func(c *gin.Context, user *model.User) {
 		items, err := svc.StudioUploads(user.ID, c.Query("kind"))
 		respond(c, gin.H{"items": items}, err)

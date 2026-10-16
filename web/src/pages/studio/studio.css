@@ -1177,3 +1177,39 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 .studio-region-surface { position: relative; align-self: center; max-width: 100%; cursor: crosshair; touch-action: none; user-select: none; }
 .studio-region-surface img, .studio-region-surface video { display: block; max-width: 100%; max-height: 60vh; border-radius: 10px; pointer-events: none; }
 .studio-region-box { position: absolute; border: 2px solid var(--studio-accent); background: rgba(217, 164, 65, 0.18); border-radius: 4px; color: #fff; font-size: 12px; font-weight: 700; padding: 2px 5px; }
+
+/* 声音：创建声音、声音库 */
+.studio-entry-tile.is-accent { color: #f3a6d8; border-color: rgba(243, 166, 216, 0.28); background: linear-gradient(160deg, rgba(243, 166, 216, 0.1), transparent 70%), var(--studio-panel-raised); }
+button.studio-entry-tile { font: inherit; font-size: 13.5px; font-weight: 650; cursor: pointer; }
+.studio-voice-create { display: flex; flex-direction: column; gap: 12px; }
+.studio-voice-create h3 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 18px; }
+.studio-voice-choice { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 14px; border: 1px solid var(--studio-line); background: var(--studio-panel-raised); color: var(--studio-fg); font: inherit; text-align: left; cursor: pointer; }
+.studio-voice-choice:hover { background: var(--studio-hover); border-color: var(--studio-line-strong); }
+.studio-voice-choice svg { width: 26px; height: 26px; color: var(--studio-accent); flex: none; }
+.studio-voice-choice span { display: flex; flex-direction: column; gap: 3px; }
+.studio-voice-choice small { color: var(--studio-muted); }
+.studio-field { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--studio-muted); }
+.studio-voice-sample { display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 14px; border: 1px dashed var(--studio-line-strong); }
+.studio-voice-sample audio { width: 100%; }
+.studio-voice-sample-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.studio-voice-foot { display: flex; align-items: center; gap: 8px; }
+.studio-voice-foot > .studio-hint { flex: 1; margin: 0; }
+.studio-stepper.is-small { height: 32px; border-radius: 10px; }
+.studio-voice-library { display: flex; flex-direction: column; gap: 12px; min-height: 420px; }
+.studio-voice-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.studio-switch-row.is-inline { gap: 8px; font-size: 12.5px; color: var(--studio-muted); }
+.studio-voice-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.studio-voice-filters .ant-input-affix-wrapper { max-width: 220px; }
+.studio-voice-filters .ant-select { min-width: 120px; }
+.studio-voice-list { display: flex; flex-direction: column; gap: 6px; max-height: 52vh; overflow-y: auto; }
+.studio-voice-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--studio-line); background: var(--studio-panel-raised); }
+.studio-voice-row:hover { border-color: var(--studio-line-strong); }
+.studio-voice-name { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
+.studio-voice-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
+.studio-voice-name small { color: var(--studio-muted); font-size: 11.5px; }
+.studio-voice-play, .studio-voice-avatar { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 50%; border: 0; background: var(--studio-accent-soft); color: var(--studio-accent); cursor: pointer; }
+.studio-voice-play svg { width: 15px; height: 15px; }
+.studio-voice-avatar { cursor: default; font-weight: 700; font-size: 13px; }
+.studio-voice-avatar[data-gender="female"] { background: rgba(243, 166, 216, 0.16); color: #f3a6d8; }
+.studio-voice-avatar[data-gender="male"] { background: rgba(120, 170, 255, 0.16); color: #8fb4ff; }
+.studio-voice-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 60px 0; color: var(--studio-muted); }

@@ -158,6 +158,9 @@ describe("OpenArt 式工具面板", () => {
     test("尚未接入的音频能力没有模型可用，生成按钮说明原因", () => {
         const config = toolConfig({ operations: ["image_to_video", "reference_to_video"], maxVideos: 1, maxImages: 2 }, 4);
         for (const id of ["create-music", "create-sound-effect", "voice-clone", "voice-changer", "add-sound-effect"]) expect(studioSpecialtyAvailable(config, id)).toBe(false);
+        // 声音克隆不是未接入能力：有接受参考音频的配音模型（豆包流式语音）就能用。
+        const clone = buildSpecialtyState(studioSpecialtySpec("voice-clone")!, {}, "你好", {});
+        expect(clone).toMatchObject({ unsupported: false, minAudios: 1, operationLabel: "声音克隆", instruction: "你好" });
         expect(buildSpecialtyState(studioSpecialtySpec("create-music")!, {}, "", {}).operationLabel).toBe("音乐生成");
     });
 

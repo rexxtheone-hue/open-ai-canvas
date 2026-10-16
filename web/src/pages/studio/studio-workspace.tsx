@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { LayoutGrid, List, MessageSquareText, Pin, Plus, UserRound, Wand2, X } from "lucide-react";
+import { AudioLines, LayoutGrid, List, MessageSquareText, Mic, Pin, Plus, UserRound, Wand2, X } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 
 import type { StudioWork } from "@/services/api/studio";
@@ -10,6 +10,8 @@ import { StudioShell, useStudioActiveTab } from "./studio-shell";
 import { StudioToolThumb } from "./studio-tool-thumb";
 import { STUDIO_TOOL_TABS, studioToolById, studioToolForKind, studioToolsInTab, studioToolTab, type StudioToolDefinition, type StudioToolTab } from "./studio-tools";
 import { useStudioPins, useStudioToolCovers } from "./use-studio-tool-meta";
+import { StudioCreateVoiceModal, StudioVoiceLibraryModal, STUDIO_VOICE_KEY, type StudioVoicePick } from "./studio-voices";
+import { useEffectiveConfig } from "@/stores/use-config-store";
 
 const VIEW_KEY = "studio.tools.view.v1";
 
@@ -144,7 +146,19 @@ export function StudioToolsBrowser() {
     const tab = studioToolTab(pathname.split("/")[2]);
     const available = useAvailableStudioTools();
     const reuse = useReuseNavigation();
+    const navigate = useNavigate();
+    const config = useEffectiveConfig();
+    const [voiceDialog, setVoiceDialog] = useState<"" | "create" | "library">("");
     if (!tab) return <Navigate to="/studio/video" replace />;
+    // 声音库里点「使用」：带着选择去配音页。
+    const openVoice = (pick: StudioVoicePick) => {
+        try {
+            window.sessionStorage.setItem(STUDIO_VOICE_KEY, JSON.stringify(pick));
+        } catch {
+            // 会话存储不可用时只打开配音页。
+        }
+        navigate("/studio/create-audio");
+    };
     const tools = studioToolsInTab(available, tab.id as StudioToolTab);
     return (
         <StudioShell title="创作" subtitle={tab.label}>
@@ -157,11 +171,23 @@ export function StudioToolsBrowser() {
                                 <Link to="/studio/characters" className="studio-entry-tile"><UserRound aria-hidden /><span>角色库</span></Link>
                             </div>
                         ) : null}
+                        {tab.id === "audio" ? (
+                            <div className="studio-entry-pair">
+                                <button type="button" className="studio-entry-tile is-accent" onClick={() => setVoiceDialog("create")}><Mic aria-hidden /><span>创建声音</span></button>
+                                <button type="button" className="studio-entry-tile" onClick={() => setVoiceDialog("library")}><AudioLines aria-hidden /><span>声音库</span></button>
+                            </div>
+                        ) : null}
                         {tools.length ? <StudioToolList title={tab.listTitle} tools={tools} /> : <p className="studio-hint">这个分类的工具还没有可用的模型，请联系管理员在后台开启。</p>}
                     </>
                 }
                 library={<StudioLibrary onReuseSettings={reuse} />}
             />
+            {tab.id === "audio" ? (
+                <>
+                    <StudioCreateVoiceModal open={voiceDialog === "create"} onClose={() => setVoiceDialog("")} />
+                    <StudioVoiceLibraryModal open={voiceDialog === "library"} config={config} onClose={() => setVoiceDialog("")} onPick={openVoice} />
+                </>
+            ) : null}
         </StudioShell>
     );
 }

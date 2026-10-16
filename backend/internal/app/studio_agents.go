@@ -518,3 +518,130 @@ func (s *Service) DeleteStudioUpload(userID, id string) error {
 	}
 	return nil
 }
+
+// ---------------- 我的声音 ----------------
+
+const studioVoiceLimit = 200
+
+type StudioVoiceView struct {
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	Source      string     `json:"source"`
+	ResourceID  string     `json:"resourceId"`
+	Description string     `json:"description"`
+	MimeType    string     `json:"mimeType"`
+	DurationMs  int64      `json:"durationMs,omitempty"`
+	LastUsedAt  *time.Time `json:"lastUsedAt"`
+	CreatedAt   time.Time  `json:"createdAt"`
+}
+
+func studioVoiceView(item model.StudioVoice, resource *model.Resource) StudioVoiceView {
+	view := StudioVoiceView{ID: item.ID, Name: item.Name, Source: item.Source, ResourceID: item.ResourceID, Description: item.Description, LastUsedAt: item.LastUsedAt, CreatedAt: item.CreatedAt}
+	if resource != nil {
+		view.MimeType, view.DurationMs = resource.MimeType, resource.DurationMs
+	}
+	return view
+}
+
+// StudioVoices 列出本人的声音；样本音频已被删除的声音不返回。
+func (s *Service) StudioVoices(userID string) ([]StudioVoiceView, error) {
+	items, err := s.repo.StudioVoices(userID, studioVoiceLimit)
+	if err != nil {
+		return nil, err
+	}
+	views := make([]StudioVoiceView, 0, len(items))
+	for _, item := range items {
+		resource, err := s.repo.ResourceForUser(userID, item.ResourceID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		views = append(views, studioVoiceView(item, resource))
+	}
+	return views, nil
+}
+
+// CreateStudioVoice 用一段本人名下的录音或上传音频建立声音。
+func (s *Service) CreateStudioVoice(userID, name, source, resourceID, description string) (StudioVoiceView, error) {
+	if source != "record" && source != "upload" {
+		return StudioVoiceView{}, BadAuthRequest("声音来源无效")
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return StudioVoiceView{}, BadAuthRequest("请填写声音名称")
+	}
+	var err error
+	if name, err = limitText(name, 120, "声音名称太长"); err != nil {
+		return StudioVoiceView{}, err
+	}
+	if description, err = limitText(strings.TrimSpace(description), 500, "声音描述太长"); err != nil {
+		return StudioVoiceView{}, err
+	}
+	resource, err := s.repo.ResourceForUser(userID, strings.TrimSpace(resourceID))
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return StudioVoiceView{}, BadAuthRequest("声音样本不存在")
+	}
+	if err != nil {
+		return StudioVoiceView{}, err
+	}
+	if resource.Kind != "audio" && !strings.HasPrefix(resource.MimeType, "audio/") {
+		return StudioVoiceView{}, BadAuthRequest("声音样本必须是音频")
+	}
+	count, err := s.repo.CountStudioVoices(userID)
+	if err != nil {
+		return StudioVoiceView{}, err
+	}
+	if count >= studioVoiceLimit {
+		return StudioVoiceView{}, BadAuthRequest("声音数量已达上限，请先删除不用的声音")
+	}
+	item := model.StudioVoice{ID: newID(), UserID: userID, Name: name, Source: source, ResourceID: resource.ID, Description: description, Seq: studioSeq(), CreatedAt: time.Now().UTC()}
+	if err := s.repo.CreateStudioVoice(&item); err != nil {
+		return StudioVoiceView{}, err
+	}
+	return studioVoiceView(item, resource), nil
+}
+
+func (s *Service) RenameStudioVoice(userID, id, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return BadAuthRequest("请填写声音名称")
+	}
+	var err error
+	if name, err = limitText(name, 120, "声音名称太长"); err != nil {
+		return err
+	}
+	updated, err := s.repo.UpdateStudioVoice(userID, strings.TrimSpace(id), map[string]any{"name": name})
+	if err != nil {
+		return err
+	}
+	if !updated {
+		return NotFound("声音不存在")
+	}
+	return nil
+}
+
+// TouchStudioVoice 记录声音被用于配音，「只看用过的声音」据此筛选。
+func (s *Service) TouchStudioVoice(userID, id string) error {
+	now := time.Now().UTC()
+	updated, err := s.repo.UpdateStudioVoice(userID, strings.TrimSpace(id), map[string]any{"last_used_at": now})
+	if err != nil {
+		return err
+	}
+	if !updated {
+		return NotFound("声音不存在")
+	}
+	return nil
+}
+
+func (s *Service) DeleteStudioVoice(userID, id string) error {
+	deleted, err := s.repo.DeleteStudioVoice(userID, strings.TrimSpace(id))
+	if err != nil {
+		return err
+	}
+	if !deleted {
+		return NotFound("声音不存在")
+	}
+	return nil
+}

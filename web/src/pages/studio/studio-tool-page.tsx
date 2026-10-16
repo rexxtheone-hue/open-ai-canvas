@@ -20,6 +20,7 @@ import { StudioOptionField } from "./studio-option-field";
 import { StudioPromptBox } from "./studio-prompt-box";
 import { enhanceStudioPrompt, planStudioShots, studioTextModel } from "./studio-prompt-tools";
 import { StudioRecorder } from "./studio-recorder";
+import { StudioVoiceLibraryModal, studioVoiceAttachment, STUDIO_VOICE_KEY, type StudioVoicePick } from "./studio-voices";
 import { describeStudioRegions, StudioRegionMarker, type StudioRegion } from "./studio-region-marker";
 import { StudioShell } from "./studio-shell";
 import { studioToolById, STUDIO_TOOLS } from "./studio-tools";
@@ -93,6 +94,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     const [regionOpen, setRegionOpen] = useState(false);
     const [recorderSlot, setRecorderSlot] = useState<StudioSlot | null>(null);
     const [shotPlan, setShotPlan] = useState("");
+    const [voiceLibraryOpen, setVoiceLibraryOpen] = useState(false);
     const [planning, setPlanning] = useState(false);
     const specialtyContext = useMemo(() => ({ plan: shotPlan, regions: regions.length ? describeStudioRegions(regions) : "" }), [regions, shotPlan]);
     const specialty = useMemo(() => (specialtySpec ? buildSpecialtyState(specialtySpec, slotValues, specialtyText, specialtyOptions, specialtyContext) : undefined), [slotValues, specialtyContext, specialtyOptions, specialtySpec, specialtyText]);
@@ -258,6 +260,36 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
             // 会话存储不可用时忽略带入。
         }
     }, [addAttachments, attachToSlot, kind, message, resolvedModel, specialtySpec, update]);
+    /** 声音库的选择：系统音色直接选上；我的声音作为参考音频复刻音色。 */
+    const { updateAudio } = studio;
+    const applyVoicePick = useCallback((pick: StudioVoicePick) => {
+        update({ model: pick.model });
+        if (pick.kind === "system") {
+            updateAudio({ voice: pick.voice });
+            message.success(`已选择音色：${pick.label}`);
+            return;
+        }
+        updateAudio({ voice: "" });
+        const reason = addAttachments([studioVoiceAttachment(pick.voice)]);
+        if (reason) message.warning(reason);
+        else message.success(`已使用「${pick.voice.name}」的声音`);
+    }, [addAttachments, message, update, updateAudio]);
+    useEffect(() => {
+        if (kind !== "audio" || specialtySpec || !resolvedModel) return;
+        try {
+            const raw = window.sessionStorage.getItem(STUDIO_VOICE_KEY);
+            if (!raw) return;
+            window.sessionStorage.removeItem(STUDIO_VOICE_KEY);
+            applyVoicePick(JSON.parse(raw) as StudioVoicePick);
+        } catch {
+            // 会话存储不可用时忽略。
+        }
+    }, [applyVoicePick, kind, resolvedModel, specialtySpec]);
+    // 声音克隆用样本复刻音色，不再指定系统音色。
+    useEffect(() => {
+        if (tool.id === "voice-clone" && state.audio.voice) updateAudio({ voice: "" });
+    }, [state.audio.voice, tool.id, updateAudio]);
+
     const maxChars = specialtySpec?.prompt.maxChars || promptMaxChars(config, kind, resolvedModel);
     const videoProfile = kind === "video" && resolvedModel ? modelCapabilityConfigFor(config, resolvedModel).video : undefined;
     const attachmentCounts = { imageCount: 0, videoCount: 0, audioCount: 0 };
@@ -620,7 +652,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                         {kind === "audio" ? (
                             specialtySpec ? null : (
                                 <div className="studio-block">
-                                    <div className="studio-block-title">声音</div>
+                                    <div className="studio-block-title">声音<button type="button" className="studio-block-link" onClick={() => setVoiceLibraryOpen(true)}>声音库</button></div>
                                     <AudioSettingsPanel
                                         config={generationConfig}
                                         theme={theme}
@@ -782,6 +814,9 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                     onClose={() => setRecorderSlot(null)}
                     onDone={(file) => void uploadToSlot(recorderSlot, [file])}
                 />
+            ) : null}
+            {kind === "audio" && !specialtySpec ? (
+                <StudioVoiceLibraryModal open={voiceLibraryOpen} config={config} onClose={() => setVoiceLibraryOpen(false)} onPick={applyVoicePick} />
             ) : null}
             {specialtySpec?.region && regionSource ? (
                 <StudioRegionMarker

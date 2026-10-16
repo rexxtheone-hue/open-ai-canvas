@@ -192,3 +192,37 @@ export function registerStudioUpload(resourceId: string, name: string) {
 export function deleteStudioUpload(id: string) {
     return http.delete<{ deleted: boolean }>(`/studio/uploads/${encodeURIComponent(id)}`);
 }
+
+export type StudioVoiceSource = "record" | "upload";
+
+export type StudioVoice = {
+    id: string;
+    name: string;
+    source: StudioVoiceSource;
+    resourceId: string;
+    description: string;
+    mimeType: string;
+    durationMs?: number;
+    lastUsedAt?: string | null;
+    createdAt: string;
+};
+
+export function listStudioVoices(signal?: AbortSignal) {
+    return http.get<{ items: StudioVoice[] }>("/studio/voices", { signal });
+}
+
+export function createStudioVoice(input: { name: string; source: StudioVoiceSource; resourceId: string; description?: string }) {
+    return http.post<StudioVoice>("/studio/voices", input);
+}
+
+export function renameStudioVoice(id: string, name: string) {
+    return http.patch<{ updated: boolean }>(`/studio/voices/${encodeURIComponent(id)}`, { name });
+}
+
+export function markStudioVoiceUsed(id: string) {
+    return http.post<{ updated: boolean }>(`/studio/voices/${encodeURIComponent(id)}/use`, {});
+}
+
+export function deleteStudioVoice(id: string) {
+    return http.delete<{ deleted: boolean }>(`/studio/voices/${encodeURIComponent(id)}`);
+}

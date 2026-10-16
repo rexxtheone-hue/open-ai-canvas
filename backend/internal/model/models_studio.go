@@ -221,3 +221,16 @@ type StudioUpload struct {
 	Seq        int64     `json:"-" gorm:"index"`
 	CreatedAt  time.Time `json:"createdAt"`
 }
+
+// StudioVoice 是用户在 AI Studio 建立的声音：录音或上传的一段人声样本，配音时作为参考音频复刻音色。
+type StudioVoice struct {
+	ID          string     `json:"id" gorm:"primaryKey;size:36"`
+	UserID      string     `json:"userId" gorm:"index;size:36"`
+	Name        string     `json:"name" gorm:"size:120"`
+	Source      string     `json:"source" gorm:"size:16"`
+	ResourceID  string     `json:"resourceId" gorm:"size:36"`
+	Description string     `json:"description" gorm:"size:500"`
+	Seq         int64      `json:"-" gorm:"index"`
+	LastUsedAt  *time.Time `json:"lastUsedAt"`
+	CreatedAt   time.Time  `json:"createdAt"`
+}

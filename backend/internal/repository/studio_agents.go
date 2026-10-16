@@ -273,3 +273,35 @@ func (r *Repository) DeleteStudioUpload(userID, id string) (bool, error) {
 	result := r.db.Where("id = ? AND user_id = ?", id, userID).Delete(&model.StudioUpload{})
 	return result.RowsAffected > 0, result.Error
 }
+
+// ---- 我的声音 ----
+
+func (r *Repository) StudioVoices(userID string, limit int) ([]model.StudioVoice, error) {
+	var items []model.StudioVoice
+	err := r.db.Where("user_id = ?", userID).Order("seq desc, id").Limit(limit).Find(&items).Error
+	return items, err
+}
+
+func (r *Repository) StudioVoice(userID, id string) (*model.StudioVoice, error) {
+	return firstOrNil[model.StudioVoice](r.db, "id = ? AND user_id = ?", id, userID)
+}
+
+func (r *Repository) CountStudioVoices(userID string) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.StudioVoice{}).Where("user_id = ?", userID).Count(&count).Error
+	return count, err
+}
+
+func (r *Repository) CreateStudioVoice(item *model.StudioVoice) error {
+	return r.db.Create(item).Error
+}
+
+func (r *Repository) UpdateStudioVoice(userID, id string, fields map[string]any) (bool, error) {
+	result := r.db.Model(&model.StudioVoice{}).Where("id = ? AND user_id = ?", id, userID).Updates(fields)
+	return result.RowsAffected > 0, result.Error
+}
+
+func (r *Repository) DeleteStudioVoice(userID, id string) (bool, error) {
+	result := r.db.Where("id = ? AND user_id = ?", id, userID).Delete(&model.StudioVoice{})
+	return result.RowsAffected > 0, result.Error
+}

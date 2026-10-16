@@ -124,6 +124,7 @@ func Models() []any {
 		&model.StudioShot{},
 		&model.StudioShotVersion{},
 		&model.StudioUpload{},
+		&model.StudioVoice{},
 		&model.CanvasShare{},
 		&model.PromptTemplate{},
 		&model.UserPromptCustomization{},
