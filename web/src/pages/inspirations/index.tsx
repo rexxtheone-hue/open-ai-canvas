@@ -11,6 +11,7 @@ import { Tooltip } from "@/components/ui/base/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { catalogIdOf, inspirationSourceOf, inspirationSources, type CreationInspiration, type InspirationSourceId } from "@/lib/inspirations/catalog";
 import { fillablePrompt, isCustomInspiration, resolveInspirations } from "@/lib/inspirations/resolve";
+import { templateCategoryCounts, templateCategoryLabel, templateCategoryOf } from "@/lib/inspirations/template-categories";
 import { loadInspirationCatalog, type InspirationCatalog } from "@/services/inspiration-catalog";
 import { useInspirationStore } from "@/stores/use-inspiration-store";
 import { InspirationDetailModal } from "./inspiration-detail-modal";
@@ -116,36 +117,14 @@ export default function InspirationsPage() {
         return catalog.entries.filter((item) => hiddenSet.has(catalogIdOf(item)));
     }, [catalog, hidden]);
 
-    const categoryLabels = useMemo(() => {
-        const map = new Map<string, Map<string, string>>();
-        for (const [sourceId, options] of Object.entries(catalog?.categoriesBySource ?? {})) {
-            map.set(sourceId, new Map(options.map((option) => [option.id, option.label])));
-        }
-        return map;
-    }, [catalog]);
+    // 分类和 AI Studio 的模板页是同一套：各来源的分类码合并成按用途的统一分类。
+    const categoryLabel = useCallback((item: CreationInspiration) => templateCategoryLabel(templateCategoryOf(item)), []);
 
-    const categoryLabel = useCallback(
-        (item: CreationInspiration) => {
-            const code = item.category?.trim();
-            if (!code) return "未分类";
-            return categoryLabels.get(item.sourceId ?? "original")?.get(code) ?? code;
-        },
-        [categoryLabels],
-    );
-
-    /** 分类标签跟随来源：选了某个来源就不该再出现别的来源的分类。 */
+    /** 分类标签按当前来源和类型统计数量，多的排前面，「其他」放最后。 */
     const categoryChoices = useMemo<CategoryChoice[]>(() => {
-        if (!catalog) return [];
-        const sources = source === "all" ? SOURCE_ORDER : [source];
-        const merged = new Map<string, { label: string; count: number }>();
-        for (const sourceId of sources) {
-            for (const option of catalog.categoriesBySource[sourceId] ?? []) {
-                const current = merged.get(option.id);
-                merged.set(option.id, { label: option.label, count: (current?.count ?? 0) + option.count });
-            }
-        }
-        return [...merged.entries()].sort((left, right) => right[1].count - left[1].count || left[1].label.localeCompare(right[1].label, "zh-Hans-CN")).map(([value, { label, count }]) => ({ value, label, count }));
-    }, [catalog, source]);
+        const pool = resolved.filter((item) => (source === "all" || (item.sourceId ?? "original") === source) && (modeFilter === "all" || item.mode === modeFilter));
+        return templateCategoryCounts(pool).map((option) => ({ value: option.id, label: option.label, count: option.count }));
+    }, [modeFilter, resolved, source]);
 
     const sourceCounts = useMemo(() => {
         const counts = new Map<SourceFilter, number>();
@@ -189,7 +168,7 @@ export default function InspirationsPage() {
             if (view === "favorites" && !favoriteSet.has(catalogIdOf(item))) return false;
             if (source !== "all" && (item.sourceId ?? "original") !== source) return false;
             if (modeFilter !== "all" && item.mode !== modeFilter) return false;
-            if (category !== "all" && (item.category?.trim() ?? "") !== category) return false;
+            if (category !== "all" && templateCategoryOf(item) !== category) return false;
             if (!keyword) return true;
             const haystack = [item.title, item.description, item.category, categoryLabel(item), ...(item.tags ?? [])].join(" ").toLowerCase();
             return haystack.includes(keyword);

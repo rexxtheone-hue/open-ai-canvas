@@ -4,8 +4,9 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useNavigate } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal";
-import { catalogIdOf, inspirationSourceOf, inspirationSources, type CreationInspiration, type InspirationSourceId } from "@/lib/inspirations/catalog";
+import { catalogIdOf, type CreationInspiration } from "@/lib/inspirations/catalog";
 import { fillablePrompt, resolveInspirations } from "@/lib/inspirations/resolve";
+import { templateCategoryCounts, templateCategoryLabel, templateCategoryOf, type TemplateCategoryId } from "@/lib/inspirations/template-categories";
 import type { StudioKind } from "@/services/api/studio";
 import { loadInspirationCatalog, type InspirationCatalog } from "@/services/inspiration-catalog";
 import { useInspirationStore } from "@/stores/use-inspiration-store";
@@ -67,7 +68,7 @@ export function useStudioTemplateCatalog() {
 
 /**
  * 模板库：和 AI Canvas 的「模板」是同一份目录（收藏也互通），
- * 按来源、分类、类型筛选，点「使用模板」带着提示词去生成。
+ * 按统一的用途分类和类型筛选，点「使用模板」带着提示词去生成。
  */
 export function StudioTemplateGallery({ kind, query }: { kind: StudioKind | "all"; query: string }) {
     const { message } = App.useApp();
@@ -75,38 +76,31 @@ export function StudioTemplateGallery({ kind, query }: { kind: StudioKind | "all
     const favorites = useInspirationStore((state) => state.favorites);
     const toggleFavorite = useInspirationStore((state) => state.toggleFavorite);
     const { catalog, items, error, retry } = useStudioTemplateCatalog();
-    const [source, setSource] = useState<InspirationSourceId | "all" | "favorites">("all");
-    const [category, setCategory] = useState("");
+    const [category, setCategory] = useState<TemplateCategoryId | "all" | "favorites">("all");
     const [limit, setLimit] = useState(PAGE);
     const [detail, setDetail] = useState<CreationInspiration | null>(null);
 
     const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
-    const sources = useMemo(() => {
-        const counts = new Map<InspirationSourceId, number>();
-        for (const item of items) counts.set(item.sourceId ?? "original", (counts.get(item.sourceId ?? "original") || 0) + 1);
-        return [...counts.entries()].filter(([, count]) => count > 0).map(([id, count]) => ({ id, count }));
-    }, [items]);
-    const categories = source !== "all" && source !== "favorites" ? catalog?.categoriesBySource[source] || [] : [];
-    const categoryLabel = (item: CreationInspiration) => {
-        const options = catalog?.categoriesBySource[item.sourceId ?? "original"] || [];
-        return options.find((option) => option.id === item.category)?.label || "";
-    };
+    const kindItems = useMemo(() => items.filter((item) => kind === "all" || item.mode === kind).map((item) => ({ item, category: templateCategoryOf(item) })), [items, kind]);
+    const categoryOptions = useMemo(() => templateCategoryCounts(kindItems.map((entry) => entry.item)), [kindItems]);
+    const categoryLabel = (item: CreationInspiration) => templateCategoryLabel(templateCategoryOf(item));
 
     const filtered = useMemo(() => {
         const needle = query.trim().toLowerCase();
-        return items.filter((item) => {
-            if (kind !== "all" && item.mode !== kind) return false;
-            if (source === "favorites" && !favoriteSet.has(catalogIdOf(item))) return false;
-            if (source !== "all" && source !== "favorites" && (item.sourceId ?? "original") !== source) return false;
-            if (category && item.category !== category) return false;
-            if (!needle) return true;
-            return [item.title, item.description, item.prompt, item.promptZh, ...(item.tags || [])].some((text) => text?.toLowerCase().includes(needle));
-        });
-    }, [category, favoriteSet, items, kind, query, source]);
+        return kindItems
+            .filter((entry) => {
+                if (category === "favorites" && !favoriteSet.has(catalogIdOf(entry.item))) return false;
+                if (category !== "all" && category !== "favorites" && entry.category !== category) return false;
+                if (!needle) return true;
+                const item = entry.item;
+                return [item.title, item.description, item.prompt, item.promptZh, ...(item.tags || [])].some((text) => text?.toLowerCase().includes(needle));
+            })
+            .map((entry) => entry.item);
+    }, [category, favoriteSet, kindItems, query]);
 
     useEffect(() => {
         setLimit(PAGE);
-    }, [category, kind, query, source]);
+    }, [category, kind, query]);
 
     if (error) {
         return (
@@ -127,44 +121,28 @@ export function StudioTemplateGallery({ kind, query }: { kind: StudioKind | "all
         );
     }
 
-    const pickSource = (value: typeof source) => {
-        setSource(value);
-        setCategory("");
-    };
-
     return (
         <div className="studio-templates">
-            <div className="studio-filter studio-template-sources" role="group" aria-label="模板来源">
-                <button type="button" aria-pressed={source === "all"} onClick={() => pickSource("all")}>
-                    全部模板
+            <div className="studio-template-categories" role="group" aria-label="模板分类">
+                <button type="button" aria-pressed={category === "all"} onClick={() => setCategory("all")}>
+                    全部模板<em>{kindItems.length}</em>
                 </button>
-                <button type="button" aria-pressed={source === "favorites"} onClick={() => pickSource("favorites")}>
+                <button type="button" aria-pressed={category === "favorites"} onClick={() => setCategory("favorites")}>
                     <Heart aria-hidden />
                     我的收藏
                 </button>
-                {sources.map((item) => (
-                    <button key={item.id} type="button" aria-pressed={source === item.id} onClick={() => pickSource(item.id)}>
-                        {inspirationSources[item.id]?.name || inspirationSources[item.id]?.label || item.id}
+                {categoryOptions.map((option) => (
+                    <button key={option.id} type="button" aria-pressed={category === option.id} onClick={() => setCategory(option.id)}>
+                        {option.label}
+                        <em>{option.count}</em>
                     </button>
                 ))}
             </div>
-            {categories.length ? (
-                <div className="studio-template-categories" role="group" aria-label="模板分类">
-                    <button type="button" aria-pressed={!category} onClick={() => setCategory("")}>
-                        全部分类
-                    </button>
-                    {categories.map((option) => (
-                        <button key={option.id} type="button" aria-pressed={category === option.id} onClick={() => setCategory(option.id)}>
-                            {option.label}
-                        </button>
-                    ))}
-                </div>
-            ) : null}
             {!filtered.length ? (
                 <div className="studio-empty">
                     <Sparkles aria-hidden />
-                    <strong>{source === "favorites" ? "还没有收藏的模板" : "没有找到相关模板"}</strong>
-                    <span>{source === "favorites" ? "在模板详情里点「收藏」，常用的模板会出现在这里。" : "换个关键词或分类看看。"}</span>
+                    <strong>{category === "favorites" ? "还没有收藏的模板" : "没有找到相关模板"}</strong>
+                    <span>{category === "favorites" ? "在模板详情里点「收藏」，常用的模板会出现在这里。" : "换个关键词或分类看看。"}</span>
                 </div>
             ) : (
                 <>
@@ -180,7 +158,7 @@ export function StudioTemplateGallery({ kind, query }: { kind: StudioKind | "all
                                     <div className="studio-post-body">
                                         <strong title={item.title}>{item.title}</strong>
                                         <div className="studio-post-meta">
-                                            <span className="studio-hint">{categoryLabel(item) || inspirationSourceOf(item).name || ""}</span>
+                                            <span className="studio-hint">{categoryLabel(item)}</span>
                                             <button type="button" className="studio-like" aria-pressed={favoriteSet.has(id)} aria-label={favoriteSet.has(id) ? "取消收藏" : "收藏"} onClick={() => toggleFavorite(id)}>
                                                 <Heart aria-hidden />
                                             </button>
