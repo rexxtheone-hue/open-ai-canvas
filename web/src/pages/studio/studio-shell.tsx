@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import { ChatFill, ChevronDown, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, LayoutTemplate, MessageSquareText, Palette, PanelLeft, Pin, UserPen, UserRound, Users, Wand2, Waypoints } from "./studio-icons";
 
-import "@fontsource-variable/bricolage-grotesque";
+import "@fontsource-variable/space-grotesk/index.css";
 
 import { WorkspaceAccountMenu } from "@/components/layout/workspace-account-menu";
 import { StudioGiftCenter, StudioHelpMenu } from "./studio-help";

@@ -886,7 +886,7 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 
 /* ---------- 视觉升级：参照 OpenArt 的层次（标题字体、聚光背景、发光输入框、海报卡片） ---------- */
 .studio-root, .studio-popup, .studio-modal {
-    --studio-display: "Bricolage Grotesque Variable", var(--font-sans);
+    --studio-display: "Space Grotesk Variable", "Space Grotesk", "Inter Variable", ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
     --studio-glow: linear-gradient(135deg, #e7a8ff 0%, #c13cff 50%, #9a12ff 100%);
     --studio-glass: linear-gradient(-45deg, rgba(214, 225, 255, 0.1) 0%, rgba(214, 225, 255, 0.04) 100%);
 }
@@ -1383,23 +1383,30 @@ button.studio-entry-tile { font: inherit; font-size: 13.5px; font-weight: 650; c
 .studio-i2p-result.ant-input { flex: 1; min-height: 260px; resize: none; }
 @media (max-width: 720px) { .studio-i2p { grid-template-columns: 1fr; } }
 
-/* ---------- 字体：与 OpenArt 一致 ----------
- * 正文和大部分标题用系统字体栈（Windows 上英文 Segoe UI、中文微软雅黑；Mac 上 SF 与苹方），
- * 不加载网页字体；Bricolage Grotesque 只用于工具名称、HOT/NEW 标签和首页大标题。 */
+/* ---------- 字体：参考 Higgsfield ----------
+ * 正文、按钮、表单用 Inter；大标题、区块标题、海报卡片标题用 Space Grotesk 粗体，英文全大写、字距收紧；
+ * 中文没有对应字形，自动退回苹方 / 微软雅黑。 */
 .studio-root, .studio-popup, .studio-modal {
-    --studio-ui-font: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    --studio-ui-font: "Inter Variable", Inter, ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     --font-sans: var(--studio-ui-font);
     font-family: var(--studio-ui-font);
 }
 .studio-root .ant-btn, .studio-root input, .studio-root textarea, .studio-root select, .studio-popup input, .studio-popup textarea, .studio-modal .ant-modal-content { font-family: var(--studio-ui-font); }
-.studio-section-head h2, .studio-chat-welcome h2, .studio-empty strong, .studio-topbar-title strong, .studio-side-brand strong,
-.studio-more-link, .studio-create-tile strong, .studio-story-link strong, .studio-character-caption strong, .studio-picker-head strong, .studio-camera-head h2 {
+.studio-chat-welcome h2, .studio-empty strong, .studio-topbar-title strong, .studio-more-link, .studio-create-tile strong, .studio-story-link strong, .studio-tool-text b {
     font-family: var(--studio-ui-font);
     letter-spacing: normal;
 }
-.studio-tool-text b, .studio-tag, .studio-poster-title, .studio-hero h1, .studio-director-hero h1 { font-family: var(--studio-display); }
+/* 展示型标题：Space Grotesk 700、全大写、字距 -2%～-4%。 */
+.studio-hero h1, .studio-director-hero h1, .studio-section-head h2, .studio-poster-title, .studio-character-caption strong, .studio-picker-head strong, .studio-camera-head h2, .studio-side-brand strong {
+    font-family: var(--studio-display);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+}
+.studio-poster-title, .studio-character-caption strong { letter-spacing: -0.02em; }
 .studio-tool-text b { font-size: 13px; font-weight: 600; }
-.studio-tag { font-size: 11px; font-weight: 800; letter-spacing: 0.05px; }
+/* 角标（HOT / NEW）：Inter 10px 粗体大写。 */
+.studio-tag { font-family: var(--studio-ui-font); font-size: 10px; font-weight: 700; letter-spacing: 0.1px; text-transform: uppercase; }
 .studio-hero h1, .studio-director-hero h1 { font-weight: 800; letter-spacing: -0.02em; }
 .studio-tool-hero-text strong { font-size: 16px; font-weight: 600; letter-spacing: -0.12px; }
 .studio-block-title { font-size: 14px; font-weight: 600; }
@@ -1411,7 +1418,7 @@ button.studio-entry-tile { font: inherit; font-size: 13.5px; font-weight: 650; c
 .studio-topbar-title strong, .studio-topbar-title span { font-size: 12px; }
 
 /* 进入 Studio 时，挂在 body 上的弹窗、下拉、提示、Tooltip 也用系统字体 */
-html.studio-active { --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+html.studio-active { --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
 html.studio-active body { font-family: var(--font-sans) !important; }
 html.studio-active [class^="ant-"], html.studio-active [class*=" ant-"] { font-family: var(--font-sans); }
 .studio-model-channel { font-style: normal; font-weight: 500; color: var(--studio-muted); }
@@ -1587,3 +1594,5 @@ button.studio-template-card { padding: 0; font: inherit; color: inherit; text-al
 .studio-template-categories button { padding: 6px 12px; font-size: 13px; }
 /* 荧光紫主按钮的光晕 */
 .studio-upgrade-button, .studio-generate-button:not(:disabled), .studio-tag.is-new { box-shadow: var(--studio-accent-glow); }
+/* 图标不被旁边的长文字挤扁 */
+.studio-root a > svg, .studio-root button > svg, .studio-popup button > svg, .studio-modal button > svg { flex-shrink: 0; }
