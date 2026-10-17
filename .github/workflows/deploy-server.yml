@@ -8,7 +8,7 @@ on:
 # 同一时间只跑一次部署；新推送到来时取消还没跑完的旧部署。
 concurrency:
   group: deploy-server
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
