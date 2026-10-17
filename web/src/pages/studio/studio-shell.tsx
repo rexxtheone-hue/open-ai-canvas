@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import { ChevronDown, ChevronRight, Clapperboard, Compass, Crown, FolderOpen, Grid2x2, Home, LayoutTemplate, MessageSquareText, PanelLeft, Palette, Pin, UserRound, Waypoints, Wand2 } from "lucide-react";
 
@@ -65,6 +65,11 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
     const { availableMicrocredits } = useWalletBalance(user?.id, creditsEnabled);
     const balance = availableMicrocredits === null ? "--" : (availableMicrocredits / 1_000_000).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
     const [collapsed, setCollapsed] = useState(() => readJSON(COLLAPSE_KEY, false));
+    // 弹窗、下拉、提示消息挂在 body 上，不在 .studio-root 里；进入 Studio 时整页切到 OpenArt 的系统字体。
+    useEffect(() => {
+        document.documentElement.classList.add("studio-active");
+        return () => document.documentElement.classList.remove("studio-active");
+    }, []);
     const [closed, setClosed] = useState<SectionId[]>(() => readJSON(SECTIONS_KEY, []));
     const activeTab = useStudioActiveTab();
     const { pins } = useStudioPins();

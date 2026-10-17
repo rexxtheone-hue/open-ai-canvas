@@ -1404,3 +1404,8 @@ button.studio-entry-tile { font: inherit; font-size: 13.5px; font-weight: 650; c
 .studio-side-card small { font-size: 11px; font-weight: 400; letter-spacing: 0.1px; }
 .studio-tools-head strong { font-size: 14px; font-weight: 600; }
 .studio-topbar-title strong, .studio-topbar-title span { font-size: 12px; }
+
+/* 进入 Studio 时，挂在 body 上的弹窗、下拉、提示、Tooltip 也用系统字体 */
+html.studio-active { --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+html.studio-active body { font-family: var(--font-sans) !important; }
+html.studio-active [class^="ant-"], html.studio-active [class*=" ant-"] { font-family: var(--font-sans); }
