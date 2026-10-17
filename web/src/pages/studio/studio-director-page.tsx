@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { App } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, ArrowUpLeft, Clapperboard, Plus, Sparkles, Trash2 } from "./studio-icons";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal/app-modal";
 import { createStudioStory, deleteStudioStory, listStudioStories } from "@/services/api/studio-agents";
@@ -60,6 +60,12 @@ export default function StudioDirectorPage() {
     const characters = charactersQuery.data || [];
     const storiesQuery = useQuery({ queryKey: ["studio", "stories"], queryFn: async () => (await listStudioStories()).items, enabled: Boolean(user) });
     const stories = storiesQuery.data || [];
+    // 侧栏「导演项目」带 #studio-director-projects 进来时，项目列表加载后滚到那里。
+    const { hash } = useLocation();
+    useEffect(() => {
+        if (hash !== "#studio-director-projects" || storiesQuery.isLoading) return;
+        document.getElementById("studio-director-projects")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, [hash, storiesQuery.isLoading]);
 
     const setRunMode = (mode: DirectorRunMode) => {
         setRunModeState(mode);

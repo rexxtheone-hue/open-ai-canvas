@@ -58,6 +58,9 @@ export function useStudioActiveTab() {
 }
 
 /** Studio 外框：可收起的分组侧栏、带面包屑的顶栏和内容区。 */
+/** 侧栏「工具」的排列和 OpenArt 一致：视频、图像、世界、角色、音频。 */
+const SIDEBAR_TAB_ORDER = ["video", "image", "world", "character", "audio"] as const;
+
 export function StudioShell({ title, subtitle, children }: { title?: string; subtitle?: string; children: ReactNode }) {
     const { pathname, search } = useLocation();
     const user = useUserStore((state) => state.user);
@@ -121,7 +124,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                             { to: "/studio", label: "首页", icon: Home, active: isActive(pathname, search, "/studio") },
                             { to: "/studio/agents", label: "智能体", icon: MessageSquareText, active: pathname.startsWith("/studio/agents") || pathname.startsWith("/studio/director") },
                             { to: "/studio/video", label: "工具", icon: Wand2, active: Boolean(activeTab) },
-                            { to: "/studio/media", label: "资产", icon: FolderOpen, active: ["/studio/media", "/studio/characters", "/studio/brand"].some((path) => pathname.startsWith(path)) },
+                            { to: "/studio/media", label: "素材", icon: FolderOpen, active: ["/studio/media", "/studio/characters", "/studio/brand"].some((path) => pathname.startsWith(path)) },
                             { to: "/studio/inspire", label: "灵感", icon: Compass, active: pathname.startsWith("/studio/inspire") || pathname.startsWith("/studio/pricing") },
                         ].map((item) => (
                             <Link key={item.to} to={item.to} className="studio-rail-item" aria-current={item.active ? "page" : undefined}>
@@ -143,7 +146,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                             <div className="studio-side-cards">
                                 <Link to="/studio/agents" className="studio-side-card" aria-current={pathname.startsWith("/studio/agents") ? "page" : undefined}>
                                     <span className="studio-side-card-icon"><ChatFill aria-hidden /></span>
-                                    <span><b>对话模式</b><small>说一句话，AI 帮你做</small></span>
+                                    <span><b>聊天模式</b><small>说一句话，AI 帮你做</small></span>
                                 </Link>
                                 <Link to="/studio/director" className="studio-side-card" aria-current={pathname.startsWith("/studio/director") ? "page" : undefined}>
                                     <span className="studio-side-card-icon"><DirectorFill aria-hidden /></span>
@@ -153,7 +156,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                         ))}
                         {section("tools", "工具", (
                             <div className="studio-side-tools">
-                                {STUDIO_TOOL_TABS.map((tab) => (
+                                {SIDEBAR_TAB_ORDER.flatMap((id) => STUDIO_TOOL_TABS.filter((tab) => tab.id === id)).map((tab) => (
                                     <Link key={tab.id} to={tab.path} aria-current={activeTab === tab.id ? "page" : undefined}>
                                         <tab.icon aria-hidden />
                                         {tab.label}
@@ -161,14 +164,15 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                                 ))}
                             </div>
                         ))}
-                        {section("assets", "资产", (
+                        {section("assets", "素材", (
                             <div className="studio-side-links">
-                                {link("/studio/media", "作品", FolderOpen)}
+                                {link("/studio/director#studio-director-projects", "导演项目", Clapperboard)}
                                 {link("/studio/characters", "角色与世界", UserRound)}
                                 {link("/studio/brand", "品牌套件", Palette)}
+                                {link("/studio/media", "媒体", FolderOpen)}
                             </div>
                         ))}
-                        {section("inspire", "灵感", (
+                        {section("inspire", "获取灵感", (
                             <div className="studio-side-links">
                                 {link("/studio/inspire?tab=templates", "模板", LayoutTemplate)}
                                 {link("/studio/inspire", "灵感社区", Compass)}

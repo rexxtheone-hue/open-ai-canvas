@@ -9,7 +9,7 @@ export type StudioToolTab = "video" | "image" | "audio" | "character" | "world";
 
 export const STUDIO_TOOL_TABS: Array<{ id: StudioToolTab; label: string; listTitle: string; path: string; icon: LucideIcon }> = [
     { id: "video", label: "视频", listTitle: "视频工具", path: "/studio/video", icon: VideoFill },
-    { id: "image", label: "图片", listTitle: "图片工具", path: "/studio/image", icon: ImageFill },
+    { id: "image", label: "图像", listTitle: "图像工具", path: "/studio/image", icon: ImageFill },
     { id: "audio", label: "音频", listTitle: "音频工具", path: "/studio/audio", icon: AudioFill },
     { id: "character", label: "角色", listTitle: "角色工具", path: "/studio/character", icon: CharacterFill },
     { id: "world", label: "世界", listTitle: "世界工具", path: "/studio/world", icon: WorldFill },
