@@ -17,6 +17,7 @@ import { registerStudioUpload } from "@/services/api/studio-agents";
 import { useEffectiveConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
 import {
+    studioBrandAvailable,
     admitStudioAttachments,
     studioBlockReason,
     studioEffectiveVideoMode,
@@ -276,7 +277,9 @@ export function useStudioTool(kind: StudioKind, tool: string, options: { special
         if (blockReason || !resolvedModel) return { created: 0, failed: 0, error: blockReason || "后台还没有可用的模型" };
         submitLockRef.current = true;
         setSubmitting(true);
-        const submitState = promptOverride !== undefined && !state.specialty ? { ...state, prompt: promptOverride } : state;
+        // 当前模型用不了品牌（视频模型不收参考图）时，不往提示词里加品牌信息。
+        const brandState = studioBrandAvailable(kind, limits) ? state : { ...state, brand: undefined };
+        const submitState = promptOverride !== undefined && !state.specialty ? { ...brandState, prompt: promptOverride } : brandState;
         // 多条指令（多语言配音、全部角度）：每条指令一个任务。
         const variants = state.specialty?.variants;
         const submissions = variants?.length

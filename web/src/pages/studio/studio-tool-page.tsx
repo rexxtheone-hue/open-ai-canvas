@@ -29,7 +29,7 @@ import { studioAttachmentFromMedia, uploadStudioFile, useStudioTool } from "./us
 import { StudioPanelFooter, StudioPanelTabs, StudioToolSwitcher } from "./studio-workspace";
 import { StudioToolThumb } from "./studio-tool-thumb";
 import { StudioModelCard, StudioModelPanel } from "./studio-model-panel";
-import { studioImageDefaultRatio, studioImageRatioSupported, studioModelSupportsSpecialty } from "./studio-generation";
+import { studioBrandAvailable, studioImageDefaultRatio, studioImageRatioSupported, studioModelSupportsSpecialty } from "./studio-generation";
 import { useStudioToolCovers } from "./use-studio-tool-meta";
 import { buildSpecialtyState, defaultSpecialtyOptions, orderedSlotAttachments, ratioOfChoice, restoreSpecialtyOptions, slotAccepts, slotItems, studioSpecialtySpec, type StudioSlot, type StudioSlotValues } from "./studio-specialty";
 import { STUDIO_ATTACH_KEY, STUDIO_REUSE_KEY } from "./studio-agent";
@@ -468,7 +468,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
         >
             <button type="button" className={`studio-ref-slot studio-brand-slot${brandKit ? " is-active" : ""}`} title={brandKit ? `品牌：${brandKit.name}` : "品牌套件"} aria-label={brandKit ? `品牌：${brandKit.name}` : "品牌套件"}>
                 {brandKit?.logoResourceId ? <img src={studioBrandLogoAttachment(brandKit)?.previewUrl} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : <BrandFill aria-hidden />}
-                {brandKit ? <small>{brandKit.name}</small> : null}
+                <small>{brandKit ? brandKit.name : "品牌（未使用）"}</small>
             </button>
         </Popover>
     );
@@ -600,7 +600,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                         </div>
                                     ))}
                                     {referenceKinds.map((referenceKind) => referenceTile(referenceKind))}
-                                    {kind !== "audio" ? brandTile : null}
+                                    {studioBrandAvailable(kind, limits) ? brandTile : null}
                                 </div>
                                 <p className="studio-hint">
                                     {uploading ? "正在上传…" : `当前模型最多：${[limits.maxImages ? `${limits.maxImages} 张图片` : "", limits.maxVideos ? `${limits.maxVideos} 段视频` : "", limits.maxAudios ? `${limits.maxAudios} 段音频` : ""].filter(Boolean).join("、")}`}

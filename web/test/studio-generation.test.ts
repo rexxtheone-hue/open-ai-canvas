@@ -6,6 +6,7 @@ import type { CreationAttachment } from "../src/pages/create/creation-assets";
 import {
     admitStudioAttachments,
     studioBlockReason,
+    studioBrandAvailable,
     studioBrandPrompt,
     studioFinalPrompt,
     studioGenerationConfig,
@@ -181,6 +182,22 @@ describe("AI Studio 品牌套件", () => {
         expect(studioFinalPrompt({ kind: "image", prompt: " 一杯咖啡 ", brand })).toBe(`一杯咖啡\n\n${brand.prompt}`);
         expect(studioFinalPrompt({ kind: "audio", prompt: "欢迎光临", brand })).toBe("欢迎光临");
         expect(studioFinalPrompt({ kind: "video", prompt: "  ", brand })).toBe("");
+    });
+
+    test("视频只带品牌色、调性和要避免的元素，不带口号、字体和介绍", () => {
+        const videoBrand = { ...brand, videoPrompt: studioBrandPrompt(kit, "video") };
+        expect(videoBrand.videoPrompt).toBe("品牌：暖杯\n品牌调性：温暖、简约\n品牌色：#D9A441、#0A0A0A\n避免：竞品 Logo");
+        expect(studioFinalPrompt({ kind: "video", prompt: "倒一杯热咖啡", brand: videoBrand })).toBe(`倒一杯热咖啡\n\n${videoBrand.videoPrompt}`);
+        // 只填了口号和字体的套件，视频里没有可用的部分，不追加任何品牌信息。
+        const textOnly = { id: "k", name: "暖杯", prompt: "x", videoPrompt: studioBrandPrompt({ id: "k", name: "暖杯", slogan: "温暖随身", typography: "思源黑体" }, "video") };
+        expect(studioFinalPrompt({ kind: "video", prompt: "倒一杯热咖啡", brand: textOnly })).toBe("倒一杯热咖啡");
+    });
+
+    test("视频模型不收参考图时不提供品牌", () => {
+        expect(studioBrandAvailable("image", { maxImages: 0 })).toBe(true);
+        expect(studioBrandAvailable("video", { maxImages: 0 })).toBe(false);
+        expect(studioBrandAvailable("video", { maxImages: 3 })).toBe(true);
+        expect(studioBrandAvailable("audio", { maxImages: 3 })).toBe(false);
     });
 
     test("提交带品牌时记录原始提示词和套件，长度按最终提示词检查", () => {

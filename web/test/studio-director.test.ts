@@ -182,10 +182,11 @@ describe("品牌选择", () => {
     ] as StudioBrandKit[];
 
     test("未选择时用默认套件，明确不使用时为空，已删除的选择回到默认", () => {
-        expect(resolveStudioBrandKit(kits, undefined)?.id).toBe("b");
+        // 默认不套用：没选过、选了「不使用」或套件已删除都不用品牌，默认套件也不会自动生效。
+        expect(resolveStudioBrandKit(kits, undefined)).toBeUndefined();
         expect(resolveStudioBrandKit(kits, "a")?.id).toBe("a");
         expect(resolveStudioBrandKit(kits, "")).toBeUndefined();
-        expect(resolveStudioBrandKit(kits, "gone")?.id).toBe("b");
+        expect(resolveStudioBrandKit(kits, "gone")).toBeUndefined();
         expect(resolveStudioBrandKit([], undefined)).toBeUndefined();
     });
 });

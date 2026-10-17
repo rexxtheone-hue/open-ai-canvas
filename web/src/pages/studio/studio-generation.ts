@@ -48,12 +48,24 @@ export type StudioSpecialtyState = {
     minAudios?: number;
 };
 
-export type StudioBrandContext = { id: string; name: string; prompt: string };
+/** prompt 用于图片；videoPrompt 是视频用的精简版。 */
+export type StudioBrandContext = { id: string; name: string; prompt: string; videoPrompt?: string };
 
 export type StudioBrandKitLike = { id: string; name: string; intro?: string; audience?: string; tone?: string; slogan?: string; colors?: string[]; avoid?: string; typography?: string };
 
-/** 品牌套件编译成追加在提示词后的一段要求；空字段不输出。 */
-export function studioBrandPrompt(kit: StudioBrandKitLike) {
+/**
+ * 品牌套件编译成追加在提示词后的一段要求；空字段不输出。
+ * 视频只带对画面有用的品牌色、调性和要避免的元素：视频模型写不好画面文字，口号、字体、长介绍只会干扰。
+ */
+export function studioBrandPrompt(kit: StudioBrandKitLike, kind: "image" | "video" = "image") {
+    if (kind === "video") {
+        const lines = [
+            kit.tone?.trim() ? `品牌调性：${kit.tone.trim()}` : "",
+            kit.colors?.length ? `品牌色：${kit.colors.join("、")}` : "",
+            kit.avoid?.trim() ? `避免：${kit.avoid.trim()}` : "",
+        ].filter(Boolean);
+        return lines.length ? [`品牌：${kit.name.trim()}`, ...lines].join("\n") : "";
+    }
     const lines = [
         kit.intro?.trim() ? `品牌介绍：${kit.intro.trim()}` : "",
         kit.audience?.trim() ? `目标人群：${kit.audience.trim()}` : "",
@@ -71,11 +83,17 @@ export function studioFinalPrompt(state: Pick<StudioToolState, "kind" | "prompt"
     // 专项工具的指令已包含用户补充说明，不再追加品牌，避免改动换背景、高清等结果的主体。
     if (state.specialty) return state.specialty.instruction.trim();
     const prompt = state.prompt.trim();
-    if (!prompt || state.kind === "audio" || !state.brand?.prompt) return prompt;
-    return `${prompt}\n\n${state.brand.prompt}`;
+    if (!prompt || state.kind === "audio" || !state.brand) return prompt;
+    const brand = state.kind === "video" ? (state.brand.videoPrompt ?? state.brand.prompt) : state.brand.prompt;
+    return brand ? `${prompt}\n\n${brand}` : prompt;
 }
 
 export type StudioReferenceLimits = { maxImages: number; maxVideos: number; maxAudios: number; exclusiveImageAudio?: boolean };
+
+/** 品牌套件在哪里可用：生成图片都可以；生成视频只在模型能接收参考图时提供（和 OpenArt 一致，品牌靠参考图起作用）。 */
+export function studioBrandAvailable(kind: StudioKind, limits: Pick<StudioReferenceLimits, "maxImages">) {
+    return kind === "image" || (kind === "video" && limits.maxImages > 0);
+}
 
 /** 专项工具只考虑支持该操作（视频）或能放下必需参考图（图片）的模型。 */
 export function studioModelSupportsSpecialty(config: AiConfig, model: string, specialty: StudioSpecialtyState | undefined) {

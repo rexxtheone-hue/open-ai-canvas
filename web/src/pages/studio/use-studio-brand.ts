@@ -8,16 +8,19 @@ import { studioBrandPrompt, type StudioBrandContext } from "./studio-generation"
 
 export const STUDIO_BRAND_KITS_QUERY_KEY = ["studio", "brand-kits"] as const;
 
-/** 品牌选择在所有工具间共用。未选择过时跟随默认套件，选了「不使用」记为空字符串。 */
+/**
+ * 品牌选择在所有工具间共用，但默认不套用：只有用户在品牌格子里选了套件才会用到。
+ * 选择只保存在当前浏览器会话里，关掉页面后回到「不使用品牌」，避免忘了关一直套用。
+ */
 const NO_BRAND = "";
 
 function choiceKey() {
-    return `studio.brand.${getActiveUserScope()}.v1`;
+    return `studio.brand.${getActiveUserScope()}.v2`;
 }
 
 function readChoice(): string | undefined {
     try {
-        const raw = window.localStorage.getItem(choiceKey());
+        const raw = window.sessionStorage.getItem(choiceKey());
         return raw === null ? undefined : raw;
     } catch {
         return undefined;
@@ -38,17 +41,13 @@ export function useStudioBrandKits(enabled = true) {
 }
 
 export function studioBrandContext(kit: StudioBrandKit | undefined): StudioBrandContext | undefined {
-    return kit ? { id: kit.id, name: kit.name, prompt: studioBrandPrompt(kit) } : undefined;
+    return kit ? { id: kit.id, name: kit.name, prompt: studioBrandPrompt(kit), videoPrompt: studioBrandPrompt(kit, "video") } : undefined;
 }
 
-/** 当前选中的品牌：明确选择优先；已删除的套件视为未选择，回到默认套件。 */
+/** 当前选中的品牌：只认用户明确选的套件；没选、选了「不使用」或套件已删除都不套用。 */
 export function resolveStudioBrandKit(kits: StudioBrandKit[], choice: string | undefined) {
-    if (choice === NO_BRAND) return undefined;
-    if (choice) {
-        const chosen = kits.find((kit) => kit.id === choice);
-        if (chosen) return chosen;
-    }
-    return kits.find((kit) => kit.isDefault);
+    if (!choice || choice === NO_BRAND) return undefined;
+    return kits.find((kit) => kit.id === choice);
 }
 
 export function useStudioBrandChoice(enabled: boolean) {
@@ -58,7 +57,7 @@ export function useStudioBrandChoice(enabled: boolean) {
     const setChoice = useCallback((value: string) => {
         setChoiceState(value);
         try {
-            window.localStorage.setItem(choiceKey(), value);
+            window.sessionStorage.setItem(choiceKey(), value);
         } catch {
             // 浏览器存储不可用时只在本页生效。
         }
