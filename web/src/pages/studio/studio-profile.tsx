@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { App, Input, Select, Spin } from "antd";
+import { App, Input, QRCode, Select, Spin } from "antd";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal";
@@ -7,7 +7,7 @@ import { resourceIdFromStorageKey } from "@/services/api/resources";
 import { followStudioProfile, getMyStudioProfile, getStudioProfile, listStudioProfilePosts, updateStudioProfile, type StudioPost, type StudioProfile, type StudioProfileInput, type StudioProfileLinkKey } from "@/services/api/studio";
 import { uploadImage } from "@/services/image-storage";
 import { useUserStore } from "@/stores/use-user-store";
-import { CalendarDays, Camera, Check, Heart, Link as LinkIcon, MapPin, Pencil, Share2, Sparkles, UserCheck, UserPlus, Wand2 } from "./studio-icons";
+import { CalendarDays, Camera, Check, Copy, Download, Heart, Link as LinkIcon, MapPin, Pencil, Share2, Sparkles, UserCheck, UserPlus, Wand2 } from "./studio-icons";
 import { StudioCreatorAvatar, StudioPostFeed, studioProfilePath } from "./studio-post-feed";
 import { StudioShell } from "./studio-shell";
 import "./studio.css";
@@ -22,7 +22,7 @@ const LINK_FIELDS: Array<{ key: StudioProfileLinkKey; label: string; placeholder
     { key: "douyin", label: "抖音", placeholder: "douyin.com/user/…" },
 ];
 
-const SPECIALTY_PRESETS = ["广告视频", "产品图", "电商主图", "人像写真", "品牌设计", "短视频", "动画", "音乐 MV", "配音", "角色设计", "海报", "社媒内容"];
+export const SPECIALTY_PRESETS = ["广告视频", "产品图", "电商主图", "人像写真", "品牌设计", "短视频", "动画", "音乐 MV", "配音", "角色设计", "海报", "社媒内容"];
 
 type ProfileTab = "works" | "liked";
 
@@ -203,6 +203,60 @@ function StudioProfileEditor({ profile, open, onClose, onSaved }: { profile: Stu
     );
 }
 
+/** 分享主页：二维码（可下载，线下活动打印或现场扫码）+ 复制链接。 */
+function StudioShareProfileModal({ profile, open, onClose }: { profile: StudioProfile; open: boolean; onClose: () => void }) {
+    const { message } = App.useApp();
+    const qrRef = useRef<HTMLDivElement>(null);
+    const link = shareUrl(profile.handle);
+
+    const copy = () => {
+        void navigator.clipboard?.writeText(link).then(
+            () => message.success("主页链接已复制"),
+            () => message.error("复制失败，请手动复制链接"),
+        );
+    };
+
+    const download = () => {
+        const canvas = qrRef.current?.querySelector("canvas");
+        if (!canvas) return;
+        const anchor = document.createElement("a");
+        anchor.href = canvas.toDataURL("image/png");
+        anchor.download = `${profile.handle}-qrcode.png`;
+        anchor.click();
+    };
+
+    return (
+        <AppModal rootClassName="studio-modal" open={open} title="分享主页" footer={null} width={420} onCancel={onClose} destroyOnHidden>
+            <div className="studio-share-profile">
+                <div className="studio-share-card">
+                    <div className="studio-share-qr" ref={qrRef}>
+                        <QRCode value={link} type="canvas" size={220} bordered={false} color="#111111" bgColor="#ffffff" errorLevel="M" />
+                    </div>
+                    <div className="studio-share-who">
+                        <StudioCreatorAvatar name={profile.name} url={profile.avatarUrl} size={32} />
+                        <div>
+                            <strong>{profile.name}</strong>
+                            <span>@{profile.handle}</span>
+                        </div>
+                    </div>
+                </div>
+                <p className="studio-hint">扫码打开主页，不用登录也能看作品。线下活动可以下载二维码打印出来。</p>
+                <div className="studio-share-link">
+                    <Input value={link} readOnly onFocus={(event) => event.currentTarget.select()} />
+                    <button type="button" className="studio-mini-button" onClick={copy}>
+                        <Copy aria-hidden />
+                        复制链接
+                    </button>
+                </div>
+                <button type="button" className="studio-generate-button" onClick={download}>
+                    <Download aria-hidden />
+                    下载二维码
+                </button>
+            </div>
+        </AppModal>
+    );
+}
+
 /** 创作者主页的内容部分：站内（StudioShell 里）和公开页共用。 */
 function StudioProfileContent({ handle, guest }: { handle: string; guest: boolean }) {
     const { message } = App.useApp();
@@ -217,6 +271,7 @@ function StudioProfileContent({ handle, guest }: { handle: string; guest: boolea
     const [loadingMore, setLoadingMore] = useState(false);
     const [editing, setEditing] = useState(false);
     const [following, setFollowing] = useState(false);
+    const [sharing, setSharing] = useState(false);
     const requestRef = useRef(0);
 
     useEffect(() => {
@@ -273,14 +328,6 @@ function StudioProfileContent({ handle, guest }: { handle: string; guest: boolea
         }
     };
 
-    const share = () => {
-        if (!profile) return;
-        void navigator.clipboard?.writeText(shareUrl(profile.handle)).then(
-            () => message.success("主页链接已复制"),
-            () => message.error("复制失败，请手动复制地址栏链接"),
-        );
-    };
-
     if (profileError) {
         return (
             <div className="studio-empty" role="alert">
@@ -329,7 +376,7 @@ function StudioProfileContent({ handle, guest }: { handle: string; guest: boolea
                             )}
                         </button>
                     )}
-                    <button type="button" className="studio-mini-button" onClick={share}>
+                    <button type="button" className="studio-mini-button" onClick={() => setSharing(true)}>
                         <Share2 aria-hidden />
                         分享主页
                     </button>
@@ -422,6 +469,7 @@ function StudioProfileContent({ handle, guest }: { handle: string; guest: boolea
             ) : (
                 <StudioPostFeed posts={posts} setPosts={setPosts} nextOffset={nextOffset} loadingMore={loadingMore} onLoadMore={(offset) => void loadPosts(offset)} guest={guest} hideAuthor={tab === "works"} />
             )}
+            <StudioShareProfileModal profile={profile} open={sharing} onClose={() => setSharing(false)} />
             {profile.mine && editing ? (
                 <StudioProfileEditor
                     profile={profile}

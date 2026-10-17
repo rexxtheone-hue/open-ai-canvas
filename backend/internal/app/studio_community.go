@@ -309,13 +309,17 @@ func (s *Service) studioPostViews(viewerID string, admin bool, posts []model.Stu
 			created, err := s.ensureStudioProfile(authorID)
 			if err != nil || created == nil {
 				authorViews[authorID] = [2]string{}
+				names[authorID] = ""
 				continue
 			}
 			profile = *created
 		}
-		if name := strings.TrimSpace(profile.Name); name != "" {
-			names[authorID] = name
+		// 公开显示的作者名不能退回登录用户名（可能是邮箱或手机号）。
+		user, err := s.repo.User(authorID)
+		if err != nil {
+			return nil, err
 		}
+		names[authorID] = studioProfileName(&profile, user)
 		authorViews[authorID] = [2]string{profile.Handle, s.studioProfileImageURL(authorID, profile.AvatarResourceID, assets.VariantOriginal)}
 	}
 	expires := time.Now().Add(studioPostMediaTTL)
@@ -334,20 +338,34 @@ func (s *Service) studioPostViews(viewerID string, admin bool, posts []model.Stu
 			view.Settings = map[string]any{}
 			_ = json.Unmarshal([]byte(post.SettingsJSON), &view.Settings)
 		}
-		var media []StudioMedia
-		_ = json.Unmarshal([]byte(post.MediaJSON), &media)
-		for _, item := range media {
-			resource, err := s.repo.Resource(strings.TrimPrefix(item.StorageKey, "resource:"))
-			if err != nil || resource == nil || resource.UserID != post.UserID {
-				continue
-			}
-			link, err := s.signedResourceAccessURL(resource, assets.VariantOriginal, expires, false)
-			if err != nil {
-				return nil, err
-			}
-			view.Media = append(view.Media, StudioPostMedia{Kind: item.Kind, URL: link, MimeType: item.MimeType, Width: item.Width, Height: item.Height, DurationMs: item.DurationMs})
+		media, err := s.studioPostMedia(post, expires, 0)
+		if err != nil {
+			return nil, err
 		}
+		view.Media = media
 		views = append(views, view)
 	}
 	return views, nil
+}
+
+// studioPostMedia 给作品文件签发访问链接；limit 大于 0 时只取前几个。
+func (s *Service) studioPostMedia(post model.StudioPost, expires time.Time, limit int) ([]StudioPostMedia, error) {
+	var media []StudioMedia
+	_ = json.Unmarshal([]byte(post.MediaJSON), &media)
+	result := []StudioPostMedia{}
+	for _, item := range media {
+		if limit > 0 && len(result) >= limit {
+			break
+		}
+		resource, err := s.repo.Resource(strings.TrimPrefix(item.StorageKey, "resource:"))
+		if err != nil || resource == nil || resource.UserID != post.UserID {
+			continue
+		}
+		link, err := s.signedResourceAccessURL(resource, assets.VariantOriginal, expires, false)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, StudioPostMedia{Kind: item.Kind, URL: link, MimeType: item.MimeType, Width: item.Width, Height: item.Height, DurationMs: item.DurationMs})
+	}
+	return result, nil
 }

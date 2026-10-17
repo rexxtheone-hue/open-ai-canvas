@@ -262,6 +262,41 @@ export function listStudioProfilePosts(handle: string, tab: "works" | "liked", o
     return http.get<StudioPostPage>(`/studio/profiles/${encodeURIComponent(handle)}/posts`, { params: { tab, offset: offset || undefined, pageSize: 24 }, signal });
 }
 
+export type StudioCreatorCard = {
+    handle: string;
+    name: string;
+    bio: string;
+    location: string;
+    specialties: string[];
+    avatarUrl?: string;
+    stats: { works: number; likes: number; followers: number };
+    mine: boolean;
+    following: boolean;
+    previews: StudioPostMedia[];
+};
+
+export type StudioCreatorQuery = {
+    q?: string;
+    specialty?: string;
+    location?: string;
+    sort?: "popular" | "followers" | "works" | "latest";
+    offset?: number;
+};
+
+export function listStudioCreators(query: StudioCreatorQuery = {}, signal?: AbortSignal) {
+    return http.get<{ creators: StudioCreatorCard[]; nextOffset?: number }>("/studio/creators", {
+        params: {
+            q: query.q?.trim() || undefined,
+            specialty: query.specialty || undefined,
+            location: query.location?.trim() || undefined,
+            sort: query.sort,
+            offset: query.offset || undefined,
+            pageSize: 24,
+        },
+        signal,
+    });
+}
+
 export function followStudioProfile(handle: string, following: boolean) {
     return http.put<StudioProfile>(`/studio/profiles/${encodeURIComponent(handle)}/follow`, { following });
 }

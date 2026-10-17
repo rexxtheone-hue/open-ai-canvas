@@ -124,4 +124,24 @@ func TestStudioProfilesFollowAndFeed(t *testing.T) {
 	if unfollowed, err := svc.FollowStudioProfile("fan", "mia_creates", false); err != nil || unfollowed.Following || unfollowed.Stats.Followers != 0 {
 		t.Fatalf("unfollow %+v %v", unfollowed, err)
 	}
+
+	// 创作者列表只列有公开作品的人，可以按领域、所在地、关键词筛选。
+	creators, err := svc.StudioCreators("fan", StudioCreatorQuery{})
+	if err != nil || len(creators.Creators) != 1 || creators.Creators[0].Handle != "mia_creates" || creators.Creators[0].Stats.Works != 1 || creators.Creators[0].Stats.Likes != 1 || len(creators.Creators[0].Previews) != 1 {
+		t.Fatalf("creators %+v %v", creators.Creators, err)
+	}
+	for name, query := range map[string]StudioCreatorQuery{"specialty": {Specialty: "人像"}, "location": {Location: "malacca"}, "search": {Search: "MIA"}, "sorted": {Sort: "followers"}} {
+		if page, err := svc.StudioCreators("", query); err != nil || len(page.Creators) != 1 {
+			t.Fatalf("%s filter %+v %v", name, page.Creators, err)
+		}
+	}
+	for name, query := range map[string]StudioCreatorQuery{"specialty": {Specialty: "配音"}, "location": {Location: "Penang"}, "search": {Search: "nobody"}} {
+		if page, err := svc.StudioCreators("", query); err != nil || len(page.Creators) != 0 {
+			t.Fatalf("%s filter should be empty: %+v %v", name, page.Creators, err)
+		}
+	}
+	preview, err := svc.StudioProfilePreviewByHandle("mia_creates")
+	if err != nil || preview.Title != "Mia (@mia_creates)" || preview.Description != "产品视频" || preview.ImagePath == "" {
+		t.Fatalf("preview %+v %v", preview, err)
+	}
 }

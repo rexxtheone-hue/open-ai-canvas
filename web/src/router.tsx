@@ -60,6 +60,7 @@ const StudioChatPage = lazy(() => import("@/pages/studio/studio-chat-page"));
 const StudioCharactersPage = lazy(() => import("@/pages/studio/studio-characters-page"));
 const StudioBrandPage = lazy(() => import("@/pages/studio/studio-brand"));
 const StudioInspirePage = lazy(() => import("@/pages/studio/studio-inspire"));
+const StudioCreatorsPage = lazy(() => import("@/pages/studio/studio-creators"));
 const StudioProfilePage = lazy(() => import("@/pages/studio/studio-profile").then((module) => ({ default: module.StudioProfilePage })));
 const StudioMyProfileRedirect = lazy(() => import("@/pages/studio/studio-profile").then((module) => ({ default: module.StudioMyProfileRedirect })));
 const StudioPublicProfilePage = lazy(() => import("@/pages/studio/studio-profile").then((module) => ({ default: module.StudioPublicProfilePage })));
@@ -152,6 +153,7 @@ export const router = createBrowserRouter([
             { path: "/studio/characters", element: <RequireAuth>{deferred(<StudioCharactersPage />)}</RequireAuth> },
             { path: "/studio/brand", element: <RequireAuth>{deferred(<StudioBrandPage />)}</RequireAuth> },
             { path: "/studio/inspire", element: <RequireAuth>{deferred(<StudioInspirePage />)}</RequireAuth> },
+            { path: "/studio/creators", element: <RequireAuth>{deferred(<StudioCreatorsPage />)}</RequireAuth> },
             { path: "/studio/profile", element: <RequireAuth>{deferred(<StudioMyProfileRedirect />)}</RequireAuth> },
             { path: "/studio/u/:handle", element: <RequireAuth>{deferred(<StudioProfilePage />)}</RequireAuth> },
             { path: "/studio/pricing", element: <RequireAuth>{deferred(<StudioPricingPage />)}</RequireAuth> },

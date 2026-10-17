@@ -1,8 +1,12 @@
 package handler
 
 import (
+	"bytes"
+	"html/template"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 
 	"yingce/backend/internal/model"
 	"yingce/backend/internal/service"
@@ -13,6 +17,38 @@ import (
 func queryInt(c *gin.Context, name string) int {
 	value, _ := strconv.Atoi(c.Query(name))
 	return value
+}
+
+var studioProfilePreviewPage = template.Must(template.New("preview").Parse(`<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>{{.Title}} · AI Studio</title>
+<meta name="description" content="{{.Description}}">
+<meta property="og:type" content="profile">
+<meta property="og:site_name" content="AI Studio">
+<meta property="og:title" content="{{.Title}}">
+<meta property="og:description" content="{{.Description}}">
+<meta property="og:url" content="{{.URL}}">
+{{if .Image}}<meta property="og:image" content="{{.Image}}">
+<meta name="twitter:image" content="{{.Image}}">{{end}}
+<meta name="twitter:card" content="{{if .Image}}summary_large_image{{else}}summary{{end}}">
+<meta name="twitter:title" content="{{.Title}}">
+<meta name="twitter:description" content="{{.Description}}">
+</head><body><h1>{{.Title}}</h1><p>{{.Description}}</p><a href="{{.URL}}">{{.URL}}</a></body></html>`))
+
+// requestOrigin 是访问者看到的站点地址（经过反向代理时取转发头）。
+func requestOrigin(c *gin.Context) string {
+	proto := strings.TrimSpace(strings.Split(c.GetHeader("X-Forwarded-Proto"), ",")[0])
+	if proto != "https" && proto != "http" {
+		proto = "http"
+		if c.Request.TLS != nil {
+			proto = "https"
+		}
+	}
+	host := strings.TrimSpace(strings.Split(c.GetHeader("X-Forwarded-Host"), ",")[0])
+	if host == "" {
+		host = c.Request.Host
+	}
+	return proto + "://" + host
 }
 
 // RegisterStudioCommunityRoutes 注册灵感社区、会员套餐和对应的管理接口。
@@ -87,6 +123,40 @@ func RegisterStudioCommunityRoutes(r *gin.RouterGroup, svc *service.Service) {
 			return
 		}
 		ok(c, page)
+	})
+	r.GET("/studio/creators", func(c *gin.Context) {
+		page, err := svc.StudioCreators(viewerID(c), service.StudioCreatorQuery{
+			Search: c.Query("q"), Specialty: c.Query("specialty"), Location: c.Query("location"), Sort: c.Query("sort"),
+			Offset: queryInt(c, "offset"), Limit: queryInt(c, "pageSize"),
+		})
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, page)
+	})
+	// 分享链接预览：nginx 把 WhatsApp、Facebook 等爬虫对 /u/:handle 的请求转到这里，返回带 Open Graph 标签的页面。
+	r.GET("/public/studio/profile-preview/:handle", func(c *gin.Context) {
+		preview, err := svc.StudioProfilePreviewByHandle(c.Param("handle"))
+		if err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		origin := requestOrigin(c)
+		image := preview.ImagePath
+		if strings.HasPrefix(image, "/") {
+			image = origin + image
+		}
+		var body bytes.Buffer
+		if err := studioProfilePreviewPage.Execute(&body, map[string]string{
+			"Title": preview.Title, "Description": preview.Description, "Image": image, "URL": origin + "/u/" + url.PathEscape(preview.Handle),
+		}); err != nil {
+			fail(c, http.StatusInternalServerError, err)
+			return
+		}
+		// 页面里的站点地址来自请求头，不让共享缓存保存。
+		c.Header("Cache-Control", "private, no-cache")
+		c.Data(http.StatusOK, "text/html; charset=utf-8", body.Bytes())
 	})
 	r.PUT("/studio/profiles/:handle/follow", withUser(func(c *gin.Context, user *model.User) {
 		var req struct {

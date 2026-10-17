@@ -14,6 +14,7 @@ import (
 
 	"yingce/backend/internal/assets"
 	"yingce/backend/internal/model"
+	"yingce/backend/internal/repository"
 
 	"gorm.io/gorm"
 )
@@ -392,4 +393,163 @@ func studioProfileName(profile *model.StudioProfile, user *model.User) string {
 		}
 	}
 	return profile.Handle
+}
+
+type StudioCreatorQuery struct {
+	Search    string
+	Specialty string
+	Location  string
+	Sort      string
+	Offset    int
+	Limit     int
+}
+
+// StudioCreatorCard 是创作者列表里的一张卡片，带最近几个作品做预览。
+type StudioCreatorCard struct {
+	Handle      string             `json:"handle"`
+	Name        string             `json:"name"`
+	Bio         string             `json:"bio"`
+	Location    string             `json:"location"`
+	Specialties []string           `json:"specialties"`
+	AvatarURL   string             `json:"avatarUrl,omitempty"`
+	Stats       StudioProfileStats `json:"stats"`
+	Mine        bool               `json:"mine"`
+	Following   bool               `json:"following"`
+	Previews    []StudioPostMedia  `json:"previews"`
+}
+
+type StudioCreatorPage struct {
+	Creators   []StudioCreatorCard `json:"creators"`
+	NextOffset int                 `json:"nextOffset,omitempty"`
+}
+
+// StudioCreators 创作者列表，未登录也能看。
+func (s *Service) StudioCreators(viewerID string, query StudioCreatorQuery) (StudioCreatorPage, error) {
+	// 主页功能上线前发布过作品的用户还没有主页资料，先补上，否则不会出现在列表里。
+	missing, err := s.repo.StudioAuthorsWithoutProfile(50)
+	if err != nil {
+		return StudioCreatorPage{}, err
+	}
+	for _, userID := range missing {
+		if _, err := s.ensureStudioProfile(userID); err != nil {
+			return StudioCreatorPage{}, err
+		}
+	}
+	offset := max(query.Offset, 0)
+	rows, hasMore, err := s.repo.StudioCreators(repository.StudioCreatorQuery{
+		Search: query.Search, Specialty: query.Specialty, Location: query.Location, Sort: query.Sort, Offset: offset, Limit: query.Limit,
+	})
+	if err != nil {
+		return StudioCreatorPage{}, err
+	}
+	userIDs := make([]string, 0, len(rows))
+	for _, row := range rows {
+		userIDs = append(userIDs, row.UserID)
+	}
+	following, err := s.repo.StudioFollowingSet(viewerID, userIDs)
+	if err != nil {
+		return StudioCreatorPage{}, err
+	}
+	expires := time.Now().Add(studioProfileMediaTTL)
+	page := StudioCreatorPage{Creators: make([]StudioCreatorCard, 0, len(rows))}
+	for _, row := range rows {
+		profile := row.StudioProfile
+		card := StudioCreatorCard{
+			Handle: profile.Handle, Bio: profile.Bio, Location: profile.Location, Specialties: []string{},
+			Stats: StudioProfileStats{Works: row.Works, Likes: row.Likes, Followers: row.Followers}, Mine: viewerID != "" && viewerID == profile.UserID,
+			Following: following[profile.UserID], Previews: []StudioPostMedia{},
+		}
+		user, err := s.repo.User(profile.UserID)
+		if err != nil {
+			return StudioCreatorPage{}, err
+		}
+		card.Name = studioProfileName(&profile, user)
+		_ = json.Unmarshal([]byte(profile.SpecialtiesJSON), &card.Specialties)
+		if card.Specialties == nil {
+			card.Specialties = []string{}
+		}
+		card.AvatarURL = s.studioProfileImageURL(profile.UserID, profile.AvatarResourceID, assets.VariantOriginal)
+		posts, _, err := s.repo.StudioPosts(repository.StudioPostQuery{UserID: profile.UserID, Sort: "latest", Limit: 3})
+		if err != nil {
+			return StudioCreatorPage{}, err
+		}
+		for _, post := range posts {
+			media, err := s.studioPostMedia(post, expires, 1)
+			if err != nil {
+				return StudioCreatorPage{}, err
+			}
+			card.Previews = append(card.Previews, media...)
+		}
+		page.Creators = append(page.Creators, card)
+	}
+	if hasMore {
+		page.NextOffset = offset + len(rows)
+	}
+	return page, nil
+}
+
+// StudioProfilePreview 是分享链接的预览信息（WhatsApp、Facebook 等抓取用）；ImagePath 是站内相对地址。
+type StudioProfilePreview struct {
+	Handle      string
+	Title       string
+	Description string
+	ImagePath   string
+}
+
+func (s *Service) StudioProfilePreviewByHandle(handle string) (StudioProfilePreview, error) {
+	profile, err := s.studioProfileForHandle(handle)
+	if err != nil {
+		return StudioProfilePreview{}, err
+	}
+	view, err := s.studioProfileView("", profile)
+	if err != nil {
+		return StudioProfilePreview{}, err
+	}
+	preview := StudioProfilePreview{Handle: view.Handle, Title: fmt.Sprintf("%s (@%s)", view.Name, view.Handle)}
+	description := strings.TrimSpace(view.Bio)
+	if description == "" {
+		parts := []string{fmt.Sprintf("%d 个作品", view.Stats.Works)}
+		if len(view.Specialties) > 0 {
+			parts = append(parts, strings.Join(view.Specialties, " · "))
+		}
+		if view.Location != "" {
+			parts = append(parts, view.Location)
+		}
+		description = strings.Join(parts, " | ")
+	}
+	if utf8.RuneCountInString(description) > 200 {
+		description = string([]rune(description)[:200]) + "…"
+	}
+	preview.Description = description
+	// 预览图：封面 → 最新的图片作品 → 头像。爬虫会缓存，链接给 7 天有效期。
+	expires := time.Now().Add(7 * 24 * time.Hour)
+	sign := func(resourceID string) string {
+		resource, err := s.repo.Resource(resourceID)
+		if err != nil || resource == nil || resource.UserID != profile.UserID {
+			return ""
+		}
+		link, err := s.signedResourceAccessURL(resource, assets.VariantOriginal, expires, false)
+		if err != nil {
+			return ""
+		}
+		return link
+	}
+	if profile.CoverResourceID != "" {
+		preview.ImagePath = sign(profile.CoverResourceID)
+	}
+	if preview.ImagePath == "" {
+		posts, _, err := s.repo.StudioPosts(repository.StudioPostQuery{UserID: profile.UserID, Kind: "image", Sort: "latest", Limit: 1})
+		if err != nil {
+			return StudioProfilePreview{}, err
+		}
+		for _, post := range posts {
+			if media, err := s.studioPostMedia(post, expires, 1); err == nil && len(media) > 0 {
+				preview.ImagePath = media[0].URL
+			}
+		}
+	}
+	if preview.ImagePath == "" && profile.AvatarResourceID != "" {
+		preview.ImagePath = sign(profile.AvatarResourceID)
+	}
+	return preview, nil
 }

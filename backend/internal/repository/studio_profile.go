@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -127,4 +128,88 @@ func (r *Repository) StudioLikedPosts(userID string, offset, limit int) ([]model
 		posts = posts[:limit]
 	}
 	return posts, hasMore, nil
+}
+
+type StudioCreatorQuery struct {
+	Search    string
+	Specialty string
+	Location  string
+	// Sort：popular（默认，按获赞）、followers、works、latest（最近发布）。
+	Sort   string
+	Offset int
+	Limit  int
+}
+
+type StudioCreatorRow struct {
+	model.StudioProfile `gorm:"embedded"`
+	Works               int64
+	Likes               int64
+	Followers           int64
+}
+
+// StudioCreators 创作者列表：只列有公开作品、账号未停用的创作者。
+func (r *Repository) StudioCreators(query StudioCreatorQuery) ([]StudioCreatorRow, bool, error) {
+	limit := query.Limit
+	if limit <= 0 || limit > 48 {
+		limit = 24
+	}
+	db := r.db.Table("studio_profiles AS p").
+		Select("p.*, COUNT(sp.id) AS works, COALESCE(SUM(sp.like_count), 0) AS likes, (SELECT COUNT(*) FROM studio_follows f WHERE f.followee_id = p.user_id) AS followers").
+		Joins("JOIN studio_posts sp ON sp.user_id = p.user_id AND sp.status = ?", model.StudioPostPublished).
+		Joins("JOIN users u ON u.id = p.user_id AND u.status <> ?", model.UserStatusDisabled).
+		Group("p.user_id")
+	if search := strings.ToLower(strings.TrimSpace(query.Search)); search != "" {
+		pattern := "%" + escapeLike(search) + "%"
+		db = db.Where("(LOWER(p.name) LIKE ? ESCAPE '\\' OR p.handle LIKE ? ESCAPE '\\' OR LOWER(p.bio) LIKE ? ESCAPE '\\')", pattern, pattern, pattern)
+	}
+	if specialty := strings.TrimSpace(query.Specialty); specialty != "" {
+		encoded, _ := json.Marshal(specialty)
+		db = db.Where("p.specialties_json LIKE ? ESCAPE '\\'", "%"+escapeLike(string(encoded))+"%")
+	}
+	if location := strings.ToLower(strings.TrimSpace(query.Location)); location != "" {
+		db = db.Where("LOWER(p.location) LIKE ? ESCAPE '\\'", "%"+escapeLike(location)+"%")
+	}
+	switch query.Sort {
+	case "followers":
+		db = db.Order("followers desc, likes desc, p.user_id")
+	case "works":
+		db = db.Order("works desc, likes desc, p.user_id")
+	case "latest":
+		db = db.Order("MAX(sp.created_at) desc, p.user_id")
+	default:
+		db = db.Order("likes desc, followers desc, works desc, p.user_id")
+	}
+	var rows []StudioCreatorRow
+	if err := db.Offset(max(query.Offset, 0)).Limit(limit + 1).Scan(&rows).Error; err != nil {
+		return nil, false, err
+	}
+	hasMore := len(rows) > limit
+	if hasMore {
+		rows = rows[:limit]
+	}
+	return rows, hasMore, nil
+}
+
+// StudioAuthorsWithoutProfile 是发布过作品但还没有主页资料的用户（主页功能上线前发布的作品），补建后才能进创作者列表。
+func (r *Repository) StudioAuthorsWithoutProfile(limit int) ([]string, error) {
+	var ids []string
+	err := r.db.Model(&model.StudioPost{}).Distinct("user_id").
+		Where("status = ? AND user_id NOT IN (?)", model.StudioPostPublished, r.db.Model(&model.StudioProfile{}).Select("user_id")).
+		Limit(limit).Pluck("user_id", &ids).Error
+	return ids, err
+}
+
+func (r *Repository) StudioFollowingSet(followerID string, userIDs []string) (map[string]bool, error) {
+	following := map[string]bool{}
+	if followerID == "" || len(userIDs) == 0 {
+		return following, nil
+	}
+	var ids []string
+	if err := r.db.Model(&model.StudioFollow{}).Where("follower_id = ? AND followee_id IN ?", followerID, userIDs).Pluck("followee_id", &ids).Error; err != nil {
+		return nil, err
+	}
+	for _, id := range ids {
+		following[id] = true
+	}
+	return following, nil
 }

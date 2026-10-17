@@ -336,6 +336,7 @@ type (
 	StudioBrandKitInput                    = app.StudioBrandKitInput
 	StudioCommunityQuery                   = app.StudioCommunityQuery
 	StudioProfileInput                     = app.StudioProfileInput
+	StudioCreatorQuery                     = app.StudioCreatorQuery
 	StudioPublishInput                     = app.StudioPublishInput
 	StudioPostAdminInput                   = app.StudioPostAdminInput
 	StudioCharacterInput                   = app.StudioCharacterInput

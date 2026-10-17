@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
-import { ChatFill, ChevronDown, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, LayoutTemplate, MessageSquareText, Palette, PanelLeft, Pin, UserRound, Users, Wand2, Waypoints } from "./studio-icons";
+import { ChatFill, ChevronDown, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, LayoutTemplate, MessageSquareText, Palette, PanelLeft, Pin, UserPen, UserRound, Users, Wand2, Waypoints } from "./studio-icons";
 
 import "@fontsource-variable/bricolage-grotesque";
 
@@ -176,7 +176,8 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                             <div className="studio-side-links">
                                 {link("/studio/inspire?tab=templates", "模板", LayoutTemplate)}
                                 {link("/studio/inspire", "灵感社区", Compass)}
-                                {link("/studio/profile", "我的主页", Users)}
+                                {link("/studio/creators", "创作者", Users)}
+                                {link("/studio/profile", "我的主页", UserPen)}
                                 {link("/studio/pricing", "会员", Crown)}
                             </div>
                         ))}
