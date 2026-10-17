@@ -155,7 +155,7 @@ export function StudioCreateWorldModal({ open, onClose, initialPrompt = "", onCr
     // 只用图片创建时没有文字描述，用参考图的场景补全。
     const sceneText = text.trim() || (step === "image" && images.length ? "延续参考图中的场景、光线和风格，补全成完整的环境" : "");
     const specialty = useMemo(() => buildSpecialtyState(spec, { reference: step === "image" ? images : [] }, sceneText, {}), [images, sceneText, spec, step]);
-    const studio = useStudioTool("image", PANO_TOOL, { specialty, brand: false });
+    const studio = useStudioTool("image", PANO_TOOL, { specialty });
     const { config, resolvedModel, updateImage, update } = studio;
     const recentImages = useQuery({ queryKey: ["studio", "world-image-history"], queryFn: async ({ signal }) => (await listStudioWorks({ kind: "image", pageSize: 40 }, signal)).works.filter((work) => work.status === "succeeded" && work.media[0]), enabled: open && historyOpen });
 

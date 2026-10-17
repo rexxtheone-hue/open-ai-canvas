@@ -90,14 +90,6 @@ export function studioFinalPrompt(state: Pick<StudioToolState, "kind" | "prompt"
 
 export type StudioReferenceLimits = { maxImages: number; maxVideos: number; maxAudios: number; exclusiveImageAudio?: boolean };
 
-/**
- * 品牌套件只在生成图片时提供（和 OpenArt 一致）。视频里放在参考区会让人以为能把品牌带进视频，
- * 实际视频模型对品牌信息的还原很有限，所以视频不显示也不追加品牌。
- */
-export function studioBrandAvailable(kind: StudioKind, _limits?: Pick<StudioReferenceLimits, "maxImages">) {
-    return kind === "image";
-}
-
 /** 专项工具只考虑支持该操作（视频）或能放下必需参考图（图片）的模型。 */
 export function studioModelSupportsSpecialty(config: AiConfig, model: string, specialty: StudioSpecialtyState | undefined) {
     if (!specialty) return true;

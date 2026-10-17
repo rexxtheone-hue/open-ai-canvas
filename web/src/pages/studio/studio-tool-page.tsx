@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App, Popover, Switch } from "antd";
-import { ArrowLeftRight, AudioLines, BrandFill, Check, ChevronRight, Crop, Film, ImagePlus, ListVideo, Loader2, Mic, Music, Palette, SlidersHorizontal, Sparkles, Video, X } from "./studio-icons";
-import { Link, useSearchParams } from "react-router";
+import { ArrowLeftRight, AudioLines, ChevronRight, Crop, Film, ImagePlus, ListVideo, Loader2, Mic, Music, SlidersHorizontal, Sparkles, Video, X } from "./studio-icons";
+import { useSearchParams } from "react-router";
 
 import { AudioSettingsPanel } from "@/components/audio-settings-panel";
 import { ImageSettingsPanel } from "@/components/image-settings-panel";
@@ -29,11 +29,11 @@ import { studioAttachmentFromMedia, uploadStudioFile, useStudioTool } from "./us
 import { StudioPanelFooter, StudioPanelTabs, StudioToolSwitcher } from "./studio-workspace";
 import { StudioToolThumb } from "./studio-tool-thumb";
 import { StudioModelCard, StudioModelPanel } from "./studio-model-panel";
-import { studioBrandAvailable, studioImageDefaultRatio, studioImageRatioSupported, studioModelSupportsSpecialty } from "./studio-generation";
+import { studioImageDefaultRatio, studioImageRatioSupported, studioModelSupportsSpecialty } from "./studio-generation";
 import { useStudioToolCovers } from "./use-studio-tool-meta";
 import { buildSpecialtyState, defaultSpecialtyOptions, orderedSlotAttachments, ratioOfChoice, restoreSpecialtyOptions, slotAccepts, slotItems, studioSpecialtySpec, type StudioSlot, type StudioSlotValues } from "./studio-specialty";
 import { STUDIO_ATTACH_KEY, STUDIO_REUSE_KEY } from "./studio-agent";
-import type { StudioBrandKit, StudioWork } from "@/services/api/studio";
+import type { StudioWork } from "@/services/api/studio";
 
 function promptMaxChars(config: Parameters<typeof modelCapabilityConfigFor>[0], kind: StudioKind, model: string) {
     if (!model || kind === "audio") return kind === "audio" ? 10000 : 0;
@@ -50,23 +50,6 @@ const VOICE_OVER_SAMPLES = [
 ];
 
 /** 品牌素材或风格参考图，作为图片参考加入。 */
-export function studioBrandImageAttachments(kit: StudioBrandKit, kind: "asset" | "style"): CreationAttachment[] {
-    const ids = (kind === "asset" ? kit.assetResourceIds : kit.styleResourceIds) || [];
-    return ids.map((resourceId, index) => {
-        const storageKey = `resource:${resourceId}`;
-        const url = resolveResourceUrl(storageKey, "");
-        return { id: `brand-${kind}:${kit.id}:${resourceId}`, name: `${kit.name} ${kind === "asset" ? "品牌素材" : "风格参考"} ${index + 1}`, type: "image/png", dataUrl: url, url, storageKey, previewUrl: url };
-    });
-}
-
-/** 品牌 Logo 作为一张图片参考，和上传的图片走同一套上限检查。 */
-export function studioBrandLogoAttachment(kit: StudioBrandKit): CreationAttachment | undefined {
-    if (!kit.logoResourceId) return undefined;
-    const storageKey = `resource:${kit.logoResourceId}`;
-    const url = resolveResourceUrl(storageKey, kit.logoUrl || "");
-    return { id: `brand-logo:${kit.id}:${kit.logoResourceId}`, name: `${kit.name} Logo`, type: "image/png", dataUrl: url, url, storageKey, previewUrl: url };
-}
-
 function settingsSummary(kind: StudioKind, state: ReturnType<typeof useStudioTool>["state"]) {
     if (kind === "image") return [state.image.ratio, state.image.imageResolution !== "auto" ? state.image.imageResolution : "", state.image.quality !== "auto" ? state.image.quality : ""].filter(Boolean).join(" | ") || "默认";
     if (kind === "video") return `${state.video.ratio} | ${state.video.videoQuality.replace(/p$/i, "")}p | ${state.video.seconds}s`;
@@ -109,7 +92,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     const [planning, setPlanning] = useState(false);
     const specialtyContext = useMemo(() => ({ plan: shotPlan, regions: regions.length ? describeStudioRegions(regions) : "" }), [regions, shotPlan]);
     const specialty = useMemo(() => (specialtySpec ? buildSpecialtyState(specialtySpec, slotValues, specialtyText, specialtyOptions, specialtyContext) : undefined), [slotValues, specialtyContext, specialtyOptions, specialtySpec, specialtyText]);
-    const studio = useStudioTool(kind, tool.id, { specialty, brand: !specialtySpec });
+    const studio = useStudioTool(kind, tool.id, { specialty });
     const { state, config, resolvedModel, generationConfig, limits, overflowIds, maxCount, credits, creditsEnabled, blockReason, submitting, uploading } = studio;
     const [outputOpen, setOutputOpen] = useState(false);
     const autoPolishKey = `studio.auto-polish.${tool.id}.v1`;
@@ -432,47 +415,6 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
         );
     };
 
-    const addBrandImages = (attachments: CreationAttachment[], success: string) => {
-        const reason = attachments.length ? studio.addAttachments(attachments) : undefined;
-        if (reason) message.warning(reason);
-        else message.success(success);
-    };
-    const brandKit = studio.brandKit;
-    const brandTile = (
-        <Popover
-            trigger="click"
-            placement="bottomLeft"
-            arrow={false}
-            content={(
-                <div className="studio-popup studio-option-list studio-brand-menu">
-                    <strong>品牌套件</strong>
-                    <p className="studio-hint">品牌介绍、调性、品牌色、字体等会追加在提示词后发送。</p>
-                    <button type="button" className="studio-option-item" aria-selected={!brandKit} onClick={() => studio.setBrandChoice("")}>
-                        <span>不使用品牌</span>{!brandKit ? <Check aria-hidden /> : null}
-                    </button>
-                    {studio.brandKits.map((kit) => (
-                        <button key={kit.id} type="button" className="studio-option-item" aria-selected={brandKit?.id === kit.id} onClick={() => studio.setBrandChoice(kit.id)}>
-                            <span>{kit.name}{kit.isDefault ? "（默认）" : ""}</span>{brandKit?.id === kit.id ? <Check aria-hidden /> : null}
-                        </button>
-                    ))}
-                    {brandKit && limits.maxImages > 0 ? (
-                        <div className="studio-voice-sample-actions">
-                            {brandKit.logoResourceId ? <button type="button" className="studio-mini-button" onClick={() => { const logo = studioBrandLogoAttachment(brandKit); if (logo) addBrandImages([logo], "已加入 Logo 参考"); }}><ImagePlus aria-hidden />加入 Logo</button> : null}
-                            {brandKit.assetResourceIds?.length ? <button type="button" className="studio-mini-button" onClick={() => addBrandImages(studioBrandImageAttachments(brandKit, "asset"), "已加入品牌素材")}><ImagePlus aria-hidden />加入品牌素材</button> : null}
-                            {brandKit.styleResourceIds?.length ? <button type="button" className="studio-mini-button" onClick={() => addBrandImages(studioBrandImageAttachments(brandKit, "style"), "已加入风格参考")}><ImagePlus aria-hidden />加入风格参考</button> : null}
-                        </div>
-                    ) : null}
-                    <Link to="/studio/brand" className="studio-block-link">{studio.brandKits.length ? "管理品牌套件" : "还没有品牌套件，去创建"}</Link>
-                </div>
-            )}
-        >
-            <button type="button" className={`studio-ref-slot studio-brand-slot${brandKit ? " is-active" : ""}`} title={brandKit ? `品牌：${brandKit.name}` : "品牌套件"} aria-label={brandKit ? `品牌：${brandKit.name}` : "品牌套件"}>
-                {brandKit?.logoResourceId ? <img src={studioBrandLogoAttachment(brandKit)?.previewUrl} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : <BrandFill aria-hidden />}
-                <small>{brandKit ? brandKit.name : "品牌（未使用）"}</small>
-            </button>
-        </Popover>
-    );
-
     return (
         <StudioShell title="创作" subtitle={tool.label}>
             <div className="studio-workspace">
@@ -600,7 +542,6 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                         </div>
                                     ))}
                                     {referenceKinds.map((referenceKind) => referenceTile(referenceKind))}
-                                    {studioBrandAvailable(kind, limits) ? brandTile : null}
                                 </div>
                                 <p className="studio-hint">
                                     {uploading ? "正在上传…" : `当前模型最多：${[limits.maxImages ? `${limits.maxImages} 张图片` : "", limits.maxVideos ? `${limits.maxVideos} 段视频` : "", limits.maxAudios ? `${limits.maxAudios} 段音频` : ""].filter(Boolean).join("、")}`}

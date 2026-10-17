@@ -6,7 +6,6 @@ import type { CreationAttachment } from "../src/pages/create/creation-assets";
 import {
     admitStudioAttachments,
     studioBlockReason,
-    studioBrandAvailable,
     studioBrandPrompt,
     studioFinalPrompt,
     studioGenerationConfig,
@@ -191,13 +190,6 @@ describe("AI Studio 品牌套件", () => {
         // 只填了口号和字体的套件，视频里没有可用的部分，不追加任何品牌信息。
         const textOnly = { id: "k", name: "暖杯", prompt: "x", videoPrompt: studioBrandPrompt({ id: "k", name: "暖杯", slogan: "温暖随身", typography: "思源黑体" }, "video") };
         expect(studioFinalPrompt({ kind: "video", prompt: "倒一杯热咖啡", brand: textOnly })).toBe("倒一杯热咖啡");
-    });
-
-    test("品牌只在生成图片时提供", () => {
-        expect(studioBrandAvailable("image", { maxImages: 0 })).toBe(true);
-        expect(studioBrandAvailable("video", { maxImages: 0 })).toBe(false);
-        expect(studioBrandAvailable("video", { maxImages: 3 })).toBe(false);
-        expect(studioBrandAvailable("audio", { maxImages: 3 })).toBe(false);
     });
 
     test("提交带品牌时记录原始提示词和套件，长度按最终提示词检查", () => {

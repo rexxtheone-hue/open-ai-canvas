@@ -17,7 +17,6 @@ import { registerStudioUpload } from "@/services/api/studio-agents";
 import { useEffectiveConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
 import {
-    studioBrandAvailable,
     admitStudioAttachments,
     studioBlockReason,
     studioEffectiveVideoMode,
@@ -33,7 +32,6 @@ import {
     type StudioToolState,
 } from "./studio-generation";
 import { notifyStudioWorksChanged } from "./use-studio-works";
-import { useStudioBrandChoice } from "./use-studio-brand";
 
 type StoredToolSettings = Pick<StudioToolState, "model" | "count" | "image" | "video" | "audio">;
 
@@ -108,20 +106,17 @@ export function onStudioUploadsChanged(listener: () => void) {
     return () => window.removeEventListener(UPLOADS_CHANGED, listener);
 }
 
-export function useStudioTool(kind: StudioKind, tool: string, options: { specialty?: StudioSpecialtyState; brand?: boolean } = {}) {
+export function useStudioTool(kind: StudioKind, tool: string, options: { specialty?: StudioSpecialtyState } = {}) {
     const config = useEffectiveConfig();
     const user = useUserStore((state) => state.user);
     const [baseState, setState] = useState<StudioToolState>(() => initialState(kind, tool));
-    const brandEnabled = kind !== "audio" && options.brand !== false;
-    const brand = useStudioBrandChoice(brandEnabled);
     const specialty = options.specialty;
     // 品牌和专项指令不进入本地记忆的工具参数，每次由当前选择拼出。
     const state = useMemo<StudioToolState>(() => {
         let next = baseState;
-        if (brandEnabled && brand.context) next = { ...next, brand: brand.context };
         if (specialty) next = { ...next, specialty };
         return next;
-    }, [baseState, brand.context, brandEnabled, specialty]);
+    }, [baseState, specialty]);
     const [submitting, setSubmitting] = useState(false);
     const [uploading, setUploading] = useState(0);
     const submitLockRef = useRef(false);
@@ -277,9 +272,7 @@ export function useStudioTool(kind: StudioKind, tool: string, options: { special
         if (blockReason || !resolvedModel) return { created: 0, failed: 0, error: blockReason || "后台还没有可用的模型" };
         submitLockRef.current = true;
         setSubmitting(true);
-        // 当前模型用不了品牌（视频模型不收参考图）时，不往提示词里加品牌信息。
-        const brandState = studioBrandAvailable(kind, limits) ? state : { ...state, brand: undefined };
-        const submitState = promptOverride !== undefined && !state.specialty ? { ...brandState, prompt: promptOverride } : brandState;
+        const submitState = promptOverride !== undefined && !state.specialty ? { ...state, prompt: promptOverride } : state;
         // 多条指令（多语言配音、全部角度）：每条指令一个任务。
         const variants = state.specialty?.variants;
         const submissions = variants?.length
@@ -347,8 +340,5 @@ export function useStudioTool(kind: StudioKind, tool: string, options: { special
         swapFirstImages,
         applyWorkSettings,
         submit,
-        brandKits: brand.kits,
-        brandKit: brand.kit,
-        setBrandChoice: brand.setChoice,
     };
 }
