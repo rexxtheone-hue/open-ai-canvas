@@ -1409,3 +1409,4 @@ button.studio-entry-tile { font: inherit; font-size: 13.5px; font-weight: 650; c
 html.studio-active { --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
 html.studio-active body { font-family: var(--font-sans) !important; }
 html.studio-active [class^="ant-"], html.studio-active [class*=" ant-"] { font-family: var(--font-sans); }
+.studio-model-channel { font-style: normal; font-weight: 500; color: var(--studio-muted); }

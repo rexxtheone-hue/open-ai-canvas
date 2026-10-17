@@ -3,16 +3,25 @@ import { ChevronRight, Search, X } from "./studio-icons";
 
 import { ModelIcon, ModelPriceSummary } from "@/components/model-picker";
 import { compatibleModelInGroup, groupModelsByDisplayName, modelCompatibilityError, type ModelRequirements } from "@/lib/model-selection";
-import { modelDisplayName, selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
+import { modelDisplayName, modelOptionName, resolveModelChannel, selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
 import type { StudioKind } from "@/services/api/studio";
 import { studioModelChips } from "./studio-model-chips";
+
+/** 同名模型来自不同渠道时用来区分：后台填的「渠道展示名」，自建渠道没填时用渠道名称。 */
+export function studioModelChannelLabel(config: AiConfig, model: string) {
+    if (!model) return "";
+    const channel = resolveModelChannel(config, model);
+    const label = channel.modelCosts?.find((item) => item.model === modelOptionName(model))?.channelLabel?.trim();
+    if (label) return label;
+    return channel.scope === "system" ? "" : channel.name || "";
+}
 
 /** 面板里的模型卡片：图标 + 「模型」+ 名称，点开右侧模型面板。 */
 export function StudioModelCard({ config, model, open, onToggle }: { config: AiConfig; model: string; open: boolean; onToggle: () => void }) {
     return (
         <button type="button" className="studio-model-card" aria-expanded={open} aria-label="选择模型" onClick={onToggle}>
             <span className="studio-model-icon"><ModelIcon config={config} model={model} /></span>
-            <span className="studio-model-card-text"><small>模型</small><b>{model ? modelDisplayName(config, model) || model : "后台还没有可用的模型"}</b></span>
+            <span className="studio-model-card-text"><small>模型</small><b>{model ? modelDisplayName(config, model) || model : "后台还没有可用的模型"}{studioModelChannelLabel(config, model) ? <em className="studio-model-channel"> · {studioModelChannelLabel(config, model)}</em> : null}</b></span>
             <ChevronRight aria-hidden />
         </button>
     );
@@ -80,6 +89,7 @@ export function StudioModelPanel({
                             <span className="studio-model-icon"><ModelIcon config={config} model={target} /></span>
                             <span className="studio-model-row-main">
                                 <b>{group.label}</b>
+                                {studioModelChannelLabel(config, target) ? <small>{studioModelChannelLabel(config, target)}</small> : null}
                                 {reason ? <small className="is-warn">{reason}</small> : null}
                             </span>
                             <span className="studio-model-chips">
