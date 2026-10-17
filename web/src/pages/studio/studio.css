@@ -12,16 +12,16 @@
     --studio-hover: #1e2023;
     --studio-chip: linear-gradient(90deg, rgba(214, 225, 255, 0.04) 25%, rgba(214, 225, 255, 0.08) 100%);
     /* 主色：参考 Higgsfield——黑灰为底，只用一个荧光色点缀主按钮、新标签和选中项；荧光紫按钮配黑字。 */
-    --studio-accent: #c13cff;
-    --studio-accent-rgb: 193, 60, 255;
-    --studio-accent-strong: #ad1fff;
+    --studio-accent: #d65cff;
+    --studio-accent-rgb: 214, 92, 255;
+    --studio-accent-strong: #c13cff;
     --studio-accent-ink: #0b0b0c;
-    --studio-accent-text: #dc9bff;
-    --studio-accent-soft: color-mix(in oklab, #c13cff 14%, transparent);
+    --studio-accent-text: #ebb8ff;
+    --studio-accent-soft: color-mix(in oklab, #d65cff 14%, transparent);
     /* 荧光感：主按钮外圈的紫色光晕。 */
-    --studio-accent-glow: 0 0 22px -4px rgba(193, 60, 255, 0.75);
+    --studio-accent-glow: 0 0 22px -4px rgba(214, 92, 255, 0.75);
     --studio-hot: #fb23c2;
-    --studio-new: #c13cff;
+    --studio-new: #d65cff;
     --studio-danger: #ff6b6b;
     --studio-ok: #16d866;
     --studio-radius: 16px;
@@ -317,7 +317,7 @@
     cursor: pointer;
 }
 .studio-generate-button:hover { background: var(--studio-accent-strong); }
-.studio-generate-button:disabled { opacity: 0.45; cursor: not-allowed; }
+.studio-generate-button:disabled { opacity: 0.6; cursor: not-allowed; }
 .studio-generate-button:focus-visible { outline: 2px solid var(--studio-fg); outline-offset: 2px; }
 .studio-generate-button .studio-cost { display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; }
 .studio-block-reason { margin: 0; font-size: 12px; color: var(--palette-status-warning); min-height: 1em; }
@@ -887,7 +887,7 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 /* ---------- 视觉升级：参照 OpenArt 的层次（标题字体、聚光背景、发光输入框、海报卡片） ---------- */
 .studio-root, .studio-popup, .studio-modal {
     --studio-display: "Space Grotesk Variable", "Space Grotesk", "Inter Variable", ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
-    --studio-glow: linear-gradient(135deg, #e7a8ff 0%, #c13cff 50%, #9a12ff 100%);
+    --studio-glow: linear-gradient(135deg, #f0c4ff 0%, #d65cff 50%, #b030ff 100%);
     --studio-glass: linear-gradient(-45deg, rgba(214, 225, 255, 0.1) 0%, rgba(214, 225, 255, 0.04) 100%);
 }
 .studio-hero h1, .studio-director-hero h1, .studio-section-head h2, .studio-chat-welcome h2, .studio-empty strong, .studio-topbar-title strong, .studio-side-brand strong {
@@ -1062,7 +1062,7 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 
 /* 对话模式空状态 */
 .studio-chat-welcome h2 { font-size: 24px; font-weight: 650; }
-.studio-chat-welcome::before { content: ""; width: 64px; height: 64px; border-radius: 22px; background: radial-gradient(circle at 30% 25%, #f6dcff, #c13cff 40%, #4a0a8a 100%); box-shadow: 0 12px 30px -10px rgba(var(--studio-accent-rgb), 0.7), inset 0 -4px 10px rgba(0, 0, 0, 0.25); }
+.studio-chat-welcome::before { content: ""; width: 64px; height: 64px; border-radius: 22px; background: radial-gradient(circle at 30% 25%, #f6dcff, #d65cff 40%, #4a0a8a 100%); box-shadow: 0 12px 30px -10px rgba(var(--studio-accent-rgb), 0.7), inset 0 -4px 10px rgba(0, 0, 0, 0.25); }
 .studio-chat-composer { border-radius: 20px; background: #121314; }
 
 @media (max-width: 720px) {
