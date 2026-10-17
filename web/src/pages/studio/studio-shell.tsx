@@ -42,9 +42,13 @@ function writeJSON(key: string, value: unknown) {
     }
 }
 
+// 同一个页面用 ?tab= 区分的侧栏入口（如「模板」），选中它时同页面的普通入口不再高亮。
+const TAB_LINKS = ["/studio/inspire?tab=templates"];
+
 const isActive = (pathname: string, search: string, to: string) => {
     const [path, query] = to.split("?");
     if (query) return pathname === path && search.includes(query);
+    if (TAB_LINKS.some((link) => link !== to && isActive(pathname, search, link))) return false;
     if (path === "/studio") return pathname === "/studio" || pathname === "/studio/";
     return pathname === path || pathname.startsWith(`${path}/`);
 };

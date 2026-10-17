@@ -34,8 +34,10 @@ function emptyText(tab: Tab, q: string): [string, string] {
 
 /** 灵感社区：看别人发布的作品，一键做同款。 */
 export default function StudioInspirePage() {
-    const [searchParams] = useSearchParams();
-    const [tab, setTab] = useState<Tab>(() => (TABS.some((item) => item.id === searchParams.get("tab")) ? (searchParams.get("tab") as Tab) : "featured"));
+    // 分类跟着网址走：侧栏「模板」「灵感社区」切换时页面同步，刷新后也保持。
+    const [searchParams, setSearchParams] = useSearchParams();
+    const tab: Tab = TABS.some((item) => item.id === searchParams.get("tab")) ? (searchParams.get("tab") as Tab) : "featured";
+    const setTab = (next: Tab) => setSearchParams(next === "featured" ? {} : { tab: next }, { replace: true });
     const [kind, setKind] = useState<StudioKind | "all">("all");
     const [keyword, setKeyword] = useState("");
     const q = useDebouncedValue(keyword.trim(), 300);
