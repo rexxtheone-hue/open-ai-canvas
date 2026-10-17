@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronRight, Search, X } from "lucide-react";
+import { ChevronRight, Search, X } from "./studio-icons";
 
 import { ModelIcon, ModelPriceSummary } from "@/components/model-picker";
 import { compatibleModelInGroup, groupModelsByDisplayName, modelCompatibilityError, type ModelRequirements } from "@/lib/model-selection";

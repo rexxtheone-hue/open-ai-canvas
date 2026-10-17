@@ -1,4 +1,4 @@
-import { Briefcase, Building2, Film, Megaphone, MicVocal, Store, UserRound, type LucideIcon } from "lucide-react";
+import { Briefcase, Building2, Film, Megaphone, MicVocal, Store, UserRound, type LucideIcon } from "./studio-icons";
 
 import type { DirectorGenre } from "./studio-director";
 

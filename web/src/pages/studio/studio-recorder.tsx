@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Circle, Square } from "lucide-react";
+import { Circle, Square } from "./studio-icons";
 
 import { AppModal } from "@/components/ui/product/app-modal/app-modal";
 

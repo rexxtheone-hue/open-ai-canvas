@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Check, UserRound } from "lucide-react";
+import { Check, UserRound } from "./studio-icons";
 import { Link } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal/app-modal";

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { App, Popover, Spin } from "antd";
-import { Check, ChevronDown, Download, Filter, Folder, FolderOpen, ImagePlus, LayoutGrid, LayoutTemplate, Loader2, RefreshCw, Search, Share2, SlidersHorizontal, Star, Trash2, UserPlus, Wand2, MessageSquarePlus } from "lucide-react";
+import { Check, ChevronDown, Download, Filter, Folder, FolderOpen, ImagePlus, LayoutGrid, LayoutTemplate, Loader2, RefreshCw, Search, Share2, SlidersHorizontal, Star, Trash2, UserPlus, Wand2, MessageSquarePlus } from "./studio-icons";
 import { Link } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal";

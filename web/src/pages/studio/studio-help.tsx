@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { App, Input, Popover, Select } from "antd";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, CircleHelp, FileText, Gift, Headset, MessageSquareWarning, Sparkles } from "lucide-react";
+import { BookOpen, CircleHelp, FileText, Gift, Headset, MessageSquareWarning, Sparkles } from "./studio-icons";
 import { Link, useLocation } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal/app-modal";

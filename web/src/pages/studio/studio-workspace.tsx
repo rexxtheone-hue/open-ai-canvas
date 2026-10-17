@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { AudioLines, Globe, LayoutGrid, Library, List, MessageSquareText, Mic, Pin, Plus, UserRound, Wand2, X } from "lucide-react";
+import { AudioLines, ChatFill, Globe, LayoutGrid, Library, List, MessageSquareText, Mic, Pin, Plus, ToolsFill, UserRound, Wand2, X } from "./studio-icons";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 
 import type { StudioWork } from "@/services/api/studio";
@@ -33,8 +33,8 @@ export function StudioPanelFooter({ active = "tools" }: { active?: "chat" | "too
     const tab = useStudioActiveTab();
     return (
         <div className="studio-panel-switch" role="group" aria-label="创作方式">
-            <Link to="/studio/agents" aria-current={active === "chat" ? "page" : undefined}><MessageSquareText aria-hidden />对话</Link>
-            <Link to={studioToolTab(tab)?.path || "/studio/video"} aria-current={active === "tools" ? "page" : undefined}><Wand2 aria-hidden />工具</Link>
+            <Link to="/studio/agents" aria-current={active === "chat" ? "page" : undefined}><ChatFill aria-hidden />对话</Link>
+            <Link to={studioToolTab(tab)?.path || "/studio/video"} aria-current={active === "tools" ? "page" : undefined}><ToolsFill aria-hidden />工具</Link>
         </div>
     );
 }

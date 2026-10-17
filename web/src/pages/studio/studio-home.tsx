@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, ArrowUp, ChevronLeft, ChevronRight, Clapperboard, Film, ImageIcon, MessageSquareText, Music, Sparkles, Wand2 } from "lucide-react";
+import { ArrowRight, ArrowUp, ChevronLeft, ChevronRight, Clapperboard, Film, ImageIcon, MessageSquareText, Music, Sparkles, Wand2 } from "./studio-icons";
 import { Link, useNavigate } from "react-router";
 
 import { modelDisplayName, selectableModelsByCapability, useEffectiveConfig } from "@/stores/use-config-store";

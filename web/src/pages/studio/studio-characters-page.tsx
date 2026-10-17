@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { App } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { Box, Clapperboard, Globe, Image as ImageIcon, Loader2, Mountain, Palette, Pencil, Plus, Search, Sparkles, Trash2, UserRound, X } from "lucide-react";
+import { Box, Clapperboard, Globe, Image as ImageIcon, Loader2, Mountain, Palette, Pencil, Plus, Search, Sparkles, Trash2, UserRound, X } from "./studio-icons";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal/app-modal";

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { App, Spin } from "antd";
-import { Copy, Heart, Search, Sparkles, Trash2, Wand2 } from "lucide-react";
+import { Copy, Heart, Search, Sparkles, Trash2, Wand2 } from "./studio-icons";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal";

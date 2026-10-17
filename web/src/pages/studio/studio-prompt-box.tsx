@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { App, Input, Popover, Switch } from "antd";
 import { useQuery } from "@tanstack/react-query";
-import { Camera, ImagePlus, ImageUp, Loader2, Maximize2, RefreshCw, ScanText, Trash2, WandSparkles } from "lucide-react";
+import { Camera, ImagePlus, ImageUp, Loader2, Maximize2, RefreshCw, ScanText, Trash2, WandSparkles } from "./studio-icons";
 
 import { AppModal } from "@/components/ui/product/app-modal/app-modal";
 import type { CreationAttachment } from "@/pages/create/creation-assets";

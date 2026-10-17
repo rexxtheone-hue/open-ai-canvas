@@ -1,4 +1,4 @@
-import { Check, Info, X } from "lucide-react";
+import { Check, Info, X } from "./studio-icons";
 
 import { CAMERA_MOVES, cameraMoveCoverId, type StudioCameraMove } from "./studio-prompt-tools";
 import { useStudioToolCovers } from "./use-studio-tool-meta";

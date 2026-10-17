@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import type { LucideIcon } from "./studio-icons";
 import { Link } from "react-router";
 
 type PosterProps = {

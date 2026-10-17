@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
-import { ChevronDown, ChevronRight, Clapperboard, Compass, Crown, FolderOpen, Grid2x2, Home, LayoutTemplate, MessageSquareText, PanelLeft, Palette, Pin, UserRound, Waypoints, Wand2 } from "lucide-react";
+import { ChatFill, ChevronDown, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, LayoutTemplate, MessageSquareText, Palette, PanelLeft, Pin, UserRound, Wand2, Waypoints } from "./studio-icons";
 
 import "@fontsource-variable/bricolage-grotesque";
 
@@ -142,11 +142,11 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                         {section("agents", "智能体", (
                             <div className="studio-side-cards">
                                 <Link to="/studio/agents" className="studio-side-card" aria-current={pathname.startsWith("/studio/agents") ? "page" : undefined}>
-                                    <span className="studio-side-card-icon"><MessageSquareText aria-hidden /></span>
+                                    <span className="studio-side-card-icon"><ChatFill aria-hidden /></span>
                                     <span><b>对话模式</b><small>说一句话，AI 帮你做</small></span>
                                 </Link>
                                 <Link to="/studio/director" className="studio-side-card" aria-current={pathname.startsWith("/studio/director") ? "page" : undefined}>
-                                    <span className="studio-side-card-icon"><Clapperboard aria-hidden /></span>
+                                    <span className="studio-side-card-icon"><DirectorFill aria-hidden /></span>
                                     <span><b>导演模式</b><small>从方案到成片</small></span>
                                 </Link>
                             </div>

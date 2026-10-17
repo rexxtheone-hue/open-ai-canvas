@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { App, Input } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
-import { ChevronDown, Copy, Search } from "lucide-react";
+import { ChevronDown, Copy, Search } from "./studio-icons";
 import { useSearchParams } from "react-router";
 
 import { getStudioSiteContent } from "@/services/api/studio-agents";

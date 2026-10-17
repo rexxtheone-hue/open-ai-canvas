@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App, Popover } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, AudioLines, Check, ChevronDown, Clapperboard, ImageIcon, Loader2, MessageSquarePlus, Paperclip, Pencil, Plus, Sparkles, Trash2, UserRound, X } from "lucide-react";
+import { ArrowUp, AudioLines, Check, ChevronDown, Clapperboard, ImageIcon, Loader2, MessageSquarePlus, Paperclip, Pencil, Plus, Sparkles, Trash2, UserRound, X } from "./studio-icons";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { useGenerationCredits } from "@/hooks/use-generation-credits";

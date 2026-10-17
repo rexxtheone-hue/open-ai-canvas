@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { App } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, ArrowUpLeft, Clapperboard, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ArrowUp, ArrowUpLeft, Clapperboard, Plus, Sparkles, Trash2 } from "./studio-icons";
 import { Link, useNavigate, useSearchParams } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal/app-modal";

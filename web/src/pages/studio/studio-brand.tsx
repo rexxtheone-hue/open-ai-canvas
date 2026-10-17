@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { App } from "antd";
-import { ImagePlus, Plus, Star, Trash2, X } from "lucide-react";
+import { ImagePlus, Plus, Star, Trash2, X } from "./studio-icons";
 
 import { resolveResourceUrl, resourceIdFromStorageKey } from "@/services/api/resources";
 import { createStudioBrandKit, deleteStudioBrandKit, updateStudioBrandKit, type StudioBrandKit, type StudioBrandKitInput } from "@/services/api/studio";

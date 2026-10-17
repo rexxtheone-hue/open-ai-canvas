@@ -6,7 +6,7 @@ import { StudioToolThumb } from "@/pages/studio/studio-tool-thumb";
 import { STUDIO_QUICK_STARTS } from "@/pages/studio/studio-quickstarts";
 import { STUDIO_TOOLS } from "@/pages/studio/studio-tools";
 import { CAMERA_MOVES, cameraMoveCoverId } from "@/pages/studio/studio-prompt-tools";
-import { Camera } from "lucide-react";
+import { Camera } from "@/pages/studio/studio-icons";
 import { useStudioToolCovers } from "@/pages/studio/use-studio-tool-meta";
 import { resourceIdFromStorageKey } from "@/services/api/resources";
 import { setAdminStudioToolCover } from "@/services/api/studio";

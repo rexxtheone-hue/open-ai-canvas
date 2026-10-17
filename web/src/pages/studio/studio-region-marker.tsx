@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2 } from "./studio-icons";
 
 import { AppModal } from "@/components/ui/product/app-modal/app-modal";
 

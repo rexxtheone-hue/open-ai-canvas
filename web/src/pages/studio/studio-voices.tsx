@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { App, Input, Select, Switch } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, AudioLines, Check, Mic, Pause, Pencil, Play, Plus, Search, Sparkles, Trash2, Upload, Wand2 } from "lucide-react";
+import { ArrowLeft, AudioLines, Check, Mic, Pause, Pencil, Play, Plus, Search, Sparkles, Trash2, Upload, Wand2 } from "./studio-icons";
 
 import { AppModal } from "@/components/ui/product/app-modal/app-modal";
 import { audioVoiceOptionsForConfig, isDoubaoAudioConfig } from "@/lib/audio-generation";

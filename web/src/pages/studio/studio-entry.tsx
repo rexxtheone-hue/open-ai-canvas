@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Sparkles, Waypoints } from "lucide-react";
+import { Sparkles, Waypoints } from "./studio-icons";
 
 import { FullScreenLoader } from "@/components/ui/aceternity/full-screen-loader";
 import { getStudioPreference, saveStudioPreference, type StudioSurface } from "@/services/api/studio";

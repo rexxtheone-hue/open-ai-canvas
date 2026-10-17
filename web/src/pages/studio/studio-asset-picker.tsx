@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { App } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AudioLines, Check, Clapperboard, Image as ImageIcon, Loader2, Upload, UserRound, X } from "lucide-react";
+import { AudioLines, Check, Clapperboard, Image as ImageIcon, Loader2, Upload, UserRound, X } from "./studio-icons";
 
 import type { CreationAttachment } from "@/pages/create/creation-assets";
 import { resolveResourceUrl } from "@/services/api/resources";

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { App, Input, Popover } from "antd";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Box, Check, Compass, Globe, ImagePlus, Loader2, Plus, Sparkles, Upload, Wand2, X } from "lucide-react";
+import { ArrowLeft, Box, Check, Compass, Globe, ImagePlus, Loader2, Plus, Sparkles, Upload, Wand2, X } from "./studio-icons";
 import { useNavigate } from "react-router";
 import * as THREE from "three";
 

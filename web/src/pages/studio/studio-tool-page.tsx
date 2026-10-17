@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App, Popover, Switch } from "antd";
-import { ArrowLeftRight, AudioLines, Check, ChevronRight, Crop, Film, ImagePlus, ListVideo, Loader2, Mic, Music, Palette, SlidersHorizontal, Sparkles, Video, X } from "lucide-react";
+import { ArrowLeftRight, AudioLines, BrandFill, Check, ChevronRight, Crop, Film, ImagePlus, ListVideo, Loader2, Mic, Music, Palette, SlidersHorizontal, Sparkles, Video, X } from "./studio-icons";
 import { Link, useSearchParams } from "react-router";
 
 import { AudioSettingsPanel } from "@/components/audio-settings-panel";
@@ -467,7 +467,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
             )}
         >
             <button type="button" className={`studio-ref-slot studio-brand-slot${brandKit ? " is-active" : ""}`} title={brandKit ? `品牌：${brandKit.name}` : "品牌套件"} aria-label={brandKit ? `品牌：${brandKit.name}` : "品牌套件"}>
-                {brandKit?.logoResourceId ? <img src={studioBrandLogoAttachment(brandKit)?.previewUrl} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : <Palette aria-hidden />}
+                {brandKit?.logoResourceId ? <img src={studioBrandLogoAttachment(brandKit)?.previewUrl} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : <BrandFill aria-hidden />}
                 {brandKit ? <small>{brandKit.name}</small> : null}
             </button>
         </Popover>

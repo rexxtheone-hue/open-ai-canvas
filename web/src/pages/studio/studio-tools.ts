@@ -1,5 +1,5 @@
-import type { LucideIcon } from "lucide-react";
-import { AudioLines, AudioWaveform, Camera, Clapperboard, Copy, Earth, Expand, FastForward, Film, Flame, Globe, Grid3x3, Image as ImageIcon, ImagePlay, Languages, Layers, Lightbulb, ListVideo, MicVocal, MonitorUp, MountainSnow, Music, Orbit, Palette, PenLine, PersonStanding, Replace, Rotate3d, ScanFace, Speaker, SunMedium, Type, UserPen, UserPlus, UserRound, Volume2, Wallpaper, ZoomIn } from "lucide-react";
+import type { LucideIcon } from "./studio-icons";
+import { AudioFill, AudioLines, AudioWaveform, Camera, CharacterFill, Clapperboard, Copy, Earth, Expand, FastForward, Film, Flame, Globe, Grid3x3, Image as ImageIcon, ImageFill, ImagePlay, Languages, Layers, Lightbulb, ListVideo, MicVocal, MonitorUp, MountainSnow, Music, Orbit, Palette, PenLine, PersonStanding, Replace, Rotate3d, ScanFace, Speaker, SunMedium, Type, UserPen, UserPlus, UserRound, VideoFill, Volume2, Wallpaper, WorldFill, ZoomIn } from "./studio-icons";
 
 import type { VideoMode } from "@/lib/video-modes";
 import type { StudioKind } from "@/services/api/studio";
@@ -8,11 +8,11 @@ import type { StudioKind } from "@/services/api/studio";
 export type StudioToolTab = "video" | "image" | "audio" | "character" | "world";
 
 export const STUDIO_TOOL_TABS: Array<{ id: StudioToolTab; label: string; listTitle: string; path: string; icon: LucideIcon }> = [
-    { id: "video", label: "视频", listTitle: "视频工具", path: "/studio/video", icon: Clapperboard },
-    { id: "image", label: "图片", listTitle: "图片工具", path: "/studio/image", icon: ImageIcon },
-    { id: "audio", label: "音频", listTitle: "音频工具", path: "/studio/audio", icon: AudioLines },
-    { id: "character", label: "角色", listTitle: "角色工具", path: "/studio/character", icon: UserRound },
-    { id: "world", label: "世界", listTitle: "世界工具", path: "/studio/world", icon: Earth },
+    { id: "video", label: "视频", listTitle: "视频工具", path: "/studio/video", icon: VideoFill },
+    { id: "image", label: "图片", listTitle: "图片工具", path: "/studio/image", icon: ImageFill },
+    { id: "audio", label: "音频", listTitle: "音频工具", path: "/studio/audio", icon: AudioFill },
+    { id: "character", label: "角色", listTitle: "角色工具", path: "/studio/character", icon: CharacterFill },
+    { id: "world", label: "世界", listTitle: "世界工具", path: "/studio/world", icon: WorldFill },
 ];
 
 export type StudioToolDefinition = {

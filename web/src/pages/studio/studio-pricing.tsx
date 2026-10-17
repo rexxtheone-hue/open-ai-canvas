@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Check, Crown } from "lucide-react";
+import { Check, Crown } from "./studio-icons";
 
 import { formatCredits } from "@/constant/credits";
 import { formatMoney } from "@/lib/money";

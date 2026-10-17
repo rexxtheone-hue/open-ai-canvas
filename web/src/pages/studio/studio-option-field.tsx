@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Popover, Slider, Switch } from "antd";
-import { Check, ChevronRight, Info, RotateCcw } from "lucide-react";
+import { Check, ChevronRight, Info, RotateCcw } from "./studio-icons";
 
 import type { StudioSpecialtyOption } from "./studio-specialty";
 

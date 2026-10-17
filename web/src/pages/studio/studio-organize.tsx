@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { App, Input, Popover } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Folder, FolderInput, FolderMinus, FolderPlus, Pencil, Plus, Tag, Trash2 } from "lucide-react";
+import { Check, Folder, FolderInput, FolderMinus, FolderPlus, Pencil, Plus, Tag, Trash2 } from "./studio-icons";
 
 import { AppModal } from "@/components/ui/product/app-modal/app-modal";
 import { createStudioFolder, createStudioLabel, deleteStudioFolder, deleteStudioLabel, getStudioOrganize, labelStudioWorks, moveStudioWorks, renameStudioFolder, updateStudioLabel, type StudioFolder, type StudioLabel, type StudioLabelColor, type StudioWork } from "@/services/api/studio";
