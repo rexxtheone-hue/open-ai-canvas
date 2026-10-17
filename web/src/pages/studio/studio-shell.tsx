@@ -42,13 +42,9 @@ function writeJSON(key: string, value: unknown) {
     }
 }
 
-// 同一个页面用 ?tab= 区分的侧栏入口（如「模板」），选中它时同页面的普通入口不再高亮。
-const TAB_LINKS = ["/studio/inspire?tab=templates"];
-
 const isActive = (pathname: string, search: string, to: string) => {
     const [path, query] = to.split("?");
     if (query) return pathname === path && search.includes(query);
-    if (TAB_LINKS.some((link) => link !== to && isActive(pathname, search, link))) return false;
     if (path === "/studio") return pathname === "/studio" || pathname === "/studio/";
     return pathname === path || pathname.startsWith(`${path}/`);
 };
@@ -178,7 +174,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                         ))}
                         {section("inspire", "获取灵感", (
                             <div className="studio-side-links">
-                                {link("/studio/inspire?tab=templates", "模板", LayoutTemplate)}
+                                {link("/studio/templates", "模板", LayoutTemplate)}
                                 {link("/studio/inspire", "灵感社区", Compass)}
                                 {link("/studio/creators", "创作者", Users)}
                                 {link("/studio/profile", "我的主页", UserPen)}

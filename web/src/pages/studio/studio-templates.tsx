@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { App, Spin } from "antd";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useNavigate } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal";
@@ -9,7 +10,8 @@ import type { StudioKind } from "@/services/api/studio";
 import { loadInspirationCatalog, type InspirationCatalog } from "@/services/inspiration-catalog";
 import { useInspirationStore } from "@/stores/use-inspiration-store";
 import { STUDIO_ATTACH_KEY } from "./studio-agent";
-import { Copy, Heart, Sparkles, Wand2 } from "./studio-icons";
+import { Copy, Heart, Search, Sparkles, Wand2 } from "./studio-icons";
+import { StudioShell } from "./studio-shell";
 import { studioToolForKind } from "./studio-tools";
 
 const PAGE = 48;
@@ -244,5 +246,38 @@ export function StudioTemplateGallery({ kind, query }: { kind: StudioKind | "all
                 ) : null}
             </AppModal>
         </div>
+    );
+}
+
+/** 模板页（/studio/templates）：独立于灵感社区，内容是 AI Canvas 的模板库。 */
+export default function StudioTemplatesPage() {
+    const [keyword, setKeyword] = useState("");
+    const query = useDebouncedValue(keyword.trim(), 300);
+    const [kind, setKind] = useState<"all" | TemplateKind>("all");
+    return (
+        <StudioShell title="模板">
+            <div className="studio-home studio-page">
+                <div className="studio-section-head">
+                    <div>
+                        <h2>模板</h2>
+                        <p>挑一个现成的创意，一键带着提示词去生成。和 AI Canvas 的模板库是同一份。</p>
+                    </div>
+                    <label className="studio-search">
+                        <Search aria-hidden />
+                        <input value={keyword} placeholder="搜索模板标题或提示词" aria-label="搜索模板" onChange={(event) => setKeyword(event.target.value)} />
+                    </label>
+                </div>
+                <div className="studio-community-toolbar">
+                    <div className="studio-filter" role="group" aria-label="模板类型">
+                        {(["all", "image", "video"] as const).map((value) => (
+                            <button key={value} type="button" aria-pressed={kind === value} onClick={() => setKind(value)}>
+                                {value === "all" ? "全部" : MODE_LABELS[value]}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                <StudioTemplateGallery kind={kind} query={query} />
+            </div>
+        </StudioShell>
     );
 }

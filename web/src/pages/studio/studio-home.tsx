@@ -184,7 +184,7 @@ export default function StudioHomePage({ initialMode = "agents" }: { initialMode
                     <section className="studio-section" aria-labelledby="studio-templates-title">
                         <div className="studio-section-head">
                             <h2 id="studio-templates-title">热门模板</h2>
-                            <Link to="/studio/inspire?tab=templates" className="studio-more-link">全部模板<ArrowRight aria-hidden /></Link>
+                            <Link to="/studio/templates" className="studio-more-link">全部模板<ArrowRight aria-hidden /></Link>
                         </div>
                         <div className="studio-community-grid">
                             {templates.map((item) => (

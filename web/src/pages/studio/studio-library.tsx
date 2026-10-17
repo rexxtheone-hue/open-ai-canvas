@@ -195,7 +195,7 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                         <ChevronDown aria-hidden />
                     </button>
                 </Popover>
-                <Link to="/studio/inspire?tab=templates" className="studio-toolbar-link"><LayoutTemplate aria-hidden />模板</Link>
+                <Link to="/studio/templates" className="studio-toolbar-link"><LayoutTemplate aria-hidden />模板</Link>
                 <span className="studio-toolbar-spacer" />
                 {searchOpen || searchDraft ? (
                     <label className="studio-search is-compact">

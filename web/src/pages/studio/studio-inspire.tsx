@@ -1,27 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Spin } from "antd";
 import { Search, Sparkles } from "./studio-icons";
-import { useSearchParams } from "react-router";
+import { Navigate, useSearchParams } from "react-router";
 
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { listStudioCommunity, type StudioCommunityQuery, type StudioKind, type StudioPost } from "@/services/api/studio";
 import { STUDIO_POST_KIND_LABELS, StudioPostFeed } from "./studio-post-feed";
 import { StudioShell } from "./studio-shell";
-import { StudioTemplateGallery } from "./studio-templates";
 
-type Tab = "featured" | "latest" | "popular" | "following" | "templates" | "mine";
+type Tab = "featured" | "latest" | "popular" | "following" | "mine";
 
 const TABS: Array<{ id: Tab; label: string }> = [
     { id: "featured", label: "精选" },
     { id: "latest", label: "最新" },
     { id: "popular", label: "最热" },
     { id: "following", label: "关注" },
-    { id: "templates", label: "模板" },
     { id: "mine", label: "我的发布" },
 ];
 
 function tabQuery(tab: Tab): StudioCommunityQuery {
-    if (tab === "templates") return { templates: true, sort: "popular" };
     if (tab === "mine") return { mine: true, sort: "latest" };
     if (tab === "following") return { following: true, sort: "latest" };
     return { sort: tab };
@@ -52,11 +49,6 @@ export default function StudioInspirePage() {
     const load = useCallback(
         async (offset = 0) => {
             const request = ++requestRef.current;
-            // 「模板」分类是 AI Canvas 的模板库，由 StudioTemplateGallery 自己加载。
-            if (tab === "templates") {
-                setLoading(false);
-                return;
-            }
             if (offset) setLoadingMore(true);
             else setLoading(true);
             setError("");
@@ -82,14 +74,16 @@ export default function StudioInspirePage() {
     }, [load]);
 
     const [emptyTitle, emptyHint] = emptyText(tab, q);
+    // 模板已独立成 /studio/templates，旧链接跳过去。
+    if (searchParams.get("tab") === "templates") return <Navigate to="/studio/templates" replace />;
 
     return (
         <StudioShell title="灵感">
             <div className="studio-home studio-page">
                 <div className="studio-section-head">
                     <div>
-                        <h2>{tab === "templates" ? "模板" : "灵感社区"}</h2>
-                        <p>{tab === "templates" ? "挑一个现成的创意，一键带着提示词去生成。和 AI Canvas 的模板库是同一份。" : "看看大家做了什么，喜欢的一键做同款。"}</p>
+                        <h2>灵感社区</h2>
+                        <p>看看大家做了什么，喜欢的一键做同款。</p>
                     </div>
                     <label className="studio-search">
                         <Search aria-hidden />
@@ -112,9 +106,7 @@ export default function StudioInspirePage() {
                         ))}
                     </div>
                 </div>
-                {tab === "templates" ? (
-                    <StudioTemplateGallery kind={kind} query={q} />
-                ) : loading ? (
+                {loading ? (
                     <div className="studio-empty">
                         <Spin />
                     </div>
