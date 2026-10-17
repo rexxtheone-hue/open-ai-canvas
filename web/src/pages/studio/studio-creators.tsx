@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { App, Select, Spin } from "antd";
+import { App, Spin } from "antd";
 import { Link } from "react-router";
 
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -8,6 +8,7 @@ import { Heart, MapPin, Search, UserCheck, UserPlus, Users } from "./studio-icon
 import { StudioCreatorAvatar, studioProfilePath } from "./studio-post-feed";
 import { SPECIALTY_PRESETS } from "./studio-profile";
 import { StudioShell } from "./studio-shell";
+import { StudioSelect } from "./studio-select";
 
 type Sort = NonNullable<StudioCreatorQuery["sort"]>;
 
@@ -125,7 +126,7 @@ export default function StudioCreatorsPage() {
                             <MapPin aria-hidden />
                             <input value={locationText} placeholder="所在地" aria-label="按所在地筛选" onChange={(event) => setLocationText(event.target.value)} />
                         </label>
-                        <Select value={sort} onChange={setSort} options={SORTS} aria-label="排序" classNames={{ popup: { root: "studio-popup" } }} popupMatchSelectWidth={false} />
+                        <StudioSelect className="studio-select-chip" placement="bottomRight" value={sort} onChange={(value) => setSort(value as Sort)} options={SORTS} ariaLabel="排序" />
                     </div>
                 </div>
                 {loading ? (

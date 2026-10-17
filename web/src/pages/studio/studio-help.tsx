@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { App, Input, Popover, Select } from "antd";
+import { App, Input, Popover } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, CircleHelp, FileText, Gift, Headset, MessageSquareWarning, Sparkles } from "./studio-icons";
 import { Link, useLocation } from "react-router";
@@ -8,6 +8,7 @@ import { AppModal } from "@/components/ui/product/app-modal/app-modal";
 import { AppChangelogButton } from "@/components/layout/app-changelog-modal";
 import { announcementImageUrl, getAnnouncementFeed } from "@/services/api/announcements";
 import { submitStudioFeedback, type StudioFeedbackCategory } from "@/services/api/studio-agents";
+import { StudioSelect } from "./studio-select";
 
 const FEEDBACK_CATEGORIES: Array<{ value: StudioFeedbackCategory; label: string }> = [
     { value: "bug", label: "问题或故障" },
@@ -41,7 +42,7 @@ export function StudioFeedbackModal({ open, onClose }: { open: boolean; onClose:
     return (
         <AppModal rootClassName="studio-modal" open={open} width="min(520px, calc(100vw - 32px))" title="反馈" footer={null} onCancel={onClose}>
             <div className="studio-popup studio-feedback">
-                <label className="studio-field"><span>类型</span><Select value={category} onChange={setCategory} options={FEEDBACK_CATEGORIES} aria-label="反馈类型" /></label>
+                <div className="studio-field"><span>类型</span><StudioSelect className="studio-select" placement="bottomLeft" value={category} onChange={(value) => setCategory(value as typeof category)} options={FEEDBACK_CATEGORIES} ariaLabel="反馈类型" /></div>
                 <label className="studio-field"><span>内容</span><Input.TextArea value={content} maxLength={4000} showCount autoSize={{ minRows: 5, maxRows: 10 }} placeholder="遇到了什么情况？在哪个页面、做了什么操作？" onChange={(event) => setContent(event.target.value)} aria-label="反馈内容" /></label>
                 <label className="studio-field"><span>联系方式（可选）</span><Input value={contact} maxLength={200} placeholder="邮箱或电话，方便我们回复你" onChange={(event) => setContact(event.target.value)} aria-label="联系方式" /></label>
                 <div className="studio-voice-foot">

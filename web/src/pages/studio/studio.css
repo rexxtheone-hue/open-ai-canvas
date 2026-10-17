@@ -1614,3 +1614,11 @@ button.studio-pill-select { border: 0; background: transparent; }
 .studio-select-option small { color: var(--studio-muted); font-size: 11.5px; }
 .studio-select-menu .studio-menu-check { margin-left: auto; color: var(--studio-accent); }
 .studio-select-empty { padding: 8px 10px; color: var(--studio-muted); font-size: 13px; }
+/* 筛选用的小胶囊下拉（声音库、创作者排序） */
+.studio-select-chip { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid var(--studio-line-strong); border-radius: 999px; background: var(--studio-panel-raised); color: var(--studio-fg); font-size: 13px; }
+.studio-select-chip:hover { background: var(--studio-hover); }
+/* 兜底：Studio 页面里其他 antd 下拉菜单（如多选标签框）也用暗色 */
+html.studio-active .ant-select-dropdown { padding: 4px; border: 1px solid var(--studio-line-strong, rgba(214, 225, 255, 0.14)); border-radius: 12px; background: #16181a; box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.8); }
+html.studio-active .ant-select-dropdown .ant-select-item { border-radius: 8px; color: #fff; }
+html.studio-active .ant-select-dropdown .ant-select-item-option-active { background: #1e2023 !important; }
+html.studio-active .ant-select-dropdown .ant-select-item-option-selected { background: color-mix(in oklab, #d65cff 16%, transparent) !important; color: #fff; }

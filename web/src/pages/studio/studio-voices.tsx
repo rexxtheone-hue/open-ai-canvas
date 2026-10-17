@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { App, Input, Select, Switch } from "antd";
+import { App, Input, Switch } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, AudioLines, Check, Mic, Pause, Pencil, Play, Plus, Search, Sparkles, Trash2, Upload, Wand2 } from "./studio-icons";
 
@@ -12,6 +12,7 @@ import { createStudioVoice, deleteStudioVoice, listStudioVoices, markStudioVoice
 import { modelDisplayName, selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
 import { StudioRecorder } from "./studio-recorder";
 import { uploadStudioFile } from "./use-studio-tool";
+import { StudioSelect } from "./studio-select";
 
 /** 从声音库跳到配音页时带上的选择。 */
 export const STUDIO_VOICE_KEY = "studio.voice.pick.v1";
@@ -350,9 +351,9 @@ export function StudioVoiceLibraryModal({ open, onClose, config, onPick }: Libra
                         </div>
                     ) : (
                         <>
-                            <Select value={language} onChange={setLanguage} aria-label="语言" options={[{ value: "", label: "全部语言" }, ...languages.map((item) => ({ value: item, label: item }))]} popupMatchSelectWidth={false} />
-                            <Select value={gender} onChange={setGender} aria-label="性别" options={[{ value: "", label: "全部性别" }, { value: "female", label: "女声" }, { value: "male", label: "男声" }]} />
-                            <Select value={scene} onChange={setScene} aria-label="场景" options={[{ value: "", label: "全部场景" }, ...scenes.map((item) => ({ value: item, label: item }))]} popupMatchSelectWidth={false} />
+                            <StudioSelect className="studio-select-chip" placement="bottomLeft" value={language} onChange={setLanguage} ariaLabel="语言" options={[{ value: "", label: "全部语言" }, ...languages.map((item) => ({ value: item, label: item }))]} />
+                            <StudioSelect className="studio-select-chip" placement="bottomLeft" value={gender} onChange={setGender} ariaLabel="性别" options={[{ value: "", label: "全部性别" }, { value: "female", label: "女声" }, { value: "male", label: "男声" }]} />
+                            <StudioSelect className="studio-select-chip" placement="bottomLeft" value={scene} onChange={setScene} ariaLabel="场景" options={[{ value: "", label: "全部场景" }, ...scenes.map((item) => ({ value: item, label: item }))]} />
                         </>
                     )}
                 </div>
