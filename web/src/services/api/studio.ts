@@ -169,6 +169,9 @@ export type StudioPost = {
     settings?: Record<string, unknown>;
     media: StudioPostMedia[];
     author: string;
+    /** 作者主页地址，链接到 /studio/u/:handle。 */
+    authorHandle?: string;
+    authorAvatar?: string;
     mine: boolean;
     liked: boolean;
     likeCount: number;
@@ -188,6 +191,7 @@ export type StudioCommunityQuery = {
     templates?: boolean;
     featured?: boolean;
     mine?: boolean;
+    following?: boolean;
     q?: string;
     offset?: number;
     pageSize?: number;
@@ -200,6 +204,7 @@ function communityParams(query: StudioCommunityQuery) {
         templates: query.templates ? "true" : undefined,
         featured: query.featured ? "true" : undefined,
         mine: query.mine ? "true" : undefined,
+        following: query.following ? "true" : undefined,
         q: query.q?.trim() || undefined,
         offset: query.offset || undefined,
         pageSize: query.pageSize,
@@ -208,6 +213,57 @@ function communityParams(query: StudioCommunityQuery) {
 
 export function listStudioCommunity(query: StudioCommunityQuery = {}, signal?: AbortSignal) {
     return http.get<StudioPostPage>("/studio/community", { params: communityParams(query), signal });
+}
+
+export type StudioProfileLinkKey = "website" | "instagram" | "tiktok" | "facebook" | "youtube" | "xiaohongshu" | "douyin";
+
+export type StudioProfile = {
+    handle: string;
+    name: string;
+    bio: string;
+    location: string;
+    specialties: string[];
+    links: Partial<Record<StudioProfileLinkKey, string>>;
+    avatarUrl?: string;
+    coverUrl?: string;
+    /** 只有自己的主页会返回，编辑时用。 */
+    avatarResourceId?: string;
+    coverResourceId?: string;
+    stats: { works: number; likes: number; remixes: number; followers: number; following: number };
+    mine: boolean;
+    following: boolean;
+    joinedAt: string;
+};
+
+export type StudioProfileInput = {
+    handle: string;
+    name: string;
+    bio: string;
+    location: string;
+    specialties: string[];
+    links: Partial<Record<StudioProfileLinkKey, string>>;
+    avatarResourceId: string;
+    coverResourceId: string;
+};
+
+export function getMyStudioProfile() {
+    return http.get<StudioProfile>("/studio/profile");
+}
+
+export function updateStudioProfile(input: StudioProfileInput) {
+    return http.put<StudioProfile>("/studio/profile", input);
+}
+
+export function getStudioProfile(handle: string, signal?: AbortSignal) {
+    return http.get<StudioProfile>(`/studio/profiles/${encodeURIComponent(handle)}`, { signal });
+}
+
+export function listStudioProfilePosts(handle: string, tab: "works" | "liked", offset = 0, signal?: AbortSignal) {
+    return http.get<StudioPostPage>(`/studio/profiles/${encodeURIComponent(handle)}/posts`, { params: { tab, offset: offset || undefined, pageSize: 24 }, signal });
+}
+
+export function followStudioProfile(handle: string, following: boolean) {
+    return http.put<StudioProfile>(`/studio/profiles/${encodeURIComponent(handle)}/follow`, { following });
 }
 
 export function publishStudioWork(id: string, input: { title: string; allowRemix: boolean }) {

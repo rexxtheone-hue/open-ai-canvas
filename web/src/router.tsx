@@ -60,6 +60,9 @@ const StudioChatPage = lazy(() => import("@/pages/studio/studio-chat-page"));
 const StudioCharactersPage = lazy(() => import("@/pages/studio/studio-characters-page"));
 const StudioBrandPage = lazy(() => import("@/pages/studio/studio-brand"));
 const StudioInspirePage = lazy(() => import("@/pages/studio/studio-inspire"));
+const StudioProfilePage = lazy(() => import("@/pages/studio/studio-profile").then((module) => ({ default: module.StudioProfilePage })));
+const StudioMyProfileRedirect = lazy(() => import("@/pages/studio/studio-profile").then((module) => ({ default: module.StudioMyProfileRedirect })));
+const StudioPublicProfilePage = lazy(() => import("@/pages/studio/studio-profile").then((module) => ({ default: module.StudioPublicProfilePage })));
 const StudioPricingPage = lazy(() => import("@/pages/studio/studio-pricing"));
 const StudioHelpPage = lazy(() => import("@/pages/studio/studio-help-pages").then((module) => ({ default: module.StudioHelpPage })));
 const StudioTermsPage = lazy(() => import("@/pages/studio/studio-help-pages").then((module) => ({ default: module.StudioTermsPage })));
@@ -130,6 +133,7 @@ export const router = createBrowserRouter([
         ],
     },
     { path: "/share/canvas/:token", element: fullScreenDeferred(<SharedCanvasPage />), errorElement: <RouteErrorPage /> },
+    { path: "/u/:handle", element: fullScreenDeferred(<StudioPublicProfilePage />), errorElement: <RouteErrorPage /> },
     ...(import.meta.env.DEV ? devRoutes() : []),
     {
         element: <AuthenticatedWorkspaceLayout />,
@@ -148,6 +152,8 @@ export const router = createBrowserRouter([
             { path: "/studio/characters", element: <RequireAuth>{deferred(<StudioCharactersPage />)}</RequireAuth> },
             { path: "/studio/brand", element: <RequireAuth>{deferred(<StudioBrandPage />)}</RequireAuth> },
             { path: "/studio/inspire", element: <RequireAuth>{deferred(<StudioInspirePage />)}</RequireAuth> },
+            { path: "/studio/profile", element: <RequireAuth>{deferred(<StudioMyProfileRedirect />)}</RequireAuth> },
+            { path: "/studio/u/:handle", element: <RequireAuth>{deferred(<StudioProfilePage />)}</RequireAuth> },
             { path: "/studio/pricing", element: <RequireAuth>{deferred(<StudioPricingPage />)}</RequireAuth> },
             { path: "/studio/help", element: <RequireAuth>{deferred(<StudioHelpPage />)}</RequireAuth> },
             { path: "/studio/terms", element: <RequireAuth>{deferred(<StudioTermsPage />)}</RequireAuth> },

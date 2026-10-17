@@ -17,9 +17,11 @@ type StudioPostQuery struct {
 	Templates bool
 	Featured  bool
 	UserID    string
-	Search    string
-	Offset    int
-	Limit     int
+	// FollowerID 不为空时只看这个用户关注的创作者。
+	FollowerID string
+	Search     string
+	Offset     int
+	Limit      int
 	// IncludeHidden 只给管理员列表使用。
 	IncludeHidden bool
 }
@@ -40,6 +42,9 @@ func (r *Repository) StudioPosts(query StudioPostQuery) ([]model.StudioPost, boo
 	}
 	if query.UserID != "" {
 		db = db.Where("user_id = ?", query.UserID)
+	}
+	if query.FollowerID != "" {
+		db = db.Where("user_id IN (?)", r.db.Model(&model.StudioFollow{}).Select("followee_id").Where("follower_id = ?", query.FollowerID))
 	}
 	if search := strings.TrimSpace(query.Search); search != "" {
 		pattern := "%" + escapeLike(strings.ToLower(search)) + "%"

@@ -131,6 +131,8 @@ func Models() []any {
 		&model.StudioLabel{},
 		&model.StudioWorkFolder{},
 		&model.StudioWorkLabel{},
+		&model.StudioProfile{},
+		&model.StudioFollow{},
 		&model.CanvasShare{},
 		&model.PromptTemplate{},
 		&model.UserPromptCustomization{},

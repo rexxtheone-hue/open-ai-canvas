@@ -1,11 +1,11 @@
 import { forwardRef, type ForwardRefExoticComponent, type RefAttributes, type SVGAttributes } from "react";
-import { ArrangeHorizontal as IconsaxArrangeHorizontal, Book as IconsaxBook, Book1 as IconsaxBook1, Box as IconsaxBox, Briefcase as IconsaxBriefcase, Building as IconsaxBuilding, Camera as IconsaxCamera, Category as IconsaxCategory, ColorSwatch as IconsaxColorSwatch, Convert as IconsaxConvert, Copy as IconsaxCopy, Crop as IconsaxCrop, Crown1 as IconsaxCrown1, Discover as IconsaxDiscover, DocumentText1 as IconsaxDocumentText1, DocumentUpload as IconsaxDocumentUpload, Edit2 as IconsaxEdit2, Element3 as IconsaxElement3, Element4 as IconsaxElement4, EmojiHappy as IconsaxEmojiHappy, Filter as IconsaxFilter, Flash as IconsaxFlash, Folder2 as IconsaxFolder2, FolderAdd as IconsaxFolderAdd, FolderMinus as IconsaxFolderMinus, FolderOpen as IconsaxFolderOpen, Forward as IconsaxForward, Gallery as IconsaxGallery, GalleryAdd as IconsaxGalleryAdd, GalleryExport as IconsaxGalleryExport, GalleryImport as IconsaxGalleryImport, Gift as IconsaxGift, Global as IconsaxGlobal, Happyemoji as IconsaxHappyemoji, Headphone as IconsaxHeadphone, Heart as IconsaxHeart, Home2 as IconsaxHome2, Image as IconsaxImage, Import as IconsaxImport, InfoCircle as IconsaxInfoCircle, Lamp as IconsaxLamp, Layer as IconsaxLayer, MagicStar as IconsaxMagicStar, Magicpen as IconsaxMagicpen, Maximize4 as IconsaxMaximize4, MessageAdd1 as IconsaxMessageAdd1, MessageQuestion as IconsaxMessageQuestion, MessageText1 as IconsaxMessageText1, Microphone as IconsaxMicrophone, Microphone2 as IconsaxMicrophone2, Monitor as IconsaxMonitor, Music as IconsaxMusic, Paperclip2 as IconsaxPaperclip2, Pause as IconsaxPause, Play as IconsaxPlay, Record as IconsaxRecord, Refresh2 as IconsaxRefresh2, RotateLeft as IconsaxRotateLeft, RotateRight as IconsaxRotateRight, Routing2 as IconsaxRouting2, Scan as IconsaxScan, SearchNormal1 as IconsaxSearchNormal1, SearchZoomIn as IconsaxSearchZoomIn, Setting4 as IconsaxSetting4, Share as IconsaxShare, Shop as IconsaxShop, SidebarLeft as IconsaxSidebarLeft, Sound as IconsaxSound, Speaker as IconsaxSpeaker, Star1 as IconsaxStar1, Stop as IconsaxStop, Sun1 as IconsaxSun1, Tag2 as IconsaxTag2, Text as IconsaxText, Translate as IconsaxTranslate, Trash as IconsaxTrash, Tree as IconsaxTree, User as IconsaxUser, UserAdd as IconsaxUserAdd, UserEdit as IconsaxUserEdit, Video as IconsaxVideo, VideoPlay as IconsaxVideoPlay, VideoSquare as IconsaxVideoSquare, VideoVertical as IconsaxVideoVertical, VolumeHigh as IconsaxVolumeHigh, VideoPlay as IconsaxFillVideoPlay, Gallery as IconsaxFillGallery, Sound as IconsaxFillSound, Happyemoji as IconsaxFillHappyemoji, Global as IconsaxFillGlobal, MessageText1 as IconsaxFillMessageText1, VideoSquare as IconsaxFillVideoSquare, Designtools as IconsaxFillDesigntools, ColorSwatch as IconsaxFillColorSwatch, type Icon as IconsaxIcon } from "iconsax-react";
+import { ArrangeHorizontal as IconsaxArrangeHorizontal, Book as IconsaxBook, Book1 as IconsaxBook1, Box as IconsaxBox, Briefcase as IconsaxBriefcase, Building as IconsaxBuilding, Calendar as IconsaxCalendar, Camera as IconsaxCamera, Category as IconsaxCategory, ColorSwatch as IconsaxColorSwatch, Convert as IconsaxConvert, Copy as IconsaxCopy, Crop as IconsaxCrop, Crown1 as IconsaxCrown1, Discover as IconsaxDiscover, DocumentText1 as IconsaxDocumentText1, DocumentUpload as IconsaxDocumentUpload, Edit2 as IconsaxEdit2, Element3 as IconsaxElement3, Element4 as IconsaxElement4, EmojiHappy as IconsaxEmojiHappy, Filter as IconsaxFilter, Flash as IconsaxFlash, Folder2 as IconsaxFolder2, FolderAdd as IconsaxFolderAdd, FolderMinus as IconsaxFolderMinus, FolderOpen as IconsaxFolderOpen, Forward as IconsaxForward, Gallery as IconsaxGallery, GalleryAdd as IconsaxGalleryAdd, GalleryExport as IconsaxGalleryExport, GalleryImport as IconsaxGalleryImport, Gift as IconsaxGift, Global as IconsaxGlobal, Happyemoji as IconsaxHappyemoji, Headphone as IconsaxHeadphone, Heart as IconsaxHeart, Home2 as IconsaxHome2, Image as IconsaxImage, Import as IconsaxImport, InfoCircle as IconsaxInfoCircle, Lamp as IconsaxLamp, Layer as IconsaxLayer, Link1 as IconsaxLink1, Location as IconsaxLocation, MagicStar as IconsaxMagicStar, Magicpen as IconsaxMagicpen, Maximize4 as IconsaxMaximize4, MessageAdd1 as IconsaxMessageAdd1, MessageQuestion as IconsaxMessageQuestion, MessageText1 as IconsaxMessageText1, Microphone as IconsaxMicrophone, Microphone2 as IconsaxMicrophone2, Monitor as IconsaxMonitor, Music as IconsaxMusic, Paperclip2 as IconsaxPaperclip2, Pause as IconsaxPause, People as IconsaxPeople, Play as IconsaxPlay, Record as IconsaxRecord, Refresh2 as IconsaxRefresh2, RotateLeft as IconsaxRotateLeft, RotateRight as IconsaxRotateRight, Routing2 as IconsaxRouting2, Scan as IconsaxScan, SearchNormal1 as IconsaxSearchNormal1, SearchZoomIn as IconsaxSearchZoomIn, Setting4 as IconsaxSetting4, Share as IconsaxShare, Shop as IconsaxShop, SidebarLeft as IconsaxSidebarLeft, Sound as IconsaxSound, Speaker as IconsaxSpeaker, Star1 as IconsaxStar1, Stop as IconsaxStop, Sun1 as IconsaxSun1, Tag2 as IconsaxTag2, Text as IconsaxText, Translate as IconsaxTranslate, Trash as IconsaxTrash, Tree as IconsaxTree, User as IconsaxUser, UserAdd as IconsaxUserAdd, UserEdit as IconsaxUserEdit, UserTick as IconsaxUserTick, Video as IconsaxVideo, VideoPlay as IconsaxVideoPlay, VideoSquare as IconsaxVideoSquare, VideoVertical as IconsaxVideoVertical, VolumeHigh as IconsaxVolumeHigh, VideoPlay as IconsaxFillVideoPlay, Gallery as IconsaxFillGallery, Sound as IconsaxFillSound, Happyemoji as IconsaxFillHappyemoji, Global as IconsaxFillGlobal, MessageText1 as IconsaxFillMessageText1, VideoSquare as IconsaxFillVideoSquare, Designtools as IconsaxFillDesigntools, ColorSwatch as IconsaxFillColorSwatch, type Icon as IconsaxIcon } from "iconsax-react";
 
 /**
  * AI Studio 的图标：和 OpenArt 一样用 Iconsax——默认 Outline（粗线条），分类、对话/工具切换、品牌格子用 Bold 实心款（*Fill）；
  * 箭头、加号、关闭、列表/网格用 Material Symbols Rounded 实心款。
  * 导出名沿用原来的 Lucide 名称，页面只需要换导入路径。
- * Iconsax（iconsax-react，MIT）；Material Symbols（@material-symbols/svg-400，Apache-2.0，路径取自该包 rounded 目录的 *-fill.svg）。
+ * Iconsax（iconsax-react，MIT）；Material Symbols（@material-symbols/svg-400，Apache-2.0，路径由 scripts 从安装包生成）。
  */
 export type StudioIconProps = SVGAttributes<SVGSVGElement> & { size?: number | string; strokeWidth?: number | string; absoluteStrokeWidth?: boolean };
 export type StudioIcon = ForwardRefExoticComponent<StudioIconProps & RefAttributes<SVGSVGElement>>;
@@ -57,6 +57,7 @@ export const BookOpen = iconsax(IconsaxBook1, "BookOpen");
 export const Box = iconsax(IconsaxBox, "Box");
 export const Briefcase = iconsax(IconsaxBriefcase, "Briefcase");
 export const Building2 = iconsax(IconsaxBuilding, "Building2");
+export const CalendarDays = iconsax(IconsaxCalendar, "CalendarDays");
 export const Camera = iconsax(IconsaxCamera, "Camera");
 export const Check = material(MATERIAL_CHECK, "Check");
 export const ChevronDown = material(MATERIAL_KEYBOARD_ARROW_DOWN, "ChevronDown");
@@ -100,9 +101,11 @@ export const LayoutGrid = material(MATERIAL_GRID_VIEW, "LayoutGrid");
 export const LayoutTemplate = iconsax(IconsaxElement4, "LayoutTemplate");
 export const Library = iconsax(IconsaxBook, "Library");
 export const Lightbulb = iconsax(IconsaxLamp, "Lightbulb");
+export const Link = iconsax(IconsaxLink1, "Link");
 export const List = material(MATERIAL_VIEW_AGENDA, "List");
 export const ListVideo = iconsax(IconsaxVideoVertical, "ListVideo");
 export const Loader2 = material(MATERIAL_PROGRESS_ACTIVITY, "Loader2");
+export const MapPin = iconsax(IconsaxLocation, "MapPin");
 export const Maximize2 = iconsax(IconsaxMaximize4, "Maximize2");
 export const Megaphone = iconsax(IconsaxVolumeHigh, "Megaphone");
 export const MessageSquarePlus = iconsax(IconsaxMessageAdd1, "MessageSquarePlus");
@@ -144,9 +147,11 @@ export const Tag = iconsax(IconsaxTag2, "Tag");
 export const Trash2 = iconsax(IconsaxTrash, "Trash2");
 export const Type = iconsax(IconsaxText, "Type");
 export const Upload = iconsax(IconsaxDocumentUpload, "Upload");
+export const UserCheck = iconsax(IconsaxUserTick, "UserCheck");
 export const UserPen = iconsax(IconsaxUserEdit, "UserPen");
 export const UserPlus = iconsax(IconsaxUserAdd, "UserPlus");
 export const UserRound = iconsax(IconsaxHappyemoji, "UserRound");
+export const Users = iconsax(IconsaxPeople, "Users");
 export const Video = iconsax(IconsaxVideo, "Video");
 export const Volume2 = iconsax(IconsaxVolumeHigh, "Volume2");
 export const Wallpaper = iconsax(IconsaxImage, "Wallpaper");

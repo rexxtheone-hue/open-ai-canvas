@@ -28,23 +28,26 @@ type StudioPostMedia struct {
 }
 
 type StudioPostView struct {
-	ID         string            `json:"id"`
-	Kind       string            `json:"kind"`
-	Tool       string            `json:"tool"`
-	Title      string            `json:"title"`
-	Prompt     string            `json:"prompt,omitempty"`
-	Settings   map[string]any    `json:"settings,omitempty"`
-	Media      []StudioPostMedia `json:"media"`
-	Author     string            `json:"author"`
-	Mine       bool              `json:"mine"`
-	Liked      bool              `json:"liked"`
-	LikeCount  int64             `json:"likeCount"`
-	RemixCount int64             `json:"remixCount"`
-	Featured   bool              `json:"featured"`
-	IsTemplate bool              `json:"isTemplate"`
-	AllowRemix bool              `json:"allowRemix"`
-	Hidden     bool              `json:"hidden,omitempty"`
-	CreatedAt  time.Time         `json:"createdAt"`
+	ID       string            `json:"id"`
+	Kind     string            `json:"kind"`
+	Tool     string            `json:"tool"`
+	Title    string            `json:"title"`
+	Prompt   string            `json:"prompt,omitempty"`
+	Settings map[string]any    `json:"settings,omitempty"`
+	Media    []StudioPostMedia `json:"media"`
+	Author   string            `json:"author"`
+	// AuthorHandle 是作者主页地址，前端用它链接到 /u/:handle。
+	AuthorHandle string    `json:"authorHandle,omitempty"`
+	AuthorAvatar string    `json:"authorAvatar,omitempty"`
+	Mine         bool      `json:"mine"`
+	Liked        bool      `json:"liked"`
+	LikeCount    int64     `json:"likeCount"`
+	RemixCount   int64     `json:"remixCount"`
+	Featured     bool      `json:"featured"`
+	IsTemplate   bool      `json:"isTemplate"`
+	AllowRemix   bool      `json:"allowRemix"`
+	Hidden       bool      `json:"hidden,omitempty"`
+	CreatedAt    time.Time `json:"createdAt"`
 }
 
 type StudioPostPage struct {
@@ -58,6 +61,8 @@ type StudioCommunityQuery struct {
 	Templates bool
 	Featured  bool
 	Mine      bool
+	// Following 只看自己关注的创作者。
+	Following bool
 	Search    string
 	Offset    int
 	Limit     int
@@ -140,6 +145,17 @@ func (s *Service) PublishStudioWork(userID, taskID string, input StudioPublishIn
 }
 
 func (s *Service) StudioCommunity(viewerID string, query StudioCommunityQuery) (StudioPostPage, error) {
+	userID, followerID := "", ""
+	if query.Mine {
+		userID = viewerID
+	}
+	if query.Following {
+		followerID = viewerID
+	}
+	return s.studioCommunityPage(viewerID, query, userID, followerID)
+}
+
+func (s *Service) studioCommunityPage(viewerID string, query StudioCommunityQuery, userID, followerID string) (StudioPostPage, error) {
 	kind := ""
 	if query.Kind != "" && query.Kind != "all" {
 		if _, err := studioKindForFilter(query.Kind); err != nil {
@@ -147,10 +163,7 @@ func (s *Service) StudioCommunity(viewerID string, query StudioCommunityQuery) (
 		}
 		kind = query.Kind
 	}
-	repoQuery := repository.StudioPostQuery{Kind: kind, Sort: query.Sort, Templates: query.Templates, Featured: query.Featured, Search: query.Search, Offset: max(query.Offset, 0), Limit: query.Limit}
-	if query.Mine {
-		repoQuery.UserID = viewerID
-	}
+	repoQuery := repository.StudioPostQuery{Kind: kind, Sort: query.Sort, Templates: query.Templates, Featured: query.Featured, Search: query.Search, Offset: max(query.Offset, 0), Limit: query.Limit, UserID: userID, FollowerID: followerID}
 	posts, hasMore, err := s.repo.StudioPosts(repoQuery)
 	if err != nil {
 		return StudioPostPage{}, err
@@ -282,12 +295,36 @@ func (s *Service) studioPostViews(viewerID string, admin bool, posts []model.Stu
 	if err != nil {
 		return nil, err
 	}
+	profiles, err := s.repo.StudioProfilesByUsers(authors)
+	if err != nil {
+		return nil, err
+	}
+	authorViews := map[string][2]string{}
+	for _, authorID := range authors {
+		if _, done := authorViews[authorID]; done {
+			continue
+		}
+		profile, found := profiles[authorID]
+		if !found {
+			created, err := s.ensureStudioProfile(authorID)
+			if err != nil || created == nil {
+				authorViews[authorID] = [2]string{}
+				continue
+			}
+			profile = *created
+		}
+		if name := strings.TrimSpace(profile.Name); name != "" {
+			names[authorID] = name
+		}
+		authorViews[authorID] = [2]string{profile.Handle, s.studioProfileImageURL(authorID, profile.AvatarResourceID, assets.VariantOriginal)}
+	}
 	expires := time.Now().Add(studioPostMediaTTL)
 	views := make([]StudioPostView, 0, len(posts))
 	for _, post := range posts {
 		mine := post.UserID == viewerID
 		view := StudioPostView{
 			ID: post.ID, Kind: post.Kind, Tool: post.Tool, Title: post.Title, Author: names[post.UserID], Mine: mine, Liked: liked[post.ID],
+			AuthorHandle: authorViews[post.UserID][0], AuthorAvatar: authorViews[post.UserID][1],
 			LikeCount: post.LikeCount, RemixCount: post.RemixCount, Featured: post.Featured, IsTemplate: post.IsTemplate, AllowRemix: post.AllowRemix,
 			Hidden: post.Status == model.StudioPostHidden, CreatedAt: post.CreatedAt, Media: []StudioPostMedia{},
 		}

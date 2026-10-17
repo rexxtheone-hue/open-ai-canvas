@@ -1,5 +1,5 @@
 import { Button } from "antd";
-import { ArrowUpRight, Coins, Crown, History, LogOut, RefreshCw, Settings, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, Coins, Crown, History, LogOut, RefreshCw, Settings, ShieldCheck, UserRound } from "lucide-react";
 import { Link } from "react-router";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
 import { useWorkspaceLogout } from "@/hooks/use-workspace-logout";
@@ -27,6 +27,7 @@ export function WorkspaceAccountCard({ onWallet, onNavigate, studio = false }: {
         </div> : null}
         <nav className="workspace-account-card-actions" aria-label="账户操作">
             <Link to="/settings?section=profile" onClick={onNavigate}><Settings /><span>账户与设置</span><ArrowUpRight /></Link>
+            {studio ? <Link to="/studio/profile" onClick={onNavigate}><UserRound /><span>我的主页</span><ArrowUpRight /></Link> : null}
             {studio && creditsEnabled ? <Link to="/studio/pricing" onClick={onNavigate}><Crown /><span>订阅与会员</span><ArrowUpRight /></Link> : null}
             {studio && creditsEnabled ? <button type="button" onClick={() => { onNavigate(); openWorkspaceWallet({ tab: "history" }); }}><History /><span>积分记录</span><ArrowUpRight /></button> : null}
             {user.role === "admin" ? <Link to="/admin" onClick={onNavigate}><ShieldCheck /><span>管理员后台</span><ArrowUpRight /></Link> : null}

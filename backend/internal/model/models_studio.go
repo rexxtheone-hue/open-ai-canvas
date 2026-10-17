@@ -297,3 +297,24 @@ type StudioWorkLabel struct {
 	LabelID   string `gorm:"primaryKey;size:36;index"`
 	CreatedAt time.Time
 }
+
+// StudioProfile 是创作者的公开主页资料。头像和封面是独立上传的公开图片，不用账号的私有头像。
+type StudioProfile struct {
+	UserID           string `gorm:"primaryKey;size:36"`
+	Handle           string `gorm:"uniqueIndex;size:32"`
+	Name             string `gorm:"size:80"`
+	Bio              string `gorm:"size:600"`
+	Location         string `gorm:"size:120"`
+	SpecialtiesJSON  string `gorm:"type:text"`
+	LinksJSON        string `gorm:"type:text"`
+	AvatarResourceID string `gorm:"size:64"`
+	CoverResourceID  string `gorm:"size:64"`
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type StudioFollow struct {
+	FollowerID string `gorm:"primaryKey;size:36"`
+	FolloweeID string `gorm:"primaryKey;size:36;index"`
+	CreatedAt  time.Time
+}

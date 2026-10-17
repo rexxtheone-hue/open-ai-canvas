@@ -30,7 +30,7 @@ func RegisterStudioCommunityRoutes(r *gin.RouterGroup, svc *service.Service) {
 	communityQuery := func(c *gin.Context) service.StudioCommunityQuery {
 		return service.StudioCommunityQuery{
 			Kind: c.Query("kind"), Sort: c.Query("sort"), Templates: c.Query("templates") == "true", Featured: c.Query("featured") == "true",
-			Mine: c.Query("mine") == "true", Search: c.Query("q"), Offset: queryInt(c, "offset"), Limit: queryInt(c, "pageSize"),
+			Mine: c.Query("mine") == "true", Following: c.Query("following") == "true", Search: c.Query("q"), Offset: queryInt(c, "offset"), Limit: queryInt(c, "pageSize"),
 		}
 	}
 	r.GET("/studio/community", withUser(func(c *gin.Context, user *model.User) {
@@ -40,6 +40,68 @@ func RegisterStudioCommunityRoutes(r *gin.RouterGroup, svc *service.Service) {
 			return
 		}
 		ok(c, page)
+	}))
+	// 创作者主页：读主页不需要登录（viewer 为空），方便把主页链接分享出去。
+	viewerID := func(c *gin.Context) string {
+		if sessionCookie(c) == "" {
+			return ""
+		}
+		if user, err := currentUser(c, svc); err == nil && user != nil {
+			return user.ID
+		}
+		return ""
+	}
+	r.GET("/studio/profile", withUser(func(c *gin.Context, user *model.User) {
+		view, err := svc.StudioMyProfile(user.ID)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, view)
+	}))
+	r.PUT("/studio/profile", withUser(func(c *gin.Context, user *model.User) {
+		var req service.StudioProfileInput
+		if err := c.ShouldBindJSON(&req); err != nil {
+			fail(c, http.StatusBadRequest, err)
+			return
+		}
+		view, err := svc.UpdateStudioProfile(user.ID, req)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, view)
+	}))
+	r.GET("/studio/profiles/:handle", func(c *gin.Context) {
+		view, err := svc.StudioProfileByHandle(viewerID(c), c.Param("handle"))
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, view)
+	})
+	r.GET("/studio/profiles/:handle/posts", func(c *gin.Context) {
+		page, err := svc.StudioProfilePosts(viewerID(c), c.Param("handle"), c.Query("tab"), queryInt(c, "offset"), queryInt(c, "pageSize"))
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, page)
+	})
+	r.PUT("/studio/profiles/:handle/follow", withUser(func(c *gin.Context, user *model.User) {
+		var req struct {
+			Following bool `json:"following"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			fail(c, http.StatusBadRequest, err)
+			return
+		}
+		view, err := svc.FollowStudioProfile(user.ID, c.Param("handle"), req.Following)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, view)
 	}))
 	r.POST("/studio/works/:id/publish", withUser(func(c *gin.Context, user *model.User) {
 		var req service.StudioPublishInput
