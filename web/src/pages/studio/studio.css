@@ -11,12 +11,17 @@
     --studio-panel-raised: #16181a;
     --studio-hover: #1e2023;
     --studio-chip: linear-gradient(90deg, rgba(214, 225, 255, 0.04) 25%, rgba(214, 225, 255, 0.08) 100%);
-    --studio-accent: #d9a441;
-    --studio-accent-strong: #c18b2a;
-    --studio-accent-ink: #1d1505;
-    --studio-accent-soft: color-mix(in oklab, #d9a441 16%, transparent);
+    /* 主色：参考 Higgsfield——黑灰为底，只用一个荧光色点缀主按钮、新标签和选中项；荧光紫按钮配黑字。 */
+    --studio-accent: #c13cff;
+    --studio-accent-rgb: 193, 60, 255;
+    --studio-accent-strong: #ad1fff;
+    --studio-accent-ink: #0b0b0c;
+    --studio-accent-text: #dc9bff;
+    --studio-accent-soft: color-mix(in oklab, #c13cff 14%, transparent);
+    /* 荧光感：主按钮外圈的紫色光晕。 */
+    --studio-accent-glow: 0 0 22px -4px rgba(193, 60, 255, 0.75);
     --studio-hot: #fb23c2;
-    --studio-new: #bfff40;
+    --studio-new: #c13cff;
     --studio-danger: #ff6b6b;
     --studio-ok: #16d866;
     --studio-radius: 16px;
@@ -385,13 +390,13 @@
     cursor: pointer;
     font: inherit;
 }
-.studio-entry-choice:hover { border-color: #d9a441; }
-.studio-entry-choice:focus-visible { outline: 2px solid #d9a441; outline-offset: 3px; }
-.studio-entry-choice svg { width: 34px; height: 34px; color: #d9a441; }
+.studio-entry-choice:hover { border-color: var(--studio-accent); }
+.studio-entry-choice:focus-visible { outline: 2px solid var(--studio-accent); outline-offset: 3px; }
+.studio-entry-choice svg { width: 34px; height: 34px; color: var(--studio-accent); }
 .studio-entry-choice strong { font-size: 22px; font-weight: 800; }
 .studio-entry-choice span { color: var(--muted-foreground); font-size: 14px; line-height: 1.6; }
 .studio-entry-choice ul { margin: 4px 0 0; padding-left: 18px; color: var(--muted-foreground); font-size: 13px; line-height: 1.8; }
-.studio-entry-choice .studio-entry-last { position: absolute; top: 14px; right: 14px; padding: 1px 9px; border-radius: 999px; background: #d9a441; color: #1d1505; font-size: 11px; font-weight: 700; }
+.studio-entry-choice .studio-entry-last { position: absolute; top: 14px; right: 14px; padding: 1px 9px; border-radius: 999px; background: var(--studio-accent); color: var(--studio-accent-ink); font-size: 11px; font-weight: 700; }
 .studio-entry-remember { display: inline-flex; align-items: center; gap: 8px; color: var(--muted-foreground); font-size: 13px; }
 
 @media (max-width: 960px) {
@@ -659,9 +664,9 @@ button.studio-block-link { border: 0; background: none; cursor: pointer; font: i
 .studio-menu button { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--foreground); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
 .studio-menu button:hover { background: color-mix(in oklab, var(--foreground) 8%, transparent); }
 .studio-menu button svg { width: 15px; height: 15px; }
-.studio-menu .studio-menu-check { margin-left: auto; color: var(--studio-accent, #d9a441); }
+.studio-menu .studio-menu-check { margin-left: auto; color: var(--studio-accent); }
 .studio-size-row { display: flex; align-items: center; gap: 10px; padding: 4px 8px 8px; font-size: 12px; color: var(--muted-foreground); }
-.studio-size-row input { flex: 1 1 auto; accent-color: #d9a441; }
+.studio-size-row input { flex: 1 1 auto; accent-color: var(--studio-accent); }
 .studio-grid { grid-template-columns: repeat(auto-fill, minmax(var(--studio-card-min, 180px), 1fr)); }
 
 /* 面板里的卡片风格：模型、参数、提示词等区块 */
@@ -882,7 +887,7 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 /* ---------- 视觉升级：参照 OpenArt 的层次（标题字体、聚光背景、发光输入框、海报卡片） ---------- */
 .studio-root, .studio-popup, .studio-modal {
     --studio-display: "Bricolage Grotesque Variable", var(--font-sans);
-    --studio-glow: linear-gradient(135deg, #ffe2a8 0%, #d9a441 45%, #ff7a59 100%);
+    --studio-glow: linear-gradient(135deg, #e7a8ff 0%, #c13cff 50%, #9a12ff 100%);
     --studio-glass: linear-gradient(-45deg, rgba(214, 225, 255, 0.1) 0%, rgba(214, 225, 255, 0.04) 100%);
 }
 .studio-hero h1, .studio-director-hero h1, .studio-section-head h2, .studio-chat-welcome h2, .studio-empty strong, .studio-topbar-title strong, .studio-side-brand strong {
@@ -890,10 +895,10 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
     letter-spacing: -0.015em;
 }
 
-/* 侧栏当前项：金色描边光晕 */
+/* 侧栏当前项：主色描边光晕 */
 .studio-side-link[aria-current="page"], .studio-side-card[aria-current="page"] {
-    background: linear-gradient(90deg, rgba(217, 164, 65, 0.16), rgba(217, 164, 65, 0.04));
-    box-shadow: inset 0 0 0 1px rgba(217, 164, 65, 0.75), 0 0 18px -6px rgba(217, 164, 65, 0.55);
+    background: linear-gradient(90deg, rgba(var(--studio-accent-rgb), 0.16), rgba(var(--studio-accent-rgb), 0.04));
+    box-shadow: inset 0 0 0 1px rgba(var(--studio-accent-rgb), 0.75), 0 0 18px -6px rgba(var(--studio-accent-rgb), 0.55);
 }
 
 /* 首页标题区：顶部聚光 */
@@ -906,7 +911,7 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
     height: 560px;
     background:
         radial-gradient(ellipse 46% 60% at 50% 0%, rgba(255, 255, 255, 0.09), transparent 70%),
-        radial-gradient(ellipse 30% 40% at 50% 10%, rgba(217, 164, 65, 0.08), transparent 70%);
+        radial-gradient(ellipse 30% 40% at 50% 10%, rgba(var(--studio-accent-rgb), 0.08), transparent 70%);
     pointer-events: none;
 }
 .studio-hero { gap: 22px; padding-top: 40px; }
@@ -924,11 +929,11 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
     border: 1px solid transparent;
     background:
         linear-gradient(#0d0e0f, #0d0e0f) padding-box,
-        linear-gradient(160deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05) 35%, rgba(217, 164, 65, 0.65) 80%, rgba(255, 122, 89, 0.7)) border-box;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 24px 60px -24px rgba(217, 164, 65, 0.35);
+        linear-gradient(160deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05) 35%, rgba(var(--studio-accent-rgb), 0.65) 80%, rgba(var(--studio-accent-rgb), 0.7)) border-box;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 24px 60px -24px rgba(var(--studio-accent-rgb), 0.35);
     transition: box-shadow 0.2s ease;
 }
-.studio-composer.is-hero:focus-within { border-color: transparent; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 24px 70px -18px rgba(217, 164, 65, 0.55); }
+.studio-composer.is-hero:focus-within { border-color: transparent; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 24px 70px -18px rgba(var(--studio-accent-rgb), 0.55); }
 .studio-composer.is-hero textarea { flex: 1 1 auto; min-height: 84px; padding: 0 4px; font-size: 15.5px; }
 .studio-composer.is-hero textarea::placeholder { color: rgba(214, 225, 255, 0.4); }
 .studio-pill-select { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border-radius: 999px; color: var(--studio-fg); font-size: 14px; font-weight: 550; cursor: pointer; }
@@ -936,12 +941,12 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 .studio-pill-select svg { width: 17px; height: 17px; color: var(--studio-soft); }
 .studio-pill-select select { appearance: none; border: 0; outline: 0; background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 -960 960 960' fill='%23b0b4ba'%3E%3Cpath d='M469-358q-5-2-10-7L261-563q-9-9-8.5-21.5T262-606q9-9 21.5-9t21.5 9l175 176 176-176q9-9 21-8.5t21 9.5q9 9 9 21.5t-9 21.5L501-365q-5 5-10 7t-11 2q-6 0-11-2Z'/%3E%3C/svg%3E") no-repeat right center; padding-right: 18px; color: inherit; font: inherit; cursor: pointer; }
 .studio-pill-select select option { background: #16181a; color: #fff; }
-.studio-pill-select:focus-within { outline: 2px solid rgba(217, 164, 65, 0.6); outline-offset: 1px; }
-.studio-send-orb { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 999px; background: var(--studio-glow); color: #1d1505; cursor: pointer; box-shadow: 0 6px 20px -6px rgba(217, 164, 65, 0.7); transition: transform 0.15s ease, opacity 0.15s ease; }
+.studio-pill-select:focus-within { outline: 2px solid rgba(var(--studio-accent-rgb), 0.6); outline-offset: 1px; }
+.studio-send-orb { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 999px; background: var(--studio-glow); color: var(--studio-accent-ink); cursor: pointer; box-shadow: 0 6px 20px -6px rgba(var(--studio-accent-rgb), 0.7); transition: transform 0.15s ease, opacity 0.15s ease; }
 .studio-send-orb:hover:not(:disabled) { transform: translateY(-1px) scale(1.04); }
 .studio-send-orb:disabled { background: rgba(214, 225, 255, 0.1); color: rgba(214, 225, 255, 0.4); box-shadow: none; cursor: not-allowed; }
 .studio-send-orb svg { width: 19px; height: 19px; }
-.studio-root .studio-send-button { background: var(--studio-glow); color: #1d1505; border: 0; box-shadow: 0 6px 18px -8px rgba(217, 164, 65, 0.8); }
+.studio-root .studio-send-button { background: var(--studio-glow); color: var(--studio-accent-ink); border: 0; box-shadow: 0 6px 18px -8px rgba(var(--studio-accent-rgb), 0.8); }
 .studio-root .studio-send-button:disabled { background: rgba(214, 225, 255, 0.1); color: rgba(214, 225, 255, 0.4); box-shadow: none; }
 
 /* 建议按钮：玻璃质感胶囊 */
@@ -997,7 +1002,7 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 .studio-poster:hover .studio-poster-glyph { transform: rotate(-4deg) scale(1.04); }
 .studio-poster-title { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; font-family: var(--studio-display); font-size: 15px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: linear-gradient(180deg, #1b1c1e, #141516); }
 .studio-poster-title svg { width: 17px; height: 17px; flex: 0 0 auto; }
-.studio-poster-badge { position: absolute; right: 8px; bottom: 48px; padding: 2px 8px; border-radius: 6px; background: #c8f560; color: #10200a; font-size: 11.5px; font-style: normal; font-weight: 750; }
+.studio-poster-badge { position: absolute; right: 8px; bottom: 48px; padding: 2px 8px; border-radius: 6px; background: var(--studio-new); color: var(--studio-accent-ink); font-size: 11.5px; font-style: normal; font-weight: 750; }
 
 /* 横向滚动轨道 */
 .studio-rail-wrap { position: relative; }
@@ -1030,7 +1035,7 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
     overflow: hidden;
     isolation: isolate;
     background:
-        radial-gradient(ellipse 80% 70% at 50% 120%, rgba(255, 122, 89, 0.85), rgba(217, 164, 65, 0.55) 35%, transparent 70%),
+        radial-gradient(ellipse 80% 70% at 50% 120%, rgba(var(--studio-accent-rgb), 0.85), rgba(var(--studio-accent-rgb), 0.55) 35%, transparent 70%),
         linear-gradient(180deg, #0e0f10 0%, #121314 55%, #2a1a12 100%);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
@@ -1044,8 +1049,8 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 
 /* 新建项目方块 & 项目卡片 */
 .studio-create-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; aspect-ratio: 200 / 188; border: 1px dashed rgba(214, 225, 255, 0.18); border-radius: 16px; background: rgba(214, 225, 255, 0.03); color: var(--studio-soft); font: inherit; cursor: pointer; transition: background 0.2s ease, border-color 0.2s ease; }
-.studio-create-tile:hover { background: rgba(217, 164, 65, 0.08); border-color: rgba(217, 164, 65, 0.6); color: var(--studio-fg); }
-.studio-create-tile svg { width: 30px; height: 30px; padding: 6px; border-radius: 999px; background: var(--studio-glow); color: #1d1505; }
+.studio-create-tile:hover { background: rgba(var(--studio-accent-rgb), 0.08); border-color: rgba(var(--studio-accent-rgb), 0.6); color: var(--studio-fg); }
+.studio-create-tile svg { width: 30px; height: 30px; padding: 6px; border-radius: 999px; background: var(--studio-glow); color: var(--studio-accent-ink); }
 .studio-create-tile strong { font-family: var(--studio-display); font-size: 15px; }
 .studio-story-card { position: relative; display: flex; aspect-ratio: 200 / 188; border-radius: 16px; overflow: hidden; background: #1b1c1e; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); transition: transform 0.2s ease; }
 .studio-story-card:hover { transform: translateY(-2px); }
@@ -1057,7 +1062,7 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 
 /* 对话模式空状态 */
 .studio-chat-welcome h2 { font-size: 24px; font-weight: 650; }
-.studio-chat-welcome::before { content: ""; width: 64px; height: 64px; border-radius: 22px; background: radial-gradient(circle at 30% 25%, #fff6dc, #e2b75a 40%, #8a5a12 100%); box-shadow: 0 12px 30px -10px rgba(217, 164, 65, 0.7), inset 0 -4px 10px rgba(0, 0, 0, 0.25); }
+.studio-chat-welcome::before { content: ""; width: 64px; height: 64px; border-radius: 22px; background: radial-gradient(circle at 30% 25%, #f6dcff, #c13cff 40%, #4a0a8a 100%); box-shadow: 0 12px 30px -10px rgba(var(--studio-accent-rgb), 0.7), inset 0 -4px 10px rgba(0, 0, 0, 0.25); }
 .studio-chat-composer { border-radius: 20px; background: #121314; }
 
 @media (max-width: 720px) {
@@ -1078,7 +1083,7 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 .studio-create-tile.is-portrait { aspect-ratio: auto; min-height: 100%; padding: 24px 16px; }
 .studio-create-tile.is-portrait span { color: var(--studio-muted); font-size: 12.5px; text-align: center; line-height: 1.5; }
 .studio-character-card { border: 0; border-radius: 18px; background: #161718; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07); overflow: hidden; transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.studio-character-card:hover { transform: translateY(-2px); box-shadow: inset 0 0 0 1px rgba(217, 164, 65, 0.45), 0 18px 36px -18px rgba(0, 0, 0, 0.9); }
+.studio-character-card:hover { transform: translateY(-2px); box-shadow: inset 0 0 0 1px rgba(var(--studio-accent-rgb), 0.45), 0 18px 36px -18px rgba(0, 0, 0, 0.9); }
 .studio-character-card .studio-character-cover { position: relative; margin: 3px 3px 0; border-radius: 15px 15px 8px 8px; overflow: hidden; background: radial-gradient(circle at 70% 20%, rgba(255, 255, 255, 0.12), transparent 50%), linear-gradient(160deg, #2a2b2e, #151617); }
 .studio-character-caption { position: absolute; inset: auto 0 0 0; display: flex; flex-direction: column; gap: 2px; padding: 40px 12px 10px; background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.82)); }
 .studio-character-caption strong { font-family: var(--studio-display); font-size: 16px; font-weight: 650; color: #fff; }
@@ -1090,7 +1095,7 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 .studio-character-tools .studio-icon-button.is-danger:hover { color: var(--studio-danger); }
 .studio-character-card .studio-character-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 6px; }
 .studio-character-card .studio-character-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; height: 32px; border: 0; border-radius: 10px; background: rgba(214, 225, 255, 0.05); color: var(--studio-soft); font: inherit; font-size: 12.5px; cursor: pointer; }
-.studio-character-card .studio-character-actions button:hover { background: rgba(217, 164, 65, 0.16); color: var(--studio-fg); }
+.studio-character-card .studio-character-actions button:hover { background: rgba(var(--studio-accent-rgb), 0.16); color: var(--studio-fg); }
 .studio-character-card .studio-character-actions svg { width: 14px; height: 14px; }
 @media (hover: none) { .studio-character-tools { opacity: 1; } }
 
@@ -1098,11 +1103,11 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 .studio-picker { position: absolute; z-index: 6; inset: 0; display: flex; flex-direction: column; border-radius: 20px; border: 1px solid var(--studio-line-strong); background: #141516; box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.8); overflow: hidden; }
 .studio-picker-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 10px 20px; }
 .studio-picker-head strong { font-family: var(--studio-display); font-size: 17px; font-weight: 650; }
-.studio-picker-notice { margin: 0 16px 10px; padding: 10px 12px; border-radius: 12px; background: rgba(217, 164, 65, 0.12); color: #f1c46b; font-size: 12.5px; line-height: 1.5; }
+.studio-picker-notice { margin: 0 16px 10px; padding: 10px 12px; border-radius: 12px; background: rgba(var(--studio-accent-rgb), 0.12); color: var(--studio-accent-text); font-size: 12.5px; line-height: 1.5; }
 .studio-picker-kinds { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; margin: 0 16px; padding: 4px; border-radius: 16px; background: rgba(214, 225, 255, 0.04); }
 .studio-picker-kinds button { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 6px; border: 0; border-radius: 12px; background: transparent; color: var(--studio-soft); font: inherit; font-size: 13px; cursor: pointer; }
 .studio-picker-kinds button svg { width: 22px; height: 22px; }
-.studio-picker-kinds button[aria-selected="true"] { background: linear-gradient(180deg, rgba(217, 164, 65, 0.28), rgba(217, 164, 65, 0.08)); color: var(--studio-fg); box-shadow: inset 0 0 0 1px rgba(217, 164, 65, 0.4); }
+.studio-picker-kinds button[aria-selected="true"] { background: linear-gradient(180deg, rgba(var(--studio-accent-rgb), 0.28), rgba(var(--studio-accent-rgb), 0.08)); color: var(--studio-fg); box-shadow: inset 0 0 0 1px rgba(var(--studio-accent-rgb), 0.4); }
 .studio-picker-sources { display: inline-flex; gap: 2px; margin: 14px 16px 6px; padding: 3px; border-radius: 999px; background: rgba(214, 225, 255, 0.05); align-self: flex-start; }
 .studio-picker-sources button { height: 30px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; color: var(--studio-muted); font: inherit; font-size: 13px; cursor: pointer; }
 .studio-picker-sources button[aria-selected="true"] { background: #f4f5f7; color: #111; font-weight: 600; }
@@ -1118,7 +1123,7 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 .studio-picker-audio { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; font-size: 12px; text-align: center; }
 .studio-picker-audio svg { width: 26px; height: 26px; color: var(--studio-accent); }
 .studio-picker-label { position: absolute; inset: auto 0 0 0; padding: 18px 8px 6px; background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.8)); color: #fff; font-size: 12.5px; font-weight: 600; text-align: left; }
-.studio-picker-check { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 999px; background: var(--studio-accent); color: #1d1505; }
+.studio-picker-check { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 999px; background: var(--studio-accent); color: var(--studio-accent-ink); }
 .studio-picker-check svg { width: 14px; height: 14px; }
 .studio-picker-empty { margin: 40px 0; color: var(--studio-muted); font-size: 13px; text-align: center; display: grid; place-items: center; }
 .studio-picker-foot { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--studio-line); font-size: 13px; color: var(--studio-soft); }
@@ -1134,7 +1139,7 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 .studio-camera-moves strong { font-size: 14px; }
 .studio-camera-moves > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .studio-camera-moves button { height: 34px; border: 0; border-radius: 10px; background: rgba(214, 225, 255, 0.06); color: var(--studio-fg); font: inherit; font-size: 12.5px; cursor: pointer; }
-.studio-camera-moves button:hover { background: rgba(217, 164, 65, 0.18); }
+.studio-camera-moves button:hover { background: rgba(var(--studio-accent-rgb), 0.18); }
 .studio-prompt-full { width: 100%; min-height: 60vh; padding: 14px; border-radius: 14px; border: 1px solid var(--studio-line-strong); background: #0d0e0f; color: var(--studio-fg); font: inherit; font-size: 15px; line-height: 1.7; resize: vertical; }
 
 /* 专项工具：多素材槽位、录制与框选、选项控件 */
@@ -1176,7 +1181,7 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 .studio-region { display: flex; flex-direction: column; gap: 10px; }
 .studio-region-surface { position: relative; align-self: center; max-width: 100%; cursor: crosshair; touch-action: none; user-select: none; }
 .studio-region-surface img, .studio-region-surface video { display: block; max-width: 100%; max-height: 60vh; border-radius: 10px; pointer-events: none; }
-.studio-region-box { position: absolute; border: 2px solid var(--studio-accent); background: rgba(217, 164, 65, 0.18); border-radius: 4px; color: #fff; font-size: 12px; font-weight: 700; padding: 2px 5px; }
+.studio-region-box { position: absolute; border: 2px solid var(--studio-accent); background: rgba(var(--studio-accent-rgb), 0.18); border-radius: 4px; color: #fff; font-size: 12px; font-weight: 700; padding: 2px 5px; }
 
 /* 声音：创建声音、声音库 */
 .studio-entry-tile.is-accent { color: #f3a6d8; border-color: rgba(243, 166, 216, 0.28); background: linear-gradient(160deg, rgba(243, 166, 216, 0.1), transparent 70%), var(--studio-panel-raised); }
@@ -1312,7 +1317,7 @@ button.studio-entry-tile { font: inherit; font-size: 13.5px; font-weight: 650; c
 .studio-camera-head h2 { margin: 0; font-family: var(--studio-display); font-size: 30px; font-weight: 700; }
 .studio-camera-head h2 em { font-style: normal; color: var(--studio-accent); }
 .studio-camera-head p { margin: 6px 0 0; color: var(--studio-soft); font-size: 13px; }
-.studio-camera-tip { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 14px; border-radius: 12px; background: rgba(217, 164, 65, 0.12); color: #f1c46b; font-size: 12.5px; }
+.studio-camera-tip { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 14px; border-radius: 12px; background: rgba(var(--studio-accent-rgb), 0.12); color: var(--studio-accent-text); font-size: 12.5px; }
 .studio-camera-tip svg { width: 15px; height: 15px; flex: none; }
 .studio-camera-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .studio-camera-card { display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: none; color: var(--studio-soft); font: inherit; cursor: pointer; }
@@ -1580,3 +1585,5 @@ button.studio-template-card { padding: 0; font: inherit; color: inherit; text-al
 .studio-template-categories button em { font-style: normal; font-size: 11px; opacity: 0.6; }
 .studio-template-categories svg { width: 13px; height: 13px; }
 .studio-template-categories button { padding: 6px 12px; font-size: 13px; }
+/* 荧光紫主按钮的光晕 */
+.studio-upgrade-button, .studio-generate-button:not(:disabled), .studio-tag.is-new { box-shadow: var(--studio-accent-glow); }
