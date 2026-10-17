@@ -1,5 +1,6 @@
 import type { LucideIcon } from "./studio-icons";
 import { Link } from "react-router";
+import { StudioCoverMedia } from "./studio-tool-thumb";
 
 type PosterProps = {
     title: string;
@@ -17,7 +18,7 @@ export function StudioPosterCard({ title, icon: Icon, gradient, cover, badge, to
     const body = (
         <>
             <span className="studio-poster-art" aria-hidden>
-                {cover ? <img src={cover} alt="" loading="lazy" /> : <Icon className="studio-poster-glyph" />}
+                {cover ? <StudioCoverMedia src={cover} /> : <Icon className="studio-poster-glyph" />}
             </span>
             {badge ? <em className="studio-poster-badge">{badge}</em> : null}
             <span className="studio-poster-title"><Icon aria-hidden />{title}</span>

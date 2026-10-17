@@ -1,6 +1,7 @@
 import { Check, Info, X } from "./studio-icons";
 
 import { CAMERA_MOVES, cameraMoveCoverId, type StudioCameraMove } from "./studio-prompt-tools";
+import { StudioCoverMedia } from "./studio-tool-thumb";
 import { useStudioToolCovers } from "./use-studio-tool-meta";
 
 /** 没有后台上传示意图时，用一个小场景动画演示镜头怎么动。 */
@@ -47,7 +48,7 @@ export function StudioCameraPanel({ open, prompt, onPick, onClose }: CameraPanel
                     return (
                         <button key={move.value} type="button" className="studio-camera-card" aria-pressed={used} title={move.prompt} onClick={() => onPick(move)}>
                             <span className="studio-camera-media">
-                                {cover ? <img src={cover} alt="" loading="lazy" /> : <CameraMovePreview move={move.value} />}
+                                {cover ? <StudioCoverMedia src={cover} /> : <CameraMovePreview move={move.value} />}
                                 {used ? <span className="studio-picker-check"><Check aria-hidden /></span> : null}
                             </span>
                             <span className="studio-camera-label">{move.label}</span>

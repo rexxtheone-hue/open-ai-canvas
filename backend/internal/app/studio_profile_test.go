@@ -145,3 +145,43 @@ func TestStudioProfilesFollowAndFeed(t *testing.T) {
 		t.Fatalf("preview %+v %v", preview, err)
 	}
 }
+
+func TestStudioToolCoverAcceptsGifAndShortVideo(t *testing.T) {
+	_, db := newStudioTestService(t)
+	dataDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dataDir, ".settings-key"), []byte(strings.Repeat("k", 32)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	svc := New(repository.New(db), dataDir)
+	admin := &model.User{ID: "admin", Role: "admin"}
+	if err := db.Create(admin).Error; err != nil {
+		t.Fatal(err)
+	}
+	for _, resource := range []model.Resource{
+		{ID: "gif", UserID: "admin", Kind: "image", MimeType: "image/gif", Size: 3 << 20},
+		{ID: "clip", UserID: "admin", Kind: "video", MimeType: "video/mp4", Size: 4 << 20},
+		{ID: "huge", UserID: "admin", Kind: "video", MimeType: "video/mp4", Size: 40 << 20},
+		{ID: "song", UserID: "admin", Kind: "audio", MimeType: "audio/mpeg", Size: 1 << 20},
+	} {
+		resource.Status, resource.Provider, resource.ObjectKey = model.ResourceStatusReady, "local", "users/admin/"+resource.ID
+		if err := db.Create(&resource).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := svc.SetStudioToolCover(admin, "lip-sync", "gif"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetStudioToolCover(admin, "text-to-video", "clip"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetStudioToolCover(admin, "relight", "huge"); err == nil {
+		t.Fatal("oversized covers must be rejected")
+	}
+	if err := svc.SetStudioToolCover(admin, "relight", "song"); err == nil {
+		t.Fatal("audio cannot be a cover")
+	}
+	covers, err := svc.StudioToolCovers()
+	if err != nil || strings.HasSuffix(covers["lip-sync"], "#video") || !strings.HasSuffix(covers["text-to-video"], "#video") {
+		t.Fatalf("covers %+v %v", covers, err)
+	}
+}

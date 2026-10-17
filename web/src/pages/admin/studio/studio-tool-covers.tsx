@@ -10,9 +10,13 @@ import { Camera } from "@/pages/studio/studio-icons";
 import { useStudioToolCovers } from "@/pages/studio/use-studio-tool-meta";
 import { resourceIdFromStorageKey } from "@/services/api/resources";
 import { setAdminStudioToolCover } from "@/services/api/studio";
+import { uploadMediaFile } from "@/services/file-storage";
 import { uploadImage } from "@/services/image-storage";
 
-/** 工具封面：在工具列表、网格和侧栏固定区显示，建议 1:1。快速开始封面：首页和 AI 导演的行业海报卡片，建议 4:3 竖构图偏上。 */
+/**
+ * 工具封面：在工具列表、网格和侧栏固定区显示，建议 1:1。快速开始封面：首页和 AI 导演的行业海报卡片，建议 4:3 竖构图偏上。
+ * 支持图片、GIF 和 3–6 秒的 MP4 / WebM（静音循环播放，最大 20 MB），做出像 OpenArt 那样会动的缩略图。
+ */
 export function StudioToolCoversPanel() {
     const { message } = App.useApp();
     const queryClient = useQueryClient();
@@ -24,8 +28,10 @@ export function StudioToolCoversPanel() {
         try {
             let resourceId = "";
             if (file) {
-                if (!file.type.startsWith("image/")) throw new Error("封面需要是图片");
-                resourceId = resourceIdFromStorageKey((await uploadImage(file)).storageKey);
+                const video = file.type === "video/mp4" || file.type === "video/webm";
+                if (!video && !file.type.startsWith("image/")) throw new Error("封面需要是图片、GIF 或 MP4 / WebM 视频");
+                if (file.size > 20 * 1024 * 1024) throw new Error("封面文件不能超过 20 MB，视频建议 3–6 秒");
+                resourceId = resourceIdFromStorageKey((video ? await uploadMediaFile(file, "video") : await uploadImage(file)).storageKey);
                 if (!resourceId) throw new Error("封面没有保存到云端，请稍后重试");
             }
             await setAdminStudioToolCover(toolId, resourceId);
@@ -53,7 +59,7 @@ export function StudioToolCoversPanel() {
                         <div className="mt-2 flex gap-2">
                             <label className="cursor-pointer">
                                 <span className="inline-flex h-7 items-center rounded-lg bg-foreground/10 px-3 text-xs">{busy === tool.id ? "上传中…" : "上传封面"}</span>
-                                <input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" disabled={Boolean(busy)} onChange={(event) => { void save(tool.id, event.target.files?.[0]); event.target.value = ""; }} />
+                                <input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm" disabled={Boolean(busy)} onChange={(event) => { void save(tool.id, event.target.files?.[0]); event.target.value = ""; }} />
                             </label>
                             {covers[tool.id] ? <Button size="small" disabled={Boolean(busy)} onClick={() => void save(tool.id, null)}>恢复默认</Button> : null}
                         </div>
