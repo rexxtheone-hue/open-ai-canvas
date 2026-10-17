@@ -193,10 +193,10 @@ describe("AI Studio 品牌套件", () => {
         expect(studioFinalPrompt({ kind: "video", prompt: "倒一杯热咖啡", brand: textOnly })).toBe("倒一杯热咖啡");
     });
 
-    test("视频模型不收参考图时不提供品牌", () => {
+    test("品牌只在生成图片时提供", () => {
         expect(studioBrandAvailable("image", { maxImages: 0 })).toBe(true);
         expect(studioBrandAvailable("video", { maxImages: 0 })).toBe(false);
-        expect(studioBrandAvailable("video", { maxImages: 3 })).toBe(true);
+        expect(studioBrandAvailable("video", { maxImages: 3 })).toBe(false);
         expect(studioBrandAvailable("audio", { maxImages: 3 })).toBe(false);
     });
 
