@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App, Popover, Switch } from "antd";
-import { ArrowLeftRight, AudioLines, ChevronRight, Crop, Film, ImagePlus, ListVideo, Loader2, Mic, Music, SlidersHorizontal, Sparkles, Video, X } from "lucide-react";
+import { ArrowLeftRight, AudioLines, Check, ChevronRight, Crop, Film, ImagePlus, ListVideo, Loader2, Mic, Music, Palette, SlidersHorizontal, Sparkles, Video, X } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 
 import { AudioSettingsPanel } from "@/components/audio-settings-panel";
@@ -9,7 +9,7 @@ import { VideoSettingsPanel } from "@/components/video-settings-panel";
 import { CreditSymbol } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
-import { VIDEO_MODES, videoModeMaterialRole, videoModeUnavailableReason, videoModeUsesMaterial } from "@/lib/video-modes";
+import { videoModeMaterialRole, videoModeUsesMaterial } from "@/lib/video-modes";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { creationAttachmentKind, type CreationAttachment } from "@/pages/create/creation-assets";
 import { resolveResourceUrl } from "@/services/api/resources";
@@ -156,6 +156,13 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
         presetAppliedRef.current = true;
         setVideoMode(tool.presetMode);
     }, [resolvedModel, setVideoMode, tool.presetMode]);
+
+    const videoModeNow = state.video.mode;
+    const imageCountNow = state.attachments.filter((attachment) => creationAttachmentKind(attachment) === "image").length;
+    useEffect(() => {
+        if (kind !== "video" || specialtySpec || tool.presetMode || !videoModeNow) return;
+        if (videoModeNow !== "image_to_video" || imageCountNow === 0) setVideoMode(undefined);
+    }, [imageCountNow, kind, setVideoMode, specialtySpec, tool.presetMode, videoModeNow]);
 
     // 固定或选定的输出比例（全景 2:1、扩图画幅）：模型支持时自动选上；不支持就回到模型默认并提示换模型，避免提交后才被拒绝。
     const optionRatio = specialtySpec?.ratioOption ? ratioOfChoice(specialtyOptions[specialtySpec.ratioOption]) : "";
@@ -422,6 +429,47 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
         );
     };
 
+    const addBrandImages = (attachments: CreationAttachment[], success: string) => {
+        const reason = attachments.length ? studio.addAttachments(attachments) : undefined;
+        if (reason) message.warning(reason);
+        else message.success(success);
+    };
+    const brandKit = studio.brandKit;
+    const brandTile = (
+        <Popover
+            trigger="click"
+            placement="bottomLeft"
+            arrow={false}
+            content={(
+                <div className="studio-popup studio-option-list studio-brand-menu">
+                    <strong>品牌套件</strong>
+                    <p className="studio-hint">品牌介绍、调性、品牌色、字体等会追加在提示词后发送。</p>
+                    <button type="button" className="studio-option-item" aria-selected={!brandKit} onClick={() => studio.setBrandChoice("")}>
+                        <span>不使用品牌</span>{!brandKit ? <Check aria-hidden /> : null}
+                    </button>
+                    {studio.brandKits.map((kit) => (
+                        <button key={kit.id} type="button" className="studio-option-item" aria-selected={brandKit?.id === kit.id} onClick={() => studio.setBrandChoice(kit.id)}>
+                            <span>{kit.name}{kit.isDefault ? "（默认）" : ""}</span>{brandKit?.id === kit.id ? <Check aria-hidden /> : null}
+                        </button>
+                    ))}
+                    {brandKit && limits.maxImages > 0 ? (
+                        <div className="studio-voice-sample-actions">
+                            {brandKit.logoResourceId ? <button type="button" className="studio-mini-button" onClick={() => { const logo = studioBrandLogoAttachment(brandKit); if (logo) addBrandImages([logo], "已加入 Logo 参考"); }}><ImagePlus aria-hidden />加入 Logo</button> : null}
+                            {brandKit.assetResourceIds?.length ? <button type="button" className="studio-mini-button" onClick={() => addBrandImages(studioBrandImageAttachments(brandKit, "asset"), "已加入品牌素材")}><ImagePlus aria-hidden />加入品牌素材</button> : null}
+                            {brandKit.styleResourceIds?.length ? <button type="button" className="studio-mini-button" onClick={() => addBrandImages(studioBrandImageAttachments(brandKit, "style"), "已加入风格参考")}><ImagePlus aria-hidden />加入风格参考</button> : null}
+                        </div>
+                    ) : null}
+                    <Link to="/studio/brand" className="studio-block-link">{studio.brandKits.length ? "管理品牌套件" : "还没有品牌套件，去创建"}</Link>
+                </div>
+            )}
+        >
+            <button type="button" className={`studio-ref-slot studio-brand-slot${brandKit ? " is-active" : ""}`} title={brandKit ? `品牌：${brandKit.name}` : "品牌套件"} aria-label={brandKit ? `品牌：${brandKit.name}` : "品牌套件"}>
+                {brandKit?.logoResourceId ? <img src={studioBrandLogoAttachment(brandKit)?.previewUrl} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : <Palette aria-hidden />}
+                {brandKit ? <small>{brandKit.name}</small> : null}
+            </button>
+        </Popover>
+    );
+
     return (
         <StudioShell title="创作" subtitle={tool.label}>
             <div className="studio-workspace">
@@ -549,30 +597,15 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                         </div>
                                     ))}
                                     {referenceKinds.map((referenceKind) => referenceTile(referenceKind))}
+                                    {kind !== "audio" ? brandTile : null}
                                 </div>
                                 <p className="studio-hint">
                                     {uploading ? "正在上传…" : `当前模型最多：${[limits.maxImages ? `${limits.maxImages} 张图片` : "", limits.maxVideos ? `${limits.maxVideos} 段视频` : "", limits.maxAudios ? `${limits.maxAudios} 段音频` : ""].filter(Boolean).join("、")}`}
                                 </p>
                                 {overflowIds.size ? <p className="studio-hint is-warn">有 {overflowIds.size} 个素材超出当前模型上限，生成时不会发送。</p> : null}
-                            </div>
-                        ) : null}
-
-                        {kind === "video" && !specialtySpec && !tool.presetMode ? (
-                            <div className="studio-block">
-                                <div className="studio-block-title">生成模式 <em>{state.video.mode ? "手动选择" : "按素材自动判断"}</em></div>
-                                <div className="studio-mode-list" role="group" aria-label="视频生成模式">
-                                    {VIDEO_MODES.map((mode) => {
-                                        const reason = videoModeUnavailableReason(videoProfile, mode.value, attachmentCounts);
-                                        const selected = state.video.mode === mode.value || (!state.video.mode && studio.effectiveVideoMode === mode.value);
-                                        return (
-                                            <button key={mode.value} type="button" aria-pressed={selected} disabled={Boolean(reason) && state.video.mode !== mode.value} title={reason || mode.description} onClick={() => studio.setVideoMode(state.video.mode === mode.value ? undefined : mode.value)}>
-                                                {mode.label}
-                                                <small>{reason || mode.description}</small>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                                {state.video.mode ? <button type="button" className="studio-mini-button" onClick={() => studio.setVideoMode(undefined)}>改回自动判断</button> : null}
+                                {kind === "video" && state.video.mode === "image_to_video" && attachmentCounts.imageCount > 0 ? (
+                                    <p className="studio-hint">当前：第一张图作为首帧。<button type="button" className="studio-block-link" onClick={() => setVideoMode(undefined)}>改为参考图</button></p>
+                                ) : null}
                             </div>
                         ) : null}
 
@@ -628,54 +661,6 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                             <StudioOptionField key={option.key} option={option} value={specialtyOptions[option.key] ?? ""} onChange={(value) => setSpecialtyOptions((current) => ({ ...current, [option.key]: value }))} />
                         ))}
 
-                        {kind !== "audio" && !specialtySpec ? (
-                            <div className="studio-block">
-                                <div className="studio-block-title">品牌 <em>可选</em><Link to="/studio/brand" className="studio-block-link">管理</Link></div>
-                                <select
-                                    className="studio-select"
-                                    aria-label="品牌套件"
-                                    value={studio.brandKit?.id || ""}
-                                    onChange={(event) => studio.setBrandChoice(event.target.value)}
-                                >
-                                    <option value="">不使用品牌</option>
-                                    {studio.brandKits.map((kit) => <option key={kit.id} value={kit.id}>{kit.name}{kit.isDefault ? "（默认）" : ""}</option>)}
-                                </select>
-                                {studio.brandKit ? (
-                                    <>
-                                        <p className="studio-hint">品牌介绍、调性、品牌色等会追加在提示词后发送。</p>
-                                        {studio.brandKit.logoResourceId && limits.maxImages > 0 ? (
-                                            <button
-                                                type="button"
-                                                className="studio-mini-button"
-                                                onClick={() => {
-                                                    const logo = studioBrandLogoAttachment(studio.brandKit!);
-                                                    const reason = logo ? studio.addAttachments([logo]) : undefined;
-                                                    if (reason) message.warning(reason);
-                                                    else message.success("已加入参考素材");
-                                                }}
-                                            >
-                                                <ImagePlus aria-hidden />加入 Logo 参考
-                                            </button>
-                                        ) : null}
-                                        {limits.maxImages > 0 && (studio.brandKit.assetResourceIds?.length || studio.brandKit.styleResourceIds?.length) ? (
-                                            <div className="studio-voice-sample-actions">
-                                                {studio.brandKit.assetResourceIds?.length ? <button type="button" className="studio-mini-button" onClick={() => {
-                                                    const reason = studio.addAttachments(studioBrandImageAttachments(studio.brandKit!, "asset"));
-                                                    if (reason) message.warning(reason);
-                                                    else message.success("已加入品牌素材");
-                                                }}><ImagePlus aria-hidden />加入品牌素材</button> : null}
-                                                {studio.brandKit.styleResourceIds?.length ? <button type="button" className="studio-mini-button" onClick={() => {
-                                                    const reason = studio.addAttachments(studioBrandImageAttachments(studio.brandKit!, "style"));
-                                                    if (reason) message.warning(reason);
-                                                    else message.success("已加入风格参考");
-                                                }}><ImagePlus aria-hidden />加入风格参考</button> : null}
-                                            </div>
-                                        ) : null}
-                                    </>
-                                ) : !studio.brandKits.length ? <p className="studio-hint">还没有品牌套件，<Link to="/studio/brand">去创建</Link>。</p> : null}
-                            </div>
-                        ) : null}
-
                         {kind === "audio" ? (
                             specialtySpec ? null : (
                                 <div className="studio-block">
@@ -695,13 +680,13 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                             )
                         ) : (
                             <>
+                                <div className="studio-output-row">
                                 {kind === "video" && (!specialtySpec || specialtySpec.shotPlan) && videoProfile?.generateAudio.supported ? (
-                                    <div className="studio-block">
-                                        <label className="studio-switch-row" htmlFor={`studio-audio-${tool.id}`}>
-                                            <span>同步生成声音</span>
-                                            <Switch id={`studio-audio-${tool.id}`} checked={state.video.generateAudio} onChange={(checked) => studio.updateVideo({ generateAudio: checked })} />
-                                        </label>
-                                    </div>
+                                    <label className="studio-row-button studio-audio-card" htmlFor={`studio-audio-${tool.id}`}>
+                                        <AudioLines aria-hidden />
+                                        <span><small>音频</small><b>{state.video.generateAudio ? "开" : "关"}</b></span>
+                                        <Switch id={`studio-audio-${tool.id}`} checked={state.video.generateAudio} onChange={(checked) => studio.updateVideo({ generateAudio: checked })} />
+                                    </label>
                                 ) : null}
                                 <Popover
                                     open={outputOpen}
@@ -727,6 +712,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                             <VideoSettingsPanel
                                                 config={generationConfig}
                                                 theme={theme}
+                                                hideGenerateAudio={Boolean(videoProfile?.generateAudio.supported) && (!specialtySpec || Boolean(specialtySpec.shotPlan))}
                                                 onConfigChange={(key, value) => {
                                                     if (key === "size") studio.updateVideo({ ratio: value });
                                                     else if (key === "vquality") studio.updateVideo({ videoQuality: value.replace(/p$/i, "") });
@@ -743,6 +729,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                         <ChevronRight aria-hidden />
                                     </button>
                                 </Popover>
+                                </div>
                             </>
                         )}
                     </div>
