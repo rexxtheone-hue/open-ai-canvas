@@ -5,6 +5,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { StudioToolThumb } from "@/pages/studio/studio-tool-thumb";
 import { STUDIO_QUICK_STARTS } from "@/pages/studio/studio-quickstarts";
 import { STUDIO_TOOLS } from "@/pages/studio/studio-tools";
+import { CAMERA_MOVES, cameraMoveCoverId } from "@/pages/studio/studio-prompt-tools";
+import { Camera } from "lucide-react";
 import { useStudioToolCovers } from "@/pages/studio/use-studio-tool-meta";
 import { resourceIdFromStorageKey } from "@/services/api/resources";
 import { setAdminStudioToolCover } from "@/services/api/studio";
@@ -39,6 +41,7 @@ export function StudioToolCoversPanel() {
     const entries = [
         ...STUDIO_QUICK_STARTS.map((item) => ({ id: item.coverId, label: `快速开始 · ${item.label}`, tool: { ...STUDIO_TOOLS[0], id: item.coverId, label: item.label, icon: item.icon, gradient: item.gradient } })),
         ...STUDIO_TOOLS.map((tool) => ({ id: tool.id, label: tool.label, tool })),
+        ...CAMERA_MOVES.map((move) => ({ id: cameraMoveCoverId(move.value), label: `运镜 · ${move.label}`, tool: { ...STUDIO_TOOLS[0], id: cameraMoveCoverId(move.value), label: move.label, icon: Camera, gradient: ["#1f2937", "#4b5563"] as [string, string] } })),
     ];
     return (
         <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>

@@ -1303,3 +1303,77 @@ button.studio-entry-tile { font: inherit; font-size: 13.5px; font-weight: 650; c
 .studio-output-row > * { flex: 1 1 0; min-width: 0; }
 .studio-audio-card { cursor: pointer; }
 .studio-audio-card .ant-switch { margin-left: auto; flex: none; }
+
+/* 镜头运动面板 */
+.studio-icon-button.is-accent { color: var(--studio-accent); }
+.studio-camera-panel { position: absolute; z-index: 7; inset: 0; display: flex; flex-direction: column; gap: 14px; padding: 28px 24px 24px; border-radius: 20px; border: 1px solid var(--studio-line-strong); background: #141516; box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.8); overflow-y: auto; }
+.studio-camera-close { position: absolute; top: 16px; right: 16px; }
+.studio-camera-head { text-align: center; }
+.studio-camera-head h2 { margin: 0; font-family: var(--studio-display); font-size: 30px; font-weight: 700; }
+.studio-camera-head h2 em { font-style: normal; color: var(--studio-accent); }
+.studio-camera-head p { margin: 6px 0 0; color: var(--studio-soft); font-size: 13px; }
+.studio-camera-tip { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 14px; border-radius: 12px; background: rgba(217, 164, 65, 0.12); color: #f1c46b; font-size: 12.5px; }
+.studio-camera-tip svg { width: 15px; height: 15px; flex: none; }
+.studio-camera-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.studio-camera-card { display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: none; color: var(--studio-soft); font: inherit; cursor: pointer; }
+.studio-camera-media { position: relative; display: block; aspect-ratio: 1; border-radius: 12px; overflow: hidden; border: 2px solid transparent; background: #0d0e0f; }
+.studio-camera-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.studio-camera-card:hover .studio-camera-media { border-color: var(--studio-line-strong); }
+.studio-camera-card[aria-pressed="true"] .studio-camera-media { border-color: var(--studio-accent); }
+.studio-camera-card[aria-pressed="true"] { color: var(--studio-fg); }
+.studio-camera-label { font-size: 12.5px; text-align: center; }
+
+/* 运镜示意动画：一个小场景，按镜头运动方式移动、缩放或旋转；鼠标移上去才播放 */
+.studio-camera-scene { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(180deg, #4f7cc9 0%, #9cc3f0 55%, #f3d9a8 100%); }
+.studio-camera-world { position: absolute; inset: -20%; transform-origin: 50% 60%; }
+.studio-camera-sun { position: absolute; top: 18%; left: 62%; width: 14%; aspect-ratio: 1; border-radius: 50%; background: #ffe08a; box-shadow: 0 0 18px #ffd36a; }
+.studio-camera-hill { position: absolute; left: -10%; right: -10%; border-radius: 50% 50% 0 0; }
+.studio-camera-hill.is-back { bottom: 22%; height: 34%; background: #5e8f6a; }
+.studio-camera-hill.is-front { bottom: 0; height: 30%; background: #3b6b4a; }
+.studio-camera-tree { position: absolute; bottom: 24%; width: 6%; height: 18%; border-radius: 40% 40% 10% 10%; background: #24452f; }
+.studio-camera-tree.is-a { left: 22%; }
+.studio-camera-tree.is-b { left: 70%; height: 22%; }
+.studio-camera-tree.is-c { left: 84%; height: 14%; }
+.studio-camera-subject { position: absolute; left: 44%; bottom: 20%; width: 12%; height: 30%; border-radius: 40% 40% 20% 20%; background: linear-gradient(180deg, #f6c7a8 0 26%, #e0458b 26% 100%); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35); }
+.studio-camera-card:not(:hover):not(:focus-visible) .studio-camera-world, .studio-camera-card:not(:hover):not(:focus-visible) .studio-camera-subject { animation-play-state: paused; }
+.is-pan-left .studio-camera-world { animation: studio-cam-pan 3s ease-in-out infinite alternate; }
+.is-pan-right .studio-camera-world { animation: studio-cam-pan 3s ease-in-out infinite alternate-reverse; }
+.is-tilt-up .studio-camera-world { animation: studio-cam-tilt 3s ease-in-out infinite alternate; }
+.is-tilt-down .studio-camera-world { animation: studio-cam-tilt 3s ease-in-out infinite alternate-reverse; }
+.is-zoom-in .studio-camera-world, .is-zoom-in .studio-camera-subject { animation: studio-cam-zoom 3s ease-in-out infinite alternate; }
+.is-zoom-out .studio-camera-world, .is-zoom-out .studio-camera-subject { animation: studio-cam-zoom 3s ease-in-out infinite alternate-reverse; }
+.is-tracking .studio-camera-world { animation: studio-cam-track 2.4s linear infinite; }
+.is-follow .studio-camera-world { animation: studio-cam-follow 2.4s linear infinite; }
+.is-orbit .studio-camera-world { animation: studio-cam-orbit 4s linear infinite; }
+.is-crane .studio-camera-world { animation: studio-cam-crane 3s ease-in-out infinite alternate; }
+.is-jib .studio-camera-world { animation: studio-cam-jib 3s ease-in-out infinite alternate; }
+.is-drone .studio-camera-world { animation: studio-cam-drone 3.4s ease-in-out infinite alternate; }
+.is-fpv .studio-camera-world { animation: studio-cam-fpv 2s ease-in infinite; }
+.is-handheld .studio-camera-world { animation: studio-cam-shake 0.9s ease-in-out infinite; }
+.is-dolly-zoom .studio-camera-world { animation: studio-cam-zoom 3s ease-in-out infinite alternate; }
+.is-dolly-zoom .studio-camera-subject { animation: studio-cam-dolly-subject 3s ease-in-out infinite alternate; }
+@keyframes studio-cam-pan { from { transform: translateX(12%); } to { transform: translateX(-12%); } }
+@keyframes studio-cam-tilt { from { transform: translateY(-12%); } to { transform: translateY(12%); } }
+@keyframes studio-cam-zoom { from { transform: scale(1); } to { transform: scale(1.45); } }
+@keyframes studio-cam-track { from { transform: translateX(14%); } to { transform: translateX(-14%); } }
+@keyframes studio-cam-follow { from { transform: scale(1); } to { transform: scale(1.35); } }
+@keyframes studio-cam-orbit { 0% { transform: translateX(14%) scaleX(1); } 50% { transform: translateX(-14%) scaleX(0.92); } 100% { transform: translateX(14%) scaleX(1); } }
+@keyframes studio-cam-crane { from { transform: translateY(10%) scale(1.1); } to { transform: translateY(-14%) scale(0.95); } }
+@keyframes studio-cam-jib { from { transform: translate(-10%, -14%) scale(0.95); } to { transform: translate(8%, 8%) scale(1.15); } }
+@keyframes studio-cam-drone { from { transform: translateY(-8%) scale(0.9); } to { transform: translateY(6%) scale(1.25); } }
+@keyframes studio-cam-fpv { from { transform: scale(1) rotate(-4deg); } to { transform: scale(1.7) rotate(4deg); } }
+@keyframes studio-cam-shake { 0%, 100% { transform: translate(0, 0) rotate(0); } 25% { transform: translate(1.5%, -1%) rotate(0.6deg); } 50% { transform: translate(-1%, 1.2%) rotate(-0.5deg); } 75% { transform: translate(1%, 0.8%) rotate(0.4deg); } }
+@keyframes studio-cam-dolly-subject { from { transform: scale(1); } to { transform: scale(0.72); } }
+@media (prefers-reduced-motion: reduce) { .studio-camera-world, .studio-camera-subject { animation: none !important; } }
+
+/* 图片转提示词 */
+.studio-i2p { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 420px; }
+.studio-i2p-pane { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 14px; background: var(--studio-panel-raised); }
+.studio-i2p-drop { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 14px; border-radius: 12px; border: 1px dashed var(--studio-line-strong); color: var(--studio-muted); text-align: center; }
+.studio-i2p-drop > svg { width: 28px; height: 28px; }
+.studio-i2p-drop b { color: var(--studio-fg); font-size: 14px; }
+.studio-i2p-drop img { max-width: 100%; max-height: 260px; border-radius: 10px; object-fit: contain; }
+.studio-i2p-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--studio-muted); font-size: 13px; text-align: center; }
+.studio-i2p-empty svg { width: 28px; height: 28px; }
+.studio-i2p-result.ant-input { flex: 1; min-height: 260px; resize: none; }
+@media (max-width: 720px) { .studio-i2p { grid-template-columns: 1fr; } }

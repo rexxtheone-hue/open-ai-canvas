@@ -18,7 +18,8 @@ import { StudioLibrary } from "./studio-library";
 import { StudioAssetPicker, type StudioPickerKind } from "./studio-asset-picker";
 import { StudioOptionField } from "./studio-option-field";
 import { StudioPromptBox } from "./studio-prompt-box";
-import { enhanceStudioPrompt, planStudioShots, studioTextModel } from "./studio-prompt-tools";
+import { StudioCameraPanel } from "./studio-camera-panel";
+import { appendCameraMove, enhanceStudioPrompt, planStudioShots, studioTextModel } from "./studio-prompt-tools";
 import { StudioRecorder } from "./studio-recorder";
 import { StudioVoiceLibraryModal, studioVoiceAttachment, STUDIO_VOICE_KEY, type StudioVoicePick } from "./studio-voices";
 import { describeStudioRegions, StudioRegionMarker, type StudioRegion } from "./studio-region-marker";
@@ -133,10 +134,12 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     const covers = useStudioToolCovers();
     const [searchParams, setSearchParams] = useSearchParams();
     const { update, applyWorkSettings, addAttachments } = studio;
+    const [cameraOpen, setCameraOpen] = useState(false);
     const openPicker = (next: PickerState) => {
         setPicker(next);
         setSwitcherOpen(false);
         setModelPanelOpen(false);
+        setCameraOpen(false);
     };
 
     // 专项工具的素材按槽位顺序提交（第一张图是主体）。
@@ -620,7 +623,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                             config={config}
                             maxChars={maxChars || undefined}
                             sourceImage={state.attachments.find((attachment) => creationAttachmentKind(attachment) === "image")}
-                            cameraMoves={kind === "video" && (!specialtySpec || Boolean(specialtySpec.shotPlan))}
+                            onOpenCamera={kind === "video" && (!specialtySpec || Boolean(specialtySpec.shotPlan)) ? () => { setCameraOpen(true); setPicker(null); setSwitcherOpen(false); setModelPanelOpen(false); } : undefined}
                             autoPolish={autoPolish}
                             onAutoPolishChange={!specialtySpec && kind !== "audio" ? setAutoPolish : undefined}
                             onSubmitShortcut={() => {
@@ -766,6 +769,16 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                 </section>
                 <div className="studio-right-panel">
                 {switcherOpen ? <StudioToolSwitcher toolId={tool.id} onClose={() => setSwitcherOpen(false)} /> : null}
+                <StudioCameraPanel
+                    open={cameraOpen}
+                    prompt={specialtySpec ? specialtyText : state.prompt}
+                    onClose={() => setCameraOpen(false)}
+                    onPick={(move) => {
+                        if (specialtySpec) setSpecialtyText((current) => appendCameraMove(current, move.prompt));
+                        else update({ prompt: appendCameraMove(state.prompt, move.prompt) });
+                        message.success(`已加入运镜：${move.label}`);
+                    }}
+                />
                 <StudioAssetPicker
                     open={Boolean(picker)}
                     kinds={picker?.kinds || ["image"]}

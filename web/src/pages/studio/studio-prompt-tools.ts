@@ -6,22 +6,31 @@ import { selectableModelsByCapability, type AiConfig } from "@/stores/use-config
 
 /** 提示词工具：润色（扩写）、看图写提示词、运镜短语。润色和看图用后台的文本模型，按 token 计费。 */
 
+/** 运镜：和 OpenArt 的镜头运动一致，另加手持、希区柯克变焦和固定镜头。coverId 供后台上传示意图。 */
 export const CAMERA_MOVES = [
-    { value: "push-in", label: "推近", prompt: "镜头缓慢推近主体" },
-    { value: "pull-out", label: "拉远", prompt: "镜头缓慢拉远，展现环境" },
-    { value: "pan-left", label: "左摇", prompt: "镜头向左平稳摇动" },
-    { value: "pan-right", label: "右摇", prompt: "镜头向右平稳摇动" },
-    { value: "tilt-up", label: "上摇", prompt: "镜头由下向上摇" },
-    { value: "tilt-down", label: "下摇", prompt: "镜头由上向下摇" },
-    { value: "truck", label: "横移", prompt: "镜头平稳横向移动跟随主体" },
-    { value: "orbit", label: "环绕", prompt: "镜头围绕主体 360 度环绕" },
-    { value: "crane-up", label: "升起", prompt: "镜头从低处缓缓升起，俯瞰全景" },
-    { value: "follow", label: "跟拍", prompt: "镜头在主体身后跟拍" },
+    { value: "pan-left", label: "向左平移", prompt: "镜头向左平稳平移" },
+    { value: "pan-right", label: "向右平移", prompt: "镜头向右平稳平移" },
+    { value: "tilt-up", label: "向上倾斜", prompt: "镜头由下向上倾斜摇起" },
+    { value: "tilt-down", label: "向下俯拍", prompt: "镜头由上向下俯拍" },
+    { value: "zoom-in", label: "放大", prompt: "镜头缓慢推近主体" },
+    { value: "zoom-out", label: "缩小", prompt: "镜头缓慢拉远，展现环境" },
+    { value: "tracking", label: "跟踪镜头", prompt: "镜头与主体平行，横向跟踪移动" },
+    { value: "follow", label: "跟随镜头", prompt: "镜头在主体身后跟拍" },
+    { value: "orbit", label: "Orbit 360", prompt: "镜头围绕主体 360 度环绕" },
+    { value: "crane", label: "升降镜头", prompt: "镜头从低处缓缓升起，俯瞰全景" },
+    { value: "jib", label: "吊臂镜头", prompt: "吊臂镜头从高处划过，缓缓下降到主体" },
+    { value: "drone", label: "无人机穿越飞行", prompt: "无人机在空中平稳穿越飞行，俯瞰全景" },
+    { value: "fpv", label: "FPV 无人机", prompt: "FPV 无人机高速穿梭飞行" },
     { value: "handheld", label: "手持", prompt: "手持拍摄，轻微自然晃动" },
     { value: "dolly-zoom", label: "希区柯克变焦", prompt: "希区柯克式推拉变焦，背景压缩变化" },
-    { value: "fpv", label: "FPV 穿梭", prompt: "FPV 无人机高速穿梭飞行" },
     { value: "static", label: "固定镜头", prompt: "固定机位，镜头不动" },
 ] as const;
+
+export type StudioCameraMove = (typeof CAMERA_MOVES)[number];
+
+export function cameraMoveCoverId(value: string) {
+    return `camera-${value}`;
+}
 
 /** 把运镜短语追加到提示词末尾（已包含时不重复）。 */
 export function appendCameraMove(prompt: string, move: string) {
