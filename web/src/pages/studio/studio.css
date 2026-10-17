@@ -1410,3 +1410,53 @@ html.studio-active { --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple C
 html.studio-active body { font-family: var(--font-sans) !important; }
 html.studio-active [class^="ant-"], html.studio-active [class*=" ant-"] { font-family: var(--font-sans); }
 .studio-model-channel { font-style: normal; font-weight: 500; color: var(--studio-muted); }
+
+/* 品牌套件：左列表 + 右侧六张卡片（参照 OpenArt） */
+.studio-brand-page { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 12px; height: 100%; min-height: 0; padding: 0 12px 12px; }
+.studio-brand-list { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 14px 12px; overflow-y: auto; border-radius: 20px; background: var(--studio-panel); }
+.studio-brand-list-head { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 4px; }
+.studio-brand-list-head strong { font-size: 16px; font-weight: 600; }
+.studio-brand-new { display: flex; align-items: center; justify-content: center; gap: 8px; height: 64px; border: 0; border-radius: 14px; background: var(--studio-panel-raised); color: var(--studio-fg); font: inherit; font-size: 13px; cursor: pointer; }
+.studio-brand-new:hover:not(:disabled) { background: var(--studio-hover); }
+.studio-brand-new svg { width: 18px; height: 18px; padding: 3px; border-radius: 50%; background: var(--studio-chip); box-sizing: content-box; }
+.studio-brand-item { display: flex; align-items: center; gap: 12px; height: 64px; padding: 0 14px; border: 1px solid transparent; border-radius: 14px; background: var(--studio-panel-raised); color: var(--studio-fg); font: inherit; text-align: left; cursor: pointer; }
+.studio-brand-item:hover { background: var(--studio-hover); }
+.studio-brand-item[aria-current="true"] { border-color: var(--studio-accent); }
+.studio-brand-item-text { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.studio-brand-item-text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; }
+.studio-brand-item-text em { font-style: normal; font-size: 11px; color: var(--studio-accent); }
+.studio-brand-main { position: relative; display: flex; flex-direction: column; align-items: center; gap: 18px; min-height: 0; padding: 20px 24px 40px; overflow-y: auto; border-radius: 20px; background: var(--studio-panel); }
+.studio-brand-toolbar { display: flex; align-items: center; gap: 12px; align-self: stretch; }
+.studio-brand-name.ant-input { max-width: 280px; font-weight: 600; }
+.studio-brand-toolbar .studio-switch-row { margin-left: auto; }
+.studio-brand-title { margin: 12px 0 0; font-size: 32px; font-weight: 700; letter-spacing: -0.01em; text-align: center; }
+.studio-brand-banner { position: relative; display: flex; align-items: center; justify-content: space-between; width: min(706px, 100%); min-height: 140px; padding: 24px 20px; border-radius: 16px; overflow: hidden; background: linear-gradient(100deg, var(--studio-panel-raised) 35%, rgba(236, 64, 122, 0.35) 100%); }
+.studio-brand-banner b { font-size: 15px; font-weight: 600; }
+.studio-brand-banner p { margin: 6px 0 0; color: var(--studio-soft); font-size: 12.5px; }
+.studio-brand-banner-art { display: grid; place-items: center; width: 110px; height: 90px; border-radius: 22px; background: linear-gradient(140deg, #ff8ac6, #e0458b); box-shadow: 0 12px 30px -10px rgba(224, 69, 139, 0.8); transform: rotate(8deg); }
+.studio-brand-banner-art i { font-style: normal; font-weight: 800; font-size: 34px; color: #fff; }
+.studio-brand-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: min(706px, 100%); }
+.studio-brand-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 160px; padding: 14px; border: 1px solid var(--studio-line); border-radius: 16px; background: var(--studio-panel-raised); color: var(--studio-fg); font: inherit; cursor: pointer; }
+.studio-brand-card:hover { border-color: var(--studio-line-strong); background: var(--studio-hover); }
+.studio-brand-card b { font-size: 13px; font-weight: 600; }
+.studio-brand-card-icon { position: relative; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--studio-chip); }
+.studio-brand-card-icon svg { width: 20px; height: 20px; }
+.studio-brand-card-icon .studio-brand-card-plus { position: absolute; right: -10px; bottom: -6px; width: 14px; height: 14px; }
+.studio-brand-card.is-filled { align-items: stretch; justify-content: flex-start; }
+.studio-brand-card-head { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; font-weight: 600; }
+.studio-brand-card-head em { font-style: normal; font-weight: 500; color: var(--studio-muted); }
+.studio-brand-card-logo { align-self: center; max-width: 70%; max-height: 90px; object-fit: contain; }
+.studio-brand-card-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.studio-brand-card-swatches i { width: 28px; height: 28px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.15); }
+.studio-brand-card-text { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; color: var(--studio-soft); font-size: 12.5px; line-height: 1.6; text-align: left; }
+.studio-brand-card-text.is-type { font-size: 15px; color: var(--studio-fg); }
+.studio-brand-card-thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.studio-brand-card-thumbs img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; }
+.studio-brand-card-thumbs em { display: grid; place-items: center; font-style: normal; font-size: 12px; color: var(--studio-muted); }
+.studio-brand-preview { width: min(706px, 100%); color: var(--studio-soft); font-size: 12.5px; }
+.studio-brand-preview summary { cursor: pointer; }
+.studio-brand-editor { display: flex; flex-direction: column; gap: 12px; }
+.studio-brand-images { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.studio-brand-images .studio-ref-slot { width: 100%; height: auto; aspect-ratio: 1; }
+.studio-brand-logo-edit { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+@media (max-width: 900px) { .studio-brand-page { grid-template-columns: 1fr; } .studio-brand-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
