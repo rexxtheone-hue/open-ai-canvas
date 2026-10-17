@@ -17,6 +17,9 @@ func TestStudioAndCanvasShareOneLibrary(t *testing.T) {
 	createStudioTestTask(t, db, model.Task{ID: "canvas-vid", UserID: "u1", Type: "canvas_video", WorkbenchKind: "video", Prompt: "canvas video", InputJSON: `{"mode":"video"}`, ResultJSON: `{"video":{"storageKey":"resource:r3"}}`, CreatedAt: at(3), UpdatedAt: at(3)})
 	createStudioTestTask(t, db, model.Task{ID: "canvas-upscale", UserID: "u1", Type: "video_upscale", Prompt: "upscale", InputJSON: `{}`, ResultJSON: `{"video":{"storageKey":"resource:r4"}}`, CreatedAt: at(4), UpdatedAt: at(4)})
 	createStudioTestTask(t, db, model.Task{ID: "canvas-text", UserID: "u1", Type: "canvas_text", Prompt: "text", InputJSON: `{"mode":"text"}`, CreatedAt: at(5), UpdatedAt: at(5)})
+	createStudioTestTask(t, db, model.Task{ID: "canvas-failed", UserID: "u1", Type: "canvas_image", Status: model.TaskStatusFailed, Prompt: "failed", InputJSON: `{}`, CreatedAt: at(1), UpdatedAt: at(1)})
+	createStudioTestTask(t, db, model.Task{ID: "canvas-cancelled", UserID: "u1", Type: "canvas_video", Status: model.TaskStatusCancelled, Prompt: "cancelled", InputJSON: `{}`, CreatedAt: at(1), UpdatedAt: at(1)})
+	createStudioTestTask(t, db, model.Task{ID: "studio-failed", UserID: "u1", WorkbenchKind: model.StudioKindVideo, Type: "canvas_video", Status: model.TaskStatusFailed, Prompt: "retry me", InputJSON: `{}`, CreatedAt: at(6), UpdatedAt: at(6)})
 	createStudioTestTask(t, db, model.Task{ID: "other-user", UserID: "u2", Type: "canvas_image", Prompt: "x", InputJSON: `{}`, CreatedAt: at(1), UpdatedAt: at(1)})
 
 	page, err := svc.StudioWorks("u1", StudioWorkQuery{})
@@ -27,10 +30,11 @@ func TestStudioAndCanvasShareOneLibrary(t *testing.T) {
 	for _, work := range page.Works {
 		got = append(got, work.ID+":"+work.Kind+":"+work.Source)
 	}
-	if strings.Join(got, ",") != "studio-img:image:studio,canvas-img:image:canvas,canvas-vid:video:canvas,canvas-upscale:video:canvas" {
+	// Canvas 失败、取消的任务不进作品库；Studio 自己失败的作品保留。
+	if strings.Join(got, ",") != "studio-img:image:studio,canvas-img:image:canvas,canvas-vid:video:canvas,canvas-upscale:video:canvas,studio-failed:video:studio" {
 		t.Fatalf("shared library = %v", got)
 	}
-	for source, want := range map[string]int{"studio": 1, "canvas": 3} {
+	for source, want := range map[string]int{"studio": 2, "canvas": 3} {
 		if filtered, err := svc.StudioWorks("u1", StudioWorkQuery{Source: source}); err != nil || len(filtered.Works) != want {
 			t.Fatalf("source %s: %d works, %v", source, len(filtered.Works), err)
 		}
@@ -58,7 +62,7 @@ func TestStudioAndCanvasShareOneLibrary(t *testing.T) {
 			t.Fatal("works deleted in Studio must leave the creation history too")
 		}
 	}
-	if len(history) != 4 {
+	if len(history) != 7 {
 		t.Fatalf("creation history = %d tasks", len(history))
 	}
 

@@ -53,7 +53,9 @@ func studioWorkCondition(db *gorm.DB, kinds []string, source string) *gorm.DB {
 			canvas = canvas.Or("type = ?", "canvas_audio")
 		}
 	}
-	canvas = db.Where("COALESCE(workbench_kind, '') NOT IN ?", model.StudioKinds).Where(canvas)
+	// Canvas 那边失败或取消的任务没有作品，不放进作品库（Studio 自己失败的作品保留，方便重试）。
+	canvas = db.Where("COALESCE(workbench_kind, '') NOT IN ?", model.StudioKinds).
+		Where("status NOT IN ?", []model.TaskStatus{model.TaskStatusFailed, model.TaskStatusCancelled}).Where(canvas)
 	switch source {
 	case "studio":
 		return studio
