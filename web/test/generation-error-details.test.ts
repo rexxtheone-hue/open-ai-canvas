@@ -22,3 +22,19 @@ describe("safe upstream error details", () => {
         expect(generationErrorMessage("模型服务请求失败；上游：https://private.test")).toBe("网络异常。");
     });
 });
+
+describe("provider failure reasons", () => {
+    const providerError = (message: string) => Object.assign(new Error(message), { reason: "provider_request_failed" });
+    test("shows the backend's specific provider reason instead of the generic one", () => {
+        expect(generationErrorMessage(providerError("模型服务额度不足，请检查渠道余额或配额"))).toBe("模型服务额度不足，请检查渠道余额或配额");
+        expect(generationErrorMessage(providerError("模型服务鉴权失败，请检查 API Key 和模型权限"))).toBe("模型服务鉴权失败，请检查 API Key 和模型权限");
+    });
+    test("keeps the generic text for fallback or technical provider messages", () => {
+        expect(generationErrorMessage(providerError("模型服务返回失败，请检查请求内容或渠道配置"))).toBe("模型服务处理失败，请稍后重试或换用其他模型。");
+        expect(generationErrorMessage(providerError("upstream_error: bad things happened upstream"))).toBe("模型服务处理失败，请稍后重试或换用其他模型。");
+    });
+    test("recognizes quota failures in English provider text", () => {
+        expect(generationErrorMessage(providerError("You exceeded your current quota, please check your plan and billing details."))).toBe("模型服务额度不足，请检查渠道余额或配额。");
+        expect(generationErrorMessage("insufficient_quota: account has no remaining balance")).toBe("模型服务额度不足，请检查渠道余额或配额。");
+    });
+});

@@ -18932,3 +18932,8 @@ html:not(.dark) .creation-home .creation-user-message-copy-wrap { box-shadow: 0 
     background: color-mix(in srgb, var(--popover-foreground) 10%, var(--popover)) !important;
     color: var(--popover-foreground) !important;
 }
+
+/* 积分不足时，生成按钮上的积分数显示为警示色 */
+.canvas-node-composer-submit.is-short .canvas-node-composer-submit-cost {
+    color: #ff7a59;
+}

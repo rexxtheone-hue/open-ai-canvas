@@ -1,4 +1,4 @@
-import { Button, InputNumber, Modal } from "antd";
+import { App, Button, InputNumber, Modal } from "antd";
 import { Tooltip } from "@/components/ui/base/tooltip";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { ArrowUp, ChevronDown, FileText, ImagePlus, LayoutList, LoaderCircle, Maximize2, Music2, SlidersHorizontal, Video, WandSparkles, X } from "lucide-react";
@@ -14,6 +14,8 @@ import { modelRequestOptions, defaultImageParamsForModel, type ModelRequirements
 import { navigateToSettings } from "@/lib/settings-navigation";
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
+import { useWalletBalance } from "@/hooks/use-wallet-balance";
+import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { CanvasCameraControlPopover } from "./canvas-camera-control-popover";
 import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
 import { CanvasAudioSettingsPopover } from "./canvas-audio-settings-popover";
@@ -86,6 +88,9 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     const themeName = useActiveTheme();
     const theme = canvasThemes[themeName];
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
+    const walletUserId = useUserStore((state) => state.user?.id);
+    const { availableMicrocredits } = useWalletBalance(walletUserId, creditsEnabled);
+    const { message: toast } = App.useApp();
     const promptOptimizerInstallation = usePluginStore((state) => state.installations.find((item) => item.manifest.id === PROMPT_OPTIMIZER_PLUGIN_ID));
     const promptOptimizerEnabled = usePluginStore((state) => state.pluginStates[PROMPT_OPTIMIZER_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === PROMPT_OPTIMIZER_PLUGIN_ID)?.enabled));
     const simpleMode = workspaceMode === "simple";
@@ -218,6 +223,9 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     const quoteRequestKey = JSON.stringify(quoteRequest || null);
     const [routeQuote, setRouteQuote] = useState<LogicalModelQuote | null>(null);
     const credits = routeQuote ? routeQuote.amountMicrocredits / 1_000_000 : configuredCredits;
+    // 只有扣平台积分的模型（后台报价或系统渠道）才和余额比较；自己的渠道不扣平台积分。
+    const platformBilled = Boolean(routeQuote) || priceChannel.scope === "system";
+    const creditShortfall = creditsEnabled && platformBilled && credits !== null && availableMicrocredits !== null ? Math.max(0, credits - availableMicrocredits / 1_000_000) : 0;
     const activeReferenceCount = activeReferences.length;
     const videoFrameOptions = resolvedMentionReferences.filter((item) => item.active && item.kind === "image").map((item) => ({ nodeId: item.nodeId, label: item.label, title: item.title, previewUrl: item.previewUrl }));
     const hasVideoPromptTools = mode === "video" && !simpleMode && videoFrameOptions.length > 0;
@@ -335,6 +343,11 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     const submit = () => {
         const text = prompt.trim();
         if (!text || isRunning) return false;
+        if (creditShortfall > 0) {
+            toast.warning(`积分不足，这次需要 ${credits?.toLocaleString("zh-CN", { maximumFractionDigits: 6 })}，还差 ${(Math.ceil(creditShortfall * 100) / 100).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}，请先充值`);
+            openWorkspaceWallet();
+            return false;
+        }
         if (mode === "text" && node.metadata?.listMode && onListGenerate) onListGenerate(node.id, text);
         else onGenerate(node.id, mode, text);
         return true;
@@ -427,11 +440,11 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     const renderSubmitButton = (expanded: boolean) => {
         const showCost = creditsEnabled && credits !== null;
         const formattedCredits = credits?.toLocaleString("zh-CN", { maximumFractionDigits: 6 });
-        const actionLabel = isRunning ? "生成中" : showCost ? `${routeQuote?.estimated ? "预估" : "消耗"} ${formattedCredits} 积分，生成` : "生成";
+        const actionLabel = isRunning ? "生成中" : creditShortfall > 0 ? `积分不足，需要 ${formattedCredits} 积分，点击充值` : showCost ? `${routeQuote?.estimated ? "预估" : "消耗"} ${formattedCredits} 积分，生成` : "生成";
         return (
             <Button
                 type="text"
-                className={`canvas-node-composer-submit canvas-node-composer-submit-canvas ${showCost ? "has-cost" : ""}`}
+                className={`canvas-node-composer-submit canvas-node-composer-submit-canvas ${showCost ? "has-cost" : ""}${creditShortfall > 0 ? " is-short" : ""}`}
                 disabled={isRunning || isSubmitDisabled}
                 style={
                     {
@@ -442,7 +455,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                 }
                 onClick={() => (expanded ? submitExpandedPrompt() : submit())}
                 aria-label={actionLabel}
-                title={routeQuote ? modelQuoteDescription(routeQuote) : actionLabel}
+                title={creditShortfall > 0 ? actionLabel : routeQuote ? modelQuoteDescription(routeQuote) : actionLabel}
             >
                 {showCost ? (
                     <span className="canvas-node-composer-submit-cost">

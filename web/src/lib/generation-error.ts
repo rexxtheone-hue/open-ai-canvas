@@ -7,6 +7,7 @@ const NETWORK_ERROR_MESSAGE = "网络异常。";
 const MODEL_CAPABILITY_ERROR_MESSAGE = "所选模型不支持当前生成方式或输入，请切换模型或调整输入后重试。";
 const MODEL_PARAMETER_ERROR_MESSAGE = "当前模型不支持这组参数或参考素材，请调整输入或切换模型后重试。";
 const MODEL_SERVICE_ERROR_MESSAGE = "模型服务处理失败，请稍后重试或换用其他模型。";
+const PROVIDER_QUOTA_ERROR_MESSAGE = "模型服务额度不足，请检查渠道余额或配额。";
 
 const REASON_MESSAGES: Record<string, string> = {
     model_price_not_configured: "当前模型暂未配置价格，请换用其他模型或联系管理员。",
@@ -51,6 +52,10 @@ export function generationErrorMessage(error: unknown) {
     if (reason === "model_capability_not_supported") return MODEL_CAPABILITY_ERROR_MESSAGE;
     if (reason === "invalid_argument" && isModelCapabilityFailure(raw)) return MODEL_CAPABILITY_ERROR_MESSAGE;
     if (reason === "invalid_argument" && isModelParameterFailure(raw)) return MODEL_PARAMETER_ERROR_MESSAGE;
+    if (reason === "provider_request_failed") {
+        const specific = specificProviderReason(raw);
+        if (specific) return specific;
+    }
     if (reason && REASON_MESSAGES[reason]) return REASON_MESSAGES[reason];
 
     const providerMessage = extractStructuredProviderMessage(raw) || extractWrappedProviderMessage(raw);
@@ -69,6 +74,7 @@ export function generationErrorMessage(error: unknown) {
     if (isModelCapabilityFailure(displayMessage)) return MODEL_CAPABILITY_ERROR_MESSAGE;
     if (isModelParameterFailure(displayMessage)) return MODEL_PARAMETER_ERROR_MESSAGE;
     if (keepsProviderDetail(displayMessage)) return displayMessage;
+    if (isProviderQuotaFailure(displayMessage)) return PROVIDER_QUOTA_ERROR_MESSAGE;
     if (isTechnicalProviderMessage(displayMessage)) return MODEL_SERVICE_ERROR_MESSAGE;
     return displayMessage || DEFAULT_GENERATION_ERROR_MESSAGE;
 }
@@ -124,6 +130,20 @@ function structuredErrorReason(error: unknown): string | undefined {
     if (typeof record.reason === "string" && record.reason.trim()) return record.reason.trim().toLowerCase();
     if (record.cause && record.cause !== error) return structuredErrorReason(record.cause);
     return undefined;
+}
+
+/** 后台归类好的中文供应商原因可以直接给用户看；英文原文和含网关细节的不行。 */
+function specificProviderReason(raw: string) {
+    const text = raw.trim();
+    if (!text || !/[\u3400-\u9fff]/.test(text)) return isProviderQuotaFailure(text) ? PROVIDER_QUOTA_ERROR_MESSAGE : "";
+    if (containsInfrastructureDetails(text) || isNetworkFailure(text)) return "";
+    // 后台兜底的通用文案没有比前端更多的信息，交给前端统一说法。
+    if (/^模型服务(?:返回|请求)失败/.test(text)) return "";
+    return text;
+}
+
+function isProviderQuotaFailure(value: string) {
+    return /insufficient[_ ]quota|exceeded your current quota|insufficient (?:balance|credit|funds)|billing[_ ]hard[_ ]limit|余额不足|额度不足|欠费/i.test(value);
 }
 
 function isModelCapabilityFailure(value: string) {
