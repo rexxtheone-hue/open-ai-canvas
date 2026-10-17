@@ -17,6 +17,8 @@ export type StudioMedia = {
 
 export type StudioWork = Omit<GenerationTask, "inputJson" | "resultJson" | "attempts"> & {
     kind: StudioKind;
+    /** 作品来自哪个产品：AI Studio 和 AI Canvas 共用一个作品库。 */
+    source?: "studio" | "canvas";
     tool?: string;
     favorite: boolean;
     error?: string;
@@ -32,6 +34,8 @@ export type StudioWorkPage = { works: StudioWork[]; nextCursor?: string };
 
 export type StudioWorkQuery = {
     kind?: StudioKind | "all";
+    /** 只看一个产品生成的作品，不填两边都看。 */
+    source?: "studio" | "canvas";
     favorite?: boolean;
     q?: string;
     activeOnly?: boolean;
@@ -48,6 +52,7 @@ export function listStudioWorks(query: StudioWorkQuery = {}, signal?: AbortSigna
     return http.get<StudioWorkPage>("/studio/works", {
         params: {
             kind: query.kind && query.kind !== "all" ? query.kind : undefined,
+            source: query.source || undefined,
             favorite: query.favorite ? "true" : undefined,
             q: query.q?.trim() || undefined,
             activeOnly: query.activeOnly ? "true" : undefined,

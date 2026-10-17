@@ -1567,3 +1567,4 @@ a.studio-post-author:hover { color: var(--studio-fg); }
 .studio-poster-art video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
 .studio-poster:hover .studio-poster-art video { transform: scale(1.05); }
 .studio-camera-media video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.studio-work-source { position: absolute; top: 28px; right: 6px; padding: 1px 7px; border-radius: 999px; background: rgba(59, 130, 246, 0.85); color: #fff; font-size: 10.5px; font-weight: 600; }

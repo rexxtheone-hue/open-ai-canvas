@@ -18,7 +18,9 @@ type StudioTaskCursor struct {
 }
 
 type StudioTaskQuery struct {
-	Kinds         []string
+	Kinds []string
+	// Source 为 "studio" 或 "canvas" 时只看一个产品生成的作品，空表示两边都看。
+	Source        string
 	FavoritesOnly bool
 	Search        string
 	ActiveOnly    bool
@@ -33,17 +35,41 @@ type StudioTaskQuery struct {
 
 var studioTaskColumns = []string{"id", "project_id", "type", "workbench_kind", "status", "stage", "media_stage", "media_recovery_json", "progress", "prompt", "operation", "provider", "model", "input_json", "result_json", "error", "billing_order_id", "provider_request_id", "provider_cancel_status", "provider_cancel_error", "provider_cancel_attempts", "provider_cancel_requested_at", "provider_cancelled_at", "attempts", "started_at", "completed_at", "created_at", "updated_at"}
 
-// StudioTasks 读取 Studio 作品，多取一条用于判断是否还有下一页。
+// studioWorkCondition 是作品库的范围：Studio 作品，加上 AI Canvas 生成的图片、视频、音频（两个产品共用一个作品库）。
+// source 为 "studio" 或 "canvas" 时只看一边。
+func studioWorkCondition(db *gorm.DB, kinds []string, source string) *gorm.DB {
+	if len(kinds) == 0 {
+		kinds = model.StudioKinds
+	}
+	studio := db.Where("workbench_kind IN ?", kinds)
+	canvas := db.Where("1 = 0")
+	for _, kind := range kinds {
+		switch kind {
+		case model.StudioKindImage:
+			canvas = canvas.Or("type = ?", "canvas_image")
+		case model.StudioKindVideo:
+			canvas = canvas.Or("type = ? OR type LIKE ? ESCAPE '\\'", "canvas_video", "video\\_%")
+		case model.StudioKindAudio:
+			canvas = canvas.Or("type = ?", "canvas_audio")
+		}
+	}
+	canvas = db.Where("COALESCE(workbench_kind, '') NOT IN ?", model.StudioKinds).Where(canvas)
+	switch source {
+	case "studio":
+		return studio
+	case "canvas":
+		return canvas
+	}
+	return db.Where(studio).Or(canvas)
+}
+
+// StudioTasks 读取作品库，多取一条用于判断是否还有下一页。
 func (r *Repository) StudioTasks(userID string, query StudioTaskQuery) ([]model.Task, bool, error) {
 	limit := query.Limit
 	if limit < 1 || limit > 100 {
 		limit = 40
 	}
-	kinds := query.Kinds
-	if len(kinds) == 0 {
-		kinds = model.StudioKinds
-	}
-	db := r.db.Model(&model.Task{}).Select(studioTaskColumns).Where("user_id = ? AND workbench_kind IN ?", userID, kinds)
+	db := r.db.Model(&model.Task{}).Select(studioTaskColumns).Where("user_id = ?", userID).Where(studioWorkCondition(r.db, query.Kinds, query.Source))
 	if query.ActiveOnly {
 		db = db.Where("status IN ?", []model.TaskStatus{model.TaskStatusQueued, model.TaskStatusRunning})
 	}
@@ -85,10 +111,10 @@ func escapeLike(value string) string {
 	return replacer.Replace(value)
 }
 
-// StudioTaskOwned 确认任务属于该用户且是 Studio 作品。
+// StudioTaskOwned 确认任务属于该用户且在作品库范围内（Studio 作品或 Canvas 生成的媒体）。
 func (r *Repository) StudioTaskOwned(userID string, taskID string) (bool, error) {
 	var count int64
-	err := r.db.Model(&model.Task{}).Where("id = ? AND user_id = ? AND workbench_kind IN ?", taskID, userID, model.StudioKinds).Count(&count).Error
+	err := r.db.Model(&model.Task{}).Where("id = ? AND user_id = ?", taskID, userID).Where(studioWorkCondition(r.db, nil, "")).Count(&count).Error
 	return count > 0, err
 }
 
@@ -152,13 +178,13 @@ func (r *Repository) HideStudioTasks(userID string, taskIDs []string) error {
 	})
 }
 
-// StudioOwnedTaskIDs 过滤出属于该用户的 Studio 作品 ID。
+// StudioOwnedTaskIDs 过滤出属于该用户、在作品库范围内的作品 ID。
 func (r *Repository) StudioOwnedTaskIDs(userID string, taskIDs []string) ([]string, error) {
 	if len(taskIDs) == 0 {
 		return nil, nil
 	}
 	var ids []string
-	err := r.db.Model(&model.Task{}).Where("user_id = ? AND id IN ? AND workbench_kind IN ?", userID, taskIDs, model.StudioKinds).Pluck("id", &ids).Error
+	err := r.db.Model(&model.Task{}).Where("user_id = ? AND id IN ?", userID, taskIDs).Where(studioWorkCondition(r.db, nil, "")).Pluck("id", &ids).Error
 	return ids, err
 }
 

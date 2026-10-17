@@ -81,7 +81,7 @@ type StudioPostAdminInput struct {
 	Hidden     *bool `json:"hidden"`
 }
 
-// PublishStudioWork 把自己已完成的 Studio 作品发布到社区。只发布已保存到资源库的产物。
+// PublishStudioWork 把自己已完成的作品（Studio 或 Canvas 生成的）发布到社区。只发布已保存到资源库的产物。
 func (s *Service) PublishStudioWork(userID, taskID string, input StudioPublishInput) (StudioPostView, error) {
 	title := strings.TrimSpace(input.Title)
 	if title == "" || utf8.RuneCountInString(title) > 60 {
@@ -91,7 +91,13 @@ func (s *Service) PublishStudioWork(userID, taskID string, input StudioPublishIn
 	if err != nil {
 		return StudioPostView{}, err
 	}
-	if task == nil || !strings.HasPrefix(task.WorkbenchKind, "studio-") {
+	if task == nil {
+		return StudioPostView{}, NotFound("作品不存在")
+	}
+	// 作品库也收 Canvas 生成的媒体，同样可以发布。
+	if owned, err := s.repo.StudioTaskOwned(userID, task.ID); err != nil {
+		return StudioPostView{}, err
+	} else if !owned {
 		return StudioPostView{}, NotFound("作品不存在")
 	}
 	if task.Status != model.TaskStatusSucceeded {
@@ -125,7 +131,7 @@ func (s *Service) PublishStudioWork(userID, taskID string, input StudioPublishIn
 	mediaJSON, _ := json.Marshal(media)
 	now := time.Now().UTC()
 	post := model.StudioPost{
-		ID: newID(), UserID: userID, TaskID: task.ID, Kind: strings.TrimPrefix(task.WorkbenchKind, "studio-"), Tool: tool,
+		ID: newID(), UserID: userID, TaskID: task.ID, Kind: studioPostKind(*task), Tool: tool,
 		Title: title, Prompt: truncateRunes(prompt, 20000), SettingsJSON: string(settingsJSON), MediaJSON: string(mediaJSON),
 		Status: model.StudioPostPublished, AllowRemix: input.AllowRemix, CreatedAt: now, UpdatedAt: now,
 	}
@@ -368,4 +374,9 @@ func (s *Service) studioPostMedia(post model.StudioPost, expires time.Time, limi
 		result = append(result, StudioPostMedia{Kind: item.Kind, URL: link, MimeType: item.MimeType, Width: item.Width, Height: item.Height, DurationMs: item.DurationMs})
 	}
 	return result, nil
+}
+
+func studioPostKind(task model.Task) string {
+	kind, _ := studioWorkKind(task)
+	return kind
 }

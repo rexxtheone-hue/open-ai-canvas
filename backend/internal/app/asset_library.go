@@ -48,6 +48,10 @@ type MoveUserAssetsRequest struct {
 
 func (s *Service) UserAssetsPage(userID string, page int, pageSize int, filter UserAssetPageFilter) (UserAssetPage, error) {
 	page, pageSize = normalizeProjectPage(page, pageSize, 120)
+	// AI Studio 和 Canvas 共用素材库：先把还没登记的 Studio 上传补进资产。
+	if err := s.syncStudioUploadAssets(userID); err != nil {
+		return UserAssetPage{}, err
+	}
 	repoFilter := repository.UserAssetPageFilter{
 		Kind: filter.Kind, Category: filter.Category, FolderID: filter.FolderID,
 		Uncategorized: filter.Uncategorized, Status: filter.Status, Query: filter.Query,

@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"errors"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -459,6 +460,8 @@ type StudioUploadView struct {
 	Height     int       `json:"height,omitempty"`
 	DurationMs int64     `json:"durationMs,omitempty"`
 	CreatedAt  time.Time `json:"createdAt"`
+	// Source 是素材来自哪个产品：studio（在 Studio 上传）或 canvas（Canvas 资产）。
+	Source string `json:"source"`
 }
 
 func studioUploadKind(resource *model.Resource) string {
@@ -471,7 +474,7 @@ func studioUploadKind(resource *model.Resource) string {
 }
 
 func studioUploadView(item model.StudioUpload, resource *model.Resource) StudioUploadView {
-	view := StudioUploadView{ID: item.ID, ResourceID: item.ResourceID, Kind: item.Kind, Name: item.Name, CreatedAt: item.CreatedAt}
+	view := StudioUploadView{ID: item.ID, ResourceID: item.ResourceID, Kind: item.Kind, Name: item.Name, CreatedAt: item.CreatedAt, Source: "studio"}
 	if resource != nil {
 		view.MimeType, view.Width, view.Height, view.DurationMs = resource.MimeType, resource.Width, resource.Height, resource.DurationMs
 	}
@@ -498,10 +501,13 @@ func (s *Service) RegisterStudioUpload(userID, resourceID, name string) (StudioU
 	if err := s.repo.SaveStudioUpload(&item); err != nil {
 		return StudioUploadView{}, err
 	}
+	if err := s.syncStudioUploadAsset(item, resource); err != nil {
+		return StudioUploadView{}, err
+	}
 	return studioUploadView(item, resource), nil
 }
 
-// StudioUploads 列出本人在 Studio 上传的素材；资源已被删除的记录不返回。
+// StudioUploads 列出本人的上传素材：在 Studio 上传的，加上 Canvas 资产里的图片、视频、音频；资源已被删除的记录不返回。
 func (s *Service) StudioUploads(userID, kind string) ([]StudioUploadView, error) {
 	if kind != "" && kind != "image" && kind != "video" && kind != "audio" {
 		return nil, BadAuthRequest("素材类型无效")
@@ -521,16 +527,30 @@ func (s *Service) StudioUploads(userID, kind string) ([]StudioUploadView, error)
 		}
 		views = append(views, studioUploadView(item, resource))
 	}
+	canvas, err := s.canvasMediaAssetUploads(userID, kind)
+	if err != nil {
+		return nil, err
+	}
+	views = append(views, canvas...)
+	sort.SliceStable(views, func(i, j int) bool { return views[i].CreatedAt.After(views[j].CreatedAt) })
 	return views, nil
 }
 
 func (s *Service) DeleteStudioUpload(userID, id string) error {
-	deleted, err := s.repo.DeleteStudioUpload(userID, strings.TrimSpace(id))
+	id = strings.TrimSpace(id)
+	if strings.HasPrefix(id, "asset:") {
+		return BadAuthRequest("这是 AI Canvas 的资产，请到 Canvas 的「资产」里删除")
+	}
+	deleted, err := s.repo.DeleteStudioUpload(userID, id)
 	if err != nil {
 		return err
 	}
 	if !deleted {
 		return NotFound("素材不存在")
+	}
+	// 共用素材库：Canvas 资产里登记的那一份也一起移除（只删记录，文件由存储清理流程处理）。
+	if err := s.repo.DeleteAsset(userID, studioUploadAssetID(id)); err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
 	}
 	return nil
 }

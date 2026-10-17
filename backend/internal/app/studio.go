@@ -24,7 +24,9 @@ type StudioMedia struct {
 // StudioWork 是作品库的一条记录：任务状态、产物、收藏状态，以及「再次生成」所需的设置快照。
 type StudioWork struct {
 	TaskSummary
-	Kind     string         `json:"kind"`
+	Kind string `json:"kind"`
+	// Source 是作品来自哪个产品：studio 或 canvas。
+	Source   string         `json:"source"`
 	Tool     string         `json:"tool,omitempty"`
 	Favorite bool           `json:"favorite"`
 	Error    string         `json:"error,omitempty"`
@@ -41,6 +43,7 @@ type StudioWorkPage struct {
 
 type StudioWorkQuery struct {
 	Kind          string
+	Source        string
 	FavoritesOnly bool
 	Search        string
 	ActiveOnly    bool
@@ -103,7 +106,11 @@ func (s *Service) StudioWorks(userID string, query StudioWorkQuery) (StudioWorkP
 	if tool != "" && !studioToolIDPattern.MatchString(tool) {
 		return StudioWorkPage{}, BadAuthRequest("工具 ID 无效")
 	}
-	tasks, hasMore, err := s.repo.StudioTasks(userID, repository.StudioTaskQuery{Kinds: kinds, FavoritesOnly: query.FavoritesOnly, Search: query.Search, ActiveOnly: query.ActiveOnly, Tool: tool, Folder: query.Folder, Label: query.Label, Cursor: cursor, Limit: query.Limit})
+	source := strings.TrimSpace(query.Source)
+	if source != "" && source != "studio" && source != "canvas" {
+		return StudioWorkPage{}, BadAuthRequest("作品来源无效")
+	}
+	tasks, hasMore, err := s.repo.StudioTasks(userID, repository.StudioTaskQuery{Kinds: kinds, Source: source, FavoritesOnly: query.FavoritesOnly, Search: query.Search, ActiveOnly: query.ActiveOnly, Tool: tool, Folder: query.Folder, Label: query.Label, Cursor: cursor, Limit: query.Limit})
 	if err != nil {
 		return StudioWorkPage{}, err
 	}
@@ -140,8 +147,23 @@ func (s *Service) StudioWorks(userID string, query StudioWorkQuery) (StudioWorkP
 	return page, nil
 }
 
+// studioWorkKind 是作品的媒体类型：Studio 作品看 workbench_kind，Canvas 任务看任务类型。
+func studioWorkKind(task model.Task) (kind string, source string) {
+	if strings.HasPrefix(task.WorkbenchKind, "studio-") {
+		return strings.TrimPrefix(task.WorkbenchKind, "studio-"), "studio"
+	}
+	switch {
+	case task.Type == "canvas_image":
+		return "image", "canvas"
+	case task.Type == "canvas_audio":
+		return "audio", "canvas"
+	}
+	return "video", "canvas"
+}
+
 func studioWorkFromTask(task model.Task, summary TaskSummary, favorite bool) StudioWork {
-	work := StudioWork{TaskSummary: summary, Kind: strings.TrimPrefix(task.WorkbenchKind, "studio-"), Favorite: favorite, Media: studioMediaFromResult(task.ResultJSON)}
+	kind, source := studioWorkKind(task)
+	work := StudioWork{TaskSummary: summary, Kind: kind, Source: source, Favorite: favorite, Media: studioMediaFromResult(task.ResultJSON)}
 	if task.Status == model.TaskStatusFailed {
 		work.Error = truncateRunes(task.Error, 500)
 	}

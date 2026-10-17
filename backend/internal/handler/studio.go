@@ -56,6 +56,7 @@ func RegisterStudioRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		page, err := svc.StudioWorks(user.ID, service.StudioWorkQuery{
 			Kind:          c.Query("kind"),
+			Source:        c.Query("source"),
 			FavoritesOnly: c.Query("favorite") == "true",
 			Search:        c.Query("q"),
 			ActiveOnly:    c.Query("activeOnly") == "true",

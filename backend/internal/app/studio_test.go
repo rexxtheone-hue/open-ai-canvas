@@ -70,7 +70,8 @@ func TestStudioWorksPaginatesWithoutGapsOrDuplicates(t *testing.T) {
 		want[task.ID] = true
 	}
 	createStudioTestTask(t, repo, model.Task{ID: "other-user", UserID: "u2", WorkbenchKind: model.StudioKindImage, Prompt: "p", CreatedAt: base, UpdatedAt: base})
-	createStudioTestTask(t, repo, model.Task{ID: "canvas-task", UserID: "u1", Prompt: "p", CreatedAt: base, UpdatedAt: base})
+	// 作品库也收 Canvas 生成的图片、视频、音频，但文字类任务不算作品。
+	createStudioTestTask(t, repo, model.Task{ID: "canvas-text", UserID: "u1", Type: "canvas_text", Prompt: "p", CreatedAt: base, UpdatedAt: base})
 
 	seen := map[string]bool{}
 	cursor := ""

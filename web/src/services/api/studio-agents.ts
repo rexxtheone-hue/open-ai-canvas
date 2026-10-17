@@ -183,6 +183,8 @@ export type StudioUpload = {
     height?: number;
     durationMs?: number;
     createdAt: string;
+    /** studio：在 Studio 上传；canvas：AI Canvas「资产」里的素材（要在 Canvas 里删除）。 */
+    source?: "studio" | "canvas";
 };
 
 export function listStudioUploads(kind?: "image" | "video" | "audio", signal?: AbortSignal) {

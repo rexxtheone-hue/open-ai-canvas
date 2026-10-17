@@ -15,7 +15,8 @@ const POLL_INTERVAL_MS = 4000;
 const PAGE_SIZE = 40;
 
 /** folder 为文件夹 ID 或 unsorted；label 为标签 ID。 */
-export type StudioWorksFilter = { kind: StudioKind | "all"; favorite: boolean; q: string; folder?: string; label?: string };
+/** source：AI Studio 和 AI Canvas 共用作品库，可以只看其中一边。 */
+export type StudioWorksFilter = { kind: StudioKind | "all"; favorite: boolean; q: string; folder?: string; label?: string; source?: "studio" | "canvas" };
 
 export function useStudioWorks(filter: StudioWorksFilter) {
     const userId = useUserStore((state) => state.user?.id || "");
@@ -26,8 +27,8 @@ export function useStudioWorks(filter: StudioWorksFilter) {
     const [error, setError] = useState("");
     const worksRef = useRef(works);
     worksRef.current = works;
-    const query: StudioWorkQuery = { kind: filter.kind, favorite: filter.favorite, q: filter.q, folder: filter.folder, label: filter.label, pageSize: PAGE_SIZE };
-    const queryKey = `${userId}|${filter.kind}|${filter.favorite}|${filter.q.trim()}|${filter.folder || ""}|${filter.label || ""}`;
+    const query: StudioWorkQuery = { kind: filter.kind, source: filter.source, favorite: filter.favorite, q: filter.q, folder: filter.folder, label: filter.label, pageSize: PAGE_SIZE };
+    const queryKey = `${userId}|${filter.kind}|${filter.source || ""}|${filter.favorite}|${filter.q.trim()}|${filter.folder || ""}|${filter.label || ""}`;
     const queryRef = useRef(query);
     queryRef.current = query;
     const generationRef = useRef(0);

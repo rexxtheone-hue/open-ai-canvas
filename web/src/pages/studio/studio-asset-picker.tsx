@@ -88,7 +88,8 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
             return (charactersQuery.data || []).filter((item) => item.imageResourceIds.length).map((character) => ({ key: `c:${character.id}`, label: character.name, preview: studioCharacterCover(character), previewKind: "image" as const, attachment: studioCharacterAttachments(character, 1)[0] }));
         }
         if (source === "uploads") {
-            return (uploadsQuery.data || []).map((item) => ({ key: `u:${item.id}`, label: item.name, preview: resolveResourceUrl(`resource:${item.resourceId}`, ""), previewKind: item.kind, attachment: uploadAttachment(item) }));
+            // 上传里也有 AI Canvas「资产」的素材（两个产品共用素材库），名字后标出来源。
+            return (uploadsQuery.data || []).map((item) => ({ key: `u:${item.id}`, label: item.source === "canvas" ? `${item.name || "Canvas 资产"} · Canvas` : item.name, preview: resolveResourceUrl(`resource:${item.resourceId}`, ""), previewKind: item.kind, attachment: uploadAttachment(item) }));
         }
         return (worksQuery.data || []).map((work: StudioWork) => ({ key: `w:${work.id}`, label: work.prompt, preview: studioMediaSrc(work.media[0]), previewKind: work.media[0].kind, attachment: studioAttachmentFromMedia(work, work.media[0]) }));
     }, [charactersQuery.data, kind, source, uploadsQuery.data, worksQuery.data]);

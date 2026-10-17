@@ -387,6 +387,11 @@ func (r *Repository) TasksWithWorkbenchKind(userID string, limit int, projectID 
 	if activeOnly {
 		query = query.Where("status IN ?", []model.TaskStatus{model.TaskStatusQueued, model.TaskStatusRunning})
 	}
+	// 创作历史和 AI Studio 共用一个作品库：在 Studio 删除的作品这里也不再显示。
+	// 项目内和进行中的列表不过滤，画布节点仍要读到自己任务的状态。
+	if strings.TrimSpace(projectID) == "" && !activeOnly {
+		query = query.Where("id NOT IN (?)", r.db.Model(&model.StudioHiddenTask{}).Select("task_id").Where("user_id = ?", userID))
+	}
 	if workbenchKind != "" {
 		taskType := "canvas_" + workbenchKind
 		if r.db.Dialector.Name() == "postgres" {

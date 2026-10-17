@@ -14,7 +14,7 @@ func TestTasksWithWorkbenchKindRequiresMatchingTaskType(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&model.Task{}); err != nil {
+	if err := db.AutoMigrate(&model.Task{}, &model.StudioHiddenTask{}); err != nil {
 		t.Fatal(err)
 	}
 

@@ -305,3 +305,10 @@ func (r *Repository) DeleteStudioVoice(userID, id string) (bool, error) {
 	result := r.db.Where("id = ? AND user_id = ?", id, userID).Delete(&model.StudioVoice{})
 	return result.RowsAffected > 0, result.Error
 }
+
+// UserMediaAssets 是用户 Canvas 资产里指定媒体类型的资产，按更新时间倒序。
+func (r *Repository) UserMediaAssets(userID string, kinds []string, limit int) ([]model.Asset, error) {
+	var assets []model.Asset
+	err := r.db.Where("user_id = ? AND kind IN ?", userID, kinds).Order("updated_at desc, id").Limit(limit).Find(&assets).Error
+	return assets, err
+}

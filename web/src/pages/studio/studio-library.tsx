@@ -17,6 +17,11 @@ import { StudioSaveCharacterModal } from "./studio-save-character";
 import { StudioFolderSection, StudioLabelDot, StudioLabelFilter, StudioLabelWorks, StudioMoveToFolder, useStudioOrganize } from "./studio-organize";
 
 const KIND_LABELS: Record<StudioKind, string> = { image: "图片", video: "视频", audio: "音频" };
+const SOURCE_OPTIONS: Array<{ value: "studio" | "canvas" | undefined; label: string }> = [
+    { value: undefined, label: "全部来源" },
+    { value: "studio", label: "AI Studio" },
+    { value: "canvas", label: "AI Canvas" },
+];
 const CARD_SIZE_KEY = "studio.library.card-size.v1";
 
 export function studioMediaSrc(media: StudioMedia, purpose: "display" | "download" = "display") {
@@ -226,10 +231,16 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                                         {value === "all" ? "全部作品" : KIND_LABELS[value]}{filter.kind === value ? <Check className="studio-menu-check" aria-hidden /> : null}
                                     </button>
                                 ))}
+                                <div className="studio-menu-title" title="AI Studio 和 AI Canvas 共用一个作品库">来源</div>
+                                {SOURCE_OPTIONS.map((option) => (
+                                    <button key={option.label} type="button" role="menuitemradio" aria-checked={filter.source === option.value} onClick={() => { setFilter((current) => ({ ...current, source: option.value })); setTypeOpen(false); }}>
+                                        {option.label}{filter.source === option.value ? <Check className="studio-menu-check" aria-hidden /> : null}
+                                    </button>
+                                ))}
                             </div>
                         }
                     >
-                        <button type="button" className={`studio-toolbar-icon${filter.kind !== "all" ? " is-active" : ""}`} aria-label="类型筛选" title="类型筛选"><Filter aria-hidden /></button>
+                        <button type="button" className={`studio-toolbar-icon${filter.kind !== "all" || filter.source ? " is-active" : ""}`} aria-label="类型和来源筛选" title="类型和来源筛选"><Filter aria-hidden /></button>
                     </Popover>
                 ) : null}
                 <StudioLabelFilter current={filter.label} onSelect={(label) => setFilter((current) => ({ ...current, label }))} />
@@ -258,7 +269,7 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                                     onFavorite={() => void toggleFavorite(work).catch((cause) => message.error(generationErrorMessage(cause)))}
                                     onDownload={() => void run(work.id, () => downloadStudioMedia(work, 0))}
                                     onUseAsReference={onUseAsReference && work.media[0] ? () => onUseAsReference(work, work.media[0]) : undefined}
-                                    onReuseSettings={onReuseSettings ? () => onReuseSettings(work) : undefined}
+                                    onReuseSettings={onReuseSettings && work.source !== "canvas" ? () => onReuseSettings(work) : undefined}
                                     onRetry={() => void run(work.id, async () => {
                                         if (work.canRecoverMedia) await recoverGenerationTaskMedia(work.id);
                                         else await retryGenerationTask(work.id);
@@ -346,6 +357,7 @@ function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite,
             ) : null}
             {!active && !failed && !media ? <div className="studio-work-state"><p>作品文件暂时不可用</p></div> : null}
             <span className="studio-work-kind">{KIND_LABELS[work.kind]}{work.media.length > 1 ? ` ×${work.media.length}` : ""}</span>
+            {work.source === "canvas" ? <span className="studio-work-source" title="在 AI Canvas 里生成">Canvas</span> : null}
             {labels.length ? <span className="studio-work-labels" title={labels.map((label) => label.name).join("、")}>{labels.map((label) => <span key={label.id} className="studio-work-label"><StudioLabelDot label={label} />{label.name}</span>)}</span> : null}
             <button type="button" className="studio-work-select" aria-pressed={selected} aria-label={selected ? "取消选择" : "选择作品"} onClick={(event) => onSelect(event.shiftKey)}>
                 {selected ? <Check aria-hidden /> : null}
