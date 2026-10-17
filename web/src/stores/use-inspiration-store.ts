@@ -76,7 +76,7 @@ function asStringArray(value: unknown): string[] | undefined {
 
 /** 编辑器传来的草稿先按同一套规则收敛，不做「空字符串也写进去」的兜底。 */
 export function normalizeDraft(input: unknown): InspirationDraft {
-    if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("灵感内容格式不正确");
+    if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("模板内容格式不正确");
     const raw = input as Record<string, unknown>;
     if (raw.mode !== "text" && raw.mode !== "image" && raw.mode !== "video") throw new Error("创作类型只能是 text、image 或 video");
     return {
@@ -127,7 +127,7 @@ export const useInspirationStore = create<InspirationStore>()(
             },
 
             updateEntry: (id, patch) => {
-                if (!id) throw new Error("缺少要修改的灵感 ID");
+                if (!id) throw new Error("缺少要修改的模板 ID");
                 const sanitized = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined && value !== ""));
                 if (!Object.keys(sanitized).length) return;
                 if (isCustomInspiration(id)) {
@@ -138,7 +138,7 @@ export const useInspirationStore = create<InspirationStore>()(
             },
 
             removeEntry: (id) => {
-                if (!id) throw new Error("缺少要删除的灵感 ID");
+                if (!id) throw new Error("缺少要删除的模板 ID");
                 if (isCustomInspiration(id)) {
                     set((state) => ({
                         custom: state.custom.filter((item) => catalogIdOf(item) !== id),
@@ -156,7 +156,7 @@ export const useInspirationStore = create<InspirationStore>()(
             restoreEntry: (id) => set((state) => ({ hidden: state.hidden.filter((item) => item !== id) })),
 
             toggleFavorite: (id) => {
-                if (!id) throw new Error("缺少要收藏的灵感 ID");
+                if (!id) throw new Error("缺少要收藏的模板 ID");
                 set((state) => ({ favorites: state.favorites.includes(id) ? state.favorites.filter((item) => item !== id) : [id, ...state.favorites] }));
             },
 
@@ -180,7 +180,7 @@ export const useInspirationStore = create<InspirationStore>()(
                 } catch {
                     throw new Error("文件不是合法的 JSON");
                 }
-                if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("文件结构不是灵感导出格式");
+                if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("文件结构不是模板导出格式");
                 const raw = parsed as Record<string, unknown>;
                 if (raw.version !== INSPIRATION_PAYLOAD_VERSION) throw new Error(`不支持的文件版本：${String(raw.version)}，当前支持 ${INSPIRATION_PAYLOAD_VERSION}`);
                 if (!Array.isArray(raw.custom)) throw new Error("文件缺少 custom 列表");

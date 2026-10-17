@@ -45,7 +45,7 @@ function buildNav(features: FeatureAvailability): { groups: WorkspaceNavGroup[];
         {
             items: [
                 { ...toolItem("create", "/create"), id: "home", title: "创作" },
-                { ...toolItem("inspirations", "/inspirations"), title: "灵感" },
+                { ...toolItem("inspirations", "/inspirations"), title: "模板" },
                 { ...toolItem("projects", "/projects"), title: "短剧制作" },
                 { ...toolItem("canvas", "/canvas"), title: "自由画布" },
                 // 回到产品选择页；AI Canvas 与 AI Studio 是两个独立产品，只共用账号、会员与积分。

@@ -261,12 +261,12 @@ export function CreationInspirationTunnel({ mode, onStartPrompt }: { mode: Creat
                 `button:has(> svg):not(:has(> span)):not(:disabled):hover` 会认领"纯图标按钮"，
                 用 !important 改写 color / background 并把 transform 顶成 translateY(-1px)，
                 按钮会当场掉半个身位。带 span 的按钮不在那条规则的射程内。 */}
-            <button type="button" className="creation-gallery-arrow is-prev" aria-label="上一张灵感" onClick={() => step(-1)}>
+            <button type="button" className="creation-gallery-arrow is-prev" aria-label="上一个模板" onClick={() => step(-1)}>
                 <span className="creation-gallery-arrow-icon">
                     <ChevronLeft aria-hidden="true" />
                 </span>
             </button>
-            <button type="button" className="creation-gallery-arrow is-next" aria-label="下一张灵感" onClick={() => step(1)}>
+            <button type="button" className="creation-gallery-arrow is-next" aria-label="下一个模板" onClick={() => step(1)}>
                 <span className="creation-gallery-arrow-icon">
                     <ChevronRight aria-hidden="true" />
                 </span>

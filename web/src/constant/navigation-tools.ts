@@ -9,7 +9,7 @@ export const navigationTools = [
     },
     {
         slug: "inspirations",
-        label: "灵感",
+        label: "模板",
         icon: GalleryVerticalEnd,
         section: "创作空间",
     },

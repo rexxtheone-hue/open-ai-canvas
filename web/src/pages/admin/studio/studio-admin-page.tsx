@@ -96,7 +96,6 @@ export default function StudioAdminPage() {
         },
         { title: "点赞 / 同款", key: "stats", width: 120, render: (_, post) => `${post.likeCount} / ${post.remixCount}` },
         { title: "精选", key: "featured", width: 80, render: (_, post) => <Switch aria-label="精选" checked={post.featured} onChange={(checked) => void updatePost(post, { featured: checked })} /> },
-        { title: "模板", key: "template", width: 80, render: (_, post) => <Switch aria-label="设为模板" checked={post.isTemplate} onChange={(checked) => void updatePost(post, { isTemplate: checked })} /> },
         { title: "隐藏", key: "hidden", width: 80, render: (_, post) => <Switch aria-label="隐藏" checked={Boolean(post.hidden)} onChange={(checked) => void updatePost(post, { hidden: checked })} /> },
     ];
 

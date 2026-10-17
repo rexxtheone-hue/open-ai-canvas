@@ -1568,3 +1568,14 @@ a.studio-post-author:hover { color: var(--studio-fg); }
 .studio-poster:hover .studio-poster-art video { transform: scale(1.05); }
 .studio-camera-media video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .studio-work-source { position: absolute; top: 28px; right: 6px; padding: 1px 7px; border-radius: 999px; background: rgba(59, 130, 246, 0.85); color: #fff; font-size: 10.5px; font-weight: 600; }
+/* 模板（AI Canvas 模板库） */
+.studio-templates { display: flex; flex-direction: column; gap: 14px; }
+.studio-template-sources { flex-wrap: wrap; align-self: flex-start; }
+.studio-template-sources button { display: inline-flex; align-items: center; gap: 4px; }
+.studio-template-sources svg { width: 13px; height: 13px; }
+.studio-template-categories { display: flex; flex-wrap: wrap; gap: 6px; }
+.studio-template-categories button { padding: 4px 10px; border: 1px solid var(--studio-line); border-radius: 999px; background: transparent; color: var(--studio-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.studio-template-categories button:hover { color: var(--studio-fg); }
+.studio-template-categories button[aria-pressed="true"] { border-color: var(--studio-fg); color: var(--studio-fg); }
+.studio-template-description { margin: 0; color: var(--studio-soft); font-size: 13px; line-height: 1.7; }
+button.studio-template-card { padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }

@@ -5,10 +5,11 @@ import { Link, useNavigate } from "react-router";
 
 import { modelDisplayName, selectableModelsByCapability, useEffectiveConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
-import { listStudioCommunity } from "@/services/api/studio";
+import { loadGalleryPool } from "@/services/inspiration-catalog";
 import { StudioPosterCard } from "./studio-poster-card";
 import { STUDIO_QUICK_STARTS } from "./studio-quickstarts";
 import { StudioShell } from "./studio-shell";
+import { useStudioTemplateLauncher } from "./studio-templates";
 import { useAvailableStudioTools } from "./use-available-tools";
 import { useStudioToolCovers } from "./use-studio-tool-meta";
 
@@ -53,8 +54,17 @@ export default function StudioHomePage({ initialMode = "agents" }: { initialMode
     const railRef = useRef<HTMLDivElement>(null);
     const tools = useAvailableStudioTools();
     const covers = useStudioToolCovers();
-    const templatesQuery = useQuery({ queryKey: ["studio", "home-templates"], queryFn: async () => (await listStudioCommunity({ templates: true, sort: "popular", pageSize: 8 })).posts, enabled: Boolean(user) });
+    // 热门模板取自 AI Canvas 的模板库（首页用较小的画廊池，精选的排前面）。
+    const templatesQuery = useQuery({
+        queryKey: ["studio", "home-templates"],
+        queryFn: async () => {
+            const pool = (await loadGalleryPool()).filter((item) => (item.mode === "image" || item.mode === "video") && item.image);
+            return [...pool.filter((item) => item.featured), ...pool.filter((item) => !item.featured)].slice(0, 8);
+        },
+        staleTime: 30 * 60_000,
+    });
     const templates = templatesQuery.data || [];
+    const launchTemplate = useStudioTemplateLauncher();
 
     // 只列后台已开启的模型，每类取前几个。
     const latestModels = useMemo(() => {
@@ -177,13 +187,13 @@ export default function StudioHomePage({ initialMode = "agents" }: { initialMode
                             <Link to="/studio/inspire?tab=templates" className="studio-more-link">全部模板<ArrowRight aria-hidden /></Link>
                         </div>
                         <div className="studio-community-grid">
-                            {templates.map((post) => (
-                                <Link key={post.id} to="/studio/inspire?tab=templates" className="studio-post-card studio-template-card">
+                            {templates.map((item) => (
+                                <button key={item.id || item.title} type="button" className="studio-post-card studio-template-card" title="使用模板" onClick={() => launchTemplate(item)}>
                                     <span className="studio-post-media">
-                                        {post.media[0]?.kind === "video" ? <video src={post.media[0].url} muted playsInline preload="metadata" /> : post.media[0]?.kind === "image" ? <img src={post.media[0].url} alt="" loading="lazy" /> : null}
+                                        <img src={item.image} alt="" loading="lazy" />
                                     </span>
-                                    <span className="studio-post-body"><strong>{post.title}</strong></span>
-                                </Link>
+                                    <span className="studio-post-body"><strong>{item.title}</strong></span>
+                                </button>
                             ))}
                         </div>
                     </section>

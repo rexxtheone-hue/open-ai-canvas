@@ -94,7 +94,7 @@ export default function InspirationsPage() {
                 if (!cancelled) setCatalog(loaded);
             })
             .catch((error) => {
-                if (!cancelled) setLoadError(error instanceof Error ? error.message : "灵感目录加载失败");
+                if (!cancelled) setLoadError(error instanceof Error ? error.message : "模板加载失败");
             });
         return () => {
             cancelled = true;
@@ -223,8 +223,8 @@ export default function InspirationsPage() {
             const isCustom = isCustomInspiration(id);
             modal.confirm({
                 className: "workspace-modal workspace-modal-compact",
-                title: isCustom ? "删除这条灵感？" : "从库中隐藏这条灵感？",
-                content: isCustom ? `「${item.title}」会从本地灵感库移除，此操作不可撤销。` : `「${item.title}」来自外部目录，不能真正删除；隐藏后可用「已隐藏」视图恢复，重新导入外部目录也不会让它复现。`,
+                title: isCustom ? "删除这个模板？" : "隐藏这个模板？",
+                content: isCustom ? `「${item.title}」会从本地模板库移除，此操作不可撤销。` : `「${item.title}」来自外部目录，不能真正删除；隐藏后可用「已隐藏」视图恢复，重新导入外部目录也不会让它复现。`,
                 okText: isCustom ? "删除" : "隐藏",
                 okButtonProps: { danger: true },
                 cancelText: "保留",
@@ -255,7 +255,7 @@ export default function InspirationsPage() {
             setCategory("all");
             setView("all");
             setSearch("");
-            message.success("灵感已创建");
+            message.success("模板已创建");
         },
         [createEntry, editing, message, updateEntry],
     );
@@ -293,7 +293,7 @@ export default function InspirationsPage() {
                     setEditorOpen(true);
                 }}
             >
-                新建灵感
+                新建模板
             </Button>
             <input
                 ref={importRef}
@@ -314,12 +314,12 @@ export default function InspirationsPage() {
 
     return (
         <WorkspacePage>
-            <PageHeader title="灵感库" description={`${total} 条提示词，按来源、分类和创作类型挑，点开可以一键带去创作页`} actions={headerActions} />
+            <PageHeader title="模板" description={`${total} 条提示词，按来源、分类和创作类型挑，点开可以一键带去创作页`} actions={headerActions} />
 
             {loadError ? (
-                <WorkspaceErrorState title="灵感目录加载失败" description={loadError} onRetry={() => setReloadKey((key) => key + 1)} />
+                <WorkspaceErrorState title="模板加载失败" description={loadError} onRetry={() => setReloadKey((key) => key + 1)} />
             ) : !catalog || !hydrated ? (
-                <WorkspaceLoadingState label="正在加载灵感目录" detail="首次进入需要拉取全量目录，之后会走浏览器缓存" rows={4} />
+                <WorkspaceLoadingState label="正在加载模板" detail="首次进入需要拉取全量目录，之后会走浏览器缓存" rows={4} />
             ) : (
                 <div className="mt-4 flex flex-col gap-4">
                     {/* 图片 / 视频 / 文本是两大主类，放在最上面做一级筛选。 */}
@@ -453,8 +453,8 @@ export default function InspirationsPage() {
                     ) : (
                         <WorkspaceState
                             icon="empty"
-                            title={view === "favorites" ? "还没有收藏" : view === "hidden" ? "没有隐藏的条目" : "没有符合条件的灵感"}
-                            description={view === "favorites" ? "在卡片右上角点一下爱心，收藏的灵感会集中在这里。" : "换个来源、分类或关键词再试试。"}
+                            title={view === "favorites" ? "还没有收藏" : view === "hidden" ? "没有隐藏的条目" : "没有符合条件的模板"}
+                            description={view === "favorites" ? "在卡片右上角点一下爱心，收藏的模板会集中在这里。" : "换个来源、分类或关键词再试试。"}
                         />
                     )}
 

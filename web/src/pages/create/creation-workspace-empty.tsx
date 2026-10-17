@@ -91,11 +91,11 @@ export function CreationFeaturedWorks({ onStartPrompt }: { onStartPrompt: (mode:
         <section className="creation-featured-works" aria-labelledby="creation-featured-title">
             <div className="creation-featured-heading">
                 <div>
-                    <h2 id="creation-featured-title">精选灵感</h2>
+                    <h2 id="creation-featured-title">精选模板</h2>
                 </div>
                 <p>{curatedInspirations.length} 个创意起点 · 点击填入提示词，不自动生成</p>
             </div>
-            <div className="creation-inspiration-filters" role="group" aria-label="灵感类型">
+            <div className="creation-inspiration-filters" role="group" aria-label="模板类型">
                 {(["all", "video", "image", "text"] as const).map((value) => (
                     <button
                         key={value}
@@ -106,7 +106,7 @@ export function CreationFeaturedWorks({ onStartPrompt }: { onStartPrompt: (mode:
                             setLimit(12);
                         }}
                     >
-                        {value === "all" ? "全部灵感" : modeLabels[value]}
+                        {value === "all" ? "全部模板" : modeLabels[value]}
                         <span>{curatedInspirations.filter((item) => value === "all" || item.mode === value).length}</span>
                     </button>
                 ))}
@@ -135,7 +135,7 @@ export function CreationFeaturedWorks({ onStartPrompt }: { onStartPrompt: (mode:
             <footer className="creation-inspiration-footer">
                 {limit < filtered.length ? (
                     <Button onClick={() => setLimit((count) => count + 12)}>
-                        展开更多灵感
+                        展开更多模板
                         <ChevronDown />
                     </Button>
                 ) : (

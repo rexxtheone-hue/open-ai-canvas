@@ -75,7 +75,7 @@ export function InspirationEditorModal({
     return (
         <AppModal
             open={open}
-            title={item ? "编辑灵感" : "新建灵感"}
+            title={item ? "编辑模板" : "新建模板"}
             width={720}
             onCancel={() => {
                 form.resetFields();

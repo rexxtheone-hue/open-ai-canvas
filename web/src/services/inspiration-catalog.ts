@@ -38,7 +38,7 @@ let pending: Promise<InspirationCatalog> | null = null;
 
 async function fetchJson<T>(url: string): Promise<T> {
     const response = await fetch(url, { headers: { Accept: "application/json" } });
-    if (!response.ok) throw new Error(`加载灵感目录失败：${url} 返回 HTTP ${response.status}`);
+    if (!response.ok) throw new Error(`加载模板失败：${url} 返回 HTTP ${response.status}`);
     return translateContentPayload((await response.json()) as T);
 }
 

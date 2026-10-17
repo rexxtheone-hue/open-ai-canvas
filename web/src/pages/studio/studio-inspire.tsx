@@ -7,6 +7,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { listStudioCommunity, type StudioCommunityQuery, type StudioKind, type StudioPost } from "@/services/api/studio";
 import { STUDIO_POST_KIND_LABELS, StudioPostFeed } from "./studio-post-feed";
 import { StudioShell } from "./studio-shell";
+import { StudioTemplateGallery } from "./studio-templates";
 
 type Tab = "featured" | "latest" | "popular" | "following" | "templates" | "mine";
 
@@ -51,6 +52,11 @@ export default function StudioInspirePage() {
     const load = useCallback(
         async (offset = 0) => {
             const request = ++requestRef.current;
+            // 「模板」分类是 AI Canvas 的模板库，由 StudioTemplateGallery 自己加载。
+            if (tab === "templates") {
+                setLoading(false);
+                return;
+            }
             if (offset) setLoadingMore(true);
             else setLoading(true);
             setError("");
@@ -82,8 +88,8 @@ export default function StudioInspirePage() {
             <div className="studio-home studio-page">
                 <div className="studio-section-head">
                     <div>
-                        <h2>灵感社区</h2>
-                        <p>看看大家做了什么，喜欢的一键做同款。</p>
+                        <h2>{tab === "templates" ? "模板" : "灵感社区"}</h2>
+                        <p>{tab === "templates" ? "挑一个现成的创意，一键带着提示词去生成。和 AI Canvas 的模板库是同一份。" : "看看大家做了什么，喜欢的一键做同款。"}</p>
                     </div>
                     <label className="studio-search">
                         <Search aria-hidden />
@@ -106,7 +112,9 @@ export default function StudioInspirePage() {
                         ))}
                     </div>
                 </div>
-                {loading ? (
+                {tab === "templates" ? (
+                    <StudioTemplateGallery kind={kind} query={q} />
+                ) : loading ? (
                     <div className="studio-empty">
                         <Spin />
                     </div>
