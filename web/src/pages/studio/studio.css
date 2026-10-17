@@ -1377,3 +1377,30 @@ button.studio-entry-tile { font: inherit; font-size: 13.5px; font-weight: 650; c
 .studio-i2p-empty svg { width: 28px; height: 28px; }
 .studio-i2p-result.ant-input { flex: 1; min-height: 260px; resize: none; }
 @media (max-width: 720px) { .studio-i2p { grid-template-columns: 1fr; } }
+
+/* ---------- 字体：与 OpenArt 一致 ----------
+ * 正文和大部分标题用系统字体栈（Windows 上英文 Segoe UI、中文微软雅黑；Mac 上 SF 与苹方），
+ * 不加载网页字体；Bricolage Grotesque 只用于工具名称、HOT/NEW 标签和首页大标题。 */
+.studio-root, .studio-popup, .studio-modal {
+    --studio-ui-font: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    --font-sans: var(--studio-ui-font);
+    font-family: var(--studio-ui-font);
+}
+.studio-root .ant-btn, .studio-root input, .studio-root textarea, .studio-root select, .studio-popup input, .studio-popup textarea, .studio-modal .ant-modal-content { font-family: var(--studio-ui-font); }
+.studio-section-head h2, .studio-chat-welcome h2, .studio-empty strong, .studio-topbar-title strong, .studio-side-brand strong,
+.studio-more-link, .studio-create-tile strong, .studio-story-link strong, .studio-character-caption strong, .studio-picker-head strong, .studio-camera-head h2 {
+    font-family: var(--studio-ui-font);
+    letter-spacing: normal;
+}
+.studio-tool-text b, .studio-tag, .studio-poster-title, .studio-hero h1, .studio-director-hero h1 { font-family: var(--studio-display); }
+.studio-tool-text b { font-size: 13px; font-weight: 600; }
+.studio-tag { font-size: 11px; font-weight: 800; letter-spacing: 0.05px; }
+.studio-hero h1, .studio-director-hero h1 { font-weight: 800; letter-spacing: -0.02em; }
+.studio-tool-hero-text strong { font-size: 16px; font-weight: 600; letter-spacing: -0.12px; }
+.studio-block-title { font-size: 14px; font-weight: 600; }
+.studio-block-title em, .studio-slot-label em { font-size: 11px; font-weight: 500; }
+.studio-side-link { font-size: 12px; font-weight: 500; letter-spacing: 0.05px; }
+.studio-side-card b { font-size: 12px; font-weight: 600; letter-spacing: 0.05px; }
+.studio-side-card small { font-size: 11px; font-weight: 400; letter-spacing: 0.1px; }
+.studio-tools-head strong { font-size: 14px; font-weight: 600; }
+.studio-topbar-title strong, .studio-topbar-title span { font-size: 12px; }
