@@ -59,6 +59,13 @@ jobs:
             exit 1
           fi
 
+      - name: Ensure swap
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          # 4GB 内存的机器在部署时容易被撑满导致 SSH 卡死，没有 swap 就加 4GB。
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" \
+            "if ! sudo swapon --show | grep -q .; then sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile && (grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab); fi; free -h"
+
       - name: Update server
         if: steps.secrets.outputs.ready == 'true'
         run: |
