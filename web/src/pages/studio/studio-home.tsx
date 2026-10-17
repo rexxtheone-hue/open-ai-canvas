@@ -9,6 +9,7 @@ import { loadGalleryPool } from "@/services/inspiration-catalog";
 import { StudioPosterCard } from "./studio-poster-card";
 import { STUDIO_QUICK_STARTS } from "./studio-quickstarts";
 import { StudioShell } from "./studio-shell";
+import { StudioSelect } from "./studio-select";
 import { useStudioTemplateLauncher } from "./studio-templates";
 import { useAvailableStudioTools } from "./use-available-tools";
 import { useStudioToolCovers } from "./use-studio-tool-meta";
@@ -21,9 +22,9 @@ const SUGGESTIONS = [
 
 type AgentMode = "chat" | "director";
 
-const RUN_KEYS: Record<AgentMode, { key: string; options: Array<{ value: string; label: string }> }> = {
-    chat: { key: "studio.chat.run-mode.v1", options: [{ value: "ask", label: "先问我" }, { value: "auto", label: "直接做" }] },
-    director: { key: "studio.director.run-mode.v1", options: [{ value: "guide", label: "引导我" }, { value: "auto", label: "直接做" }] },
+const RUN_KEYS: Record<AgentMode, { key: string; options: Array<{ value: string; label: string; hint?: string }> }> = {
+    chat: { key: "studio.chat.run-mode.v1", options: [{ value: "ask", label: "先问我", hint: "先给出生成计划，确认后再生成" }, { value: "auto", label: "直接做", hint: "直接按计划生成" }] },
+    director: { key: "studio.director.run-mode.v1", options: [{ value: "guide", label: "引导我", hint: "每一步生成前先问你" }, { value: "auto", label: "直接做", hint: "写完分镜后自动生成成片" }] },
 };
 
 function readLocal(key: string, fallback: string) {
@@ -133,19 +134,19 @@ export default function StudioHomePage({ initialMode = "agents" }: { initialMode
                                     }}
                                 />
                                 <div className="studio-composer-bar">
-                                    <label className="studio-pill-select">
-                                        {agent === "chat" ? <MessageSquareText aria-hidden /> : <Film aria-hidden />}
-                                        <select aria-label="智能体" value={agent} onChange={(event) => setAgent(event.target.value as AgentMode)}>
-                                            <option value="chat">对话模式</option>
-                                            <option value="director">导演模式</option>
-                                        </select>
-                                    </label>
+                                    <StudioSelect
+                                        ariaLabel="智能体"
+                                        value={agent}
+                                        icon={agent === "chat" ? <MessageSquareText aria-hidden /> : <Film aria-hidden />}
+                                        options={[
+                                            { value: "chat", label: "对话模式", hint: "说一句话，AI 帮你做" },
+                                            { value: "director", label: "导演模式", hint: "从方案到成片" },
+                                        ]}
+                                        onChange={(value) => setAgent(value as AgentMode)}
+                                        placement="bottomLeft"
+                                    />
                                     <span style={{ flex: 1 }} />
-                                    <label className="studio-pill-select">
-                                        <select aria-label="执行方式" value={runModes[agent]} onChange={(event) => changeRun(event.target.value)}>
-                                            {RUN_KEYS[agent].options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                                        </select>
-                                    </label>
+                                    <StudioSelect ariaLabel="执行方式" value={runModes[agent]} options={RUN_KEYS[agent].options} onChange={changeRun} placement="bottomRight" />
                                     <button type="button" className="studio-send-orb" aria-label="发送" disabled={!prompt.trim()} onClick={send}>
                                         <ArrowUp aria-hidden />
                                     </button>

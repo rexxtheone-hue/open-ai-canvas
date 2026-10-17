@@ -42,6 +42,7 @@ import {
 } from "./studio-chat";
 import { StudioLibrary, studioMediaSrc } from "./studio-library";
 import { StudioShell } from "./studio-shell";
+import { StudioSelect } from "./studio-select";
 import { StudioPanelFooter } from "./studio-workspace";
 import { uploadStudioFile } from "./use-studio-tool";
 import { notifyStudioWorksChanged } from "./use-studio-works";
@@ -493,18 +494,27 @@ export default function StudioChatPage() {
                                 if (files.length) void uploadFiles(files);
                             }} />
                             <span style={{ flex: 1 }} />
-                            <label className="studio-pill-select is-small" title={runMode === "ask" ? "先给出生成计划，确认后再生成" : "直接按计划生成"}>
-                                <select aria-label="执行方式" value={runMode} onChange={(event) => setRunMode(event.target.value as StudioRunMode)}>
-                                    <option value="ask">先问我</option>
-                                    <option value="auto">直接做</option>
-                                </select>
-                            </label>
-                            <label className="studio-pill-select is-small">
-                                <Sparkles aria-hidden />
-                                <select aria-label="对话模型" value={textModel} onChange={(event) => { setTextModelChoice(event.target.value); writeLocal(TEXT_MODEL_KEY, event.target.value); }}>
-                                    {textModels.length ? textModels.map((model) => <option key={model} value={model}>{modelDisplayName(config, model) || model}</option>) : <option value="">无可用模型</option>}
-                                </select>
-                            </label>
+                            <StudioSelect
+                                className="studio-pill-select is-small"
+                                ariaLabel="执行方式"
+                                value={runMode}
+                                options={[
+                                    { value: "ask", label: "先问我", hint: "先给出生成计划，确认后再生成" },
+                                    { value: "auto", label: "直接做", hint: "直接按计划生成" },
+                                ]}
+                                onChange={(value) => setRunMode(value as StudioRunMode)}
+                                placement="topRight"
+                            />
+                            <StudioSelect
+                                className="studio-pill-select is-small"
+                                ariaLabel="对话模型"
+                                icon={<Sparkles aria-hidden />}
+                                value={textModel}
+                                options={textModels.map((model) => ({ value: model, label: modelDisplayName(config, model) || model }))}
+                                empty="无可用模型"
+                                onChange={(value) => { setTextModelChoice(value); writeLocal(TEXT_MODEL_KEY, value); }}
+                                placement="topRight"
+                            />
                             <button type="button" className="studio-icon-button studio-send-button" aria-label="发送" disabled={busy || uploading > 0 || (!draft.trim() && !pending.length)} onClick={() => void send()}>
                                 {busy ? <Loader2 className="studio-spin" aria-hidden /> : <ArrowUp aria-hidden />}
                             </button>

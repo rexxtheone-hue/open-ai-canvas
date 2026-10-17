@@ -24,6 +24,7 @@ import {
 import { StudioPosterCard } from "./studio-poster-card";
 import { STUDIO_QUICK_STARTS } from "./studio-quickstarts";
 import { StudioShell } from "./studio-shell";
+import { StudioSelect } from "./studio-select";
 import { useStudioToolCovers } from "./use-studio-tool-meta";
 import { useStudioBrandChoice } from "./use-studio-brand";
 
@@ -173,23 +174,19 @@ export default function StudioDirectorPage() {
                             }}
                         />
                         <div className="studio-composer-bar">
-                            <label className="studio-pill-select">
-                                <select aria-label="画面比例" value={ratio} onChange={(event) => setRatio(event.target.value)}>
-                                    {DIRECTOR_RATIOS.map((item) => <option key={item} value={item}>{item}</option>)}
-                                </select>
-                            </label>
-                            <label className="studio-pill-select">
-                                <select aria-label="成片时长" value={duration} onChange={(event) => setDuration(Number(event.target.value))}>
-                                    {DIRECTOR_DURATIONS.map((item) => <option key={item} value={item}>{item} 秒</option>)}
-                                </select>
-                            </label>
+                            <StudioSelect ariaLabel="画面比例" value={ratio} options={DIRECTOR_RATIOS.map((item) => ({ value: item, label: item }))} onChange={setRatio} placement="bottomLeft" />
+                            <StudioSelect ariaLabel="成片时长" value={String(duration)} options={DIRECTOR_DURATIONS.map((item) => ({ value: String(item), label: `${item} 秒` }))} onChange={(value) => setDuration(Number(value))} placement="bottomLeft" />
                             <span style={{ flex: 1 }} />
-                            <label className="studio-pill-select">
-                                <select aria-label="执行方式" value={runMode} onChange={(event) => setRunMode(event.target.value as DirectorRunMode)}>
-                                    <option value="guide">引导我</option>
-                                    <option value="auto">直接做</option>
-                                </select>
-                            </label>
+                            <StudioSelect
+                                ariaLabel="执行方式"
+                                value={runMode}
+                                options={[
+                                    { value: "guide", label: "引导我", hint: "每一步生成前先问你" },
+                                    { value: "auto", label: "直接做", hint: "写完分镜后自动生成成片" },
+                                ]}
+                                onChange={(value) => setRunMode(value as DirectorRunMode)}
+                                placement="bottomRight"
+                            />
                             <button type="button" className="studio-send-orb" aria-label="开始导演" disabled={!prompt.trim() || starting} onClick={startFromPrompt}><ArrowUp aria-hidden /></button>
                         </div>
                     </div>
@@ -275,13 +272,17 @@ export default function StudioDirectorPage() {
                                 }} />
                             ) : <p className="studio-hint">{charactersQuery.isLoading ? "正在读取…" : "角色库还是空的。需要固定形象的人物，可以先去角色库建好。"}</p>}
                         </div>
-                        <label className="studio-field">
+                        <div className="studio-field">
                             <span>品牌（可选）</span>
-                            <select className="studio-select" aria-label="品牌套件" value={brand.kit?.id || ""} onChange={(event) => brand.setChoice(event.target.value)}>
-                                <option value="">不使用品牌</option>
-                                {brand.kits.map((kit) => <option key={kit.id} value={kit.id}>{kit.name}{kit.isDefault ? "（默认）" : ""}</option>)}
-                            </select>
-                        </label>
+                            <StudioSelect
+                                className="studio-select"
+                                ariaLabel="品牌套件"
+                                value={brand.kit?.id || ""}
+                                options={[{ value: "", label: "不使用品牌" }, ...brand.kits.map((kit) => ({ value: kit.id, label: `${kit.name}${kit.isDefault ? "（默认）" : ""}` }))]}
+                                onChange={brand.setChoice}
+                                placement="bottomLeft"
+                            />
+                        </div>
                         <p className="studio-hint">{runMode === "auto" ? "直接做：写完分镜后自动生成画面、视频、配音并合成成片。" : "引导我：导演先写分镜给你确认，每一步生成前都会先问你。"}</p>
                     </div>
                 ) : null}

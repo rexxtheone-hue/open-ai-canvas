@@ -61,6 +61,7 @@ import {
 import { studioBlockReason, studioGenerationConfig, studioModelRequirements } from "./studio-generation";
 import { studioMediaSrc } from "./studio-library";
 import { StudioShell } from "./studio-shell";
+import { StudioSelect } from "./studio-select";
 import { uploadStudioFile } from "./use-studio-tool";
 import { notifyStudioWorksChanged } from "./use-studio-works";
 import { useStudioBrandKits, studioBrandContext } from "./use-studio-brand";
@@ -496,16 +497,22 @@ export default function StudioDirectorWorkspace() {
                             }}
                         />
                         <div className="studio-chat-bar">
-                            <select className="studio-chat-model" aria-label="导演模型" value={textModel} onChange={(event) => {
-                                setTextModelChoice(event.target.value);
-                                try {
-                                    window.localStorage.setItem(TEXT_MODEL_KEY, event.target.value);
-                                } catch {
-                                    // 浏览器存储不可用时只在本页生效。
-                                }
-                            }}>
-                                {textModels.length ? textModels.map((model) => <option key={model} value={model}>{modelDisplayName(config, model) || model}</option>) : <option value="">无可用模型</option>}
-                            </select>
+                            <StudioSelect
+                                className="studio-chat-model"
+                                ariaLabel="导演模型"
+                                value={textModel}
+                                options={textModels.map((model) => ({ value: model, label: modelDisplayName(config, model) || model }))}
+                                empty="无可用模型"
+                                onChange={(value) => {
+                                    setTextModelChoice(value);
+                                    try {
+                                        window.localStorage.setItem(TEXT_MODEL_KEY, value);
+                                    } catch {
+                                        // 浏览器存储不可用时只在本页生效。
+                                    }
+                                }}
+                                placement="topLeft"
+                            />
                             <span style={{ flex: 1 }} />
                             <button type="button" className="studio-icon-button studio-send-button" aria-label="发送" disabled={busy || !draft.trim()} onClick={() => void send()}>
                                 {busy ? <Loader2 className="studio-spin" aria-hidden /> : <ArrowUp aria-hidden />}
