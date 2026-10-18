@@ -151,6 +151,12 @@ type (
 	DiagnosticRuntime                      = app.DiagnosticRuntime
 	DrawingEngineSetting                   = app.DrawingEngineSetting
 	BillingCurrencySetting                 = app.BillingCurrencySetting
+	PartnerApplicationRequest              = app.PartnerApplicationRequest
+	PartnerReviewRequest                   = app.PartnerReviewRequest
+	AffiliatePayoutRequest                 = app.AffiliatePayoutRequest
+	AffiliateUpdateRequest                 = app.AffiliateUpdateRequest
+	AffiliatePayoutReview                  = app.AffiliatePayoutReview
+	AffiliateSetting                       = app.AffiliateSetting
 	EagleAddItemRequest                    = app.EagleAddItemRequest
 	EagleCreatedItem                       = app.EagleCreatedItem
 	EagleFile                              = app.EagleFile

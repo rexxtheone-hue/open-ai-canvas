@@ -383,7 +383,16 @@ function StudioProfileContent({ handle, guest }: { handle: string; guest: boolea
                 </div>
             </div>
             <div className="studio-profile-info">
-                <h1>{profile.name}</h1>
+                <h1>
+                    {profile.name}{" "}
+                    {profile.creatorVerified ? (
+                        <span className="studio-verified-badge" title="平台审核通过的认证创作者">
+                            <UserCheck aria-hidden />
+                            认证创作者
+                        </span>
+                    ) : null}{" "}
+                    {profile.merchantVerified ? <span className="studio-verified-badge">商家</span> : null}
+                </h1>
                 <p className="studio-profile-handle">@{profile.handle}</p>
                 {profile.bio ? <p className="studio-profile-bio">{profile.bio}</p> : profile.mine ? <p className="studio-hint">还没有简介。点「编辑主页」介绍一下你自己，商家更容易找到你。</p> : null}
                 <div className="studio-profile-facts">

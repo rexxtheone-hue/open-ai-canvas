@@ -135,9 +135,10 @@ type StudioCreatorQuery struct {
 	Specialty string
 	Location  string
 	// Sort：popular（默认，按获赞）、followers、works、latest（最近发布）。
-	Sort   string
-	Offset int
-	Limit  int
+	Sort     string
+	Verified bool
+	Offset   int
+	Limit    int
 }
 
 type StudioCreatorRow struct {
@@ -169,6 +170,9 @@ func (r *Repository) StudioCreators(query StudioCreatorQuery) ([]StudioCreatorRo
 	if location := strings.ToLower(strings.TrimSpace(query.Location)); location != "" {
 		db = db.Where("LOWER(p.location) LIKE ? ESCAPE '\\'", "%"+escapeLike(location)+"%")
 	}
+	if query.Verified {
+		db = db.Where("p.creator_verified_at IS NOT NULL")
+	}
 	switch query.Sort {
 	case "followers":
 		db = db.Order("followers desc, likes desc, p.user_id")
@@ -177,7 +181,7 @@ func (r *Repository) StudioCreators(query StudioCreatorQuery) ([]StudioCreatorRo
 	case "latest":
 		db = db.Order("MAX(sp.created_at) desc, p.user_id")
 	default:
-		db = db.Order("likes desc, followers desc, works desc, p.user_id")
+		db = db.Order("CASE WHEN p.creator_verified_at IS NULL THEN 1 ELSE 0 END, likes desc, followers desc, works desc, p.user_id")
 	}
 	var rows []StudioCreatorRow
 	if err := db.Offset(max(query.Offset, 0)).Limit(limit + 1).Scan(&rows).Error; err != nil {

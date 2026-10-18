@@ -309,8 +309,11 @@ type StudioProfile struct {
 	LinksJSON        string `gorm:"type:text"`
 	AvatarResourceID string `gorm:"size:64"`
 	CoverResourceID  string `gorm:"size:64"`
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	// 审核通过后写入；撤销认证时清空。
+	CreatorVerifiedAt  *time.Time `gorm:"index"`
+	MerchantVerifiedAt *time.Time
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 type StudioFollow struct {

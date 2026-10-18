@@ -2,8 +2,9 @@ import type { ModelChannel } from "@/stores/use-config-store";
 import type { BillingOrder, CreditLedgerEntry } from "@/services/api/wallet";
 import type { GenerationTask, TaskStatus } from "@/services/api/task-center";
 import type { CanvasDrawingEngineSetting } from "@/lib/canvas/canvas-drawing-engine";
-import type { FeatureAvailability } from "@/stores/use-user-store";
+import type { FeatureAvailability, UserRole } from "@/stores/use-user-store";
 import { http, apiBaseURL } from "@/services/api/request";
+import { readReferralCode } from "@/lib/referral";
 import type { OSSConnectionTestInput, OSSConnectionTestResult, OSSProvider, S3Preset } from "@/lib/oss-settings";
 import type { VerificationPolicy } from "./verification";
 
@@ -28,7 +29,7 @@ export type LocalUser = {
     identityProvider?: string;
     identityId?: string;
     identityUsername?: string;
-    role: "admin" | "user";
+    role: UserRole;
     status: "active" | "disabled";
     lastLoginAt?: string;
     createdAt: string;
@@ -45,6 +46,7 @@ export type AuthSessionPayload = {
     runtimeLimits?: RuntimeLimits;
     drawingEngine?: CanvasDrawingEngineSetting;
     features?: FeatureAvailability;
+    adminAccess?: string[];
 };
 
 export type RuntimeLimits = {
@@ -468,7 +470,7 @@ export function resetPassword(input: { email: string; emailCode: string; passwor
 }
 
 export async function register(input: { username: string; email?: string; emailCode?: string; phone?: string; smsCode?: string; ticket?: string; displayName?: string; password: string; acceptedTerms: boolean }) {
-    const result = await http.post<{ user: LocalUser }>("/auth/register", input);
+    const result = await http.post<{ user: LocalUser }>("/auth/register", { ...input, referralCode: readReferralCode() });
     invalidateAuthSessionCache();
     return result;
 }

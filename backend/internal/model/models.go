@@ -51,6 +51,10 @@ const (
 
 	UserRoleAdmin UserRole = "admin"
 	UserRoleUser  UserRole = "user"
+	// 后台员工角色：只能访问各自白名单内的管理接口，永远不能管理账号角色。
+	UserRoleOperator UserRole = "operator"
+	UserRoleSupport  UserRole = "support"
+	UserRoleFinance  UserRole = "finance"
 
 	UserStatusActive   UserStatus = "active"
 	UserStatusDisabled UserStatus = "disabled"
@@ -121,6 +125,7 @@ const (
 	CreditLedgerSignupBonus  CreditLedgerType = "signup_bonus"
 	CreditLedgerCheckinBonus CreditLedgerType = "checkin_bonus"
 	CreditLedgerPaymentTopup CreditLedgerType = "payment_topup"
+	CreditLedgerAffiliate    CreditLedgerType = "affiliate_commission"
 
 	RedeemCodeUnused   RedeemCodeStatus = "unused"
 	RedeemCodeRedeemed RedeemCodeStatus = "redeemed"

@@ -525,6 +525,9 @@ func (s *Service) applyPaymentResult(providerID string, result payment.Result) (
 			ProviderTradeNo: result.ProviderTradeNo, ProviderStatus: result.ProviderStatus,
 			AmountFen: result.AmountFen, Currency: result.Currency, PaidAt: result.PaidAt,
 		})
+		if err == nil {
+			s.recordAffiliateCommission(completed)
+		}
 		return completed, err
 	}
 	if result.Closed {

@@ -39,6 +39,7 @@ type RegisterRequest struct {
 	DisplayName   string       `json:"displayName"`
 	Password      string       `json:"password"`
 	AcceptedTerms bool         `json:"acceptedTerms"`
+	ReferralCode  string       `json:"referralCode"`
 }
 
 type LoginRequest struct {
@@ -249,6 +250,7 @@ func (s *Service) Register(req RegisterRequest) (*AuthSessionResult, error) {
 	if err := s.host.EnsureSignupBonus(user.ID); err != nil {
 		return nil, err
 	}
+	s.host.AttachReferral(user.ID, req.ReferralCode)
 	event := NewLoginLog("password", "registration", req.LoginContext)
 	result, err := s.createAuthSession(&user, event)
 	if err != nil {

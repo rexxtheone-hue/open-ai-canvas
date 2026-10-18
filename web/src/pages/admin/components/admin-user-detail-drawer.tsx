@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { userRoleLabel } from "@/stores/use-user-store";
 import { App, Button, Descriptions, Progress, Skeleton, Tabs } from "antd";
 import { AdminDrawer } from "@/pages/admin/ui/overlays";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -119,7 +120,7 @@ export function AdminUserDetailDrawer({ userId, onClose, previousUserId, nextUse
                                         items={[
                                             { key: "username", label: "用户名", children: `@${detail.user.username}` },
                                             { key: "email", label: "邮箱", children: detail.user.email || "未填写" },
-                                            { key: "role", label: "角色", children: detail.user.role === "admin" ? "管理员" : "普通用户" },
+                                            { key: "role", label: "角色", children: userRoleLabel(detail.user.role) },
                                             { key: "status", label: "状态", children: <AdminStatusBadge label={detail.user.status === "active" ? "启用" : "停用"} tone={detail.user.status === "active" ? "success" : "neutral"} /> },
                                             { key: "available", label: "可用积分", children: formatCredits(detail.account.availableMicrocredits) },
                                             { key: "recharge", label: "累计充值积分", children: formatCredits(detail.counts.rechargeMicrocredits) },

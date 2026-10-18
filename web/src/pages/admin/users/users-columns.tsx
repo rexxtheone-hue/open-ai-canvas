@@ -1,4 +1,5 @@
 import type { ColumnsType } from "antd/es/table";
+import { userRoleLabel } from "@/stores/use-user-store";
 import { Eye, Pencil, Power } from "lucide-react";
 
 import { formatCredits } from "@/constant/credits";
@@ -52,7 +53,7 @@ export function createUserColumns({
             align: "center",
             render: (value, user) => <span className="tabular-nums" title={`冻结积分：${formatCredits(user.reservedMicrocredits)}`}>{formatCredits(value)}</span>,
         },
-        { key: "role", title: "角色", dataIndex: "role", width: 110, align: "center", render: (role) => <AdminStatusBadge label={role === "admin" ? "管理员" : "普通用户"} tone={role === "admin" ? "info" : "neutral"} /> },
+        { key: "role", title: "角色", dataIndex: "role", width: 110, align: "center", render: (role) => <AdminStatusBadge label={userRoleLabel(role)} tone={role === "admin" ? "info" : role === "user" ? "neutral" : "warning"} /> },
         { key: "status", title: "状态", dataIndex: "status", width: 110, align: "center", render: (status) => <AdminStatusBadge label={status === "active" ? "已启用" : "已停用"} tone={status === "active" ? "success" : "neutral"} /> },
         { key: "createdAt", title: "注册时间", dataIndex: "createdAt", width: 112, align: "center", render: (value) => <span className="tabular-nums" title={formatTime(value)}>{formatCompactTime(value)}</span> },
         {

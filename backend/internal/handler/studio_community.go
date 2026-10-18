@@ -126,7 +126,7 @@ func RegisterStudioCommunityRoutes(r *gin.RouterGroup, svc *service.Service) {
 	})
 	r.GET("/studio/creators", func(c *gin.Context) {
 		page, err := svc.StudioCreators(viewerID(c), service.StudioCreatorQuery{
-			Search: c.Query("q"), Specialty: c.Query("specialty"), Location: c.Query("location"), Sort: c.Query("sort"),
+			Search: c.Query("q"), Specialty: c.Query("specialty"), Location: c.Query("location"), Sort: c.Query("sort"), Verified: c.Query("verified") == "1",
 			Offset: queryInt(c, "offset"), Limit: queryInt(c, "pageSize"),
 		})
 		if err != nil {

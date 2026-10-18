@@ -34,6 +34,7 @@ type VerificationConfirm struct {
 	Ticket       string       `json:"ticket"`
 	EmailCode    string       `json:"emailCode"`
 	SMSCode      string       `json:"smsCode"`
+	ReferralCode string       `json:"referralCode"`
 }
 
 func (s *Service) verificationHash(value string) (string, error) {
@@ -322,6 +323,7 @@ func (s *Service) LoginVerification(req VerificationConfirm) (result *AuthSessio
 	if err := s.host.EnsureSignupBonus(user.ID); err != nil {
 		return nil, err
 	}
+	s.host.AttachReferral(user.ID, req.ReferralCode)
 	event.Method = v.Method
 	return s.createAuthSession(user, event)
 }

@@ -191,7 +191,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 			failService(c, err)
 			return
 		}
-		ok(c, gin.H{"user": publicUser, "runtimeLimits": limits, "drawingEngine": drawingEngine, "features": features})
+		ok(c, gin.H{"user": publicUser, "runtimeLimits": limits, "drawingEngine": drawingEngine, "features": features, "adminAccess": service.StaffNavigation(user.Role)})
 	})
 	r.GET("/channels/system", func(c *gin.Context) {
 		actor, err := currentUser(c, svc)
@@ -592,7 +592,11 @@ func readPayloadModel(body []byte) string {
 }
 
 func currentUser(c *gin.Context, svc *service.Service) (*model.User, error) {
-	return svc.CurrentUser(sessionCookie(c))
+	user, err := svc.CurrentUser(sessionCookie(c))
+	if err != nil {
+		return nil, err
+	}
+	return service.ElevateStaffForRoute(user, c.Request.Method, c.FullPath()), nil
 }
 
 func sessionCookie(c *gin.Context) string {

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
-import { ChatFill, ChevronDown, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, LayoutTemplate, MessageSquareText, Palette, PanelLeft, Pin, UserPen, UserRound, Users, Wand2, Waypoints } from "./studio-icons";
+import { ChatFill, ChevronDown, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, LayoutTemplate, Megaphone, MessageSquareText, Palette, PanelLeft, Pin, UserPen, UserRound, Users, Wand2, Waypoints } from "./studio-icons";
 
 import "@fontsource-variable/space-grotesk/index.css";
 
@@ -179,6 +179,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                                 {link("/studio/creators", "创作者", Users)}
                                 {link("/studio/profile", "我的主页", UserPen)}
                                 {link("/studio/pricing", "会员", Crown)}
+                                {link("/studio/partner", "认证与推广", Megaphone)}
                             </div>
                         ))}
                         {section("pinned", "已固定工具", (

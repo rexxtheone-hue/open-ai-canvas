@@ -67,6 +67,9 @@ const StudioProfilePage = lazy(() => import("@/pages/studio/studio-profile").the
 const StudioMyProfileRedirect = lazy(() => import("@/pages/studio/studio-profile").then((module) => ({ default: module.StudioMyProfileRedirect })));
 const StudioPublicProfilePage = lazy(() => import("@/pages/studio/studio-profile").then((module) => ({ default: module.StudioPublicProfilePage })));
 const StudioPricingPage = lazy(() => import("@/pages/studio/studio-pricing"));
+const StudioPartnerPage = lazy(() => import("@/pages/studio/studio-partner"));
+const AdminPartnersPage = lazy(() => import("@/pages/admin/partners/partners-page"));
+const AdminAffiliatesPage = lazy(() => import("@/pages/admin/partners/affiliates-page"));
 const StudioHelpPage = lazy(() => import("@/pages/studio/studio-help-pages").then((module) => ({ default: module.StudioHelpPage })));
 const StudioTermsPage = lazy(() => import("@/pages/studio/studio-help-pages").then((module) => ({ default: module.StudioTermsPage })));
 const StudioAdminPage = lazy(() => import("@/pages/admin/studio/studio-admin-page"));
@@ -160,6 +163,7 @@ export const router = createBrowserRouter([
             { path: "/studio/profile", element: <RequireAuth>{deferred(<StudioMyProfileRedirect />)}</RequireAuth> },
             { path: "/studio/u/:handle", element: <RequireAuth>{deferred(<StudioProfilePage />)}</RequireAuth> },
             { path: "/studio/pricing", element: <RequireAuth>{deferred(<StudioPricingPage />)}</RequireAuth> },
+            { path: "/studio/partner", element: <RequireAuth>{deferred(<StudioPartnerPage />)}</RequireAuth> },
             { path: "/studio/help", element: <RequireAuth>{deferred(<StudioHelpPage />)}</RequireAuth> },
             { path: "/studio/terms", element: <RequireAuth>{deferred(<StudioTermsPage />)}</RequireAuth> },
             { path: "/studio/create-image", element: <RequireAuth>{deferred(<StudioToolPage key="create-image" toolId="create-image" />)}</RequireAuth> },
@@ -271,6 +275,8 @@ export const router = createBrowserRouter([
                 children: [
                     { index: true, element: <AnalyticsPage /> },
                     { path: "users", element: <UsersPage /> },
+                    { path: "partners", element: <AdminPartnersPage /> },
+                    { path: "affiliates", element: <AdminAffiliatesPage /> },
                     { path: "login-logs", element: <LoginLogsPage /> },
                     { path: "channels", element: <ChannelsPage /> },
                     {

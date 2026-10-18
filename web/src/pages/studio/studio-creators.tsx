@@ -48,6 +48,7 @@ export default function StudioCreatorsPage() {
     const location = useDebouncedValue(locationText.trim(), 300);
     const [specialty, setSpecialty] = useState("");
     const [sort, setSort] = useState<Sort>("popular");
+    const [verifiedOnly, setVerifiedOnly] = useState(false);
     const [creators, setCreators] = useState<StudioCreatorCard[]>([]);
     const [nextOffset, setNextOffset] = useState<number | undefined>();
     const [loading, setLoading] = useState(true);
@@ -63,7 +64,7 @@ export default function StudioCreatorsPage() {
             else setLoading(true);
             setError("");
             try {
-                const page = await listStudioCreators({ q, specialty, location, sort, offset });
+                const page = await listStudioCreators({ q, specialty, location, sort, verified: verifiedOnly, offset });
                 if (request !== requestRef.current) return;
                 setCreators((current) => (offset ? [...current, ...page.creators.filter((item) => !current.some((existing) => existing.handle === item.handle))] : page.creators));
                 setNextOffset(page.nextOffset);
@@ -76,7 +77,7 @@ export default function StudioCreatorsPage() {
                 }
             }
         },
-        [location, q, sort, specialty],
+        [location, q, sort, specialty, verifiedOnly],
     );
 
     useEffect(() => {
@@ -126,6 +127,10 @@ export default function StudioCreatorsPage() {
                             <MapPin aria-hidden />
                             <input value={locationText} placeholder="所在地" aria-label="按所在地筛选" onChange={(event) => setLocationText(event.target.value)} />
                         </label>
+                        <button type="button" className={`studio-chip-button${verifiedOnly ? " is-active" : ""}`} aria-pressed={verifiedOnly} onClick={() => setVerifiedOnly((value) => !value)}>
+                            <UserCheck aria-hidden />
+                            只看认证
+                        </button>
                         <StudioSelect className="studio-select-chip" placement="bottomRight" value={sort} onChange={(value) => setSort(value as Sort)} options={SORTS} ariaLabel="排序" />
                     </div>
                 </div>
@@ -157,7 +162,15 @@ export default function StudioCreatorsPage() {
                                         <div className="studio-creator-who">
                                             <StudioCreatorAvatar name={creator.name} url={creator.avatarUrl} size={44} />
                                             <div>
-                                                <strong>{creator.name}</strong>
+                                                <strong>
+                                                    {creator.name}{" "}
+                                                    {creator.verified ? (
+                                                        <span className="studio-verified-badge" title="认证创作者">
+                                                            <UserCheck aria-hidden />
+                                                            认证
+                                                        </span>
+                                                    ) : null}
+                                                </strong>
                                                 <span>@{creator.handle}</span>
                                             </div>
                                         </div>

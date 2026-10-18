@@ -2,10 +2,12 @@ import "@/lib/random-uuid-polyfill";
 import "@fontsource-variable/inter";
 import "@fontsource-variable/jetbrains-mono";
 import { installChunkRecovery } from "@/lib/chunk-recovery";
+import { captureReferralFromUrl } from "@/lib/referral";
 import { bootstrapAppearance } from "@/services/appearance-bootstrap";
 import { isIsolatedPrevisRepro } from "@/lib/dev-repro";
 
 installChunkRecovery();
+captureReferralFromUrl();
 
 // The public film entry checks its availability independently of workspace bootstrap.
 if (/^\/welcome\/?$/.test(window.location.pathname)) {

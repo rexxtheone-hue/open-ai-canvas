@@ -10,6 +10,8 @@ var (
 	ApplyDefaultOutboundHeaders                = app.ApplyDefaultOutboundHeaders
 	ApplyOutboundHeaders                       = app.ApplyOutboundHeaders
 	BadAuthRequest                             = app.BadAuthRequest
+	ElevateStaffForRoute                       = app.ElevateStaffForRoute
+	StaffNavigation                            = app.StaffNavigation
 	CapabilitySpecFromModelCapabilityConfig    = app.CapabilitySpecFromModelCapabilityConfig
 	ChannelAPIURL                              = app.ChannelAPIURL
 	ChannelAPIURLForProtocol                   = app.ChannelAPIURLForProtocol

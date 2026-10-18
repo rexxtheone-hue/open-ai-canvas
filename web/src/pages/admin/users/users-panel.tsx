@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PaginationBar } from "@/pages/admin/components/admin-ui";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { bulkDisableAdminUsers, deleteAdminUser, listAdminUsers, updateAdminUser, type AdminUser, type LocalUser } from "@/services/api/auth";
-import { useUserStore } from "@/stores/use-user-store";
+import { userRoleOptions, useUserStore } from "@/stores/use-user-store";
 import { AdminBatchBar, AdminDataTable, AdminTableEmpty } from "../components/admin-ui";
 import { useTableUrlState } from "../lib/use-table-url-state";
 import { AdminUserDetailDrawer } from "../components/admin-user-detail-drawer";
@@ -169,7 +169,7 @@ export default function UsersPanel({ onUserChanged }: { onUserChanged?: (user: L
                             aria-label="筛选用户角色"
                             className="w-32"
                             value={state.role}
-                            options={[{ value: "all", label: "全部角色" }, { value: "admin", label: "管理员" }, { value: "user", label: "普通用户" }]}
+                            options={[{ value: "all", label: "全部角色" }, ...userRoleOptions]}
                             onChange={(role) => update({ role, page: 1 })}
                         />
                         <Select

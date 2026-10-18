@@ -14,11 +14,14 @@ type User struct {
 	AvatarPreset    string     `json:"avatarPreset,omitempty" gorm:"size:16"`
 	AvatarVersion   string     `json:"-" gorm:"size:36"`
 	Role            UserRole   `json:"role" gorm:"index;size:24"`
-	Status          UserStatus `json:"status" gorm:"index;size:24"`
-	PasswordHash    string     `json:"-"`
-	LastLoginAt     *time.Time `json:"lastLoginAt"`
-	CreatedAt       time.Time  `json:"createdAt"`
-	UpdatedAt       time.Time  `json:"updatedAt"`
+	// StaffRole 只存在于单次请求内：员工访问其白名单内的管理接口时 Role 被临时提升为 admin，
+	// 这里保留原角色，供只允许超级管理员的操作拒绝。
+	StaffRole    UserRole   `json:"-" gorm:"-"`
+	Status       UserStatus `json:"status" gorm:"index;size:24"`
+	PasswordHash string     `json:"-"`
+	LastLoginAt  *time.Time `json:"lastLoginAt"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
 }
 
 type AuthSession struct {

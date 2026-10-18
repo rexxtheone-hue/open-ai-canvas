@@ -3,6 +3,7 @@ import type { MenuProps } from "antd";
 import {
     Activity,
     ArrowLeft,
+    BadgeCheck,
     BarChart3,
     BellRing,
     ChevronDown,
@@ -30,6 +31,7 @@ import {
     Rows3,
     Sparkles,
     Settings2,
+    Share2,
     ShieldAlert,
     ShieldCheck,
     Sun,
@@ -39,14 +41,14 @@ import {
     UsersRound,
 } from "lucide-react";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router";
+import { Link, Navigate, NavLink, Outlet, useLocation } from "react-router";
 
 import { AppChangelogButton } from "@/components/layout/app-changelog-modal";
 import { BrandLogoFrame } from "@/components/brand/brand-logo";
 import { publishWorkspaceSidebarCollapsed, readWorkspaceSidebarCollapsed, subscribeWorkspaceSidebarCollapsed } from "@/components/layout/workspace-sidebar-state";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/stores/use-theme-store";
-import { useUserStore } from "@/stores/use-user-store";
+import { isStaffRole, useUserStore, type StaffRole } from "@/stores/use-user-store";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
 import { getIsolatedAdminAntTheme } from "../theme/admin-ant-theme";
 import { AdminTooltip } from "../ui/controls";
@@ -61,14 +63,16 @@ type AdminNavigationItem = {
     description: string;
     icon: ReactNode;
     requireFeature?: "frontendModelsEnabled";
+    /** 可见的员工角色；未列出时仅超级管理员可见。与后端 staffPermissions 保持一致。 */
+    staff?: StaffRole[];
 };
 
 const adminNavigation: Array<{ label: string; items: AdminNavigationItem[] }> = [
     {
         label: "监控与排查",
         items: [
-            { path: "/admin", label: "运行总览", description: "请求质量、队列与成本趋势", icon: <BarChart3 className="size-4" /> },
-            { path: "/admin/logs", label: "请求明细", description: "上游调用与费用", icon: <FileClock className="size-4" /> },
+            { path: "/admin", label: "运行总览", description: "请求质量、队列与成本趋势", icon: <BarChart3 className="size-4" />, staff: ["finance"] },
+            { path: "/admin/logs", label: "请求明细", description: "上游调用与费用", icon: <FileClock className="size-4" />, staff: ["support"] },
             { path: "/admin/settings/system-performance", label: "系统性能", description: "主机、数据库与缓存状态", icon: <Activity className="size-4" /> },
         ],
     },
@@ -78,33 +82,35 @@ const adminNavigation: Array<{ label: string; items: AdminNavigationItem[] }> = 
             { path: "/admin/channels", label: "系统渠道", description: "渠道、模型与售价", icon: <RadioTower className="size-4" /> },
             { path: "/admin/models", label: "前台模型", description: "展示、线路与用户价格", icon: <Layers3 className="size-4" />, requireFeature: "frontendModelsEnabled" },
             { path: "/admin/prompt-templates", label: "提示词模板", description: "平台创作策略版本", icon: <MessageSquareText className="size-4" /> },
-            { path: "/admin/workbench-tools", label: "工作台工具", description: "生图/视频工具与预设", icon: <WandSparkles className="size-4" /> },
+            { path: "/admin/workbench-tools", label: "工作台工具", description: "生图/视频工具与预设", icon: <WandSparkles className="size-4" />, staff: ["operator"] },
             { path: "/admin/resources", label: "存储资源", description: "资源列表、容量与预览", icon: <Database className="size-4" /> },
         ],
     },
     {
         label: "用户与运营",
         items: [
-            { path: "/admin/users", label: "用户管理", description: "账号、角色与状态", icon: <UsersRound className="size-4" /> },
-            { path: "/admin/login-logs", label: "用户登录日志", description: "登录、失败与主动退出", icon: <FileClock className="size-4" /> },
-            { path: "/admin/announcements", label: "系统公告", description: "发布、关闭与历史公告", icon: <BellRing className="size-4" /> },
-            { path: "/admin/banner-announcements", label: "常驻通知", description: "首页顶部常驻滚动通知", icon: <Megaphone className="size-4" /> },
-            { path: "/admin/agent-lessons", label: "Agent 记忆", description: "按用户查看个人记忆", icon: <Sparkles className="size-4" /> },
-            { path: "/admin/payments", label: "支付充值", description: "支付渠道、订单与对账", icon: <CreditCard className="size-4" /> },
-            { path: "/admin/studio", label: "AI Studio", description: "会员套餐与灵感社区", icon: <Sparkles className="size-4" /> },
-            { path: "/admin/credit-operations", label: "积分运营", description: "人工调账与异常计费", icon: <Coins className="size-4" /> },
-            { path: "/admin/redemption-codes", label: "兑换码", description: "生成与查看兑换码批次", icon: <TicketCheck className="size-4" /> },
+            { path: "/admin/users", label: "用户管理", description: "账号、角色与状态", icon: <UsersRound className="size-4" />, staff: ["operator", "support", "finance"] },
+            { path: "/admin/partners", label: "认证审核", description: "认证创作者、商家与推广者", icon: <BadgeCheck className="size-4" />, staff: ["operator", "support"] },
+            { path: "/admin/affiliates", label: "推广分佣", description: "推广者、佣金与提现", icon: <Share2 className="size-4" />, staff: ["finance", "operator"] },
+            { path: "/admin/login-logs", label: "用户登录日志", description: "登录、失败与主动退出", icon: <FileClock className="size-4" />, staff: ["support"] },
+            { path: "/admin/announcements", label: "系统公告", description: "发布、关闭与历史公告", icon: <BellRing className="size-4" />, staff: ["operator"] },
+            { path: "/admin/banner-announcements", label: "常驻通知", description: "首页顶部常驻滚动通知", icon: <Megaphone className="size-4" />, staff: ["operator"] },
+            { path: "/admin/agent-lessons", label: "Agent 记忆", description: "按用户查看个人记忆", icon: <Sparkles className="size-4" />, staff: ["operator"] },
+            { path: "/admin/payments", label: "支付充值", description: "支付渠道、订单与对账", icon: <CreditCard className="size-4" />, staff: ["support", "finance"] },
+            { path: "/admin/studio", label: "AI Studio", description: "会员套餐与灵感社区", icon: <Sparkles className="size-4" />, staff: ["operator"] },
+            { path: "/admin/credit-operations", label: "积分运营", description: "人工调账与异常计费", icon: <Coins className="size-4" />, staff: ["support"] },
+            { path: "/admin/redemption-codes", label: "兑换码", description: "生成与查看兑换码批次", icon: <TicketCheck className="size-4" />, staff: ["finance", "support"] },
         ],
     },
     {
         label: "平台配置",
         items: [
             { path: "/admin/plugins", label: "插件管理", description: "平台可用性、上传与卸载", icon: <PlugZap className="size-4" /> },
-            { path: "/admin/skill-curation", label: "技能分类", description: "平台策展与分类维护", icon: <PlugZap className="size-4" /> },
+            { path: "/admin/skill-curation", label: "技能分类", description: "平台策展与分类维护", icon: <PlugZap className="size-4" />, staff: ["operator"] },
             { path: "/admin/settings/appearance", label: "站点及外观", description: "品牌、SEO、备案与皮肤", icon: <Palette className="size-4" /> },
             { path: "/admin/settings/features", label: "功能开放", description: "工作台、插件与模型能力", icon: <ToggleLeft className="size-4" /> },
             { path: "/admin/settings/drawing-engine", label: "绘图工具", description: "画布绘图节点默认引擎", icon: <Paintbrush className="size-4" /> },
-            { path: "/admin/settings/billing-currency", label: "币种与汇率", description: "积分面值与成本汇率", icon: <Coins className="size-4" /> },
+            { path: "/admin/settings/billing-currency", label: "币种与汇率", description: "积分面值与成本汇率", icon: <Coins className="size-4" />, staff: ["finance"] },
             { path: "/admin/settings/runtime-policy", label: "资源与策略", description: "配额、并发、频控与超时", icon: <Settings2 className="size-4" /> },
             { path: "/admin/settings/access", label: "登录与注册", description: "账号创建与第三方登录", icon: <ShieldCheck className="size-4" /> },
             { path: "/admin/settings/email", label: "邮件服务", description: "注册验证码与 SMTP", icon: <Mail className="size-4" /> },
@@ -116,6 +122,13 @@ const adminNavigation: Array<{ label: string; items: AdminNavigationItem[] }> = 
         ],
     },
 ];
+
+// 菜单可见性：功能开关 + 员工角色白名单。
+function useAdminItemVisible() {
+    const features = useUserStore((state) => state.features);
+    const role = useUserStore((state) => state.user?.role);
+    return (item: AdminNavigationItem) => (!item.requireFeature || features[item.requireFeature]) && (role === "admin" || (isStaffRole(role) && Boolean(item.staff?.includes(role))));
+}
 
 function isAdminNavigationPath(pathname: string, navigationPath: string) {
     if (navigationPath === "/admin") {
@@ -200,6 +213,7 @@ function AdminShellLayout() {
                     </aside>
                     <section className="flex min-w-0 flex-1 flex-col overflow-hidden">
                         <MobileAdminNavigation />
+                        <StaffRouteGuard />
                         <Suspense
                             fallback={
                                 <div className="p-8 text-sm" role="status">
@@ -260,6 +274,17 @@ export function AdminPageFrame({ title, description, actions, back, scroll = fal
     );
 }
 
+// 员工进入不在白名单内的页面（包括默认首页）时跳到第一个可用入口。
+function StaffRouteGuard() {
+    const role = useUserStore((state) => state.user?.role);
+    const visible = useAdminItemVisible();
+    const location = useLocation();
+    if (!isStaffRole(role)) return null;
+    const items = adminNavigation.flatMap((group) => group.items).filter(visible);
+    if (items.some((item) => isAdminNavigationPath(location.pathname, item.path))) return null;
+    return items[0] ? <Navigate to={items[0].path} replace /> : null;
+}
+
 function AdminDensityButton() {
     const { density, toggleDensity } = useAdminDensity();
     return (
@@ -287,9 +312,9 @@ function AdminThemeButton() {
 }
 
 function MobileAdminNavigation() {
-    const features = useUserStore((state) => state.features);
+    const visible = useAdminItemVisible();
     const location = useLocation();
-    const visibleGroups = adminNavigation.map((group) => ({ ...group, items: group.items.filter((item) => !item.requireFeature || features[item.requireFeature]) })).filter((group) => group.items.length > 0);
+    const visibleGroups = adminNavigation.map((group) => ({ ...group, items: group.items.filter(visible) })).filter((group) => group.items.length > 0);
     const visibleItems = visibleGroups.flatMap((group) => group.items);
     const currentItem = visibleItems.find((item) => item.path === location.pathname) || visibleItems[0];
     const menuItems: MenuProps["items"] = visibleGroups.map((group) => ({
@@ -332,12 +357,12 @@ function MobileAdminNavigation() {
 }
 
 function AdminNavigation({ collapsed }: { collapsed: boolean }) {
-    const features = useUserStore((state) => state.features);
+    const visible = useAdminItemVisible();
 
     return (
         <nav className="admin-sidebar-nav thin-scrollbar flex-1 overflow-y-auto" aria-label="管理后台菜单">
             {adminNavigation.map((group) => {
-                const visibleItems = group.items.filter((item) => !item.requireFeature || features[item.requireFeature]);
+                const visibleItems = group.items.filter(visible);
                 if (visibleItems.length === 0) return null;
 
                 return (

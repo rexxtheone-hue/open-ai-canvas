@@ -83,6 +83,10 @@ func (h authHost) BrandName() string {
 	return h.svc.appearanceBrandName()
 }
 
+func (h authHost) AttachReferral(userID, code string) {
+	h.svc.AttachReferral(userID, code)
+}
+
 func (h authHost) EnsureSignupBonus(userID string) error {
 	if h.svc == nil {
 		return nil

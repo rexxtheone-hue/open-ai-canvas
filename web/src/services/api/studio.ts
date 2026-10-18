@@ -237,6 +237,8 @@ export type StudioProfile = {
     stats: { works: number; likes: number; remixes: number; followers: number; following: number };
     mine: boolean;
     following: boolean;
+    creatorVerified?: boolean;
+    merchantVerified?: boolean;
     joinedAt: string;
 };
 
@@ -277,6 +279,7 @@ export type StudioCreatorCard = {
     stats: { works: number; likes: number; followers: number };
     mine: boolean;
     following: boolean;
+    verified?: boolean;
     previews: StudioPostMedia[];
 };
 
@@ -285,6 +288,7 @@ export type StudioCreatorQuery = {
     specialty?: string;
     location?: string;
     sort?: "popular" | "followers" | "works" | "latest";
+    verified?: boolean;
     offset?: number;
 };
 
@@ -295,6 +299,7 @@ export function listStudioCreators(query: StudioCreatorQuery = {}, signal?: Abor
             specialty: query.specialty || undefined,
             location: query.location?.trim() || undefined,
             sort: query.sort,
+            verified: query.verified ? 1 : undefined,
             offset: query.offset || undefined,
             pageSize: 24,
         },

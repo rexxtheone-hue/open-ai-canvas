@@ -100,7 +100,7 @@ func (s *Service) AdminReferences(actor *model.User) (*AdminReferenceData, error
 }
 
 func (s *Service) CreateAdminUser(actor *model.User, req CreateAdminUserRequest) (*AdminUser, error) {
-	if err := s.RequireAdmin(actor); err != nil {
+	if err := s.requireSuperAdmin(actor); err != nil {
 		return nil, err
 	}
 	username := normalizeUsername(req.Username)
@@ -117,7 +117,7 @@ func (s *Service) CreateAdminUser(actor *model.User, req CreateAdminUserRequest)
 			return nil, err
 		}
 	}
-	if req.Role != model.UserRoleAdmin && req.Role != model.UserRoleUser {
+	if !validUserRole(req.Role) {
 		return nil, BadAuthRequest("\u7528\u6237\u89d2\u8272\u65e0\u6548")
 	}
 	if req.Status != model.UserStatusActive && req.Status != model.UserStatusDisabled {
@@ -172,7 +172,7 @@ func (s *Service) CreateAdminUser(actor *model.User, req CreateAdminUserRequest)
 }
 
 func (s *Service) UpdateUser(actor *model.User, userID string, req UpdateUserRequest) (*model.User, error) {
-	if err := s.RequireAdmin(actor); err != nil {
+	if err := s.requireSuperAdmin(actor); err != nil {
 		return nil, err
 	}
 	user, err := s.repo.User(userID)
@@ -183,7 +183,10 @@ func (s *Service) UpdateUser(actor *model.User, userID string, req UpdateUserReq
 		return nil, BadAuthRequest("不能禁用当前管理员账号")
 	}
 	nextRole := user.Role
-	if req.Role == model.UserRoleAdmin || req.Role == model.UserRoleUser {
+	if req.Role != "" {
+		if !validUserRole(req.Role) {
+			return nil, BadAuthRequest("用户角色无效")
+		}
 		nextRole = req.Role
 	}
 	nextStatus := user.Status
@@ -256,7 +259,7 @@ func (s *Service) UpdateUser(actor *model.User, userID string, req UpdateUserReq
 }
 
 func (s *Service) DeleteUser(actor *model.User, userID string) error {
-	if err := s.RequireAdmin(actor); err != nil {
+	if err := s.requireSuperAdmin(actor); err != nil {
 		return err
 	}
 	if actor.ID == userID {
@@ -291,7 +294,7 @@ func (s *Service) DeleteUser(actor *model.User, userID string) error {
 }
 
 func (s *Service) BulkDisableUsers(actor *model.User, req BulkDisableUsersRequest) (*BulkDisableUsersResult, error) {
-	if err := s.RequireAdmin(actor); err != nil {
+	if err := s.requireSuperAdmin(actor); err != nil {
 		return nil, err
 	}
 	seen := make(map[string]struct{}, len(req.UserIDs))

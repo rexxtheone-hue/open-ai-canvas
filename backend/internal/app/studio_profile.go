@@ -71,6 +71,8 @@ type StudioProfileView struct {
 	Mine             bool               `json:"mine"`
 	Following        bool               `json:"following"`
 	JoinedAt         time.Time          `json:"joinedAt"`
+	CreatorVerified  bool               `json:"creatorVerified"`
+	MerchantVerified bool               `json:"merchantVerified"`
 }
 
 func randomDigits(n int) string {
@@ -364,7 +366,8 @@ func (s *Service) studioProfileView(viewerID string, profile *model.StudioProfil
 	view := StudioProfileView{
 		Handle: profile.Handle, Name: studioProfileName(profile, user), Bio: profile.Bio, Location: profile.Location,
 		Specialties: []string{}, Links: map[string]string{}, Mine: viewerID == profile.UserID, Following: following, JoinedAt: user.CreatedAt,
-		Stats: StudioProfileStats{Works: stats.Works, Likes: stats.Likes, Remixes: stats.Remixes, Followers: stats.Followers, Following: stats.Following},
+		Stats:           StudioProfileStats{Works: stats.Works, Likes: stats.Likes, Remixes: stats.Remixes, Followers: stats.Followers, Following: stats.Following},
+		CreatorVerified: profile.CreatorVerifiedAt != nil, MerchantVerified: profile.MerchantVerifiedAt != nil,
 	}
 	_ = json.Unmarshal([]byte(profile.SpecialtiesJSON), &view.Specialties)
 	_ = json.Unmarshal([]byte(profile.LinksJSON), &view.Links)
@@ -400,6 +403,7 @@ type StudioCreatorQuery struct {
 	Specialty string
 	Location  string
 	Sort      string
+	Verified  bool
 	Offset    int
 	Limit     int
 }
@@ -415,6 +419,7 @@ type StudioCreatorCard struct {
 	Stats       StudioProfileStats `json:"stats"`
 	Mine        bool               `json:"mine"`
 	Following   bool               `json:"following"`
+	Verified    bool               `json:"verified"`
 	Previews    []StudioPostMedia  `json:"previews"`
 }
 
@@ -437,7 +442,7 @@ func (s *Service) StudioCreators(viewerID string, query StudioCreatorQuery) (Stu
 	}
 	offset := max(query.Offset, 0)
 	rows, hasMore, err := s.repo.StudioCreators(repository.StudioCreatorQuery{
-		Search: query.Search, Specialty: query.Specialty, Location: query.Location, Sort: query.Sort, Offset: offset, Limit: query.Limit,
+		Search: query.Search, Specialty: query.Specialty, Location: query.Location, Sort: query.Sort, Verified: query.Verified, Offset: offset, Limit: query.Limit,
 	})
 	if err != nil {
 		return StudioCreatorPage{}, err
@@ -457,7 +462,7 @@ func (s *Service) StudioCreators(viewerID string, query StudioCreatorQuery) (Stu
 		card := StudioCreatorCard{
 			Handle: profile.Handle, Bio: profile.Bio, Location: profile.Location, Specialties: []string{},
 			Stats: StudioProfileStats{Works: row.Works, Likes: row.Likes, Followers: row.Followers}, Mine: viewerID != "" && viewerID == profile.UserID,
-			Following: following[profile.UserID], Previews: []StudioPostMedia{},
+			Following: following[profile.UserID], Verified: profile.CreatorVerifiedAt != nil, Previews: []StudioPostMedia{},
 		}
 		user, err := s.repo.User(profile.UserID)
 		if err != nil {

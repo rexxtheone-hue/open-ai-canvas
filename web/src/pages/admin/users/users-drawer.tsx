@@ -3,6 +3,7 @@ import { Select } from "@/pages/admin/ui/controls";
 import { useEffect, useState } from "react";
 
 import { createAdminUser, updateAdminUser, type AdminUser, type LocalUser } from "@/services/api/auth";
+import { userRoleOptions } from "@/stores/use-user-store";
 
 type UserFormValues = Pick<LocalUser, "displayName" | "email" | "role" | "status"> & { password?: string };
 
@@ -90,13 +91,7 @@ export function AdminUserEditDrawer({ user, actorId, onClose, onSaved }: { user:
                     <Input.Password placeholder="输入新密码以手动重置" autoComplete="new-password" />
                 </Form.Item>
                 <Form.Item name="role" label="角色" extra={editingSelf ? "不能在此修改当前管理员自己的角色。" : "角色变更会立即影响后台访问权限。"}>
-                    <Select
-                        disabled={editingSelf}
-                        options={[
-                            { label: "管理员", value: "admin" },
-                            { label: "普通用户", value: "user" },
-                        ]}
-                    />
+                    <Select disabled={editingSelf} options={userRoleOptions} />
                 </Form.Item>
                 <Form.Item name="status" label="账号状态" extra={editingSelf ? "不能停用当前登录账号。" : "停用后会清除登录态，但保留身份、任务和积分流水。"}>
                     <Select
@@ -199,12 +194,7 @@ export function AdminUserCreateDrawer({ open, onClose, onCreated }: { open: bool
                     <Input.Password placeholder={"\u81f3\u5c11 8 \u4f4d"} />
                 </Form.Item>
                 <Form.Item name="role" label={"\u89d2\u8272"}>
-                    <Select
-                        options={[
-                            { label: "\u7ba1\u7406\u5458", value: "admin" },
-                            { label: "\u666e\u901a\u7528\u6237", value: "user" },
-                        ]}
-                    />
+                    <Select options={userRoleOptions} />
                 </Form.Item>
                 <Form.Item name="status" label={"\u8d26\u53f7\u72b6\u6001"}>
                     <Select

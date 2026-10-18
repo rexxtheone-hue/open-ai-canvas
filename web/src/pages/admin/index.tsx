@@ -1,4 +1,4 @@
-import { useUserStore } from "@/stores/use-user-store";
+import { isStaffRole, useUserStore } from "@/stores/use-user-store";
 import { AdminProvider } from "./admin-context";
 import { AdminShell } from "./components/admin-shell";
 import "./theme/admin-tokens.css";
@@ -7,9 +7,10 @@ import "./theme/admin-chrome.css";
 export default function AdminPage() {
     const actor = useUserStore((state) => state.user);
     const hydrated = useUserStore((state) => state.hydrated);
+    const adminAccess = useUserStore((state) => state.adminAccess);
 
     if (!hydrated) return null;
-    if (actor?.role !== "admin") {
+    if (actor?.role !== "admin" && !(isStaffRole(actor?.role) && adminAccess.length > 0)) {
         return (
             <main data-admin-root className="admin-unauthorized">
                 <div className="admin-unauthorized-card">

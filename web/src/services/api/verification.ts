@@ -1,4 +1,5 @@
 import { http } from "./request";
+import { readReferralCode } from "@/lib/referral";
 import { invalidateAuthSessionCache, type LocalUser } from "./auth";
 
 export type VerificationPolicy = {
@@ -22,7 +23,7 @@ export function verificationMethods(policy: VerificationPolicy, purpose: "login"
 export const startVerification = (input: { purpose: VerificationPurpose; method: VerificationMethod; email?: string; phone?: string; password?: string }) =>
     http.post<{ ticket: string; expiresIn: number; retryAfter: number }>("/auth/verification", input);
 export async function loginVerification(input: VerificationDraft) {
-    const result = await http.post<{ user: LocalUser }>("/auth/verification/login", input);
+    const result = await http.post<{ user: LocalUser }>("/auth/verification/login", { ...input, referralCode: readReferralCode() });
     invalidateAuthSessionCache();
     return result;
 }

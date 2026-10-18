@@ -20,6 +20,8 @@ type Host interface {
 	SettingsEncryptionKey() ([]byte, error)
 	BrandName() string
 	EnsureSignupBonus(userID string) error
+	// AttachReferral 为刚注册的账号记录推广归属；失败不影响注册。
+	AttachReferral(userID, code string)
 	RecordActivity(userID string, event string, count int)
 	AllowRequest(ctx context.Context, key string, limit int, window time.Duration) (bool, error)
 	RequestRetryAfter(ctx context.Context, key string, window time.Duration) time.Duration
@@ -37,6 +39,7 @@ func (nopHost) DecryptSecret(value string) (string, error) {
 func (nopHost) SettingsEncryptionKey() ([]byte, error) { return nil, nil }
 func (nopHost) BrandName() string                      { return DefaultBrandName }
 func (nopHost) EnsureSignupBonus(string) error         { return nil }
+func (nopHost) AttachReferral(string, string)          {}
 func (nopHost) RecordActivity(string, string, int)     {}
 func (nopHost) AllowRequest(context.Context, string, int, time.Duration) (bool, error) {
 	return true, nil
