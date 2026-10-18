@@ -276,7 +276,7 @@ export function useCanvasProjectLifecycle({
                 .catch(() => message.warning("项目已删除，但部分本地绘图缓存清理失败"));
         }
         cleanupAssetImages();
-        navigate("/canvas");
+        navigate("/studio/canvas");
     }, [cleanupAssetImages, message, navigate, nodesRef, projectId]);
 
     const renameCurrentProject = useCallback((title: string) => {

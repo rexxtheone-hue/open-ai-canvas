@@ -11,7 +11,8 @@ import type { StudioKind } from "@/services/api/studio";
 import { loadInspirationCatalog, type InspirationCatalog } from "@/services/inspiration-catalog";
 import { useInspirationStore } from "@/stores/use-inspiration-store";
 import { STUDIO_ATTACH_KEY } from "./studio-agent";
-import { Copy, Heart, Search, Sparkles, Wand2 } from "./studio-icons";
+import { Copy, Heart, Layers, Search, Sparkles, Wand2 } from "./studio-icons";
+import { studioCanvasHandoffPath } from "@/lib/canvas/studio-canvas-handoff";
 import { StudioShell } from "./studio-shell";
 import { studioToolForKind } from "./studio-tools";
 
@@ -73,6 +74,11 @@ export function useStudioTemplateCatalog() {
 export function StudioTemplateGallery({ kind, query }: { kind: StudioKind | "all"; query: string }) {
     const { message } = App.useApp();
     const launch = useStudioTemplateLauncher();
+    const navigate = useNavigate();
+    const openTemplateInCanvas = (item: CreationInspiration) => {
+        const path = studioCanvasHandoffPath([{ kind: "text", content: item.prompt, title: item.title }, ...(item.image ? [{ kind: "image" as const, dataUrl: "", url: item.image, title: item.title }] : [])]);
+        if (path) navigate(path);
+    };
     const favorites = useInspirationStore((state) => state.favorites);
     const toggleFavorite = useInspirationStore((state) => state.toggleFavorite);
     const { catalog, items, error, retry } = useStudioTemplateCatalog();
@@ -214,6 +220,10 @@ export function StudioTemplateGallery({ kind, query }: { kind: StudioKind | "all
                                     {favoriteSet.has(catalogIdOf(detail)) ? "已收藏" : "收藏"}
                                 </button>
                                 <span style={{ flex: 1 }} />
+                                <button type="button" className="studio-chip-button" onClick={() => openTemplateInCanvas(detail)}>
+                                    <Layers aria-hidden />
+                                    在画布中打开
+                                </button>
                                 <button type="button" className="studio-generate-button is-compact" onClick={() => launch(detail)}>
                                     <Wand2 aria-hidden />
                                     使用模板

@@ -68,6 +68,7 @@ const StudioMyProfileRedirect = lazy(() => import("@/pages/studio/studio-profile
 const StudioPublicProfilePage = lazy(() => import("@/pages/studio/studio-profile").then((module) => ({ default: module.StudioPublicProfilePage })));
 const StudioPricingPage = lazy(() => import("@/pages/studio/studio-pricing"));
 const StudioPartnerPage = lazy(() => import("@/pages/studio/studio-partner"));
+const StudioCanvasPage = lazy(() => import("@/pages/studio/studio-canvas"));
 const AdminPartnersPage = lazy(() => import("@/pages/admin/partners/partners-page"));
 const AdminAffiliatesPage = lazy(() => import("@/pages/admin/partners/affiliates-page"));
 const StudioHelpPage = lazy(() => import("@/pages/studio/studio-help-pages").then((module) => ({ default: module.StudioHelpPage })));
@@ -164,6 +165,7 @@ export const router = createBrowserRouter([
             { path: "/studio/u/:handle", element: <RequireAuth>{deferred(<StudioProfilePage />)}</RequireAuth> },
             { path: "/studio/pricing", element: <RequireAuth>{deferred(<StudioPricingPage />)}</RequireAuth> },
             { path: "/studio/partner", element: <RequireAuth>{deferred(<StudioPartnerPage />)}</RequireAuth> },
+            { path: "/studio/canvas", element: <RequireAuth>{deferred(<StudioCanvasPage />)}</RequireAuth> },
             { path: "/studio/help", element: <RequireAuth>{deferred(<StudioHelpPage />)}</RequireAuth> },
             { path: "/studio/terms", element: <RequireAuth>{deferred(<StudioTermsPage />)}</RequireAuth> },
             { path: "/studio/create-image", element: <RequireAuth>{deferred(<StudioToolPage key="create-image" toolId="create-image" />)}</RequireAuth> },

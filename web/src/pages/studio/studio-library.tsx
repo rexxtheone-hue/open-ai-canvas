@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { App, Popover, Spin } from "antd";
-import { Check, ChevronDown, Download, Filter, Folder, FolderOpen, ImagePlus, LayoutGrid, LayoutTemplate, Loader2, RefreshCw, Search, Share2, SlidersHorizontal, Star, Trash2, UserPlus, Wand2, MessageSquarePlus } from "./studio-icons";
-import { Link } from "react-router";
+import { Check, ChevronDown, Download, Filter, Folder, FolderOpen, ImagePlus, Layers, LayoutGrid, LayoutTemplate, Loader2, RefreshCw, Search, Share2, SlidersHorizontal, Star, Trash2, UserPlus, Wand2, MessageSquarePlus } from "./studio-icons";
+import { Link, useNavigate } from "react-router";
+import type { InsertAssetPayload } from "@/components/canvas/asset-picker-modal";
+import { studioCanvasHandoffPath } from "@/lib/canvas/studio-canvas-handoff";
 
 import { AppModal } from "@/components/ui/product/app-modal";
 import { CachedResourceImage } from "@/components/cached-resource-image";
@@ -28,6 +30,25 @@ export function studioMediaSrc(media: StudioMedia, purpose: "display" | "downloa
     const resourceId = resourceIdFromStorageKey(media.storageKey);
     if (resourceId && media.kind === "video" && purpose === "display") return playbackVariantUrl(resourceId);
     return resolveResourceUrl(media.storageKey, media.url || "");
+}
+
+/** 把一件作品转成画布素材：提示词作为文字节点，图片和视频保留原资源引用，可继续当参考或再生成。 */
+export function studioWorkCanvasPayloads(work: StudioWork): InsertAssetPayload[] {
+    const title = studioWorkTitle(work);
+    const payloads: InsertAssetPayload[] = work.prompt?.trim() ? [{ kind: "text", content: work.prompt.trim(), title }] : [];
+    for (const media of work.media) {
+        const storageKey = resourceIdFromStorageKey(media.storageKey) ? media.storageKey : undefined;
+        const src = resolveResourceUrl(media.storageKey, media.url || "");
+        if (!src) continue;
+        if (media.kind === "image") {
+            payloads.push(storageKey ? { kind: "image", dataUrl: src, storageKey, title, width: media.width || 1024, height: media.height || 1024, mimeType: media.mimeType } : { kind: "image", dataUrl: "", url: src, title, mimeType: media.mimeType });
+        } else if (media.kind === "video") {
+            payloads.push({ kind: "video", url: src, storageKey, title, width: media.width, height: media.height, durationMs: media.durationMs, mimeType: media.mimeType });
+        } else {
+            payloads.push({ kind: "audio", url: src, storageKey, title, durationMs: media.durationMs, mimeType: media.mimeType });
+        }
+    }
+    return payloads;
 }
 
 async function downloadStudioMedia(work: StudioWork, index: number) {
@@ -67,6 +88,12 @@ type StudioLibraryProps = {
 
 export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddToChat }: StudioLibraryProps) {
     const { message, modal } = App.useApp();
+    const navigate = useNavigate();
+    const openInCanvas = (work: StudioWork) => {
+        const path = studioCanvasHandoffPath(studioWorkCanvasPayloads(work));
+        if (path) navigate(path);
+        else message.error("这件作品暂时无法带入画布");
+    };
     const [filter, setFilter] = useState<StudioWorksFilter>({ kind: kind || "all", favorite: false, q: "" });
     const [searchDraft, setSearchDraft] = useState("");
     const { works, loading, loadingMore, error, hasMore, loadMore, refresh, toggleFavorite, removeWorks } = useStudioWorks(filter);
@@ -279,6 +306,7 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                                     onPublish={work.status === "succeeded" && work.media.some((item) => item.storageKey?.startsWith("resource:")) ? () => setPublishTarget(work) : undefined}
                                     labels={(work.labelIds || []).flatMap((id) => labelsById.get(id) || [])}
                                     onSaveCharacter={work.status === "succeeded" && work.media[0]?.kind === "image" && resourceIdFromStorageKey(work.media[0].storageKey) ? () => setCharacterTarget(work) : undefined}
+                                    onOpenCanvas={work.status === "succeeded" && work.media.length ? () => openInCanvas(work) : undefined}
                                 />
                             ))}
                         </div>
@@ -332,10 +360,11 @@ type StudioWorkCardProps = {
     onDelete: () => void;
     onPublish?: () => void;
     onSaveCharacter?: () => void;
+    onOpenCanvas?: () => void;
     labels?: StudioLabel[];
 };
 
-function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite, onDownload, onUseAsReference, onReuseSettings, onRetry, onDelete, onPublish, onSaveCharacter, labels = [] }: StudioWorkCardProps) {
+function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite, onDownload, onUseAsReference, onReuseSettings, onRetry, onDelete, onPublish, onSaveCharacter, onOpenCanvas, labels = [] }: StudioWorkCardProps) {
     const media = work.media[0];
     const active = studioWorkIsActive(work);
     const failed = work.status === "failed" || work.status === "cancelled";
@@ -370,6 +399,7 @@ function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite,
                     {onReuseSettings ? <button type="button" aria-label="用同样设置再生成" title="用同样设置再生成" onClick={onReuseSettings}><Wand2 aria-hidden /></button> : null}
                     {onPublish ? <button type="button" aria-label="发布到社区" title="发布到社区" onClick={onPublish}><Share2 aria-hidden /></button> : null}
                     {onSaveCharacter ? <button type="button" aria-label="存为角色" title="存为角色" onClick={onSaveCharacter}><UserPlus aria-hidden /></button> : null}
+                    {onOpenCanvas ? <button type="button" aria-label="在画布中编辑" title="在画布中编辑" onClick={onOpenCanvas}><Layers aria-hidden /></button> : null}
                     <button type="button" aria-label="删除" title="删除" onClick={onDelete}><Trash2 aria-hidden /></button>
                 </div>
             ) : null}

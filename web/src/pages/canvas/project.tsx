@@ -11,7 +11,7 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router";
 import { loadAssetsForUse } from "@/services/user-data-sync";
-import { canvasAssetHandoffIds } from "@/lib/canvas/canvas-asset-handoff";
+import { canvasAssetHandoffIds, consumeCanvasAssetHandoff } from "@/lib/canvas/canvas-asset-handoff";
 import { useEffectiveConfig } from "@/stores/use-config-store";
 import { createCanvasGenerationLiveProjectAdapter, registerCanvasGenerationLiveProject } from "@/services/canvas-generation-consumer";
 import { getActiveUserScope } from "@/lib/user-scope";
@@ -105,6 +105,7 @@ import { cinematicStoryboardColumns, createCanvasNode, getInputSummary, isHidden
 import { bindStoryboardKeyframes, storyboardKeyframeTime, storyboardRowsFromBatchTable } from "@/lib/canvas/canvas-batch-storyboard";
 import { stampCanvasNodeChanges, updateCanvasNode, updateCanvasNodes } from "@/lib/canvas/canvas-node-timestamps";
 import { canvasAssetHandoffAttempt, finalizeCanvasAssetHandoff, uninsertedCanvasAssetHandoffPayloads } from "@/lib/canvas/canvas-asset-handoff";
+import { clearStudioCanvasHandoff, readStudioCanvasHandoff, STUDIO_HANDOFF_PARAM } from "@/lib/canvas/studio-canvas-handoff";
 import { batchSourceRestriction } from "@/lib/canvas/canvas-batch-connection";
 import { deriveStoryboardPipelineProgress } from "@/lib/canvas/canvas-storyboard-progress";
 import { CanvasOperationChangeToast, CanvasMergeStatusToast, CanvasUploadStatusToast } from "./canvas-project-feedback";
@@ -783,7 +784,7 @@ function CanvasViewportPage() {
     const selectedCharacterAudio = nodes.find((node) => selectedNodeIds.has(node.id) && node.type === CanvasNodeType.Audio && resourceIdFromStorageKey(node.metadata?.storageKey));
 
     useEffect(() => {
-        if (!projectLoaded || searchParams.get("mode") !== "handoff") return;
+        if (!projectLoaded || searchParams.get("mode") !== "handoff" || !canvasAssetHandoffIds(searchParams).length) return;
         void loadAssetsForUse(canvasAssetHandoffIds(searchParams)).catch((error) => message.error(error instanceof Error ? error.message : "转入素材读取失败"));
     }, [projectLoaded, searchParams, message]);
 
@@ -822,6 +823,42 @@ function CanvasViewportPage() {
             assetHandoffRef.current = "";
         });
     }, [assets, assetsHydrated, handleProjectAssetsInsert, message, nodesRef, projectId, projectLoaded, searchParams, setSearchParams, updateProject]);
+
+    // Studio「在画布中编辑」：素材经 sessionStorage 带入，插入后清掉令牌，刷新不会重复插入。
+    useEffect(() => {
+        const token = searchParams.get(STUDIO_HANDOFF_PARAM);
+        if (!projectLoaded || searchParams.get("mode") !== "handoff" || !token) return;
+        const handoffKey = `${projectId}:studio:${token}`;
+        if (assetHandoffRef.current === handoffKey) return;
+        assetHandoffRef.current = handoffKey;
+        const payloads = readStudioCanvasHandoff(token);
+        const done = (next: URLSearchParams) => {
+            clearStudioCanvasHandoff(token);
+            next.delete(STUDIO_HANDOFF_PARAM);
+            setSearchParams(next, { replace: true });
+        };
+        if (!payloads.length) {
+            done(consumeCanvasAssetHandoff(searchParams));
+            return;
+        }
+        void handleProjectAssetsInsert(payloads)
+            .then(async (createdNodes) => {
+                const finalized = await finalizeCanvasAssetHandoff({
+                    searchParams,
+                    currentNodes: nodesRef.current,
+                    createdNodes,
+                    persist: async (nextNodes) => {
+                        nodesRef.current = nextNodes;
+                        updateProject(projectId, { nodes: nextNodes });
+                        await flushCanvasStorePersistence();
+                    },
+                });
+                done(finalized.searchParams);
+            })
+            .catch(() => {
+                assetHandoffRef.current = "";
+            });
+    }, [handleProjectAssetsInsert, nodesRef, projectId, projectLoaded, searchParams, setSearchParams, updateProject]);
 
     const {
         angleNodeId,

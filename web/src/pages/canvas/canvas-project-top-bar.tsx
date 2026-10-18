@@ -101,8 +101,8 @@ export function CanvasTopBar({
                             trigger={["click"]}
                             menu={{
                                 items: [
-                                    { key: "home", icon: <Home className="size-4" />, label: <Link to="/">主页</Link> },
-                                    { key: "projects", icon: <LayoutGrid className="size-4" />, label: <Link to="/canvas">画布</Link> },
+                                    { key: "home", icon: <Home className="size-4" />, label: <Link to="/studio">返回 AI Studio</Link> },
+                                    { key: "projects", icon: <LayoutGrid className="size-4" />, label: <Link to="/studio/canvas">我的画布</Link> },
                                     { type: "divider" },
                                     { key: "new", icon: <Plus className="size-4" />, label: "新建画布", onClick: onCreateProject },
                                     { key: "delete", danger: true, icon: <Trash2 className="size-4" />, label: "删除当前画布", onClick: onDeleteProject },

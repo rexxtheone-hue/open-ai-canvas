@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
-import { ChatFill, ChevronDown, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, LayoutTemplate, Megaphone, MessageSquareText, Palette, PanelLeft, Pin, UserPen, UserRound, Users, Wand2, Waypoints } from "./studio-icons";
+import { ChatFill, ChevronDown, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, Layers, LayoutTemplate, Megaphone, MessageSquareText, Palette, PanelLeft, Pin, UserPen, UserRound, Users, Wand2, Waypoints } from "./studio-icons";
 
 import "@fontsource-variable/space-grotesk/index.css";
 
@@ -124,6 +124,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                             { to: "/studio", label: "首页", icon: Home, active: isActive(pathname, search, "/studio") },
                             { to: "/studio/agents", label: "智能体", icon: MessageSquareText, active: pathname.startsWith("/studio/agents") || pathname.startsWith("/studio/director") },
                             { to: "/studio/video", label: "工具", icon: Wand2, active: Boolean(activeTab) },
+                            { to: "/studio/canvas", label: "画布", icon: Layers, active: pathname.startsWith("/studio/canvas") },
                             { to: "/studio/media", label: "素材", icon: FolderOpen, active: ["/studio/media", "/studio/characters", "/studio/brand"].some((path) => pathname.startsWith(path)) },
                             { to: "/studio/inspire", label: "灵感", icon: Compass, active: pathname.startsWith("/studio/inspire") || pathname.startsWith("/studio/pricing") },
                         ].map((item) => (
@@ -166,6 +167,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                         ))}
                         {section("assets", "素材", (
                             <div className="studio-side-links">
+                                {link("/studio/canvas", "画布 Canvas", Layers)}
                                 {link("/studio/director#studio-director-projects", "导演项目", Clapperboard)}
                                 {link("/studio/characters", "角色与世界", UserRound)}
                                 {link("/studio/brand", "品牌套件", Palette)}

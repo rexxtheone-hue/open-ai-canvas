@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { App, Button, Dropdown, Input, Modal } from "antd";
 import { Select } from "@/components/ui/base/select";
@@ -405,6 +405,8 @@ export default function CanvasPage() {
     }, [hydrated, message, mode, projects, sessionHydrated, userId, libraryQuery.isSuccess]);
 
     if (hydrated && !libraryQuery.isError && (mode === "new" || mode === "recent" || mode === "handoff")) return <main className="flex h-full items-center justify-center bg-background text-sm text-stone-500">正在打开画布...</main>;
+    // 画布已并入 AI Studio；完整管理页（导入、批量删除、按项目筛选）保留在 ?mode=manage。
+    if (!mode && !searchParams.get("agent")) return <Navigate to="/studio/canvas" replace />;
 
     return (
         <WorkspacePage className="studio-collection-page">

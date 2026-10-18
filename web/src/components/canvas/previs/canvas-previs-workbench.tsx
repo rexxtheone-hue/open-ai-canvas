@@ -1201,7 +1201,7 @@ export function CanvasPrevisWorkbench({
         "--pd-a-bg": theme.accent.primarySoft,
         "--pd-a-bd": theme.node.activeStroke,
         "--pd-a-on": theme.accent.onPrimary,
-        "--pd-accent-rgb": theme.accent.primary === "#171717" || theme.accent.primary === "#f5f5f5" ? "255 255 255" : "79 140 255",
+        "--pd-accent-rgb": theme.accent.primary === "#d65cff" ? "214 92 255" : theme.accent.primary === "#171717" ? "255 255 255" : "79 140 255",
         "--previs-accent": theme.accent.primary,
         "--pd-a-on-theme": theme.accent.onPrimary,
         "--pd-a-bg-theme": theme.accent.primarySoft,
