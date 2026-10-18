@@ -1,0 +1,889 @@
+{
+  "apiVersion": "yingce.plugin/v2",
+  "id": "ucloud-modelverse-veo",
+  "name": "UCloud ModelVerse Veo",
+  "version": "1.0.0",
+  "author": "UCloud ModelVerse / 影策",
+  "description": "UCloud ModelVerse（AstraFlow）异步任务接口上的 Veo 视频生成协议插件。",
+  "documentation": "# UCloud ModelVerse Veo\n\n该目录是独立官方协议插件源码。后端从生成的 `ucloud-modelverse-veo.yingce-plugin` 包加载，不依赖系统内置 `host:` 适配器。\n\n完整接口见 [docs/interface.md](docs/interface.md)。\n\n---\n\n# UCloud ModelVerse Veo 接口说明\n\n## 渠道配置\n\n- Base URL：`https://api.modelverse.cn`（填 `https://api.modelverse.cn/v1` 也可以，插件使用根路径）\n- API Key：ModelVerse 控制台生成的 Key，以 `Authorization: Bearer <API Key>` 发送。\n- 支持模型：veo-3.1-generate-001、veo-3.1-fast-generate-001。\n\n## 提交任务\n\n`POST /v1/tasks/submit`\n\n```json\n{\"model\": \"<模型名>\", \"input\": {...}, \"parameters\": {...}}\n```\n\n- 首帧 `input.image` 与尾帧 `input.last_frame` 以 `{bytesBase64Encoded, mimeType}` 发送，宿主先把参考图读成字节，不需要公网链接。\n- `resolution` 只发送 720p / 1080p，`aspect_ratio` 只发送 16:9 / 9:16，时长 4 / 6 / 8 秒；`generate_audio` 必填，跟随“生成音频”开关。\n\n空值字段不会发送。`providerOptions.modelverse-veo-video.input` / `.parameters` 会合并进 `input` / `parameters`，用于补充模型特有字段或覆盖默认值。\n\n响应：`{\"output\": {\"task_id\": \"...\"}, \"request_id\": \"...\"}`。\n\n## 查询任务\n\n`GET /v1/tasks/status?task_id=<task_id>`\n\n`output.task_status` 为 `Pending` / `Running` / `Success` / `Failure`（部分型号返回 `PENDING` / `RUNNING` / `SUCCEEDED` / `FAILED` / `CANCELLED`）。成功时视频链接在 `output.urls`，失败原因在 `output.error_message` 或 `output.message`。结果链接是临时链接，宿主会转存。\n\n<!-- YINGCE_MANIFEST_CONTRACT_START -->\n## Manifest 完整接口定义\n\n以下 JSON 与插件包内实际 `manifest.json` 逐字段一致，覆盖插件身份、权限、配置、鉴权、参数、校验、创建、Agent、查询、取消、结果下载、响应和 Agent 响应映射。`documentation` 字段的值就是当前完整文档；为避免文档在自身内部无限递归，JSON 中仅用等义占位文本表示正文。\n\n```json\n{\n  \"apiVersion\": \"yingce.plugin/v2\",\n  \"id\": \"ucloud-modelverse-veo\",\n  \"name\": \"UCloud ModelVerse Veo\",\n  \"version\": \"1.0.0\",\n  \"author\": \"UCloud ModelVerse / 影策\",\n  \"description\": \"UCloud ModelVerse（AstraFlow）异步任务接口上的 Veo 视频生成协议插件。\",\n  \"documentation\": \"<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>\",\n  \"permissions\": [\n    \"generation.run\",\n    \"media.read\"\n  ],\n  \"configuration\": {\n    \"fields\": [\n      {\n        \"name\": \"apiKey\",\n        \"type\": \"secret\",\n        \"label\": \"API Key\",\n        \"required\": true\n      }\n    ]\n  },\n  \"contributes\": {\n    \"providers\": [\n      {\n        \"id\": \"modelverse-veo-video\",\n        \"label\": \"UCloud ModelVerse Veo\",\n        \"capabilities\": [\n          \"video\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\",\n          \"agent\"\n        ],\n        \"baseUrl\": \"https://api.modelverse.cn\",\n        \"requiresPublicMediaUrls\": false,\n        \"auth\": {\n          \"type\": \"bearer\",\n          \"field\": \"apiKey\"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\",\n            \"description\": \"ModelVerse 模型名：veo-3.1-generate-001、veo-3.1-fast-generate-001。\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"input\",\n            \"description\": \"视频提示词。\"\n          },\n          {\n            \"name\": \"images\",\n            \"type\": \"media[]\",\n            \"required\": false,\n            \"mapping\": \"input / parameters\",\n            \"description\": \"首帧、尾帧（role first_frame / last_frame）与参考图（reference_image）。\"\n          },\n          {\n            \"name\": \"videos\",\n            \"type\": \"media[]\",\n            \"required\": false,\n            \"mapping\": \"input / parameters\",\n            \"description\": \"参考视频或待编辑视频。\"\n          },\n          {\n            \"name\": \"audios\",\n            \"type\": \"media[]\",\n            \"required\": false,\n            \"mapping\": \"input\",\n            \"description\": \"参考音频或驱动音频。\"\n          },\n          {\n            \"name\": \"aspectRatio\",\n            \"type\": \"string\",\n            \"required\": false,\n            \"mapping\": \"parameters\",\n            \"description\": \"画面比例。\"\n          },\n          {\n            \"name\": \"resolution\",\n            \"type\": \"string\",\n            \"required\": false,\n            \"mapping\": \"parameters\",\n            \"description\": \"分辨率档位。\"\n          },\n          {\n            \"name\": \"duration\",\n            \"type\": \"integer\",\n            \"required\": false,\n            \"mapping\": \"parameters.duration\",\n            \"description\": \"时长（秒）。\"\n          },\n          {\n            \"name\": \"generateAudio\",\n            \"type\": \"boolean\",\n            \"required\": false,\n            \"mapping\": \"parameters\",\n            \"description\": \"是否生成音频。\"\n          },\n          {\n            \"name\": \"providerOptions\",\n            \"type\": \"object\",\n            \"required\": false,\n            \"mapping\": \"input / parameters\",\n            \"description\": \"providerOptions.modelverse-veo-video.input 与 .parameters 会合并进对应对象，可补充或覆盖字段。\"\n          }\n        ],\n        \"validations\": [],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/v1/tasks/submit\",\n          \"originPath\": true,\n          \"contentType\": \"application/json\",\n          \"body\": {\n            \"model\": {\n              \"$ref\": \"request.model\"\n            },\n            \"input\": {\n              \"$merge\": [\n                {\n                  \"prompt\": {\n                    \"$ref\": \"request.prompt\"\n                  },\n                  \"negative_prompt\": {\n                    \"$omitEmpty\": {\n                      \"$ref\": \"request.providerOptions.modelverse-veo-video.negative_prompt\"\n                    }\n                  },\n                  \"image\": {\n                    \"$omitEmpty\": {\n                      \"$if\": {\n                        \"condition\": {\n                          \"$coalesce\": [\n                            {\n                              \"$first\": {\n                                \"$map\": {\n                                  \"from\": {\n                                    \"$filter\": {\n                                      \"from\": {\n                                        \"$sortByOrder\": {\n                                          \"$ref\": \"request.images\"\n                                        }\n                                      },\n                                      \"as\": \"media\",\n                                      \"where\": {\n                                        \"$in\": [\n                                          {\n                                            \"$ref\": \"media.role\"\n                                          },\n                                          [\n                                            \"first_frame\"\n                                          ]\n                                        ]\n                                      }\n                                    }\n                                  },\n                                  \"as\": \"media\",\n                                  \"in\": {\n                                    \"$ref\": \"media.dataUrl\"\n                                  }\n                                }\n                              }\n                            },\n                            {\n                              \"$first\": {\n                                \"$map\": {\n                                  \"from\": {\n                                    \"$filter\": {\n                                      \"from\": {\n                                        \"$sortByOrder\": {\n                                          \"$ref\": \"request.images\"\n                                        }\n                                      },\n                                      \"as\": \"media\",\n                                      \"where\": {\n                                        \"$in\": [\n                                          {\n                                            \"$ref\": \"media.role\"\n                                          },\n                                          [\n                                            \"\"\n                                          ]\n                                        ]\n                                      }\n                                    }\n                                  },\n                                  \"as\": \"media\",\n                                  \"in\": {\n                                    \"$ref\": \"media.dataUrl\"\n                                  }\n                                }\n                              }\n                            }\n                          ]\n                        },\n                        \"then\": {\n                          \"bytesBase64Encoded\": {\n                            \"$dataPayload\": {\n                              \"$coalesce\": [\n                                {\n                                  \"$first\": {\n                                    \"$map\": {\n                                      \"from\": {\n                                        \"$filter\": {\n                                          \"from\": {\n                                            \"$sortByOrder\": {\n                                              \"$ref\": \"request.images\"\n                                            }\n                                          },\n                                          \"as\": \"media\",\n                                          \"where\": {\n                                            \"$in\": [\n                                              {\n                                                \"$ref\": \"media.role\"\n                                              },\n                                              [\n                                                \"first_frame\"\n                                              ]\n                                            ]\n                                          }\n                                        }\n                                      },\n                                      \"as\": \"media\",\n                                      \"in\": {\n                                        \"$ref\": \"media.dataUrl\"\n                                      }\n                                    }\n                                  }\n                                },\n                                {\n                                  \"$first\": {\n                                    \"$map\": {\n                                      \"from\": {\n                                        \"$filter\": {\n                                          \"from\": {\n                                            \"$sortByOrder\": {\n                                              \"$ref\": \"request.images\"\n                                            }\n                                          },\n                                          \"as\": \"media\",\n                                          \"where\": {\n                                            \"$in\": [\n                                              {\n                                                \"$ref\": \"media.role\"\n                                              },\n                                              [\n                                                \"\"\n                                              ]\n                                            ]\n                                          }\n                                        }\n                                      },\n                                      \"as\": \"media\",\n                                      \"in\": {\n                                        \"$ref\": \"media.dataUrl\"\n                                      }\n                                    }\n                                  }\n                                }\n                              ]\n                            }\n                          },\n                          \"mimeType\": {\n                            \"$dataMime\": {\n                              \"$coalesce\": [\n                                {\n                                  \"$first\": {\n                                    \"$map\": {\n                                      \"from\": {\n                                        \"$filter\": {\n                                          \"from\": {\n                                            \"$sortByOrder\": {\n                                              \"$ref\": \"request.images\"\n                                            }\n                                          },\n                                          \"as\": \"media\",\n                                          \"where\": {\n                                            \"$in\": [\n                                              {\n                                                \"$ref\": \"media.role\"\n                                              },\n                                              [\n                                                \"first_frame\"\n                                              ]\n                                            ]\n                                          }\n                                        }\n                                      },\n                                      \"as\": \"media\",\n                                      \"in\": {\n                                        \"$ref\": \"media.dataUrl\"\n                                      }\n                                    }\n                                  }\n                                },\n                                {\n                                  \"$first\": {\n                                    \"$map\": {\n                                      \"from\": {\n                                        \"$filter\": {\n                                          \"from\": {\n                                            \"$sortByOrder\": {\n                                              \"$ref\": \"request.images\"\n                                            }\n                                          },\n                                          \"as\": \"media\",\n                                          \"where\": {\n                                            \"$in\": [\n                                              {\n                                                \"$ref\": \"media.role\"\n                                              },\n                                              [\n                                                \"\"\n                                              ]\n                                            ]\n                                          }\n                                        }\n                                      },\n                                      \"as\": \"media\",\n                                      \"in\": {\n                                        \"$ref\": \"media.dataUrl\"\n                                      }\n                                    }\n                                  }\n                                }\n                              ]\n                            }\n                          }\n                        },\n                        \"else\": null\n                      }\n                    }\n                  },\n                  \"last_frame\": {\n                    \"$omitEmpty\": {\n                      \"$if\": {\n                        \"condition\": {\n                          \"$coalesce\": [\n                            {\n                              \"$first\": {\n                                \"$map\": {\n                                  \"from\": {\n                                    \"$filter\": {\n                                      \"from\": {\n                                        \"$sortByOrder\": {\n                                          \"$ref\": \"request.images\"\n                                        }\n                                      },\n                                      \"as\": \"media\",\n                                      \"where\": {\n                                        \"$in\": [\n                                          {\n                                            \"$ref\": \"media.role\"\n                                          },\n                                          [\n                                            \"first_frame\"\n                                          ]\n                                        ]\n                                      }\n                                    }\n                                  },\n                                  \"as\": \"media\",\n                                  \"in\": {\n                                    \"$ref\": \"media.dataUrl\"\n                                  }\n                                }\n                              }\n                            },\n                            {\n                              \"$first\": {\n                                \"$map\": {\n                                  \"from\": {\n                                    \"$filter\": {\n                                      \"from\": {\n                                        \"$sortByOrder\": {\n                                          \"$ref\": \"request.images\"\n                                        }\n                                      },\n                                      \"as\": \"media\",\n                                      \"where\": {\n                                        \"$in\": [\n                                          {\n                                            \"$ref\": \"media.role\"\n                                          },\n                                          [\n                                            \"\"\n                                          ]\n                                        ]\n                                      }\n                                    }\n                                  },\n                                  \"as\": \"media\",\n                                  \"in\": {\n                                    \"$ref\": \"media.dataUrl\"\n                                  }\n                                }\n                              }\n                            }\n                          ]\n                        },\n                        \"then\": {\n                          \"$omitEmpty\": {\n                            \"$if\": {\n                              \"condition\": {\n                                \"$coalesce\": [\n                                  {\n                                    \"$first\": {\n                                      \"$map\": {\n                                        \"from\": {\n                                          \"$filter\": {\n                                            \"from\": {\n                                              \"$sortByOrder\": {\n                                                \"$ref\": \"request.images\"\n                                              }\n                                            },\n                                            \"as\": \"media\",\n                                            \"where\": {\n                                              \"$in\": [\n                                                {\n                                                  \"$ref\": \"media.role\"\n                                                },\n                                                [\n                                                  \"last_frame\",\n                                                  \"end_frame\",\n                                                  \"tail_frame\"\n                                                ]\n                                              ]\n                                            }\n                                          }\n                                        },\n                                        \"as\": \"media\",\n                                        \"in\": {\n                                          \"$ref\": \"media.dataUrl\"\n                                        }\n                                      }\n                                    }\n                                  },\n                                  {\n                                    \"$if\": {\n                                      \"condition\": {\n                                        \"$gt\": [\n                                          {\n                                            \"$len\": {\n                                              \"$filter\": {\n                                                \"from\": {\n                                                  \"$sortByOrder\": {\n                                                    \"$ref\": \"request.images\"\n                                                  }\n                                                },\n                                                \"as\": \"media\",\n                                                \"where\": {\n                                                  \"$in\": [\n                                                    {\n                                                      \"$ref\": \"media.role\"\n                                                    },\n                                                    [\n                                                      \"\"\n                                                    ]\n                                                  ]\n                                                }\n                                              }\n                                            }\n                                          },\n                                          1\n                                        ]\n                                      },\n                                      \"then\": {\n                                        \"$last\": {\n                                          \"$map\": {\n                                            \"from\": {\n                                              \"$filter\": {\n                                                \"from\": {\n                                                  \"$sortByOrder\": {\n                                                    \"$ref\": \"request.images\"\n                                                  }\n                                                },\n                                                \"as\": \"media\",\n                                                \"where\": {\n                                                  \"$in\": [\n                                                    {\n                                                      \"$ref\": \"media.role\"\n                                                    },\n                                                    [\n                                                      \"\"\n                                                    ]\n                                                  ]\n                                                }\n                                              }\n                                            },\n                                            \"as\": \"media\",\n                                            \"in\": {\n                                              \"$ref\": \"media.dataUrl\"\n                                            }\n                                          }\n                                        }\n                                      },\n                                      \"else\": null\n                                    }\n                                  }\n                                ]\n                              },\n                              \"then\": {\n                                \"bytesBase64Encoded\": {\n                                  \"$dataPayload\": {\n                                    \"$coalesce\": [\n                                      {\n                                        \"$first\": {\n                                          \"$map\": {\n                                            \"from\": {\n                                              \"$filter\": {\n                                                \"from\": {\n                                                  \"$sortByOrder\": {\n                                                    \"$ref\": \"request.images\"\n                                                  }\n                                                },\n                                                \"as\": \"media\",\n                                                \"where\": {\n                                                  \"$in\": [\n                                                    {\n                                                      \"$ref\": \"media.role\"\n                                                    },\n                                                    [\n                                                      \"last_frame\",\n                                                      \"end_frame\",\n                                                      \"tail_frame\"\n                                                    ]\n                                                  ]\n                                                }\n                                              }\n                                            },\n                                            \"as\": \"media\",\n                                            \"in\": {\n                                              \"$ref\": \"media.dataUrl\"\n                                            }\n                                          }\n                                        }\n                                      },\n                                      {\n                                        \"$if\": {\n                                          \"condition\": {\n                                            \"$gt\": [\n                                              {\n                                                \"$len\": {\n                                                  \"$filter\": {\n                                                    \"from\": {\n                                                      \"$sortByOrder\": {\n                                                        \"$ref\": \"request.images\"\n                                                      }\n                                                    },\n                                                    \"as\": \"media\",\n                                                    \"where\": {\n                                                      \"$in\": [\n                                                        {\n                                                          \"$ref\": \"media.role\"\n                                                        },\n                                                        [\n                                                          \"\"\n                                                        ]\n                                                      ]\n                                                    }\n                                                  }\n                                                }\n                                              },\n                                              1\n                                            ]\n                                          },\n                                          \"then\": {\n                                            \"$last\": {\n                                              \"$map\": {\n                                                \"from\": {\n                                                  \"$filter\": {\n                                                    \"from\": {\n                                                      \"$sortByOrder\": {\n                                                        \"$ref\": \"request.images\"\n                                                      }\n                                                    },\n                                                    \"as\": \"media\",\n                                                    \"where\": {\n                                                      \"$in\": [\n                                                        {\n                                                          \"$ref\": \"media.role\"\n                                                        },\n                                                        [\n                                                          \"\"\n                                                        ]\n                                                      ]\n                                                    }\n                                                  }\n                                                },\n                                                \"as\": \"media\",\n                                                \"in\": {\n                                                  \"$ref\": \"media.dataUrl\"\n                                                }\n                                              }\n                                            }\n                                          },\n                                          \"else\": null\n                                        }\n                                      }\n                                    ]\n                                  }\n                                },\n                                \"mimeType\": {\n                                  \"$dataMime\": {\n                                    \"$coalesce\": [\n                                      {\n                                        \"$first\": {\n                                          \"$map\": {\n                                            \"from\": {\n                                              \"$filter\": {\n                                                \"from\": {\n                                                  \"$sortByOrder\": {\n                                                    \"$ref\": \"request.images\"\n                                                  }\n                                                },\n                                                \"as\": \"media\",\n                                                \"where\": {\n                                                  \"$in\": [\n                                                    {\n                                                      \"$ref\": \"media.role\"\n                                                    },\n                                                    [\n                                                      \"last_frame\",\n                                                      \"end_frame\",\n                                                      \"tail_frame\"\n                                                    ]\n                                                  ]\n                                                }\n                                              }\n                                            },\n                                            \"as\": \"media\",\n                                            \"in\": {\n                                              \"$ref\": \"media.dataUrl\"\n                                            }\n                                          }\n                                        }\n                                      },\n                                      {\n                                        \"$if\": {\n                                          \"condition\": {\n                                            \"$gt\": [\n                                              {\n                                                \"$len\": {\n                                                  \"$filter\": {\n                                                    \"from\": {\n                                                      \"$sortByOrder\": {\n                                                        \"$ref\": \"request.images\"\n                                                      }\n                                                    },\n                                                    \"as\": \"media\",\n                                                    \"where\": {\n                                                      \"$in\": [\n                                                        {\n                                                          \"$ref\": \"media.role\"\n                                                        },\n                                                        [\n                                                          \"\"\n                                                        ]\n                                                      ]\n                                                    }\n                                                  }\n                                                }\n                                              },\n                                              1\n                                            ]\n                                          },\n                                          \"then\": {\n                                            \"$last\": {\n                                              \"$map\": {\n                                                \"from\": {\n                                                  \"$filter\": {\n                                                    \"from\": {\n                                                      \"$sortByOrder\": {\n                                                        \"$ref\": \"request.images\"\n                                                      }\n                                                    },\n                                                    \"as\": \"media\",\n                                                    \"where\": {\n                                                      \"$in\": [\n                                                        {\n                                                          \"$ref\": \"media.role\"\n                                                        },\n                                                        [\n                                                          \"\"\n                                                        ]\n                                                      ]\n                                                    }\n                                                  }\n                                                },\n                                                \"as\": \"media\",\n                                                \"in\": {\n                                                  \"$ref\": \"media.dataUrl\"\n                                                }\n                                              }\n                                            }\n                                          },\n                                          \"else\": null\n                                        }\n                                      }\n                                    ]\n                                  }\n                                }\n                              },\n                              \"else\": null\n                            }\n                          }\n                        },\n                        \"else\": null\n                      }\n                    }\n                  }\n                },\n                {\n                  \"$ref\": \"request.providerOptions.modelverse-veo-video.input\"\n                }\n              ]\n            },\n            \"parameters\": {\n              \"$merge\": [\n                {\n                  \"resolution\": {\n                    \"$omitEmpty\": {\n                      \"$if\": {\n                        \"condition\": {\n                          \"$in\": [\n                            {\n                              \"$lower\": {\n                                \"$ref\": \"request.resolution\"\n                              }\n                            },\n                            [\n                              \"720p\",\n                              \"1080p\"\n                            ]\n                          ]\n                        },\n                        \"then\": {\n                          \"$lower\": {\n                            \"$ref\": \"request.resolution\"\n                          }\n                        },\n                        \"else\": null\n                      }\n                    }\n                  },\n                  \"duration\": {\n                    \"$omitEmpty\": {\n                      \"$if\": {\n                        \"condition\": {\n                          \"$gt\": [\n                            {\n                              \"$ref\": \"request.duration\"\n                            },\n                            0\n                          ]\n                        },\n                        \"then\": {\n                          \"$ref\": \"request.duration\"\n                        },\n                        \"else\": null\n                      }\n                    }\n                  },\n                  \"aspect_ratio\": {\n                    \"$omitEmpty\": {\n                      \"$if\": {\n                        \"condition\": {\n                          \"$in\": [\n                            {\n                              \"$ref\": \"request.aspectRatio\"\n                            },\n                            [\n                              \"16:9\",\n                              \"9:16\"\n                            ]\n                          ]\n                        },\n                        \"then\": {\n                          \"$ref\": \"request.aspectRatio\"\n                        },\n                        \"else\": null\n                      }\n                    }\n                  },\n                  \"generate_audio\": {\n                    \"$toBool\": {\n                      \"$ref\": \"request.generateAudio\"\n                    }\n                  },\n                  \"person_generation\": {\n                    \"$omitEmpty\": {\n                      \"$ref\": \"request.providerOptions.modelverse-veo-video.person_generation\"\n                    }\n                  }\n                },\n                {\n                  \"$ref\": \"request.providerOptions.modelverse-veo-video.parameters\"\n                }\n              ]\n            }\n          }\n        },\n        \"poll\": {\n          \"method\": \"GET\",\n          \"path\": \"/v1/tasks/status\",\n          \"originPath\": true,\n          \"query\": {\n            \"task_id\": {\n              \"$ref\": \"taskId\"\n            }\n          }\n        },\n        \"response\": {\n          \"taskId\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.output.task_id\"\n              },\n              {\n                \"$ref\": \"response.task_id\"\n              },\n              {\n                \"$ref\": \"taskId\"\n              }\n            ]\n          },\n          \"status\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.output.task_status\"\n              },\n              {\n                \"$ref\": \"response.status\"\n              },\n              \"pending\"\n            ]\n          },\n          \"message\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.output.error_message\"\n              },\n              {\n                \"$ref\": \"response.output.message\"\n              },\n              {\n                \"$ref\": \"response.output.error\"\n              },\n              {\n                \"$ref\": \"response.error.message\"\n              },\n              {\n                \"$ref\": \"response.message\"\n              }\n            ]\n          },\n          \"videos\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.output.urls\"\n              },\n              {\n                \"$ref\": \"response.output.video_url\"\n              },\n              {\n                \"$ref\": \"response.output.url\"\n              }\n            ]\n          },\n          \"usage\": {\n            \"$ref\": \"response.usage\"\n          },\n          \"errorPaths\": [\n            \"error.code\"\n          ],\n          \"resultEphemeral\": true\n        }\n      }\n    ]\n  }\n}\n```\n<!-- YINGCE_MANIFEST_CONTRACT_END -->\n",
+  "permissions": [
+    "generation.run",
+    "media.read"
+  ],
+  "configuration": {
+    "fields": [
+      {
+        "name": "apiKey",
+        "type": "secret",
+        "label": "API Key",
+        "required": true
+      }
+    ]
+  },
+  "contributes": {
+    "providers": [
+      {
+        "id": "modelverse-veo-video",
+        "label": "UCloud ModelVerse Veo",
+        "capabilities": [
+          "video"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation",
+          "agent"
+        ],
+        "baseUrl": "https://api.modelverse.cn",
+        "requiresPublicMediaUrls": false,
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey"
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "ModelVerse 模型名：veo-3.1-generate-001、veo-3.1-fast-generate-001。"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "input",
+            "description": "视频提示词。"
+          },
+          {
+            "name": "images",
+            "type": "media[]",
+            "required": false,
+            "mapping": "input / parameters",
+            "description": "首帧、尾帧（role first_frame / last_frame）与参考图（reference_image）。"
+          },
+          {
+            "name": "videos",
+            "type": "media[]",
+            "required": false,
+            "mapping": "input / parameters",
+            "description": "参考视频或待编辑视频。"
+          },
+          {
+            "name": "audios",
+            "type": "media[]",
+            "required": false,
+            "mapping": "input",
+            "description": "参考音频或驱动音频。"
+          },
+          {
+            "name": "aspectRatio",
+            "type": "string",
+            "required": false,
+            "mapping": "parameters",
+            "description": "画面比例。"
+          },
+          {
+            "name": "resolution",
+            "type": "string",
+            "required": false,
+            "mapping": "parameters",
+            "description": "分辨率档位。"
+          },
+          {
+            "name": "duration",
+            "type": "integer",
+            "required": false,
+            "mapping": "parameters.duration",
+            "description": "时长（秒）。"
+          },
+          {
+            "name": "generateAudio",
+            "type": "boolean",
+            "required": false,
+            "mapping": "parameters",
+            "description": "是否生成音频。"
+          },
+          {
+            "name": "providerOptions",
+            "type": "object",
+            "required": false,
+            "mapping": "input / parameters",
+            "description": "providerOptions.modelverse-veo-video.input 与 .parameters 会合并进对应对象，可补充或覆盖字段。"
+          }
+        ],
+        "validations": [],
+        "create": {
+          "method": "POST",
+          "path": "/v1/tasks/submit",
+          "originPath": true,
+          "contentType": "application/json",
+          "body": {
+            "model": {
+              "$ref": "request.model"
+            },
+            "input": {
+              "$merge": [
+                {
+                  "prompt": {
+                    "$ref": "request.prompt"
+                  },
+                  "negative_prompt": {
+                    "$omitEmpty": {
+                      "$ref": "request.providerOptions.modelverse-veo-video.negative_prompt"
+                    }
+                  },
+                  "image": {
+                    "$omitEmpty": {
+                      "$if": {
+                        "condition": {
+                          "$coalesce": [
+                            {
+                              "$first": {
+                                "$map": {
+                                  "from": {
+                                    "$filter": {
+                                      "from": {
+                                        "$sortByOrder": {
+                                          "$ref": "request.images"
+                                        }
+                                      },
+                                      "as": "media",
+                                      "where": {
+                                        "$in": [
+                                          {
+                                            "$ref": "media.role"
+                                          },
+                                          [
+                                            "first_frame"
+                                          ]
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "as": "media",
+                                  "in": {
+                                    "$ref": "media.dataUrl"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "$first": {
+                                "$map": {
+                                  "from": {
+                                    "$filter": {
+                                      "from": {
+                                        "$sortByOrder": {
+                                          "$ref": "request.images"
+                                        }
+                                      },
+                                      "as": "media",
+                                      "where": {
+                                        "$in": [
+                                          {
+                                            "$ref": "media.role"
+                                          },
+                                          [
+                                            ""
+                                          ]
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "as": "media",
+                                  "in": {
+                                    "$ref": "media.dataUrl"
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        "then": {
+                          "bytesBase64Encoded": {
+                            "$dataPayload": {
+                              "$coalesce": [
+                                {
+                                  "$first": {
+                                    "$map": {
+                                      "from": {
+                                        "$filter": {
+                                          "from": {
+                                            "$sortByOrder": {
+                                              "$ref": "request.images"
+                                            }
+                                          },
+                                          "as": "media",
+                                          "where": {
+                                            "$in": [
+                                              {
+                                                "$ref": "media.role"
+                                              },
+                                              [
+                                                "first_frame"
+                                              ]
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "as": "media",
+                                      "in": {
+                                        "$ref": "media.dataUrl"
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "$first": {
+                                    "$map": {
+                                      "from": {
+                                        "$filter": {
+                                          "from": {
+                                            "$sortByOrder": {
+                                              "$ref": "request.images"
+                                            }
+                                          },
+                                          "as": "media",
+                                          "where": {
+                                            "$in": [
+                                              {
+                                                "$ref": "media.role"
+                                              },
+                                              [
+                                                ""
+                                              ]
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "as": "media",
+                                      "in": {
+                                        "$ref": "media.dataUrl"
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "mimeType": {
+                            "$dataMime": {
+                              "$coalesce": [
+                                {
+                                  "$first": {
+                                    "$map": {
+                                      "from": {
+                                        "$filter": {
+                                          "from": {
+                                            "$sortByOrder": {
+                                              "$ref": "request.images"
+                                            }
+                                          },
+                                          "as": "media",
+                                          "where": {
+                                            "$in": [
+                                              {
+                                                "$ref": "media.role"
+                                              },
+                                              [
+                                                "first_frame"
+                                              ]
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "as": "media",
+                                      "in": {
+                                        "$ref": "media.dataUrl"
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "$first": {
+                                    "$map": {
+                                      "from": {
+                                        "$filter": {
+                                          "from": {
+                                            "$sortByOrder": {
+                                              "$ref": "request.images"
+                                            }
+                                          },
+                                          "as": "media",
+                                          "where": {
+                                            "$in": [
+                                              {
+                                                "$ref": "media.role"
+                                              },
+                                              [
+                                                ""
+                                              ]
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "as": "media",
+                                      "in": {
+                                        "$ref": "media.dataUrl"
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "else": null
+                      }
+                    }
+                  },
+                  "last_frame": {
+                    "$omitEmpty": {
+                      "$if": {
+                        "condition": {
+                          "$coalesce": [
+                            {
+                              "$first": {
+                                "$map": {
+                                  "from": {
+                                    "$filter": {
+                                      "from": {
+                                        "$sortByOrder": {
+                                          "$ref": "request.images"
+                                        }
+                                      },
+                                      "as": "media",
+                                      "where": {
+                                        "$in": [
+                                          {
+                                            "$ref": "media.role"
+                                          },
+                                          [
+                                            "first_frame"
+                                          ]
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "as": "media",
+                                  "in": {
+                                    "$ref": "media.dataUrl"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "$first": {
+                                "$map": {
+                                  "from": {
+                                    "$filter": {
+                                      "from": {
+                                        "$sortByOrder": {
+                                          "$ref": "request.images"
+                                        }
+                                      },
+                                      "as": "media",
+                                      "where": {
+                                        "$in": [
+                                          {
+                                            "$ref": "media.role"
+                                          },
+                                          [
+                                            ""
+                                          ]
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "as": "media",
+                                  "in": {
+                                    "$ref": "media.dataUrl"
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        "then": {
+                          "$omitEmpty": {
+                            "$if": {
+                              "condition": {
+                                "$coalesce": [
+                                  {
+                                    "$first": {
+                                      "$map": {
+                                        "from": {
+                                          "$filter": {
+                                            "from": {
+                                              "$sortByOrder": {
+                                                "$ref": "request.images"
+                                              }
+                                            },
+                                            "as": "media",
+                                            "where": {
+                                              "$in": [
+                                                {
+                                                  "$ref": "media.role"
+                                                },
+                                                [
+                                                  "last_frame",
+                                                  "end_frame",
+                                                  "tail_frame"
+                                                ]
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "as": "media",
+                                        "in": {
+                                          "$ref": "media.dataUrl"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "$if": {
+                                      "condition": {
+                                        "$gt": [
+                                          {
+                                            "$len": {
+                                              "$filter": {
+                                                "from": {
+                                                  "$sortByOrder": {
+                                                    "$ref": "request.images"
+                                                  }
+                                                },
+                                                "as": "media",
+                                                "where": {
+                                                  "$in": [
+                                                    {
+                                                      "$ref": "media.role"
+                                                    },
+                                                    [
+                                                      ""
+                                                    ]
+                                                  ]
+                                                }
+                                              }
+                                            }
+                                          },
+                                          1
+                                        ]
+                                      },
+                                      "then": {
+                                        "$last": {
+                                          "$map": {
+                                            "from": {
+                                              "$filter": {
+                                                "from": {
+                                                  "$sortByOrder": {
+                                                    "$ref": "request.images"
+                                                  }
+                                                },
+                                                "as": "media",
+                                                "where": {
+                                                  "$in": [
+                                                    {
+                                                      "$ref": "media.role"
+                                                    },
+                                                    [
+                                                      ""
+                                                    ]
+                                                  ]
+                                                }
+                                              }
+                                            },
+                                            "as": "media",
+                                            "in": {
+                                              "$ref": "media.dataUrl"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "else": null
+                                    }
+                                  }
+                                ]
+                              },
+                              "then": {
+                                "bytesBase64Encoded": {
+                                  "$dataPayload": {
+                                    "$coalesce": [
+                                      {
+                                        "$first": {
+                                          "$map": {
+                                            "from": {
+                                              "$filter": {
+                                                "from": {
+                                                  "$sortByOrder": {
+                                                    "$ref": "request.images"
+                                                  }
+                                                },
+                                                "as": "media",
+                                                "where": {
+                                                  "$in": [
+                                                    {
+                                                      "$ref": "media.role"
+                                                    },
+                                                    [
+                                                      "last_frame",
+                                                      "end_frame",
+                                                      "tail_frame"
+                                                    ]
+                                                  ]
+                                                }
+                                              }
+                                            },
+                                            "as": "media",
+                                            "in": {
+                                              "$ref": "media.dataUrl"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "$if": {
+                                          "condition": {
+                                            "$gt": [
+                                              {
+                                                "$len": {
+                                                  "$filter": {
+                                                    "from": {
+                                                      "$sortByOrder": {
+                                                        "$ref": "request.images"
+                                                      }
+                                                    },
+                                                    "as": "media",
+                                                    "where": {
+                                                      "$in": [
+                                                        {
+                                                          "$ref": "media.role"
+                                                        },
+                                                        [
+                                                          ""
+                                                        ]
+                                                      ]
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                              1
+                                            ]
+                                          },
+                                          "then": {
+                                            "$last": {
+                                              "$map": {
+                                                "from": {
+                                                  "$filter": {
+                                                    "from": {
+                                                      "$sortByOrder": {
+                                                        "$ref": "request.images"
+                                                      }
+                                                    },
+                                                    "as": "media",
+                                                    "where": {
+                                                      "$in": [
+                                                        {
+                                                          "$ref": "media.role"
+                                                        },
+                                                        [
+                                                          ""
+                                                        ]
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "as": "media",
+                                                "in": {
+                                                  "$ref": "media.dataUrl"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "else": null
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "mimeType": {
+                                  "$dataMime": {
+                                    "$coalesce": [
+                                      {
+                                        "$first": {
+                                          "$map": {
+                                            "from": {
+                                              "$filter": {
+                                                "from": {
+                                                  "$sortByOrder": {
+                                                    "$ref": "request.images"
+                                                  }
+                                                },
+                                                "as": "media",
+                                                "where": {
+                                                  "$in": [
+                                                    {
+                                                      "$ref": "media.role"
+                                                    },
+                                                    [
+                                                      "last_frame",
+                                                      "end_frame",
+                                                      "tail_frame"
+                                                    ]
+                                                  ]
+                                                }
+                                              }
+                                            },
+                                            "as": "media",
+                                            "in": {
+                                              "$ref": "media.dataUrl"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "$if": {
+                                          "condition": {
+                                            "$gt": [
+                                              {
+                                                "$len": {
+                                                  "$filter": {
+                                                    "from": {
+                                                      "$sortByOrder": {
+                                                        "$ref": "request.images"
+                                                      }
+                                                    },
+                                                    "as": "media",
+                                                    "where": {
+                                                      "$in": [
+                                                        {
+                                                          "$ref": "media.role"
+                                                        },
+                                                        [
+                                                          ""
+                                                        ]
+                                                      ]
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                              1
+                                            ]
+                                          },
+                                          "then": {
+                                            "$last": {
+                                              "$map": {
+                                                "from": {
+                                                  "$filter": {
+                                                    "from": {
+                                                      "$sortByOrder": {
+                                                        "$ref": "request.images"
+                                                      }
+                                                    },
+                                                    "as": "media",
+                                                    "where": {
+                                                      "$in": [
+                                                        {
+                                                          "$ref": "media.role"
+                                                        },
+                                                        [
+                                                          ""
+                                                        ]
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "as": "media",
+                                                "in": {
+                                                  "$ref": "media.dataUrl"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "else": null
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "else": null
+                            }
+                          }
+                        },
+                        "else": null
+                      }
+                    }
+                  }
+                },
+                {
+                  "$ref": "request.providerOptions.modelverse-veo-video.input"
+                }
+              ]
+            },
+            "parameters": {
+              "$merge": [
+                {
+                  "resolution": {
+                    "$omitEmpty": {
+                      "$if": {
+                        "condition": {
+                          "$in": [
+                            {
+                              "$lower": {
+                                "$ref": "request.resolution"
+                              }
+                            },
+                            [
+                              "720p",
+                              "1080p"
+                            ]
+                          ]
+                        },
+                        "then": {
+                          "$lower": {
+                            "$ref": "request.resolution"
+                          }
+                        },
+                        "else": null
+                      }
+                    }
+                  },
+                  "duration": {
+                    "$omitEmpty": {
+                      "$if": {
+                        "condition": {
+                          "$gt": [
+                            {
+                              "$ref": "request.duration"
+                            },
+                            0
+                          ]
+                        },
+                        "then": {
+                          "$ref": "request.duration"
+                        },
+                        "else": null
+                      }
+                    }
+                  },
+                  "aspect_ratio": {
+                    "$omitEmpty": {
+                      "$if": {
+                        "condition": {
+                          "$in": [
+                            {
+                              "$ref": "request.aspectRatio"
+                            },
+                            [
+                              "16:9",
+                              "9:16"
+                            ]
+                          ]
+                        },
+                        "then": {
+                          "$ref": "request.aspectRatio"
+                        },
+                        "else": null
+                      }
+                    }
+                  },
+                  "generate_audio": {
+                    "$toBool": {
+                      "$ref": "request.generateAudio"
+                    }
+                  },
+                  "person_generation": {
+                    "$omitEmpty": {
+                      "$ref": "request.providerOptions.modelverse-veo-video.person_generation"
+                    }
+                  }
+                },
+                {
+                  "$ref": "request.providerOptions.modelverse-veo-video.parameters"
+                }
+              ]
+            }
+          }
+        },
+        "poll": {
+          "method": "GET",
+          "path": "/v1/tasks/status",
+          "originPath": true,
+          "query": {
+            "task_id": {
+              "$ref": "taskId"
+            }
+          }
+        },
+        "response": {
+          "taskId": {
+            "$coalesce": [
+              {
+                "$ref": "response.output.task_id"
+              },
+              {
+                "$ref": "response.task_id"
+              },
+              {
+                "$ref": "taskId"
+              }
+            ]
+          },
+          "status": {
+            "$coalesce": [
+              {
+                "$ref": "response.output.task_status"
+              },
+              {
+                "$ref": "response.status"
+              },
+              "pending"
+            ]
+          },
+          "message": {
+            "$coalesce": [
+              {
+                "$ref": "response.output.error_message"
+              },
+              {
+                "$ref": "response.output.message"
+              },
+              {
+                "$ref": "response.output.error"
+              },
+              {
+                "$ref": "response.error.message"
+              },
+              {
+                "$ref": "response.message"
+              }
+            ]
+          },
+          "videos": {
+            "$coalesce": [
+              {
+                "$ref": "response.output.urls"
+              },
+              {
+                "$ref": "response.output.video_url"
+              },
+              {
+                "$ref": "response.output.url"
+              }
+            ]
+          },
+          "usage": {
+            "$ref": "response.usage"
+          },
+          "errorPaths": [
+            "error.code"
+          ],
+          "resultEphemeral": true
+        }
+      }
+    ]
+  }
+}
