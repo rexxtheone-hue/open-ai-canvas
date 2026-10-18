@@ -151,6 +151,17 @@ func registerAuthProfileRoutes(r *gin.RouterGroup, svc *service.Service) {
 		clearSessionCookie(c)
 		ok(c, result)
 	})
+	profile.GET("/google/start", func(c *gin.Context) {
+		if !enforceRateLimit(c, "profile-google-reauth:"+actor(c).ID, 10, 10*time.Minute) {
+			return
+		}
+		target, err := svc.BeginGoogleReauthentication(actor(c), sessionCookie(c))
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		c.Redirect(http.StatusFound, target)
+	})
 	profile.GET("/linuxdo/start", func(c *gin.Context) {
 		if !enforceRateLimit(c, "profile-linuxdo-reauth:"+actor(c).ID, 10, 10*time.Minute) {
 			return

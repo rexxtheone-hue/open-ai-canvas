@@ -188,6 +188,7 @@ type (
 	LinkShotAssetRequest                   = app.LinkShotAssetRequest
 	LinuxDOCallbackResult                  = app.LinuxDOCallbackResult
 	LinuxDOSettingRequest                  = app.LinuxDOSettingRequest
+	GoogleSettingRequest                   = app.GoogleSettingRequest
 	LogicalModelQuote                      = app.LogicalModelQuote
 	LogicalModelRequest                    = app.LogicalModelRequest
 	LogicalRouteRequest                    = app.LogicalRouteRequest

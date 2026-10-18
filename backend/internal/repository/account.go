@@ -136,6 +136,11 @@ func (r *Repository) ChangeProfileEmail(expected *model.User, session *model.Aut
 }
 
 func (r *Repository) ReauthenticateLinuxDOSession(expected *model.User, session *model.AuthSession, subject string, now time.Time) error {
+	return r.ReauthenticateOAuthSession("linuxdo", expected, session, subject, now)
+}
+
+// ReauthenticateOAuthSession 确认第三方身份仍属于当前账号后，刷新当前会话的重新验证时间。
+func (r *Repository) ReauthenticateOAuthSession(provider string, expected *model.User, session *model.AuthSession, subject string, now time.Time) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		if err := lockProfileUser(tx, expected.ID); err != nil {
 			return err
@@ -144,7 +149,7 @@ func (r *Repository) ReauthenticateLinuxDOSession(expected *model.User, session 
 			return err
 		}
 		var count int64
-		if err := tx.Model(&model.UserIdentity{}).Where("provider = ? AND subject = ? AND user_id = ?", "linuxdo", subject, expected.ID).Count(&count).Error; err != nil {
+		if err := tx.Model(&model.UserIdentity{}).Where("provider = ? AND subject = ? AND user_id = ?", provider, subject, expected.ID).Count(&count).Error; err != nil {
 			return err
 		}
 		if count != 1 {
@@ -162,8 +167,12 @@ func (r *Repository) ReauthenticateLinuxDOSession(expected *model.User, session 
 }
 
 func (r *Repository) LinuxDOReauthenticationState(stateHash string) (bool, error) {
+	return r.OAuthReauthenticationState("linuxdo", stateHash)
+}
+
+func (r *Repository) OAuthReauthenticationState(provider, stateHash string) (bool, error) {
 	var state model.OAuthState
-	err := r.db.First(&state, "provider = ? AND state_hash = ?", "linuxdo", stateHash).Error
+	err := r.db.First(&state, "provider = ? AND state_hash = ?", provider, stateHash).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, nil
 	}

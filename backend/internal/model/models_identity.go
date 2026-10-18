@@ -46,17 +46,19 @@ type UserIdentity struct {
 }
 
 type OAuthState struct {
-	ReauthUserID    string     `json:"-" gorm:"size:36"`
-	ReauthSessionID string     `json:"-" gorm:"size:36"`
-	ID              string     `json:"id" gorm:"primaryKey;size:36"`
-	Provider        string     `json:"provider" gorm:"index;size:32"`
-	StateHash       string     `json:"-" gorm:"uniqueIndex;size:64"`
-	CodeVerifier    string     `json:"-" gorm:"size:160"`
-	NextPath        string     `json:"nextPath"`
-	AcceptedTerms   bool       `json:"acceptedTerms" gorm:"not null;default:false"`
-	ExpiresAt       time.Time  `json:"expiresAt" gorm:"index"`
-	UsedAt          *time.Time `json:"usedAt" gorm:"index"`
-	CreatedAt       time.Time  `json:"createdAt"`
+	ReauthUserID    string `json:"-" gorm:"size:36"`
+	ReauthSessionID string `json:"-" gorm:"size:36"`
+	ID              string `json:"id" gorm:"primaryKey;size:36"`
+	Provider        string `json:"provider" gorm:"index;size:32"`
+	StateHash       string `json:"-" gorm:"uniqueIndex;size:64"`
+	CodeVerifier    string `json:"-" gorm:"size:160"`
+	NextPath        string `json:"nextPath"`
+	AcceptedTerms   bool   `json:"acceptedTerms" gorm:"not null;default:false"`
+	// ReferralCode 在跳转第三方登录前保存推广码，回调建号时用于推广归属。
+	ReferralCode string     `json:"-" gorm:"size:32"`
+	ExpiresAt    time.Time  `json:"expiresAt" gorm:"index"`
+	UsedAt       *time.Time `json:"usedAt" gorm:"index"`
+	CreatedAt    time.Time  `json:"createdAt"`
 }
 
 type EmailVerificationCode struct {

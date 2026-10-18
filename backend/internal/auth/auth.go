@@ -55,6 +55,7 @@ type PublicAuthSettings struct {
 	FirstUser             bool   `json:"firstUser"`
 	RegistrationEnabled   bool   `json:"registrationEnabled"`
 	LinuxDOEnabled        bool   `json:"linuxdoEnabled"`
+	GoogleEnabled         bool   `json:"googleEnabled"`
 	EmailEnabled          bool   `json:"emailEnabled"`
 	EmailCodeRequired     bool   `json:"emailCodeRequired"`
 	AgreementTitle        string `json:"agreementTitle,omitempty"`
@@ -122,6 +123,7 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 		FirstUser:             false,
 		RegistrationEnabled:   registrationEnabled,
 		LinuxDOEnabled:        s.LinuxDOEnabled(),
+		GoogleEnabled:         s.GoogleEnabled(),
 		EmailEnabled:          emailEnabled,
 		EmailCodeRequired:     p.EmailRegistration || p.SMSAndEmailRegistration,
 		AgreementTitle:        agreementTitle,
@@ -362,6 +364,9 @@ func (s *Service) PublicAuthUser(user *model.User) (AuthUser, error) {
 		result.AvatarURL = profileAvatarURL(user)
 	}
 	identity, err := s.repo.UserIdentityForUser(user.ID, "linuxdo")
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		identity, err = s.repo.UserIdentityForUser(user.ID, googleProvider)
+	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return result, nil
 	}

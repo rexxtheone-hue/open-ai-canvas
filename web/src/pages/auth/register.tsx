@@ -3,8 +3,8 @@ import { App, Button, Checkbox, Divider, Input, Modal, Segmented } from "antd";
 import { ArrowRight, FileText, Info, LockKeyhole, Mail, TriangleAlert, UserRound } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 
-import { getAuthSession, getAuthSettings, linuxDOLoginURL, register } from "@/services/api/auth";
-import { LinuxDOIcon } from "./auth-scene";
+import { getAuthSession, getAuthSettings, googleLoginURL, linuxDOLoginURL, register } from "@/services/api/auth";
+import { GoogleIcon, LinuxDOIcon } from "./auth-scene";
 import { ApiError } from "@/services/api/request";
 import { VerificationFields } from "@/components/auth/verification-fields";
 import { emptyVerification, methodLabels, verificationMethods, type VerificationMethod } from "@/services/api/verification";
@@ -195,14 +195,21 @@ export default function RegisterPage() {
             <Button type="primary" htmlType="submit" size="large" block loading={submitting} disabled={disabled || registerCountdown > 0 || !agreementAccepted} icon={<ArrowRight className="size-4" />} iconPlacement="end">
                 {registerCountdown > 0 ? `${registerCountdown} 秒后可重试` : "创建账号"}
             </Button>
-            {settings?.linuxdoEnabled && !settings.smsAndEmailRegistration ? (
+            {(settings?.googleEnabled || settings?.linuxdoEnabled) && !settings.smsAndEmailRegistration ? (
                 <>
                     <Divider plain className="auth-scene-divider">
                         或
                     </Divider>
-                    <Button size="large" block disabled={!agreementAccepted} icon={<LinuxDOIcon />} href={agreementAccepted ? linuxDOLoginURL(next, true) : undefined}>
-                        使用 Linux.do 注册 / 登录
-                    </Button>
+                    {settings.googleEnabled ? (
+                        <Button size="large" block disabled={!agreementAccepted} icon={<GoogleIcon />} href={agreementAccepted ? googleLoginURL(next, true) : undefined}>
+                            使用 Google 注册 / 登录
+                        </Button>
+                    ) : null}
+                    {settings.linuxdoEnabled ? (
+                        <Button size="large" block disabled={!agreementAccepted} icon={<LinuxDOIcon />} href={agreementAccepted ? linuxDOLoginURL(next, true) : undefined}>
+                            使用 Linux.do 注册 / 登录
+                        </Button>
+                    ) : null}
                 </>
             ) : null}
             <Modal

@@ -400,6 +400,7 @@ export function getAuthSettings() {
             firstUser: boolean;
             registrationEnabled: boolean;
             linuxdoEnabled: boolean;
+            googleEnabled: boolean;
             emailEnabled: boolean;
             emailCodeRequired: boolean;
             smsBindingAvailable: boolean;
@@ -414,6 +415,22 @@ export function linuxDOLoginURL(next: string, acceptedTerms?: boolean) {
     const base = String(apiBaseURL).replace(/\/$/, "");
     const termsQuery = acceptedTerms === undefined ? "" : `&acceptedTerms=${acceptedTerms ? "true" : "false"}`;
     return `${base}/auth/linuxdo/start?next=${encodeURIComponent(next)}${termsQuery}`;
+}
+
+export function googleLoginURL(next: string, acceptedTerms: boolean) {
+    const base = String(apiBaseURL).replace(/\/$/, "");
+    const ref = readReferralCode();
+    return `${base}/auth/google/start?next=${encodeURIComponent(next)}&acceptedTerms=${acceptedTerms ? "true" : "false"}${ref ? `&ref=${encodeURIComponent(ref)}` : ""}`;
+}
+
+export type GoogleSetting = { enabled: boolean; clientId: string; hasClientSecret: boolean; redirectUrl: string; updatedAt?: string };
+
+export function getAdminGoogleSetting() {
+    return http.get<{ setting: GoogleSetting }>("/admin/settings/google");
+}
+
+export function updateAdminGoogleSetting(input: { enabled: boolean; clientId: string; clientSecret?: string; redirectUrl: string }) {
+    return http.patch<{ setting: GoogleSetting }>("/admin/settings/google", input);
 }
 
 export function getAuthSession() {

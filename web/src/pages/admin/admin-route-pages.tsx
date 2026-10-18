@@ -11,6 +11,7 @@ const AdminAnnouncementsPanel = lazy(() => import("./components/admin-announceme
 const AdminBannerAnnouncementsPanel = lazy(() => import("./components/admin-banner-announcements-panel"));
 const CreditOperationsPanel = lazy(() => import("./components/credit-operations-panel"));
 const AccessSettingsPanel = lazy(() => import("./components/access-settings-panel"));
+const GoogleLoginSettingsCard = lazy(() => import("./components/google-login-settings").then((module) => ({ default: module.GoogleLoginSettingsCard })));
 const EmailSettingsPanel = lazy(() => import("./components/email-settings-panel"));
 const FeatureAvailabilityPanel = lazy(() => import("./components/feature-availability-panel"));
 const StorageResourcesPanel = lazy(() => import("./components/storage-resources-panel"));
@@ -101,7 +102,10 @@ export function CreditOperationsPage() {
 export function AccessSettingsPage() {
     return (
         <AdminPageFrame title="登录与注册" description="先控制账号创建，再配置第三方登录入口与服务协议" scroll>
-            <AccessSettingsPanel />
+            <div className="admin-settings-stack">
+                <GoogleLoginSettingsCard />
+                <AccessSettingsPanel />
+            </div>
         </AdminPageFrame>
     );
 }

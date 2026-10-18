@@ -157,6 +157,18 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		c.Redirect(http.StatusFound, target)
 	})
 	r.GET("/auth/linuxdo/callback", rejectedLoginAudit(svc, "linuxdo"), linuxDOCallbackHandler(svc))
+	r.GET("/auth/google/start", func(c *gin.Context) {
+		if !enforceRateLimit(c, "google-start:"+c.ClientIP(), 20, 10*time.Minute) {
+			return
+		}
+		target, err := svc.BeginGoogleLogin(c.Query("next"), c.Query("acceptedTerms") == "true", c.Query("ref"))
+		if err != nil {
+			c.Redirect(http.StatusFound, "/login?oauth_error="+url.QueryEscape(err.Error()))
+			return
+		}
+		c.Redirect(http.StatusFound, target)
+	})
+	r.GET("/auth/google/callback", rejectedLoginAudit(svc, "google"), googleCallbackHandler(svc))
 	r.POST("/auth/logout", func(c *gin.Context) {
 		if err := svc.Logout(sessionCookie(c), loginRequestContext(c)); err != nil {
 			failService(c, err)
@@ -215,6 +227,41 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 // 兼容已在 Linux.do OAuth 应用中登记的传统回调地址，处理逻辑与 /api/auth/linuxdo/callback 完全一致。
 func RegisterOAuthCallbackRoutes(r gin.IRoutes, svc *service.Service) {
 	r.GET("/oauth/linuxdo/callback", rejectedLoginAudit(svc, "linuxdo"), linuxDOCallbackHandler(svc))
+	r.GET("/oauth/google/callback", rejectedLoginAudit(svc, "google"), googleCallbackHandler(svc))
+}
+
+func googleCallbackHandler(svc *service.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !enforceRateLimit(c, "google-callback:"+c.ClientIP(), 30, 10*time.Minute) {
+			return
+		}
+		if denied := c.Query("error"); denied != "" {
+			c.Redirect(http.StatusFound, "/login?oauth_error="+url.QueryEscape("已取消 Google 登录"))
+			return
+		}
+		reauthentication, stateErr := svc.GoogleReauthenticationState(c.Query("state"))
+		if stateErr != nil {
+			if err := svc.RecordRejectedLogin("google", loginRequestContext(c), 400); err != nil {
+				log.Printf("OAuth rejected login audit write failed: error=%v", err)
+			}
+			c.Redirect(http.StatusFound, "/login?oauth_error="+url.QueryEscape("无法读取身份验证状态，请重试"))
+			return
+		}
+		c.Set("login_audit_handled", true)
+		result, err := svc.CompleteGoogleLogin(c.Query("state"), c.Query("code"), sessionCookie(c), loginRequestContext(c))
+		if err != nil {
+			if reauthentication {
+				c.Redirect(http.StatusFound, "/settings?section=profile&reauth=error")
+				return
+			}
+			c.Redirect(http.StatusFound, "/login?oauth_error="+url.QueryEscape(err.Error()))
+			return
+		}
+		if !result.Reauthenticated {
+			setSessionCookie(c, result.Session.Session, result.Session.MaxAgeSecs)
+		}
+		c.Redirect(http.StatusFound, result.Next)
+	}
 }
 
 func linuxDOCallbackHandler(svc *service.Service) gin.HandlerFunc {

@@ -18,6 +18,7 @@ type UserProfile struct {
 	HasPassword          bool       `json:"hasPassword"`
 	EmailEnabled         bool       `json:"emailEnabled"`
 	LinuxDOEnabled       bool       `json:"linuxdoEnabled"`
+	GoogleEnabled        bool       `json:"googleEnabled"`
 	ReauthenticatedUntil *time.Time `json:"reauthenticatedUntil,omitempty"`
 }
 type ProfilePasswordRequest struct {
@@ -107,7 +108,7 @@ func (s *Service) UserProfile(actor *model.User, cookie string) (*UserProfile, e
 	if err != nil {
 		return nil, err
 	}
-	result := &UserProfile{User: public, HasPassword: user.PasswordHash != "", EmailEnabled: emailEnabled, LinuxDOEnabled: linuxdo.Enabled}
+	result := &UserProfile{User: public, HasPassword: user.PasswordHash != "", EmailEnabled: emailEnabled, LinuxDOEnabled: linuxdo.Enabled, GoogleEnabled: s.GoogleEnabled()}
 	now := time.Now()
 	if session.ReauthenticatedAt != nil && !session.ReauthenticatedAt.After(now) {
 		until := session.ReauthenticatedAt.Add(repository.ProfileReauthenticationTTL)

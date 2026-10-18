@@ -26,6 +26,8 @@ type (
 	LinuxDOSettingRequest      = auth.LinuxDOSettingRequest
 	PublicLinuxDOSetting       = auth.PublicLinuxDOSetting
 	LinuxDOCallbackResult      = auth.LinuxDOCallbackResult
+	GoogleSettingRequest       = auth.GoogleSettingRequest
+	PublicGoogleSetting        = auth.PublicGoogleSetting
 	LibTVSettingRequest        = auth.LibTVSettingRequest
 	PublicLibTVSetting         = auth.PublicLibTVSetting
 	LibTVImportRequest         = auth.LibTVImportRequest
@@ -201,6 +203,30 @@ func (s *Service) AdminLinuxDOSetting(actor *model.User) (*PublicLinuxDOSetting,
 
 func (s *Service) UpdateLinuxDOSetting(actor *model.User, req LinuxDOSettingRequest) (*PublicLinuxDOSetting, error) {
 	return s.authDomain().UpdateLinuxDOSetting(actor, req)
+}
+
+func (s *Service) AdminGoogleSetting(actor *model.User) (*PublicGoogleSetting, error) {
+	return s.authDomain().AdminGoogleSetting(actor)
+}
+
+func (s *Service) UpdateGoogleSetting(actor *model.User, req GoogleSettingRequest) (*PublicGoogleSetting, error) {
+	return s.authDomain().UpdateGoogleSetting(actor, req)
+}
+
+func (s *Service) BeginGoogleLogin(nextPath string, acceptedTerms bool, referralCode string) (string, error) {
+	return s.authDomain().BeginGoogleLogin(nextPath, acceptedTerms, referralCode)
+}
+
+func (s *Service) CompleteGoogleLogin(stateValue string, code string, cookieValue string, contexts ...LoginContext) (*LinuxDOCallbackResult, error) {
+	return s.authDomain().CompleteGoogleLogin(stateValue, code, cookieValue, contexts...)
+}
+
+func (s *Service) BeginGoogleReauthentication(actor *model.User, cookie string) (string, error) {
+	return s.authDomain().BeginGoogleReauthentication(actor, cookie)
+}
+
+func (s *Service) GoogleReauthenticationState(stateValue string) (bool, error) {
+	return s.authDomain().GoogleReauthenticationState(stateValue)
 }
 
 func (s *Service) LinuxDOEnabled() bool {

@@ -14,7 +14,7 @@ import { cropProfileAvatar } from "@/services/profile-avatar";
 import { loadProfileSession } from "@/services/profile-session";
 import { applyUserSession } from "@/lib/user-session";
 import { invalidateAuthSessionCache, type LocalUser } from "@/services/api/auth";
-import { changeProfileEmail, changeProfilePassword, profileLinuxDOReauthURL, requestProfileEmailCode, selectDefaultProfileAvatar, uploadProfileAvatar, type UserProfile } from "@/services/api/profile";
+import { changeProfileEmail, changeProfilePassword, profileGoogleReauthURL, profileLinuxDOReauthURL, requestProfileEmailCode, selectDefaultProfileAvatar, uploadProfileAvatar, type UserProfile } from "@/services/api/profile";
 import { ApiError } from "@/services/api/request";
 import { useUserStore } from "@/stores/use-user-store";
 import { profileAvatarError, profilePasswordError, profileReauthReady, profileSecondsRemaining } from "./profile-validation";
@@ -55,6 +55,15 @@ export function ProfilePane() {
     const oauthResult = searchParams.get("reauth");
     const [reauthResult] = useState(oauthResult);
     const reauthReady = profileReauthReady(profile?.reauthenticatedUntil, now);
+    // 只用账号实际绑定、且后台已启用的第三方身份做重新验证。
+    const reauthProvider =
+        profile?.user.identityProvider === "google" && profile.googleEnabled
+            ? "google"
+            : profile?.user.identityProvider === "linuxdo" && profile.linuxdoEnabled
+              ? "linuxdo"
+              : profile?.linuxdoEnabled && !profile.user.identityProvider
+                ? "linuxdo"
+                : undefined;
     const identityReady = !!profile?.hasPassword || reauthReady;
     const retrySeconds = profileSecondsRemaining(retryAt, now);
     const ticketSeconds = emailTicket ? profileSecondsRemaining(emailTicket.expiresAt, now) : 0;
@@ -325,21 +334,23 @@ export function ProfilePane() {
                             title="验证当前身份"
                             icon={ShieldCheck}
                             action={
-                                profile.linuxdoEnabled ? (
-                                    <Button disabled={!!pending} onClick={() => window.location.assign(profileLinuxDOReauthURL())}>
-                                        {reauthReady ? "重新验证" : "使用 Linux.do 验证"}
+                                reauthProvider ? (
+                                    <Button disabled={!!pending} onClick={() => window.location.assign(reauthProvider === "google" ? profileGoogleReauthURL() : profileLinuxDOReauthURL())}>
+                                        {reauthReady ? "重新验证" : reauthProvider === "google" ? "使用 Google 验证" : "使用 Linux.do 验证"}
                                     </Button>
                                 ) : undefined
                             }
                         >
                             {reauthReady
                                 ? `身份验证已通过，有效期剩余 ${profileSecondsRemaining(Date.parse(profile.reauthenticatedUntil!), now)} 秒。`
-                                : profile.linuxdoEnabled
-                                  ? "设置密码或更换邮箱前，请使用已绑定的 Linux.do 账号重新验证。验证有效期为 5 分钟。"
-                                  : "当前账号未设置密码，且 Linux.do 验证未启用，请联系管理员。"}
+                                : reauthProvider === "google"
+                                  ? "设置密码或更换邮箱前，请使用已绑定的 Google 账号重新验证。验证有效期为 5 分钟。"
+                                  : reauthProvider === "linuxdo"
+                                    ? "设置密码或更换邮箱前，请使用已绑定的 Linux.do 账号重新验证。验证有效期为 5 分钟。"
+                                    : "当前账号未设置密码，且第三方登录验证未启用，请联系管理员。"}
                             {reauthResult === "error" && !reauthReady ? (
                                 <p className="profile-reauth-error" role="alert">
-                                    Linux.do 身份验证失败，请重新验证。
+                                    {reauthProvider === "google" ? "Google" : "Linux.do"} 身份验证失败，请重新验证。
                                 </p>
                             ) : null}
                         </Callout>

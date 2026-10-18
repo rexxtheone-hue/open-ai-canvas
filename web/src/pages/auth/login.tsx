@@ -3,9 +3,9 @@ import { App, Button, Divider, Input, Segmented } from "antd";
 import { ArrowRight, LockKeyhole, UserRound } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 
-import { getAuthSession, getAuthSettings, linuxDOLoginURL, login } from "@/services/api/auth";
+import { getAuthSession, getAuthSettings, googleLoginURL, linuxDOLoginURL, login } from "@/services/api/auth";
 import { useUserStore } from "@/stores/use-user-store";
-import { LinuxDOIcon } from "./auth-scene";
+import { GoogleIcon, LinuxDOIcon } from "./auth-scene";
 import { VerificationFields } from "@/components/auth/verification-fields";
 import { emptyVerification, loginVerification, methodLabels, verificationMethods, type VerificationMethod } from "@/services/api/verification";
 
@@ -17,6 +17,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [linuxdoEnabled, setLinuxdoEnabled] = useState(false);
+    const [googleEnabled, setGoogleEnabled] = useState(false);
     const [methods, setMethods] = useState<VerificationMethod[]>([]);
     const [method, setMethod] = useState<"password" | VerificationMethod>("password");
     const [verification, setVerification] = useState({ ...emptyVerification });
@@ -34,7 +35,7 @@ export default function LoginPage() {
 
     useEffect(() => {
         void getAuthSettings()
-            .then((settings) => { setLinuxdoEnabled(settings.linuxdoEnabled); setMethods(verificationMethods(settings, "login")); })
+            .then((settings) => { setLinuxdoEnabled(settings.linuxdoEnabled); setGoogleEnabled(Boolean(settings.googleEnabled)); setMethods(verificationMethods(settings, "login")); })
             .catch((error) => {
                 // 这是登录页的展示配置读取：失败时明确隐藏第三方入口，
                 // 账号密码登录仍可用；不能无痕地把配置读取失败当成成功。
@@ -98,15 +99,23 @@ export default function LoginPage() {
             <Button type="primary" htmlType="submit" size="large" block loading={submitting} icon={<ArrowRight className="size-4" />} iconPlacement="end">
                 登录
             </Button>
-            {linuxdoEnabled ? (
+            {googleEnabled || linuxdoEnabled ? (
+                <Divider plain className="auth-scene-divider">
+                    或
+                </Divider>
+            ) : null}
+            {googleEnabled ? (
                 <>
-                    <Divider plain className="auth-scene-divider">
-                        或
-                    </Divider>
-                    <Button size="large" block icon={<LinuxDOIcon />} href={linuxDOLoginURL(next)}>
-                        使用 Linux.do 登录
+                    <Button size="large" block icon={<GoogleIcon />} href={googleLoginURL(next, true)}>
+                        使用 Google 继续
                     </Button>
+                    <p className="auth-scene-hint text-center text-xs opacity-70">首次使用 Google 登录会自动创建账号，即表示你同意服务协议。</p>
                 </>
+            ) : null}
+            {linuxdoEnabled ? (
+                <Button size="large" block icon={<LinuxDOIcon />} href={linuxDOLoginURL(next)}>
+                    使用 Linux.do 登录
+                </Button>
             ) : null}
         </form>
     );

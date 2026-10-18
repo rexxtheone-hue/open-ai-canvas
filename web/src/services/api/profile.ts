@@ -6,6 +6,7 @@ export type UserProfile = {
     hasPassword: boolean;
     emailEnabled: boolean;
     linuxdoEnabled: boolean;
+    googleEnabled: boolean;
     reauthenticatedUntil?: string;
 };
 
@@ -27,3 +28,4 @@ export const requestProfileEmailCode = (input: { email: string; currentPassword:
 export const changeProfileEmail = (input: { ticket: string; emailCode: string; currentPassword: string }) => http.post<ProfileEmailResult>("/auth/profile/email", input);
 
 export const profileLinuxDOReauthURL = () => `${apiBaseURL.replace(/\/$/, "")}/auth/profile/linuxdo/start`;
+export const profileGoogleReauthURL = () => `${apiBaseURL.replace(/\/$/, "")}/auth/profile/google/start`;
