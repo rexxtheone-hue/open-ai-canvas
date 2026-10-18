@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
-import { ChatFill, ChevronDown, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, Layers, LayoutTemplate, Megaphone, MessageSquareText, Palette, PanelLeft, Pin, UserPen, UserRound, Users, Wand2, Waypoints } from "./studio-icons";
+import { ChatFill, ChevronDown, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, Layers, LayoutTemplate, Megaphone, MessageSquareText, Palette, PanelLeft, Pin, UserPen, UserRound, Users, Wand2 } from "./studio-icons";
 
 import "@fontsource-variable/space-grotesk/index.css";
 
@@ -114,9 +114,15 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                 <div className="studio-side-top">
                     <Link to="/studio" className="studio-side-brand" aria-label="AI Studio 首页">
                         <span className="studio-side-logo">AI</span>
-                        {collapsed ? null : <strong><StudioBrandName /></strong>}
+                        {collapsed ? null : (
+                            <strong>
+                                <StudioBrandName />
+                            </strong>
+                        )}
                     </Link>
-                    <button type="button" className="studio-side-collapse" aria-label={collapsed ? "展开侧栏" : "收起侧栏"} onClick={toggleCollapsed}><PanelLeft aria-hidden /></button>
+                    <button type="button" className="studio-side-collapse" aria-label={collapsed ? "展开侧栏" : "收起侧栏"} onClick={toggleCollapsed}>
+                        <PanelLeft aria-hidden />
+                    </button>
                 </div>
                 {collapsed ? (
                     <div className="studio-rail-list">
@@ -124,7 +130,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                             { to: "/studio", label: "首页", icon: Home, active: isActive(pathname, search, "/studio") },
                             { to: "/studio/agents", label: "智能体", icon: MessageSquareText, active: pathname.startsWith("/studio/agents") || pathname.startsWith("/studio/director") },
                             { to: "/studio/video", label: "工具", icon: Wand2, active: Boolean(activeTab) },
-                            { to: "/studio/canvas", label: "画布", icon: Layers, active: pathname.startsWith("/studio/canvas") },
+                            { to: "/studio/canvas", label: "无限画布", icon: Layers, active: pathname.startsWith("/studio/canvas") },
                             { to: "/studio/media", label: "素材", icon: FolderOpen, active: ["/studio/media", "/studio/characters", "/studio/brand"].some((path) => pathname.startsWith(path)) },
                             { to: "/studio/inspire", label: "灵感", icon: Compass, active: pathname.startsWith("/studio/inspire") || pathname.startsWith("/studio/pricing") },
                         ].map((item) => (
@@ -143,19 +149,33 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                 ) : (
                     <div className="studio-side-scroll">
                         {link("/studio", "首页", Home)}
-                        {section("agents", "智能体", (
+                        {section(
+                            "agents",
+                            "智能体",
                             <div className="studio-side-cards">
                                 <Link to="/studio/agents" className="studio-side-card" aria-current={pathname.startsWith("/studio/agents") ? "page" : undefined}>
-                                    <span className="studio-side-card-icon"><ChatFill aria-hidden /></span>
-                                    <span><b>聊天模式</b><small>说一句话，AI 帮你做</small></span>
+                                    <span className="studio-side-card-icon">
+                                        <ChatFill aria-hidden />
+                                    </span>
+                                    <span>
+                                        <b>聊天模式</b>
+                                        <small>说一句话，AI 帮你做</small>
+                                    </span>
                                 </Link>
                                 <Link to="/studio/director" className="studio-side-card" aria-current={pathname.startsWith("/studio/director") ? "page" : undefined}>
-                                    <span className="studio-side-card-icon"><DirectorFill aria-hidden /></span>
-                                    <span><b>导演模式</b><small>从方案到成片</small></span>
+                                    <span className="studio-side-card-icon">
+                                        <DirectorFill aria-hidden />
+                                    </span>
+                                    <span>
+                                        <b>导演模式</b>
+                                        <small>从方案到成片</small>
+                                    </span>
                                 </Link>
-                            </div>
-                        ))}
-                        {section("tools", "工具", (
+                            </div>,
+                        )}
+                        {section(
+                            "tools",
+                            "工具",
                             <div className="studio-side-tools">
                                 {SIDEBAR_TAB_ORDER.flatMap((id) => STUDIO_TOOL_TABS.filter((tab) => tab.id === id)).map((tab) => (
                                     <Link key={tab.id} to={tab.path} aria-current={activeTab === tab.id ? "page" : undefined}>
@@ -163,18 +183,22 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                                         {tab.label}
                                     </Link>
                                 ))}
-                            </div>
-                        ))}
-                        {section("assets", "素材", (
+                            </div>,
+                        )}
+                        {section(
+                            "assets",
+                            "素材",
                             <div className="studio-side-links">
-                                {link("/studio/canvas", "画布 Canvas", Layers)}
+                                {link("/studio/canvas", "无限画布", Layers)}
                                 {link("/studio/director#studio-director-projects", "导演项目", Clapperboard)}
                                 {link("/studio/characters", "角色与世界", UserRound)}
                                 {link("/studio/brand", "品牌套件", Palette)}
                                 {link("/studio/media", "媒体", FolderOpen)}
-                            </div>
-                        ))}
-                        {section("inspire", "获取灵感", (
+                            </div>,
+                        )}
+                        {section(
+                            "inspire",
+                            "获取灵感",
                             <div className="studio-side-links">
                                 {link("/studio/templates", "模板", LayoutTemplate)}
                                 {link("/studio/inspire", "灵感社区", Compass)}
@@ -182,30 +206,45 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                                 {link("/studio/profile", "我的主页", UserPen)}
                                 {link("/studio/pricing", "会员", Crown)}
                                 {link("/studio/partner", "认证与推广", Megaphone)}
-                            </div>
-                        ))}
-                        {section("pinned", "已固定工具", (
+                            </div>,
+                        )}
+                        {section(
+                            "pinned",
+                            "已固定工具",
                             <div className="studio-side-links">
-                                <Link to="/studio/video" className="studio-side-link"><Grid2x2 aria-hidden /><span>全部工具</span><ChevronRight className="studio-side-trail" aria-hidden /></Link>
-                                {pinnedTools.length ? pinnedTools.map((tool) => (
-                                    <Link key={tool.id} to={tool.path} className="studio-side-link is-tool" aria-current={pathname === tool.path ? "page" : undefined}>
-                                        <StudioToolThumb tool={tool} cover={covers[tool.id]} size={22} />
-                                        <span>{tool.label}</span>
-                                    </Link>
-                                )) : <p className="studio-side-empty"><Pin aria-hidden />在工具列表里点图钉，常用工具会出现在这里。</p>}
-                            </div>
-                        ))}
+                                <Link to="/studio/video" className="studio-side-link">
+                                    <Grid2x2 aria-hidden />
+                                    <span>全部工具</span>
+                                    <ChevronRight className="studio-side-trail" aria-hidden />
+                                </Link>
+                                {pinnedTools.length ? (
+                                    pinnedTools.map((tool) => (
+                                        <Link key={tool.id} to={tool.path} className="studio-side-link is-tool" aria-current={pathname === tool.path ? "page" : undefined}>
+                                            <StudioToolThumb tool={tool} cover={covers[tool.id]} size={22} />
+                                            <span>{tool.label}</span>
+                                        </Link>
+                                    ))
+                                ) : (
+                                    <p className="studio-side-empty">
+                                        <Pin aria-hidden />
+                                        在工具列表里点图钉，常用工具会出现在这里。
+                                    </p>
+                                )}
+                            </div>,
+                        )}
                     </div>
                 )}
-                <Link to="/?choose=1" className="studio-side-switch" title="切换产品">
-                    <Waypoints aria-hidden />
-                    {collapsed ? null : <span>切换产品</span>}
-                </Link>
             </nav>
             <div className="studio-main">
                 <header className="studio-topbar">
                     <div className="studio-topbar-title">
-                        {title ? <strong>{title}</strong> : <strong><StudioBrandName /></strong>}
+                        {title ? (
+                            <strong>{title}</strong>
+                        ) : (
+                            <strong>
+                                <StudioBrandName />
+                            </strong>
+                        )}
                         {subtitle ? <span>· {subtitle}</span> : null}
                     </div>
                     <div className="studio-topbar-spacer" />
@@ -217,7 +256,11 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                             <strong>{balance}</strong>
                         </button>
                     ) : null}
-                    {creditsEnabled ? <Link to="/studio/pricing" className="studio-upgrade-button">升级</Link> : null}
+                    {creditsEnabled ? (
+                        <Link to="/studio/pricing" className="studio-upgrade-button">
+                            升级
+                        </Link>
+                    ) : null}
                     <WorkspaceAccountMenu studio />
                 </header>
                 <div className="studio-content">{children}</div>

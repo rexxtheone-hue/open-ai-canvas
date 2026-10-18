@@ -47,9 +47,9 @@ function buildNav(features: FeatureAvailability): { groups: WorkspaceNavGroup[];
                 { ...toolItem("create", "/create"), id: "home", title: "创作" },
                 { ...toolItem("inspirations", "/inspirations"), title: "模板" },
                 { ...toolItem("projects", "/projects"), title: "短剧制作" },
-                { ...toolItem("canvas", "/canvas"), title: "自由画布" },
-                // 回到产品选择页；AI Canvas 与 AI Studio 是两个独立产品，只共用账号、会员与积分。
-                { id: "switch-product", title: "切换产品", icon: Repeat2, to: "/?choose=1" },
+                { ...toolItem("canvas", "/canvas"), title: "无限画布" },
+                // 画布等功能都已并入 AI Studio，这里只保留回到 Studio 的入口。
+                { id: "back-to-studio", title: "返回 AI Studio", icon: Repeat2, to: "/studio" },
             ],
         },
         {
@@ -63,10 +63,7 @@ function buildNav(features: FeatureAvailability): { groups: WorkspaceNavGroup[];
         },
         {
             heading: "资产与历史",
-            items: [
-                { ...toolItem("assets", "/assets"), title: "资产" },
-                ...(features.taskCenterEnabled ? [{ id: "tasks", title: "创作历史", icon: ImageIcon, to: "/tasks" }] : []),
-            ],
+            items: [{ ...toolItem("assets", "/assets"), title: "资产" }, ...(features.taskCenterEnabled ? [{ id: "tasks", title: "创作历史", icon: ImageIcon, to: "/tasks" }] : [])],
         },
     ];
 

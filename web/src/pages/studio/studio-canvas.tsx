@@ -9,7 +9,7 @@ import { useUserStore } from "@/stores/use-user-store";
 import { Layers, Plus, Search } from "./studio-icons";
 import { StudioShell } from "./studio-shell";
 
-/** 画布 Canvas：AI Studio 里的无限画布，适合分镜、批量出图和多步骤串联。 */
+/** 无限画布（Canvas）：AI Studio 里的画布，适合分镜、批量出图和多步骤串联。 */
 export default function StudioCanvasPage() {
     const navigate = useNavigate();
     const userId = useUserStore((state) => state.user?.id || "");
@@ -23,12 +23,12 @@ export default function StudioCanvasPage() {
     const items = projects.data?.projects || [];
 
     return (
-        <StudioShell title="画布">
+        <StudioShell title="无限画布">
             <div className="studio-home studio-page">
                 <div className="studio-section-head">
                     <div>
                         <h2>
-                            画布 Canvas <span className="studio-post-badge">Pro</span>
+                            无限画布 <span className="studio-post-badge">Pro</span>
                         </h2>
                         <p>在无限画布上串联多个步骤：分镜、批量出图、图生视频、对比不同版本。作品库和 Studio 共用。</p>
                     </div>
@@ -59,7 +59,7 @@ export default function StudioCanvasPage() {
                     <div className="studio-empty">
                         <Layers aria-hidden />
                         <strong>{query ? "没有找到相关画布" : "还没有画布"}</strong>
-                        <span>新建一张画布，或在作品库点「在画布中编辑」把作品带进来。</span>
+                        <span>新建一张画布，或在作品库点「在无限画布中编辑」把作品带进来。</span>
                         <button type="button" className="studio-mini-button" onClick={() => navigate("/canvas?mode=new")}>
                             新建画布
                         </button>

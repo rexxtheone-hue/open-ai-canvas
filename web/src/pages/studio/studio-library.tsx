@@ -21,8 +21,8 @@ import { StudioFolderSection, StudioLabelDot, StudioLabelFilter, StudioLabelWork
 const KIND_LABELS: Record<StudioKind, string> = { image: "图片", video: "视频", audio: "音频" };
 const SOURCE_OPTIONS: Array<{ value: "studio" | "canvas" | undefined; label: string }> = [
     { value: undefined, label: "全部来源" },
-    { value: "studio", label: "AI Studio" },
-    { value: "canvas", label: "AI Canvas" },
+    { value: "studio", label: "Studio 工具" },
+    { value: "canvas", label: "无限画布" },
 ];
 const CARD_SIZE_KEY = "studio.library.card-size.v1";
 
@@ -92,7 +92,7 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
     const openInCanvas = (work: StudioWork) => {
         const path = studioCanvasHandoffPath(studioWorkCanvasPayloads(work));
         if (path) navigate(path);
-        else message.error("这件作品暂时无法带入画布");
+        else message.error("这件作品暂时无法带入无限画布");
     };
     const [filter, setFilter] = useState<StudioWorksFilter>({ kind: kind || "all", favorite: false, q: "" });
     const [searchDraft, setSearchDraft] = useState("");
@@ -204,13 +204,16 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                     content={
                         <div className="studio-menu" role="menu">
                             <button type="button" role="menuitemradio" aria-checked={!filter.favorite && !filter.folder} onClick={() => chooseScope({})}>
-                                <LayoutGrid aria-hidden />全部作品{!filter.favorite && !filter.folder ? <Check className="studio-menu-check" aria-hidden /> : null}
+                                <LayoutGrid aria-hidden />
+                                全部作品{!filter.favorite && !filter.folder ? <Check className="studio-menu-check" aria-hidden /> : null}
                             </button>
                             <button type="button" role="menuitemradio" aria-checked={filter.folder === "unsorted"} title="没有放进任何文件夹的作品" onClick={() => chooseScope({ folder: "unsorted" })}>
-                                <FolderOpen aria-hidden />未归类{filter.folder === "unsorted" ? <Check className="studio-menu-check" aria-hidden /> : null}
+                                <FolderOpen aria-hidden />
+                                未归类{filter.folder === "unsorted" ? <Check className="studio-menu-check" aria-hidden /> : null}
                             </button>
                             <button type="button" role="menuitemradio" aria-checked={filter.favorite} onClick={() => chooseScope({ favorite: true })}>
-                                <Star aria-hidden />收藏{filter.favorite ? <Check className="studio-menu-check" aria-hidden /> : null}
+                                <Star aria-hidden />
+                                收藏{filter.favorite ? <Check className="studio-menu-check" aria-hidden /> : null}
                             </button>
                             <StudioFolderSection current={filter.folder} onSelect={(folder) => chooseScope({ folder })} />
                         </div>
@@ -222,12 +225,25 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                         <ChevronDown aria-hidden />
                     </button>
                 </Popover>
-                <Link to="/studio/templates" className="studio-toolbar-link"><LayoutTemplate aria-hidden />模板</Link>
+                <Link to="/studio/templates" className="studio-toolbar-link">
+                    <LayoutTemplate aria-hidden />
+                    模板
+                </Link>
                 <span className="studio-toolbar-spacer" />
                 {searchOpen || searchDraft ? (
                     <label className="studio-search is-compact">
                         <Search aria-hidden />
-                        <input id={`studio-search-${kind || "all"}`} autoFocus value={searchDraft} placeholder="搜索提示词" aria-label="搜索作品提示词" onChange={(event) => setSearchDraft(event.target.value)} onBlur={() => { if (!searchDraft) setSearchOpen(false); }} />
+                        <input
+                            id={`studio-search-${kind || "all"}`}
+                            autoFocus
+                            value={searchDraft}
+                            placeholder="搜索提示词"
+                            aria-label="搜索作品提示词"
+                            onChange={(event) => setSearchDraft(event.target.value)}
+                            onBlur={() => {
+                                if (!searchDraft) setSearchOpen(false);
+                            }}
+                        />
                     </label>
                 ) : null}
                 <Popover
@@ -237,11 +253,17 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                     content={
                         <div className="studio-menu is-slider">
                             <div className="studio-menu-title">缩略图大小</div>
-                            <div className="studio-size-row"><span>S</span><input type="range" min={120} max={320} step={20} value={cardSize} aria-label="缩略图大小" onChange={(event) => changeCardSize(Number(event.target.value))} /><span>L</span></div>
+                            <div className="studio-size-row">
+                                <span>S</span>
+                                <input type="range" min={120} max={320} step={20} value={cardSize} aria-label="缩略图大小" onChange={(event) => changeCardSize(Number(event.target.value))} />
+                                <span>L</span>
+                            </div>
                         </div>
                     }
                 >
-                    <button type="button" className="studio-toolbar-icon" aria-label="缩略图大小" title="缩略图大小"><SlidersHorizontal aria-hidden /></button>
+                    <button type="button" className="studio-toolbar-icon" aria-label="缩略图大小" title="缩略图大小">
+                        <SlidersHorizontal aria-hidden />
+                    </button>
                 </Popover>
                 {!kind ? (
                     <Popover
@@ -254,34 +276,82 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                             <div className="studio-menu" role="menu">
                                 <div className="studio-menu-title">类型</div>
                                 {(["all", "image", "video", "audio"] as const).map((value) => (
-                                    <button key={value} type="button" role="menuitemradio" aria-checked={filter.kind === value} onClick={() => { setFilter((current) => ({ ...current, kind: value })); setTypeOpen(false); }}>
-                                        {value === "all" ? "全部作品" : KIND_LABELS[value]}{filter.kind === value ? <Check className="studio-menu-check" aria-hidden /> : null}
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        role="menuitemradio"
+                                        aria-checked={filter.kind === value}
+                                        onClick={() => {
+                                            setFilter((current) => ({ ...current, kind: value }));
+                                            setTypeOpen(false);
+                                        }}
+                                    >
+                                        {value === "all" ? "全部作品" : KIND_LABELS[value]}
+                                        {filter.kind === value ? <Check className="studio-menu-check" aria-hidden /> : null}
                                     </button>
                                 ))}
-                                <div className="studio-menu-title" title="AI Studio 和 AI Canvas 共用一个作品库">来源</div>
+                                <div className="studio-menu-title" title="AI Studio 和 AI Canvas 共用一个作品库">
+                                    来源
+                                </div>
                                 {SOURCE_OPTIONS.map((option) => (
-                                    <button key={option.label} type="button" role="menuitemradio" aria-checked={filter.source === option.value} onClick={() => { setFilter((current) => ({ ...current, source: option.value })); setTypeOpen(false); }}>
-                                        {option.label}{filter.source === option.value ? <Check className="studio-menu-check" aria-hidden /> : null}
+                                    <button
+                                        key={option.label}
+                                        type="button"
+                                        role="menuitemradio"
+                                        aria-checked={filter.source === option.value}
+                                        onClick={() => {
+                                            setFilter((current) => ({ ...current, source: option.value }));
+                                            setTypeOpen(false);
+                                        }}
+                                    >
+                                        {option.label}
+                                        {filter.source === option.value ? <Check className="studio-menu-check" aria-hidden /> : null}
                                     </button>
                                 ))}
                             </div>
                         }
                     >
-                        <button type="button" className={`studio-toolbar-icon${filter.kind !== "all" || filter.source ? " is-active" : ""}`} aria-label="类型和来源筛选" title="类型和来源筛选"><Filter aria-hidden /></button>
+                        <button type="button" className={`studio-toolbar-icon${filter.kind !== "all" || filter.source ? " is-active" : ""}`} aria-label="类型和来源筛选" title="类型和来源筛选">
+                            <Filter aria-hidden />
+                        </button>
                     </Popover>
                 ) : null}
                 <StudioLabelFilter current={filter.label} onSelect={(label) => setFilter((current) => ({ ...current, label }))} />
-                <button type="button" className={`studio-toolbar-icon${filter.favorite ? " is-active" : ""}`} aria-pressed={filter.favorite} aria-label="只看收藏" title="只看收藏" onClick={() => setFilter((current) => ({ ...current, favorite: !current.favorite }))}><Star aria-hidden /></button>
-                <button type="button" className="studio-toolbar-icon" aria-label="刷新作品库" title="刷新" onClick={() => void refresh()}><RefreshCw aria-hidden /></button>
-                <button type="button" className={`studio-toolbar-icon${searchOpen || searchDraft ? " is-active" : ""}`} aria-label="搜索" title="搜索" onClick={() => setSearchOpen((value) => !value)}><Search aria-hidden /></button>
+                <button
+                    type="button"
+                    className={`studio-toolbar-icon${filter.favorite ? " is-active" : ""}`}
+                    aria-pressed={filter.favorite}
+                    aria-label="只看收藏"
+                    title="只看收藏"
+                    onClick={() => setFilter((current) => ({ ...current, favorite: !current.favorite }))}
+                >
+                    <Star aria-hidden />
+                </button>
+                <button type="button" className="studio-toolbar-icon" aria-label="刷新作品库" title="刷新" onClick={() => void refresh()}>
+                    <RefreshCw aria-hidden />
+                </button>
+                <button type="button" className={`studio-toolbar-icon${searchOpen || searchDraft ? " is-active" : ""}`} aria-label="搜索" title="搜索" onClick={() => setSearchOpen((value) => !value)}>
+                    <Search aria-hidden />
+                </button>
             </div>
             <div className="studio-library-scroll">
                 {loading ? (
-                    <div className="studio-empty"><Spin /></div>
+                    <div className="studio-empty">
+                        <Spin />
+                    </div>
                 ) : error && !works.length ? (
-                    <div className="studio-empty" role="alert"><strong>作品读取失败</strong><span>{error}</span><button type="button" className="studio-mini-button" onClick={() => void refresh()}>重试</button></div>
+                    <div className="studio-empty" role="alert">
+                        <strong>作品读取失败</strong>
+                        <span>{error}</span>
+                        <button type="button" className="studio-mini-button" onClick={() => void refresh()}>
+                            重试
+                        </button>
+                    </div>
                 ) : !works.length ? (
-                    <div className="studio-empty"><strong>{filter.favorite ? "还没有收藏的作品" : filter.q ? "没有找到相关作品" : "还没有作品"}</strong><span>{filter.favorite || filter.q ? "换个条件试试。" : "在左边写下想法，点生成，作品会出现在这里。"}</span></div>
+                    <div className="studio-empty">
+                        <strong>{filter.favorite ? "还没有收藏的作品" : filter.q ? "没有找到相关作品" : "还没有作品"}</strong>
+                        <span>{filter.favorite || filter.q ? "换个条件试试。" : "在左边写下想法，点生成，作品会出现在这里。"}</span>
+                    </div>
                 ) : (
                     <>
                         <div className="studio-grid" style={{ ["--studio-card-min" as string]: `${cardSize}px` }}>
@@ -297,11 +367,17 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                                     onDownload={() => void run(work.id, () => downloadStudioMedia(work, 0))}
                                     onUseAsReference={onUseAsReference && work.media[0] ? () => onUseAsReference(work, work.media[0]) : undefined}
                                     onReuseSettings={onReuseSettings && work.source !== "canvas" ? () => onReuseSettings(work) : undefined}
-                                    onRetry={() => void run(work.id, async () => {
-                                        if (work.canRecoverMedia) await recoverGenerationTaskMedia(work.id);
-                                        else await retryGenerationTask(work.id);
-                                        notifyStudioWorksChanged();
-                                    }, work.canRecoverMedia ? "正在重新保存作品" : "已重新提交")}
+                                    onRetry={() =>
+                                        void run(
+                                            work.id,
+                                            async () => {
+                                                if (work.canRecoverMedia) await recoverGenerationTaskMedia(work.id);
+                                                else await retryGenerationTask(work.id);
+                                                notifyStudioWorksChanged();
+                                            },
+                                            work.canRecoverMedia ? "正在重新保存作品" : "已重新提交",
+                                        )
+                                    }
                                     onDelete={() => confirmDelete([work.id])}
                                     onPublish={work.status === "succeeded" && work.media.some((item) => item.storageKey?.startsWith("resource:")) ? () => setPublishTarget(work) : undefined}
                                     labels={(work.labelIds || []).flatMap((id) => labelsById.get(id) || [])}
@@ -312,7 +388,9 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                         </div>
                         {hasMore ? (
                             <div className="studio-load-more">
-                                <button type="button" className="studio-mini-button" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? "加载中…" : "加载更多"}</button>
+                                <button type="button" className="studio-mini-button" disabled={loadingMore} onClick={() => void loadMore()}>
+                                    {loadingMore ? "加载中…" : "加载更多"}
+                                </button>
                             </div>
                         ) : null}
                     </>
@@ -322,18 +400,52 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                 <div className="studio-selection-bar">
                     <span>已选 {selected.size} 个</span>
                     {onAddToChat ? (
-                        <button type="button" className="studio-mini-button is-primary" disabled={!selectedWorks.some((work) => work.status === "succeeded" && work.media.length)} onClick={() => {
-                            onAddToChat(selectedWorks.filter((work) => work.status === "succeeded" && work.media.length));
-                            setSelected(new Set());
-                        }}><MessageSquarePlus aria-hidden />加入对话</button>
+                        <button
+                            type="button"
+                            className="studio-mini-button is-primary"
+                            disabled={!selectedWorks.some((work) => work.status === "succeeded" && work.media.length)}
+                            onClick={() => {
+                                onAddToChat(selectedWorks.filter((work) => work.status === "succeeded" && work.media.length));
+                                setSelected(new Set());
+                            }}
+                        >
+                            <MessageSquarePlus aria-hidden />
+                            加入对话
+                        </button>
                     ) : null}
-                    <button type="button" className="studio-mini-button" onClick={() => void run("batch", async () => {
-                        for (const work of selectedWorks) for (let index = 0; index < work.media.length; index += 1) await downloadStudioMedia(work, index);
-                    })}><Download aria-hidden />下载</button>
-                    <StudioMoveToFolder works={selectedWorks} onDone={() => { setSelected(new Set()); void refresh(); }} />
-                    <StudioLabelWorks works={selectedWorks} onDone={() => { setSelected(new Set()); void refresh(); }} />
-                    <button type="button" className="studio-mini-button" onClick={() => confirmDelete([...selected])}><Trash2 aria-hidden />删除</button>
-                    <button type="button" className="studio-mini-button" onClick={() => setSelected(new Set())}>取消选择</button>
+                    <button
+                        type="button"
+                        className="studio-mini-button"
+                        onClick={() =>
+                            void run("batch", async () => {
+                                for (const work of selectedWorks) for (let index = 0; index < work.media.length; index += 1) await downloadStudioMedia(work, index);
+                            })
+                        }
+                    >
+                        <Download aria-hidden />
+                        下载
+                    </button>
+                    <StudioMoveToFolder
+                        works={selectedWorks}
+                        onDone={() => {
+                            setSelected(new Set());
+                            void refresh();
+                        }}
+                    />
+                    <StudioLabelWorks
+                        works={selectedWorks}
+                        onDone={() => {
+                            setSelected(new Set());
+                            void refresh();
+                        }}
+                    />
+                    <button type="button" className="studio-mini-button" onClick={() => confirmDelete([...selected])}>
+                        <Trash2 aria-hidden />
+                        删除
+                    </button>
+                    <button type="button" className="studio-mini-button" onClick={() => setSelected(new Set())}>
+                        取消选择
+                    </button>
                 </div>
             ) : null}
             {preview?.media.kind === "image" ? <CanvasImagePreview src={preview.media.url} storageKey={preview.media.storageKey} alt={studioWorkTitle(preview.work)} onClose={() => setPreview(null)} /> : null}
@@ -375,32 +487,86 @@ function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite,
                 <div className="studio-work-state" role="status">
                     <Loader2 className="animate-spin" aria-hidden />
                     <p>{work.status === "succeeded" ? "正在保存作品" : work.status === "queued" ? "排队中" : work.stage || "生成中"}</p>
-                    <div className="studio-progress" aria-hidden><i style={{ width: `${Math.max(5, Math.min(100, work.progress || 5))}%` }} /></div>
+                    <div className="studio-progress" aria-hidden>
+                        <i style={{ width: `${Math.max(5, Math.min(100, work.progress || 5))}%` }} />
+                    </div>
                 </div>
             ) : null}
             {failed ? (
                 <div className="studio-work-state is-failed" role="alert">
                     <p>{work.status === "cancelled" ? "已取消" : work.error || "生成失败"}</p>
-                    <button type="button" className="studio-mini-button" disabled={busy} onClick={onRetry}>{work.canRecoverMedia ? "重试保存" : "重试"}</button>
+                    <button type="button" className="studio-mini-button" disabled={busy} onClick={onRetry}>
+                        {work.canRecoverMedia ? "重试保存" : "重试"}
+                    </button>
                 </div>
             ) : null}
-            {!active && !failed && !media ? <div className="studio-work-state"><p>作品文件暂时不可用</p></div> : null}
-            <span className="studio-work-kind">{KIND_LABELS[work.kind]}{work.media.length > 1 ? ` ×${work.media.length}` : ""}</span>
-            {work.source === "canvas" ? <span className="studio-work-source" title="在 AI Canvas 里生成">Canvas</span> : null}
-            {labels.length ? <span className="studio-work-labels" title={labels.map((label) => label.name).join("、")}>{labels.map((label) => <span key={label.id} className="studio-work-label"><StudioLabelDot label={label} />{label.name}</span>)}</span> : null}
+            {!active && !failed && !media ? (
+                <div className="studio-work-state">
+                    <p>作品文件暂时不可用</p>
+                </div>
+            ) : null}
+            <span className="studio-work-kind">
+                {KIND_LABELS[work.kind]}
+                {work.media.length > 1 ? ` ×${work.media.length}` : ""}
+            </span>
+            {work.source === "canvas" ? (
+                <span className="studio-work-source" title="在无限画布里生成">
+                    Canvas
+                </span>
+            ) : null}
+            {labels.length ? (
+                <span className="studio-work-labels" title={labels.map((label) => label.name).join("、")}>
+                    {labels.map((label) => (
+                        <span key={label.id} className="studio-work-label">
+                            <StudioLabelDot label={label} />
+                            {label.name}
+                        </span>
+                    ))}
+                </span>
+            ) : null}
             <button type="button" className="studio-work-select" aria-pressed={selected} aria-label={selected ? "取消选择" : "选择作品"} onClick={(event) => onSelect(event.shiftKey)}>
                 {selected ? <Check aria-hidden /> : null}
             </button>
             {!active ? (
                 <div className="studio-work-actions">
-                    {media ? <button type="button" aria-pressed={work.favorite} aria-label={work.favorite ? "取消收藏" : "收藏"} title={work.favorite ? "取消收藏" : "收藏"} onClick={onFavorite}><Star aria-hidden /></button> : null}
-                    {media ? <button type="button" aria-label="下载" title="下载" disabled={busy} onClick={onDownload}><Download aria-hidden /></button> : null}
-                    {media && onUseAsReference ? <button type="button" aria-label="作为参考" title="作为参考" onClick={onUseAsReference}><ImagePlus aria-hidden /></button> : null}
-                    {onReuseSettings ? <button type="button" aria-label="用同样设置再生成" title="用同样设置再生成" onClick={onReuseSettings}><Wand2 aria-hidden /></button> : null}
-                    {onPublish ? <button type="button" aria-label="发布到社区" title="发布到社区" onClick={onPublish}><Share2 aria-hidden /></button> : null}
-                    {onSaveCharacter ? <button type="button" aria-label="存为角色" title="存为角色" onClick={onSaveCharacter}><UserPlus aria-hidden /></button> : null}
-                    {onOpenCanvas ? <button type="button" aria-label="在画布中编辑" title="在画布中编辑" onClick={onOpenCanvas}><Layers aria-hidden /></button> : null}
-                    <button type="button" aria-label="删除" title="删除" onClick={onDelete}><Trash2 aria-hidden /></button>
+                    {media ? (
+                        <button type="button" aria-pressed={work.favorite} aria-label={work.favorite ? "取消收藏" : "收藏"} title={work.favorite ? "取消收藏" : "收藏"} onClick={onFavorite}>
+                            <Star aria-hidden />
+                        </button>
+                    ) : null}
+                    {media ? (
+                        <button type="button" aria-label="下载" title="下载" disabled={busy} onClick={onDownload}>
+                            <Download aria-hidden />
+                        </button>
+                    ) : null}
+                    {media && onUseAsReference ? (
+                        <button type="button" aria-label="作为参考" title="作为参考" onClick={onUseAsReference}>
+                            <ImagePlus aria-hidden />
+                        </button>
+                    ) : null}
+                    {onReuseSettings ? (
+                        <button type="button" aria-label="用同样设置再生成" title="用同样设置再生成" onClick={onReuseSettings}>
+                            <Wand2 aria-hidden />
+                        </button>
+                    ) : null}
+                    {onPublish ? (
+                        <button type="button" aria-label="发布到社区" title="发布到社区" onClick={onPublish}>
+                            <Share2 aria-hidden />
+                        </button>
+                    ) : null}
+                    {onSaveCharacter ? (
+                        <button type="button" aria-label="存为角色" title="存为角色" onClick={onSaveCharacter}>
+                            <UserPlus aria-hidden />
+                        </button>
+                    ) : null}
+                    {onOpenCanvas ? (
+                        <button type="button" aria-label="在无限画布中编辑" title="在无限画布中编辑" onClick={onOpenCanvas}>
+                            <Layers aria-hidden />
+                        </button>
+                    ) : null}
+                    <button type="button" aria-label="删除" title="删除" onClick={onDelete}>
+                        <Trash2 aria-hidden />
+                    </button>
                 </div>
             ) : null}
         </article>

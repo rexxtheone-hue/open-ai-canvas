@@ -222,7 +222,7 @@ export function StudioTemplateGallery({ kind, query }: { kind: StudioKind | "all
                                 <span style={{ flex: 1 }} />
                                 <button type="button" className="studio-chip-button" onClick={() => openTemplateInCanvas(detail)}>
                                     <Layers aria-hidden />
-                                    在画布中打开
+                                    在无限画布中打开
                                 </button>
                                 <button type="button" className="studio-generate-button is-compact" onClick={() => launch(detail)}>
                                     <Wand2 aria-hidden />
