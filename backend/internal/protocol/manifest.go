@@ -41,6 +41,9 @@ type ManifestResponse struct {
 	ResultPaths     []string `json:"resultPaths,omitempty"`
 	ResultKind      string   `json:"resultKind,omitempty"`
 	ResultEphemeral bool     `json:"resultEphemeral,omitempty"`
+	// ResultJSON 表示 result 端点返回 JSON（如 fal.ai 队列），用同一套 response 映射解析媒体，
+	// 而不是把响应体当作二进制素材下载。
+	ResultJSON bool `json:"resultJson,omitempty"`
 	// BinaryPayload 表示 create 同步返回二进制媒体（如 /audio/speech 的音频流）。
 	// 声明式解析会把整个响应体包装为对应能力的单个媒体结果，不做 JSON 路径提取。
 	BinaryPayload bool `json:"binaryPayload,omitempty"`
@@ -170,6 +173,11 @@ func (a metadataAdapter) AgentAvailable() bool {
 func (a metadataAdapter) ResultAvailable() bool {
 	capability, ok := a.delegate.(ResultCapability)
 	return ok && capability.ResultAvailable()
+}
+
+func (a metadataAdapter) ResultIsJSON() bool {
+	capability, ok := a.delegate.(ResultJSONCapability)
+	return ok && capability.ResultIsJSON()
 }
 
 func (a metadataAdapter) BuildCreate(ctx context.Context, c RequestContext) (RequestSpec, error) {

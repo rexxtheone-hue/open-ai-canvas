@@ -1,85 +1,50 @@
-# fal.ai Queue Image 接口字段
+# fal.ai Queue Image 接口说明
 
-## 协议身份
+## 渠道配置
 
-- 插件 ID：`fal-queue-image`。
-- Provider ID：`fal-queue-image`。
-- 能力：`image`。
-- 默认 Base URL：`https://queue.fal.run`。
-- 鉴权驱动：`bearer`。
-- 创建：`POST /{{model}}`。
-- 查询：`GET /{{request.providerOptions.fal-queue-image.statusPath}}`。
+- Base URL：`https://queue.fal.run`
+- API Key：fal 控制台生成的 Key。插件以 `Authorization: Key <API Key>` 发送。
+- 模型名：填写完整的 fal 模型 ID，例如 `fal-ai/nano-banana/edit`。
 
-## 配置字段
+## 提交任务
 
-| 字段 | 类型 | 必填 | 含义 |
-| --- | --- | --- | --- |
-| `apiKey` | secret | 是 | API Key |
+`POST /{model}`，请求体直接是模型输入（不包 `input`）：
 
-## 统一字段映射
+- `prompt`
+- `image_url`
+- `image_urls`
+- `aspect_ratio`
+- `resolution`
+- `num_images`
+- `seed`
 
-| 统一字段 | 类型 | 必填 | 上游映射 | 说明 |
-| --- | --- | --- | --- | --- |
-| `model` | string | 是 | `model` | 图片模型 ID。 |
-| `prompt` | string | 是 | `prompt` | 图片提示词。 |
-| `images` | media[] | 否 | `provider image/reference fields` | 参考图或编辑源图，role 由业务层确定。 |
-| `imageCount` | integer | 否 | `n/sample_count` | 输出数量。 |
-| `aspectRatio` | string | 否 | `size/aspect_ratio` | 比例或尺寸，语义按协议说明。 |
-| `resolution` | string | 否 | `resolution/imageSize` | 分辨率档位。 |
-| `quality` | string | 否 | `quality` | 质量档位。 |
-| `providerOptions` | object | 否 | `provider-specific fields` | 插件命名空间内的厂商扩展字段。 |
+空值字段不会发送。`providerOptions.fal-queue-image.input` 中的字段会合并进请求体，并覆盖同名默认字段，用于模型特有参数。参考素材需要公网 URL，宿主会先把素材转存为公网链接。
 
-## 上游请求模板逐字段清单
+响应示例：
 
-下表由插件请求模板生成，覆盖 body、query、headers 和 multipart 文件声明中的每个字段。
+```json
+{"request_id": "764cabcf-...", "status": "IN_QUEUE", "status_url": "...", "response_url": "..."}
+```
 
-| 上游位置 | 值或转换表达式 |
-| --- | --- |
-| `create.method` | `"POST"` |
-| `create.path` | `"/{{model}}"` |
-| `create.contentType` | `"application/json"` |
-| `create.body.version` | `{"$omitEmpty":{"$ref":"request.providerOptions.fal-queue-image.version"}}` |
-| `create.body.model` | `{"$omitEmpty":{"$coalesce":[{"$ref":"request.providerOptions.fal-queue-image.model"},{"$ref":"request.model"}]}}` |
-| `create.body.input` | `{"$omitEmpty":{"$coalesce":[{"$ref":"request.providerOptions.fal-queue-image.input"},{"prompt":{"$ref":"request.prompt"},"images":{"$map":{"from":{"$ref":"request.images"},"as":"media","in":{"$ref":"media.value"}}},"videos":{"$map":{"from":{"$ref":"request.videos"},"as":"media","in":{"$ref":"media.value"}}},"audios":{"$map":{"from":{"$ref":"request.audios"},"as":"media","in":{"$ref":"media.value"}}}}]}}` |
-| `create.body.prompt` | `{"$omitEmpty":{"$ref":"request.providerOptions.fal-queue-image.workflow"}}` |
-| `create.body.client_id` | `{"$omitEmpty":{"$ref":"request.providerOptions.fal-queue-image.client_id"}}` |
-| `create.body.webhook` | `{"$omitEmpty":{"$ref":"request.providerOptions.fal-queue-image.webhook"}}` |
-| `create.body.webhook_events_filter` | `{"$omitEmpty":{"$ref":"request.providerOptions.fal-queue-image.webhook_events_filter"}}` |
-| `poll.method` | `"GET"` |
-| `poll.path` | `"/{{request.providerOptions.fal-queue-image.statusPath}}"` |
-| `poll.contentType` | `"application/json"` |
+## 查询状态
 
-## Provider 扩展键
+`GET /{owner}/{app}/requests/{request_id}/status`。`owner/app` 取模型 ID 的前两段，例如 `fal-ai/flux/dev` 的状态地址在 `fal-ai/flux` 下。
 
-- `providerOptions.fal-queue-image.client_id`
-- `providerOptions.fal-queue-image.input`
-- `providerOptions.fal-queue-image.model`
-- `providerOptions.fal-queue-image.statusPath`
-- `providerOptions.fal-queue-image.version`
-- `providerOptions.fal-queue-image.webhook`
-- `providerOptions.fal-queue-image.webhook_events_filter`
-- `providerOptions.fal-queue-image.workflow`
+状态 `IN_QUEUE`、`IN_PROGRESS`、`COMPLETED` 分别对应排队、处理中、完成。响应带 `error` 字段时任务视为失败。
 
-动态模型或工作流允许使用文档声明的完整 `parameters/input/extra_body` 对象；该对象是协议本身的开放 schema，不会被宿主裁剪。
+## 获取结果
 
-## 响应映射逐字段清单
+状态为 `COMPLETED` 后请求 `GET /{owner}/{app}/requests/{request_id}`，返回 JSON，图片从 `images` 字段读取：
 
-| 映射位置 | 上游路径或转换表达式 |
-| --- | --- |
-| `response.taskId` | `{"$coalesce":[{"$ref":"response.id"},{"$ref":"response.request_id"},{"$ref":"response.prompt_id"},{"$ref":"taskId"}]}` |
-| `response.status` | `{"$coalesce":[{"$ref":"response.status"},{"$ref":"response.state"},{"$ref":"response.data.status"},"pending"]}` |
-| `response.message` | `{"$coalesce":[{"$ref":"response.error.message"},{"$ref":"response.message"},{"$ref":"response.fail_reason"}]}` |
-| `response.images` | `{"$ref":"response.images"}` |
-| `response.errorPaths[0]` | `"error.code"` |
-| `response.resultEphemeral` | `true` |
+```json
+{"images": [{"url": "https://v3.fal.media/files/...png", "content_type": "image/png"}]}
+```
 
-## 响应与错误
+结果链接是临时链接，宿主会转存。
 
-插件把上游 task/status/text/media/usage 映射为统一结果。临时媒体 URL 标记为 ephemeral，由宿主立即下载持久化。HTTP 错误、业务 code 和 error object 保持失败语义，不包装成成功。
+## 取消
 
-## 兼容边界
-
-这是运行时/工作流协议，模型字段由 endpoint、version 或 workflow schema 决定。插件不伪造固定模型字段；providerOptions.input/workflow/prompt 是完整请求对象，并由 conformance fixture 锁定实际接入版本。
+`PUT /{owner}/{app}/requests/{request_id}/cancel`。
 
 <!-- YINGCE_MANIFEST_CONTRACT_START -->
 ## Manifest 完整接口定义
@@ -91,9 +56,9 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "fal-queue-image",
   "name": "fal.ai Queue Image",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "author": "fal.ai / 影策",
-  "description": "fal.ai Queue Image 独立请求协议插件。",
+  "description": "fal.ai 队列接口（queue.fal.run）的图片生成协议插件：提交、查询状态、获取结果、取消。",
   "documentation": "<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>",
   "permissions": [
     "generation.run",
@@ -125,10 +90,11 @@
           "agent"
         ],
         "baseUrl": "https://queue.fal.run",
-        "requiresPublicMediaUrls": false,
+        "requiresPublicMediaUrls": true,
         "auth": {
           "type": "bearer",
-          "field": "apiKey"
+          "field": "apiKey",
+          "prefix": "Key "
         },
         "parameters": [
           {
@@ -136,42 +102,42 @@
             "type": "string",
             "required": true,
             "mapping": "model",
-            "description": "图片模型 ID。"
+            "description": "fal 模型 ID，例如 fal-ai/nano-banana/edit、fal-ai/kling-video/v2.1/pro/image-to-video。"
           },
           {
             "name": "prompt",
             "type": "string",
             "required": true,
             "mapping": "prompt",
-            "description": "图片提示词。"
+            "description": "提示词，映射到 prompt。"
           },
           {
             "name": "images",
             "type": "media[]",
             "required": false,
-            "mapping": "provider image/reference fields",
-            "description": "参考图或编辑源图，role 由业务层确定。"
+            "mapping": "images",
+            "description": "参考图：第一张映射 image_url，全部映射 image_urls。"
           },
           {
             "name": "imageCount",
             "type": "integer",
             "required": false,
-            "mapping": "n/sample_count",
-            "description": "输出数量。"
+            "mapping": "imageCount",
+            "description": "生成张数，映射 num_images。"
           },
           {
             "name": "aspectRatio",
             "type": "string",
             "required": false,
-            "mapping": "size/aspect_ratio",
-            "description": "比例或尺寸，语义按协议说明。"
+            "mapping": "aspectRatio",
+            "description": "画面比例，映射 aspect_ratio。"
           },
           {
             "name": "resolution",
             "type": "string",
             "required": false,
-            "mapping": "resolution/imageSize",
-            "description": "分辨率档位。"
+            "mapping": "resolution",
+            "description": "分辨率，映射 resolution。"
           },
           {
             "name": "quality",
@@ -184,68 +150,29 @@
             "name": "providerOptions",
             "type": "object",
             "required": false,
-            "mapping": "provider-specific fields",
-            "description": "插件命名空间内的厂商扩展字段。"
+            "mapping": "providerOptions",
+            "description": "providerOptions.fal-queue-image.input 中的字段会原样合并进请求体，可覆盖默认字段；seed 映射 seed。"
           }
         ],
         "create": {
           "method": "POST",
           "path": "/{{model}}",
+          "originPath": true,
           "contentType": "application/json",
           "body": {
-            "version": {
-              "$omitEmpty": {
-                "$ref": "request.providerOptions.fal-queue-image.version"
-              }
-            },
-            "model": {
-              "$omitEmpty": {
-                "$coalesce": [
-                  {
-                    "$ref": "request.providerOptions.fal-queue-image.model"
-                  },
-                  {
-                    "$ref": "request.model"
-                  }
-                ]
-              }
-            },
-            "input": {
-              "$omitEmpty": {
-                "$coalesce": [
-                  {
-                    "$ref": "request.providerOptions.fal-queue-image.input"
-                  },
-                  {
-                    "prompt": {
-                      "$ref": "request.prompt"
-                    },
-                    "images": {
+            "$merge": [
+              {
+                "prompt": {
+                  "$ref": "request.prompt"
+                },
+                "image_url": {
+                  "$omitEmpty": {
+                    "$first": {
                       "$map": {
                         "from": {
-                          "$ref": "request.images"
-                        },
-                        "as": "media",
-                        "in": {
-                          "$ref": "media.value"
-                        }
-                      }
-                    },
-                    "videos": {
-                      "$map": {
-                        "from": {
-                          "$ref": "request.videos"
-                        },
-                        "as": "media",
-                        "in": {
-                          "$ref": "media.value"
-                        }
-                      }
-                    },
-                    "audios": {
-                      "$map": {
-                        "from": {
-                          "$ref": "request.audios"
+                          "$sortByOrder": {
+                            "$ref": "request.images"
+                          }
                         },
                         "as": "media",
                         "in": {
@@ -254,46 +181,191 @@
                       }
                     }
                   }
-                ]
+                },
+                "image_urls": {
+                  "$omitEmpty": {
+                    "$map": {
+                      "from": {
+                        "$sortByOrder": {
+                          "$ref": "request.images"
+                        }
+                      },
+                      "as": "media",
+                      "in": {
+                        "$ref": "media.value"
+                      }
+                    }
+                  }
+                },
+                "aspect_ratio": {
+                  "$omitEmpty": {
+                    "$ref": "request.aspectRatio"
+                  }
+                },
+                "resolution": {
+                  "$omitEmpty": {
+                    "$ref": "request.resolution"
+                  }
+                },
+                "num_images": {
+                  "$omitEmpty": {
+                    "$if": {
+                      "condition": {
+                        "$gt": [
+                          {
+                            "$ref": "request.imageCount"
+                          },
+                          0
+                        ]
+                      },
+                      "then": {
+                        "$ref": "request.imageCount"
+                      },
+                      "else": null
+                    }
+                  }
+                },
+                "seed": {
+                  "$omitEmpty": {
+                    "$ref": "request.providerOptions.fal-queue-image.seed"
+                  }
+                }
+              },
+              {
+                "$ref": "request.providerOptions.fal-queue-image.input"
               }
-            },
-            "prompt": {
-              "$omitEmpty": {
-                "$ref": "request.providerOptions.fal-queue-image.workflow"
-              }
-            },
-            "client_id": {
-              "$omitEmpty": {
-                "$ref": "request.providerOptions.fal-queue-image.client_id"
-              }
-            },
-            "webhook": {
-              "$omitEmpty": {
-                "$ref": "request.providerOptions.fal-queue-image.webhook"
-              }
-            },
-            "webhook_events_filter": {
-              "$omitEmpty": {
-                "$ref": "request.providerOptions.fal-queue-image.webhook_events_filter"
-              }
-            }
+            ]
           }
         },
         "poll": {
           "method": "GET",
-          "path": "/{{request.providerOptions.fal-queue-image.statusPath}}"
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              {
+                "$concat": [
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      1
+                    ]
+                  },
+                  "/requests/{{taskId}}"
+                ]
+              },
+              "/status"
+            ]
+          }
+        },
+        "result": {
+          "method": "GET",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              "/",
+              {
+                "$at": [
+                  {
+                    "$split": [
+                      {
+                        "$ref": "request.model"
+                      },
+                      "/"
+                    ]
+                  },
+                  0
+                ]
+              },
+              "/",
+              {
+                "$at": [
+                  {
+                    "$split": [
+                      {
+                        "$ref": "request.model"
+                      },
+                      "/"
+                    ]
+                  },
+                  1
+                ]
+              },
+              "/requests/{{taskId}}"
+            ]
+          }
+        },
+        "cancel": {
+          "method": "PUT",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              {
+                "$concat": [
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      1
+                    ]
+                  },
+                  "/requests/{{taskId}}"
+                ]
+              },
+              "/cancel"
+            ]
+          }
         },
         "response": {
           "taskId": {
             "$coalesce": [
               {
-                "$ref": "response.id"
-              },
-              {
                 "$ref": "response.request_id"
-              },
-              {
-                "$ref": "response.prompt_id"
               },
               {
                 "$ref": "taskId"
@@ -301,39 +373,39 @@
             ]
           },
           "status": {
-            "$coalesce": [
-              {
-                "$ref": "response.status"
+            "$if": {
+              "condition": {
+                "$ref": "response.error"
               },
-              {
-                "$ref": "response.state"
-              },
-              {
-                "$ref": "response.data.status"
-              },
-              "pending"
-            ]
+              "then": "failed",
+              "else": {
+                "$coalesce": [
+                  {
+                    "$ref": "response.status"
+                  },
+                  "pending"
+                ]
+              }
+            }
           },
           "message": {
             "$coalesce": [
               {
-                "$ref": "response.error.message"
+                "$ref": "response.error"
+              },
+              {
+                "$ref": "response.detail"
               },
               {
                 "$ref": "response.message"
-              },
-              {
-                "$ref": "response.fail_reason"
               }
             ]
           },
           "images": {
             "$ref": "response.images"
           },
-          "errorPaths": [
-            "error.code"
-          ],
-          "resultEphemeral": true
+          "resultEphemeral": true,
+          "resultJson": true
         }
       }
     ]

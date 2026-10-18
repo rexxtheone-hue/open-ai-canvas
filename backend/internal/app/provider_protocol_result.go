@@ -100,9 +100,27 @@ func finishProtocolAdapterResult(ctx context.Context, input canvasGenerationInpu
 	if !ok || !hasCapability || !capability.ResultAvailable() {
 		return finishProtocolResult(ctx, input.Config, input.Mode, taskID, result, pollPolicy)
 	}
-	spec, err := resultAdapter.BuildResult(ctx, protocol.PollContext{BaseURL: input.Config.BaseURL, Model: request.Model, Request: request, TaskID: taskID})
+	pollContext := protocol.PollContext{BaseURL: input.Config.BaseURL, Model: request.Model, Request: request, TaskID: taskID}
+	spec, err := resultAdapter.BuildResult(ctx, pollContext)
 	if err != nil {
 		return nil, err
+	}
+	if jsonResult, ok := adapter.(protocol.ResultJSONCapability); ok && jsonResult.ResultIsJSON() {
+		body, err := executeProtocolRequest(withProviderRequestKind(ctx, "poll"), input.Config, spec)
+		if err != nil {
+			return nil, fmt.Errorf("声明式协议结果获取失败：%w", err)
+		}
+		state, err := adapter.ParsePoll(ctx, pollContext, body)
+		if err != nil {
+			return nil, err
+		}
+		if state.Status == protocol.StatusFailed || state.Status == protocol.StatusCancelled {
+			return nil, protocolResultError(state.Message, taskID)
+		}
+		if !protocolResultHasOutput(input.Mode, state.Result) {
+			return nil, errors.New("声明式协议结果接口没有返回素材")
+		}
+		return finishProtocolResult(ctx, input.Config, input.Mode, taskID, state.Result, pollPolicy)
 	}
 	download := func(ctx context.Context) ([]byte, string, error) {
 		return executeProtocolBinaryRequest(withProviderRequestKind(ctx, "download"), input.Config, spec)

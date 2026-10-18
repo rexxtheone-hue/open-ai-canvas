@@ -28,6 +28,8 @@ func (a manifestAdapter) AgentAvailable() bool {
 
 func (a manifestAdapter) ResultAvailable() bool { return a.manifest.ResultOperation != nil }
 
+func (a manifestAdapter) ResultIsJSON() bool { return a.manifest.Response.ResultJSON }
+
 func (a manifestAdapter) BuildCreate(_ context.Context, c RequestContext) (RequestSpec, error) {
 	if len(a.manifest.Contributes.Providers) == 0 {
 		return RequestSpec{}, fmt.Errorf("plugin %s does not provide a provider", a.manifest.Metadata.ID)

@@ -43,6 +43,12 @@ type ResultCapability interface {
 	ResultAvailable() bool
 }
 
+// ResultJSONCapability reports that the result operation returns JSON that
+// must be parsed with the provider response mapping.
+type ResultJSONCapability interface {
+	ResultIsJSON() bool
+}
+
 type AgentRequestContext struct {
 	BaseURL string
 	Model   string
