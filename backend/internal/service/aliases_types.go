@@ -150,6 +150,7 @@ type (
 	DiagnosticPreview                      = app.DiagnosticPreview
 	DiagnosticRuntime                      = app.DiagnosticRuntime
 	DrawingEngineSetting                   = app.DrawingEngineSetting
+	BillingCurrencySetting                 = app.BillingCurrencySetting
 	EagleAddItemRequest                    = app.EagleAddItemRequest
 	EagleCreatedItem                       = app.EagleCreatedItem
 	EagleFile                              = app.EagleFile

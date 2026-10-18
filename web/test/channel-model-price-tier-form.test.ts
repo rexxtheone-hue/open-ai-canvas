@@ -14,8 +14,18 @@ describe("channel model price tier defaults", () => {
         expect(priceTierPayloadFromForm("video", { ...tier, costUnitPrice: 0 }, "MiniMax-H3").costPricing).toMatchObject({ configured: true, unitPriceMicrocredits: 0 });
         expect(defaultPriceTier().costConfigured).toBe(false);
         for (const costUnitPrice of [-1, NaN, Infinity, 1_000_001]) {
-            expect(() => validateChannelModelPrices({ capability: "video", protocol: "minimax-video", priceTiers: [{ ...tier, costUnitPrice }] })).toThrow("积分成本价");
+            expect(() => validateChannelModelPrices({ capability: "video", protocol: "minimax-video", priceTiers: [{ ...tier, costUnitPrice }] })).toThrow("成本价");
         }
+    });
+
+    test("cost in a supplier currency round-trips as source amounts and credit costs stay unset", () => {
+        const tier = { ...defaultPriceTier(), costConfigured: true, costCurrency: "USD" as const, costUnitPrice: 0.05 };
+        const payload = priceTierPayloadFromForm("video", tier, "kling-v3");
+        expect(payload.costSource).toEqual({ currency: "USD", unitPrice: 50_000, inputTokenPrice: 0, outputTokenPrice: 0, cachedTokenPrice: 0 });
+        const saved = { ...payload, costPricing: { ...payload.costPricing, unitPriceMicrocredits: 22_000_000 } } as ChannelModelPriceTier;
+        expect(priceTierToForm(saved)).toMatchObject({ costCurrency: "USD", costUnitPrice: 0.05 });
+        expect(priceTierPayloadFromForm("video", { ...tier, costCurrency: "CREDIT" }, "kling-v3").costSource.currency).toBe("");
+        expect(priceTierPayloadFromForm("video", { ...tier, costConfigured: false }, "kling-v3").costSource.currency).toBe("");
     });
 
     test("video Token cost uses only output price while text cost keeps separate token rates", () => {

@@ -6,6 +6,7 @@ import "yingce/backend/internal/model"
 type adminChannelModelPriceTier struct {
 	model.ChannelModelPriceTier
 	CostPricing model.CreditCostPricing `json:"costPricing"`
+	CostSource  model.CostSourcePricing `json:"costSource"`
 }
 
 type adminChannelModelResponse struct {
@@ -16,7 +17,7 @@ type adminChannelModelResponse struct {
 func adminChannelModel(item model.ChannelModel) adminChannelModelResponse {
 	tiers := make([]adminChannelModelPriceTier, 0, len(item.PriceTiers))
 	for _, tier := range item.PriceTiers {
-		tiers = append(tiers, adminChannelModelPriceTier{ChannelModelPriceTier: tier, CostPricing: tier.CostPricing})
+		tiers = append(tiers, adminChannelModelPriceTier{ChannelModelPriceTier: tier, CostPricing: tier.CostPricing, CostSource: tier.CostSource})
 	}
 	return adminChannelModelResponse{ChannelModel: item, PriceTiers: tiers}
 }

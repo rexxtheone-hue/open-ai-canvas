@@ -605,6 +605,26 @@ export function resetAdminRuntimePolicySetting() {
     return http.delete<{ setting: RuntimePolicySetting }>("/admin/settings/runtime-policy");
 }
 
+export type BillingCurrencySetting = {
+    baseCurrency: "MYR";
+    /** 1 积分等于多少马币。 */
+    creditValue: number;
+    /** 1 单位外币等于多少马币。 */
+    rates: Record<string, number>;
+    currencies?: string[];
+    configured?: boolean;
+    recomputed?: number;
+    updatedAt?: string;
+};
+
+export function getAdminBillingCurrencySetting() {
+    return http.get<{ setting: BillingCurrencySetting }>("/admin/settings/billing-currency");
+}
+
+export function updateAdminBillingCurrencySetting(input: Pick<BillingCurrencySetting, "creditValue" | "rates">) {
+    return http.patch<{ setting: BillingCurrencySetting }>("/admin/settings/billing-currency", input);
+}
+
 export function getAdminDrawingEngineSetting() {
     return http.get<{ setting: CanvasDrawingEngineSetting }>("/admin/settings/drawing-engine");
 }

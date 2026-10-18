@@ -10,6 +10,16 @@ type CreditCostPricing struct {
 	CachedTokenPriceMicrocredits int64 `json:"cachedTokenPriceMicrocredits" gorm:"not null;default:0"`
 }
 
+// CostSourcePricing 记录管理员按供应商原币种填写的成本，金额为该币种的百万分之一单位。
+// Currency 为空表示成本直接按积分填写；非空时 CreditCostPricing 由汇率设置换算得出。
+type CostSourcePricing struct {
+	Currency         string `json:"currency" gorm:"size:8;not null;default:''"`
+	UnitPrice        int64  `json:"unitPrice" gorm:"not null;default:0"`
+	InputTokenPrice  int64  `json:"inputTokenPrice" gorm:"not null;default:0"`
+	OutputTokenPrice int64  `json:"outputTokenPrice" gorm:"not null;default:0"`
+	CachedTokenPrice int64  `json:"cachedTokenPrice" gorm:"not null;default:0"`
+}
+
 // BillingCostSnapshot 独立于销售价格，切换供应线路时始终更新为实际执行线路的成本。
 type BillingCostSnapshot struct {
 	CostPricing            CreditCostPricing `json:"-" gorm:"embedded;embeddedPrefix:cost_"`

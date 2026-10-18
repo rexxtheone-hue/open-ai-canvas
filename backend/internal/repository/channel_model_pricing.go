@@ -54,3 +54,30 @@ func (r *Repository) UpdateChannelModelSalePrices(channelID string, items []mode
 		return nil
 	})
 }
+
+// ChannelModelPriceTiersWithCostSource 返回按原币种填写成本的全部活动规格，供汇率变更后重算积分成本。
+func (r *Repository) ChannelModelPriceTiersWithCostSource() ([]model.ChannelModelPriceTier, error) {
+	var tiers []model.ChannelModelPriceTier
+	err := r.db.Where("cost_source_currency <> ''").Find(&tiers).Error
+	return tiers, err
+}
+
+// SaveBillingCurrencySetting 在同一事务里保存汇率并写回换算后的积分成本，不触碰销售价与价格版本。
+func (r *Repository) SaveBillingCurrencySetting(setting *model.SystemSetting, tiers []model.ChannelModelPriceTier) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(setting).Error; err != nil {
+			return err
+		}
+		for _, tier := range tiers {
+			if err := tx.Model(&model.ChannelModelPriceTier{}).Where("id = ?", tier.ID).Updates(map[string]any{
+				"cost_unit_price_microcredits":         tier.CostPricing.UnitPriceMicrocredits,
+				"cost_input_token_price_microcredits":  tier.CostPricing.InputTokenPriceMicrocredits,
+				"cost_output_token_price_microcredits": tier.CostPricing.OutputTokenPriceMicrocredits,
+				"cost_cached_token_price_microcredits": tier.CostPricing.CachedTokenPriceMicrocredits,
+			}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}

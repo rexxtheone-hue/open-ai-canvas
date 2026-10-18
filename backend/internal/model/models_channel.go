@@ -76,6 +76,7 @@ type ChannelModel struct {
 // 仅保留给历史 API 与升级回填，不能再作为 SKU 唯一性依据。
 type ChannelModelPriceTier struct {
 	CostPricing                  CreditCostPricing `json:"-" gorm:"embedded;embeddedPrefix:cost_"`
+	CostSource                   CostSourcePricing `json:"-" gorm:"embedded;embeddedPrefix:cost_source_"`
 	ID                           string            `json:"id" gorm:"primaryKey;size:36"`
 	ChannelModelID               string            `json:"channelModelId" gorm:"size:36;index;uniqueIndex:idx_channel_model_price_tier_active,priority:1,where:deleted_at IS NULL"`
 	SelectorKey                  string            `json:"selectorKey" gorm:"size:500;not null;default:{};uniqueIndex:idx_channel_model_price_tier_active,priority:2,where:deleted_at IS NULL"`

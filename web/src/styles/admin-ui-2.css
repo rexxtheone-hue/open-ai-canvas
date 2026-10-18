@@ -2801,3 +2801,29 @@
     font-size: 12px;
     font-weight: 650;
 }
+
+.admin-currency-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.admin-currency-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--admin-text-primary);
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.admin-currency-field .ant-input-number-group-wrapper {
+    width: 100%;
+    max-width: 260px;
+}
+
+.admin-currency-example {
+    margin: 12px 0 0;
+    color: var(--admin-text-secondary);
+    font-size: 12px;
+}

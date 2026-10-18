@@ -114,7 +114,25 @@ func (s *Service) normalizeChannelModelPriceTiers(req ChannelModelRequest, capab
 	}
 	result := make([]model.ChannelModelPriceTier, 0, len(inputs))
 	seen := make(map[string]bool, len(inputs))
+	var currency *BillingCurrencySetting
 	for _, input := range inputs {
+		source, err := normalizeCostSource(input.CostSource)
+		if err != nil {
+			return nil, err
+		}
+		input.CostSource = source
+		if source.Currency != "" {
+			if currency == nil {
+				_, value, err := s.readBillingCurrencySetting()
+				if err != nil {
+					return nil, err
+				}
+				currency = &value
+			}
+			if err := currency.applyCostSource(&input.CostPricing, source); err != nil {
+				return nil, err
+			}
+		}
 		var parameters []protocolcontract.ImageParameter
 		if req.CapabilityConfig != nil && req.CapabilityConfig.Image != nil {
 			parameters = req.CapabilityConfig.Image.Parameters
@@ -145,6 +163,7 @@ func (s *Service) normalizeChannelModelPriceTiers(req ChannelModelRequest, capab
 		enabled := input.Enabled == nil || *input.Enabled
 		result = append(result, model.ChannelModelPriceTier{
 			CostPricing:                  input.CostPricing,
+			CostSource:                   input.CostSource,
 			ID:                           id,
 			SelectorKey:                  key,
 			SelectorJSON:                 key,

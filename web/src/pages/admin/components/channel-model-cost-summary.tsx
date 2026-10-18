@@ -1,6 +1,7 @@
 import { imageQualityLabel } from "@/lib/image-quality";
 import type { ChannelModel, ChannelModelPriceTier } from "@/services/api/wallet";
 import { AdminStatusBadge } from "./admin-ui";
+import { costCurrencySymbol } from "./billing-currency";
 import { formatModelMargin, formatModelPrice, modelPriceFields } from "./channel-model-pricing";
 
 export function ChannelModelCostSummary({ item }: { item: ChannelModel }) {
@@ -32,7 +33,7 @@ function priceLabel(tier: ChannelModelPriceTier, capability: ChannelModel["capab
         return (
             <div key={key}>
                 <span>{label ? `${label} ` : ""}{tier.costPricing?.configured ? formatModelPrice(cost) : "未配置成本"} / {tier.priceConfigured ? formatModelPrice(sale) : "未配置售价"}</span>
-                <span className="admin-model-cost-unit">积分 / {unit} · 利润率 {formatModelMargin(cost, sale)}</span>
+                <span className="admin-model-cost-unit">积分 / {unit} · 利润率 {formatModelMargin(cost, sale)}{sourceLabel(tier, key)}</span>
             </div>
         );
     });
@@ -59,4 +60,18 @@ export function specificationLabel(tier: ChannelModelPriceTier) {
             .filter(Boolean)
             .join(" / ") || "默认规格"
     );
+}
+
+const sourceKeys = {
+    unitPriceMicrocredits: "unitPrice",
+    inputTokenPriceMicrocredits: "inputTokenPrice",
+    outputTokenPriceMicrocredits: "outputTokenPrice",
+    cachedTokenPriceMicrocredits: "cachedTokenPrice",
+} as const;
+
+function sourceLabel(tier: ChannelModelPriceTier, key: keyof typeof sourceKeys) {
+    const source = tier.costSource;
+    if (!tier.costPricing?.configured || !source?.currency) return "";
+    const amount = source[sourceKeys[key]] / 1_000_000;
+    return ` · 原币 ${costCurrencySymbol[source.currency]}${new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 6 }).format(amount)}`;
 }

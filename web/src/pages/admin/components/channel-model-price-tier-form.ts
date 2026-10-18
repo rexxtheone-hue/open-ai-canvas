@@ -2,6 +2,7 @@ import type { ModelCapabilityChoice } from "@/components/model-protocol-picker";
 import type { ModelCapabilityConfig } from "@/lib/model-capabilities";
 import type { ImageCapabilityConfig } from "@/lib/model-capabilities";
 import type { ChannelModel, ChannelModelPriceTier } from "@/services/api/wallet";
+import type { CostCurrency } from "./billing-currency";
 
 export type PriceTierMatchMode = "default" | "advanced";
 
@@ -30,6 +31,8 @@ export type PriceTierFormValues = {
     outputTokenPrice: number;
     cachedTokenPrice: number;
     costConfigured: boolean;
+    /** 成本金额的填写币种；非积分时金额为原币，由后端按汇率换算成积分成本。 */
+    costCurrency: CostCurrency;
     costUnitPrice: number;
     costInputTokenPrice: number;
     costOutputTokenPrice: number;
@@ -56,6 +59,7 @@ export function defaultPriceTier(matchMode: PriceTierMatchMode = "default"): Pri
         outputTokenPrice: 0,
         cachedTokenPrice: 0,
         costConfigured: false,
+        costCurrency: "CREDIT",
         costUnitPrice: 0,
         costInputTokenPrice: 0,
         costOutputTokenPrice: 0,
@@ -93,12 +97,29 @@ export function priceTierToForm(tier: ChannelModelPriceTier, image?: ImageCapabi
         outputTokenPrice: tier.outputTokenPriceMicrocredits / 1_000_000,
         cachedTokenPrice: tier.cachedTokenPriceMicrocredits / 1_000_000,
         costConfigured: tier.costPricing?.configured === true,
+        ...costFormValues(tier),
+        priceConfigured: tier.priceConfigured,
+        enabled: tier.enabled,
+    };
+}
+
+function costFormValues(tier: ChannelModelPriceTier): Pick<PriceTierFormValues, "costCurrency" | "costUnitPrice" | "costInputTokenPrice" | "costOutputTokenPrice" | "costCachedTokenPrice"> {
+    const source = tier.costSource;
+    if (source?.currency) {
+        return {
+            costCurrency: source.currency,
+            costUnitPrice: source.unitPrice / 1_000_000,
+            costInputTokenPrice: source.inputTokenPrice / 1_000_000,
+            costOutputTokenPrice: source.outputTokenPrice / 1_000_000,
+            costCachedTokenPrice: source.cachedTokenPrice / 1_000_000,
+        };
+    }
+    return {
+        costCurrency: "CREDIT",
         costUnitPrice: (tier.costPricing?.unitPriceMicrocredits ?? 0) / 1_000_000,
         costInputTokenPrice: (tier.costPricing?.inputTokenPriceMicrocredits ?? 0) / 1_000_000,
         costOutputTokenPrice: (tier.costPricing?.outputTokenPriceMicrocredits ?? 0) / 1_000_000,
         costCachedTokenPrice: (tier.costPricing?.cachedTokenPriceMicrocredits ?? 0) / 1_000_000,
-        priceConfigured: tier.priceConfigured,
-        enabled: tier.enabled,
     };
 }
 
@@ -168,6 +189,13 @@ export function priceTierPayloadFromForm(capability: ModelCapabilityChoice, tier
             inputTokenPriceMicrocredits: videoTokens ? 0 : Math.round(tier.costInputTokenPrice * 1_000_000),
             outputTokenPriceMicrocredits: Math.round(tier.costOutputTokenPrice * 1_000_000),
             cachedTokenPriceMicrocredits: videoTokens ? 0 : Math.round(tier.costCachedTokenPrice * 1_000_000),
+        },
+        costSource: {
+            currency: tier.costConfigured && tier.costCurrency && tier.costCurrency !== "CREDIT" ? tier.costCurrency : ("" as const),
+            unitPrice: Math.round(tier.costUnitPrice * 1_000_000),
+            inputTokenPrice: videoTokens ? 0 : Math.round(tier.costInputTokenPrice * 1_000_000),
+            outputTokenPrice: Math.round(tier.costOutputTokenPrice * 1_000_000),
+            cachedTokenPrice: videoTokens ? 0 : Math.round(tier.costCachedTokenPrice * 1_000_000),
         },
         priceConfigured: tier.priceConfigured !== false,
         enabled: tier.enabled !== false,

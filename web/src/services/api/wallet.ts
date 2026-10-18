@@ -78,6 +78,8 @@ export type ChannelModel = {
 export type ChannelModelPriceTier = {
     /** 仅管理员模型编辑接口返回，不能复制到用户模型目录。 */
     costPricing?: CreditCostPricing;
+    /** 按供应商原币填写的成本（金额为百万分之一单位）；currency 为空表示直接按积分填写。 */
+    costSource?: CostSourcePricing;
     id: string;
     channelModelId: string;
     selector: Record<string, string>;
@@ -95,6 +97,14 @@ export type ChannelModelPriceTier = {
     priceVersion: number;
     createdAt: string;
     updatedAt: string;
+};
+
+export type CostSourcePricing = {
+    currency: "" | "MYR" | "USD" | "CNY";
+    unitPrice: number;
+    inputTokenPrice: number;
+    outputTokenPrice: number;
+    cachedTokenPrice: number;
 };
 
 export type CreditCostPricing = {

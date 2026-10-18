@@ -793,9 +793,16 @@ func (s *Service) CancelCloudAgent(ctx context.Context, userID, id string) error
 	if errors.Is(err, repository.ErrCreationConflict) {
 		return err
 	}
-	latest, err := s.repo.CloudAgent(userID, id)
-	if err != nil {
-		return err
+	// 收尾期间调度器仍可能写入同一运行记录；冲突时整段事务已回滚，重读最新 revision 后重试即可。
+	for attempt := 0; ; attempt++ {
+		latest, err := s.repo.CloudAgent(userID, id)
+		if err != nil {
+			return err
+		}
+		err = s.finishCloudAgentCleanup(ctx, latest)
+		if !errors.Is(err, repository.ErrCreationConflict) || attempt >= 7 {
+			return err
+		}
+		time.Sleep(time.Duration(attempt+1) * 20 * time.Millisecond)
 	}
-	return s.finishCloudAgentCleanup(ctx, latest)
 }

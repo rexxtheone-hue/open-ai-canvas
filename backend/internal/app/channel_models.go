@@ -39,6 +39,8 @@ const maxAdminChannelModelBatchDeleteCount = 100
 // Resolution="*"、VideoSeconds=0 分别表示任意分辨率和任意时长。
 type ChannelModelPriceTierRequest struct {
 	CostPricing model.CreditCostPricing `json:"costPricing"`
+	// CostSource 非空币种时，CostPricing 的积分金额由汇率设置从原币成本换算，客户端提交的积分值被忽略。
+	CostSource model.CostSourcePricing `json:"costSource"`
 	// Selector 是 SKU 的规范匹配条件。支持 operation、quality、size、vquality、videoSeconds、imageCount、videoGenerateAudio；
 	// operation 可区分文生/图生/视频生，避免同一分辨率下错误复用价格。
 	Selector                     map[string]string `json:"selector"`
