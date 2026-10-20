@@ -261,6 +261,7 @@ func (s *Service) ValidateTaskCapability(input map[string]any) error {
 		if config, ok := input["config"].(map[string]any); ok {
 			config["size"], config["vquality"] = taskInput.Config.Size, taskInput.Config.VQuality
 		}
+		downgradeUnsupportedReferenceOperation(input, &taskInput, normalized.Video)
 		return validateVideoTask(normalized.Video, taskInput)
 	}
 	item, err := s.repo.ChannelModelByKey(channelID, providerChannelModelKey(taskInput.Config))
@@ -300,7 +301,22 @@ func (s *Service) ValidateTaskCapability(input map[string]any) error {
 		config["size"] = taskInput.Config.Size
 		config["vquality"] = taskInput.Config.VQuality
 	}
+	downgradeUnsupportedReferenceOperation(input, &taskInput, normalized.Video)
 	return validateVideoTask(normalized.Video, taskInput)
+}
+
+// downgradeUnsupportedReferenceOperation：前端把「图片 + 音频」判断为全能参考；模型不支持全能参考
+// 但支持图生视频时（例如带驱动音频的图生视频），退回图生视频，而不是整单拒绝。
+func downgradeUnsupportedReferenceOperation(input map[string]any, taskInput *canvasGenerationInput, profile *VideoCapabilityConfig) {
+	if profile == nil || metadataString(taskInput.Metadata, "videoEditOperation") != "reference_to_video" ||
+		containsCapabilityString(profile.Operations, "reference_to_video") || !containsCapabilityString(profile.Operations, "image_to_video") ||
+		len(taskInput.ReferenceVideos) > 0 || len(taskInput.ReferenceImages) == 0 || len(taskInput.ReferenceImages) > 2 {
+		return
+	}
+	taskInput.Metadata["videoEditOperation"] = "image_to_video"
+	if metadata, ok := input["metadata"].(map[string]any); ok {
+		metadata["videoEditOperation"] = "image_to_video"
+	}
 }
 
 // applyModelSpecificImageCapability is retained as a narrow normalization hook

@@ -191,7 +191,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     const config = buildNodeConfig(globalConfig, node, mode, requirements);
     const videoProfile = mode === "video" ? modelCapabilityConfigFor(config, config.model).video : undefined;
     const effectiveVideoMode: VideoMode = explicitVideoMode || (() => {
-        const operation = inferVideoOperation(requirements.input!);
+        const operation = inferVideoOperation(requirements.input!, videoProfile?.operations);
         return operation === "text_to_video" || operation === "image_to_video" ? operation : "reference_to_video";
     })();
     useEffect(() => {
