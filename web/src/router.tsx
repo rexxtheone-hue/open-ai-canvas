@@ -69,6 +69,8 @@ const StudioPublicProfilePage = lazy(() => import("@/pages/studio/studio-profile
 const StudioPricingPage = lazy(() => import("@/pages/studio/studio-pricing"));
 const StudioPartnerPage = lazy(() => import("@/pages/studio/studio-partner"));
 const StudioCanvasPage = lazy(() => import("@/pages/studio/studio-canvas"));
+const StudioPortraitsPage = lazy(() => import("@/pages/studio/studio-portraits"));
+const PortraitVerifiedPage = lazy(() => import("@/pages/studio/studio-portraits").then((module) => ({ default: module.PortraitVerifiedPage })));
 const AdminPartnersPage = lazy(() => import("@/pages/admin/partners/partners-page"));
 const AdminAffiliatesPage = lazy(() => import("@/pages/admin/partners/affiliates-page"));
 const StudioHelpPage = lazy(() => import("@/pages/studio/studio-help-pages").then((module) => ({ default: module.StudioHelpPage })));
@@ -141,6 +143,7 @@ export const router = createBrowserRouter([
     },
     { path: "/share/canvas/:token", element: fullScreenDeferred(<SharedCanvasPage />), errorElement: <RouteErrorPage /> },
     { path: "/u/:handle", element: fullScreenDeferred(<StudioPublicProfilePage />), errorElement: <RouteErrorPage /> },
+    { path: "/portrait-verified", element: fullScreenDeferred(<PortraitVerifiedPage />), errorElement: <RouteErrorPage /> },
     ...(import.meta.env.DEV ? devRoutes() : []),
     {
         element: <AuthenticatedWorkspaceLayout />,
@@ -166,6 +169,7 @@ export const router = createBrowserRouter([
             { path: "/studio/pricing", element: <RequireAuth>{deferred(<StudioPricingPage />)}</RequireAuth> },
             { path: "/studio/partner", element: <RequireAuth>{deferred(<StudioPartnerPage />)}</RequireAuth> },
             { path: "/studio/canvas", element: <RequireAuth>{deferred(<StudioCanvasPage />)}</RequireAuth> },
+            { path: "/studio/portraits", element: <RequireAuth>{deferred(<StudioPortraitsPage />)}</RequireAuth> },
             { path: "/studio/help", element: <RequireAuth>{deferred(<StudioHelpPage />)}</RequireAuth> },
             { path: "/studio/terms", element: <RequireAuth>{deferred(<StudioTermsPage />)}</RequireAuth> },
             { path: "/studio/create-image", element: <RequireAuth>{deferred(<StudioToolPage key="create-image" toolId="create-image" />)}</RequireAuth> },

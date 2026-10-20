@@ -157,6 +157,8 @@ type (
 	AffiliateUpdateRequest                 = app.AffiliateUpdateRequest
 	AffiliatePayoutReview                  = app.AffiliatePayoutReview
 	AffiliateSetting                       = app.AffiliateSetting
+	StudioPortraitCreateRequest            = app.StudioPortraitCreateRequest
+	StudioPortraitPhotoRequest             = app.StudioPortraitPhotoRequest
 	EagleAddItemRequest                    = app.EagleAddItemRequest
 	EagleCreatedItem                       = app.EagleCreatedItem
 	EagleFile                              = app.EagleFile

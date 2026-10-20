@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const CurrentSchemaVersion int64 = 69
+const CurrentSchemaVersion int64 = 70
 
 const baselineSchemaChecksum = "sha256:open-ai-canvas-schema-v1-20260830"
 const schemaMigrationAppliedAtIndexChecksum = "sha256:schema-migrations-applied-at-index-v2-20260830"
@@ -234,6 +234,9 @@ var schemaMigrations = []migration{
 	}},
 	{version: 69, name: "oauth_state_referral", checksum: "sha256:oauth-state-referral-v69-20261019", apply: func(tx *gorm.DB) error {
 		return tx.AutoMigrate(&model.OAuthState{})
+	}},
+	{version: 70, name: "studio_portraits", checksum: "sha256:studio-portraits-v70-20261020", apply: func(tx *gorm.DB) error {
+		return tx.AutoMigrate(&model.StudioPortrait{}, &model.StudioPortraitPhoto{})
 	}},
 }
 
