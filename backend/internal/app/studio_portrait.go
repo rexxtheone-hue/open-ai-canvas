@@ -392,27 +392,61 @@ func (s *Service) DeleteStudioPortrait(ctx context.Context, user *model.User, id
 	return s.repo.DeleteStudioPortrait(user.ID, id)
 }
 
-// prepareCloudwisePortraitReferences 把已认证真人照片的参考图换成 asset://，其它参考图保持原样。
-func (s *Service) prepareCloudwisePortraitReferences(userID string, input *canvasGenerationInput) error {
+// prepareCloudwiseAssetReferences 实现 Cloudwise 的要求：Seedance 参考素材必须先进素材组，再以 asset://<id> 提交。
+// 已认证真人的照片优先用其认证素材；其余图片和视频在后台自动上传到渠道的平台素材组。
+func (s *Service) prepareCloudwiseAssetReferences(ctx context.Context, userID string, input *canvasGenerationInput) error {
 	if input == nil || input.Mode != "video" || strings.TrimSpace(input.Config.InterfaceType) != cloudwiseSeedanceProtocol {
 		return nil
 	}
-	for index := range input.ReferenceImages {
-		reference := &input.ReferenceImages[index]
-		if strings.HasPrefix(strings.TrimSpace(reference.URL), "asset://") {
-			continue
-		}
-		resourceID := arkPrivateAssetResourceID(*reference)
-		if resourceID == "" {
-			continue
-		}
-		assetID, err := s.repo.ActiveStudioPortraitAsset(userID, input.Config.ChannelID, resourceID)
-		if err != nil {
-			return err
-		}
-		if assetID != "" {
+	var channel *cloudwiseChannel
+	for _, group := range []struct {
+		items []providerMedia
+		kind  string
+	}{{input.ReferenceImages, "Image"}, {input.ReferenceVideos, "Video"}} {
+		for index := range group.items {
+			reference := &group.items[index]
+			if strings.HasPrefix(strings.TrimSpace(reference.URL), "asset://") {
+				continue
+			}
+			resourceID := arkPrivateAssetResourceID(*reference)
+			if resourceID == "" {
+				continue
+			}
+			assetID := ""
+			if group.kind == "Image" {
+				found, err := s.repo.ActiveStudioPortraitAsset(userID, input.Config.ChannelID, resourceID)
+				if err != nil {
+					return err
+				}
+				assetID = found
+			}
+			if assetID == "" {
+				if channel == nil {
+					resolved, err := s.cloudwiseChannelByID(input.Config.ChannelID)
+					if err != nil {
+						return err
+					}
+					channel = resolved
+					if taskID := taskExecutionID(ctx); taskID != "" {
+						_ = s.repo.UpdateTaskProgress(taskID, "正在上传参考素材", 0)
+					}
+				}
+				resource, err := s.Resource(userID, resourceID)
+				if err != nil {
+					return fmt.Errorf("读取参考素材失败：%w", err)
+				}
+				assetID, err = s.ensureCloudwiseAsset(ctx, userID, channel, resource, group.kind)
+				if err != nil {
+					return err
+				}
+			}
 			reference.URL = "asset://" + assetID
 			reference.DataURL = ""
+		}
+	}
+	if channel != nil {
+		if taskID := taskExecutionID(ctx); taskID != "" {
+			_ = s.repo.UpdateTaskProgress(taskID, "作品创作中", 0)
 		}
 	}
 	return nil

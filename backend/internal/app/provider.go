@@ -245,7 +245,7 @@ func (s *Service) processCanvasGenerationTask(ctx context.Context, userID string
 		if err := s.prepareArkPrivateAssetReferences(ctx, userID, &input); err != nil {
 			return nil, err
 		}
-		if err := s.prepareCloudwisePortraitReferences(userID, &input); err != nil {
+		if err := s.prepareCloudwiseAssetReferences(ctx, userID, &input); err != nil {
 			return nil, err
 		}
 	}

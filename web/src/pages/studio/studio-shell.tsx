@@ -1,29 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
-import {
-    ChatFill,
-    ChevronDown,
-    ChevronRight,
-    Clapperboard,
-    Compass,
-    Crown,
-    DirectorFill,
-    FolderOpen,
-    Grid2x2,
-    Home,
-    Layers,
-    LayoutTemplate,
-    Megaphone,
-    MessageSquareText,
-    Palette,
-    PanelLeft,
-    Pin,
-    ScanFace,
-    UserPen,
-    UserRound,
-    Users,
-    Wand2,
-} from "./studio-icons";
+import { ChatFill, ChevronDown, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, Layers, LayoutTemplate, Megaphone, MessageSquareText, Palette, PanelLeft, Pin, UserPen, UserRound, Users, Wand2 } from "./studio-icons";
 
 import "@fontsource-variable/space-grotesk/index.css";
 
@@ -215,7 +192,6 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                                 {link("/studio/canvas", "无限画布", Layers)}
                                 {link("/studio/director#studio-director-projects", "导演项目", Clapperboard)}
                                 {link("/studio/characters", "角色与世界", UserRound)}
-                                {link("/studio/portraits", "真人认证", ScanFace)}
                                 {link("/studio/brand", "品牌套件", Palette)}
                                 {link("/studio/media", "媒体", FolderOpen)}
                             </div>,
