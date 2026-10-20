@@ -21,7 +21,7 @@ describe("channel model price tier defaults", () => {
     test("cost in a supplier currency round-trips as source amounts and credit costs stay unset", () => {
         const tier = { ...defaultPriceTier(), costConfigured: true, costCurrency: "USD" as const, costUnitPrice: 0.05 };
         const payload = priceTierPayloadFromForm("video", tier, "kling-v3");
-        expect(payload.costSource).toEqual({ currency: "USD", unitPrice: 50_000, inputTokenPrice: 0, outputTokenPrice: 0, cachedTokenPrice: 0 });
+        expect(payload.costSource).toEqual({ currency: "USD", unitPrice: 50_000, inputTokenPrice: 0, outputTokenPrice: 0, cachedTokenPrice: 0, extraImagePrice: 0, extraVideoSecondPrice: 0 });
         const saved = { ...payload, costPricing: { ...payload.costPricing, unitPriceMicrocredits: 22_000_000 } } as ChannelModelPriceTier;
         expect(priceTierToForm(saved)).toMatchObject({ costCurrency: "USD", costUnitPrice: 0.05 });
         expect(priceTierPayloadFromForm("video", { ...tier, costCurrency: "CREDIT" }, "kling-v3").costSource.currency).toBe("");
@@ -99,4 +99,13 @@ describe("channel model price tier defaults", () => {
         expect(priceTierPayloadFromForm("text", tier, "text-model")).toMatchObject({ inputTokenPriceMicrocredits: 10_000_000, outputTokenPriceMicrocredits: 250_000, cachedTokenPriceMicrocredits: 5_000_000 });
         expect(priceTierPayloadFromForm("video", { ...tier, outputTokenPrice: 0 }, "seedance").outputTokenPriceMicrocredits).toBe(0);
     });
+});
+
+test("price tier surcharge and reference-video condition round-trip", () => {
+    const tier = { ...defaultPriceTier("advanced"), operation: "reference_to_video", videoInput: "true", surchargeFreeImages: 5, surchargeImagePrice: 4, surchargeVideoSecondPrice: 13 };
+    const payload = priceTierPayloadFromForm("video", tier, "MiniMax-H3");
+    expect(payload.selector).toEqual({ operation: "reference_to_video", videoInput: "true" });
+    expect(payload.surcharge).toEqual({ freeImages: 5, imagePriceMicrocredits: 4_000_000, videoSecondPriceMicrocredits: 13_000_000 });
+    const image = priceTierPayloadFromForm("image", { ...tier, matchMode: "default" }, "img");
+    expect(image.surcharge).toEqual({ freeImages: 0, imagePriceMicrocredits: 0, videoSecondPriceMicrocredits: 0 });
 });

@@ -18,6 +18,9 @@ export function CreditCostFields({ index, form, billingMode, isVideo }: { index:
                       ["costCachedTokenPrice", `缓存 ${unit} / 百万 Token`],
                   ]
             : [["costUnitPrice", billingMode === "per_second" ? `${unit} / 秒` : `${unit} / 次`]];
+    if (isVideo) {
+        fields.push(["costExtraImagePrice", `超出免费张数后 ${unit} / 张参考图`], ["costExtraVideoSecondPrice", `${unit} / 秒参考视频`]);
+    }
     return (
         <section className="admin-price-tier-cost-panel" aria-label="成本设置">
             <header className="admin-price-tier-cost-header">
@@ -44,7 +47,7 @@ export function CreditCostFields({ index, form, billingMode, isVideo }: { index:
                                 className="mb-0"
                                 name={[index, field]}
                                 label={label}
-                                rules={[{ required: true, message: "请输入成本价" }]}
+                                rules={field.startsWith("costExtra") ? undefined : [{ required: true, message: "请输入成本价" }]}
                                 extra={currency === "CREDIT" ? undefined : <CreditHint form={form} index={index} field={field} currency={currency} billing={billing} />}
                             >
                                 <InputNumber className="w-full" min={0} max={1_000_000} precision={6} step={0.01} />

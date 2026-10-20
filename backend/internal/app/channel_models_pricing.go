@@ -164,6 +164,7 @@ func (s *Service) normalizeChannelModelPriceTiers(req ChannelModelRequest, capab
 		result = append(result, model.ChannelModelPriceTier{
 			CostPricing:                  input.CostPricing,
 			CostSource:                   input.CostSource,
+			Surcharge:                    input.Surcharge,
 			ID:                           id,
 			SelectorKey:                  key,
 			SelectorJSON:                 key,
@@ -251,6 +252,17 @@ func normalizeChannelModelTierSelector(capability string, input ChannelModelPric
 				continue
 			}
 			value = strconv.Itoa(count)
+		case "videoInput":
+			if capability != "video" {
+				return nil, "", 0, BadAuthRequest("只有视频模型可以按是否带参考视频配置价格档")
+			}
+			value = strings.ToLower(value)
+			if value == "*" {
+				continue
+			}
+			if value != "true" && value != "false" {
+				return nil, "", 0, BadAuthRequest("参考视频条件必须为 true、false 或 *")
+			}
 		case "videoGenerateAudio":
 			if capability != "video" {
 				return nil, "", 0, BadAuthRequest("只有视频模型可以按是否生成音频配置价格档")
@@ -316,6 +328,9 @@ func normalizeChannelModelTierSelector(capability string, input ChannelModelPric
 
 func validateChannelModelTierPricing(capability string, protocol model.ChannelInterfaceType, billingMode string, input ChannelModelPriceTierRequest) error {
 	if err := validateCreditCostPricing(capability, billingMode, input.CostPricing); err != nil {
+		return err
+	}
+	if err := validatePriceSurcharge(capability, input.Surcharge); err != nil {
 		return err
 	}
 	if billingMode != "fixed_request" && billingMode != "per_second" && billingMode != "token" {

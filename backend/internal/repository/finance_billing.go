@@ -284,6 +284,7 @@ func (r *Repository) settleBillingOrder(id string, providerRequestID string, aud
 			if err != nil {
 				return err
 			}
+			actual += order.SurchargeMicrocredits
 			chargeCapped := billingChargeLimitApplies(order) && actual > order.ChargeLimitMicrocredits
 			if chargeCapped {
 				actual = order.ChargeLimitMicrocredits
@@ -619,7 +620,7 @@ func (r *Repository) RestoreRefundedBillingOrder(id string, providerRequestID st
 }
 
 func zeroPricedTokenOrder(order model.BillingOrder) bool {
-	return order.BillingMode == "token" &&
+	return order.BillingMode == "token" && order.SurchargeMicrocredits == 0 &&
 		order.InputTokenPriceMicrocredits == 0 &&
 		order.OutputTokenPriceMicrocredits == 0 &&
 		order.CachedTokenPriceMicrocredits == 0

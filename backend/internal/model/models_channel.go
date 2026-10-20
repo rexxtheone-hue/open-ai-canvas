@@ -77,6 +77,7 @@ type ChannelModel struct {
 type ChannelModelPriceTier struct {
 	CostPricing                  CreditCostPricing `json:"-" gorm:"embedded;embeddedPrefix:cost_"`
 	CostSource                   CostSourcePricing `json:"-" gorm:"embedded;embeddedPrefix:cost_source_"`
+	Surcharge                    PriceSurcharge    `json:"surcharge" gorm:"embedded;embeddedPrefix:surcharge_"`
 	ID                           string            `json:"id" gorm:"primaryKey;size:36"`
 	ChannelModelID               string            `json:"channelModelId" gorm:"size:36;index;uniqueIndex:idx_channel_model_price_tier_active,priority:1,where:deleted_at IS NULL"`
 	SelectorKey                  string            `json:"selectorKey" gorm:"size:500;not null;default:{};uniqueIndex:idx_channel_model_price_tier_active,priority:2,where:deleted_at IS NULL"`

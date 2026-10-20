@@ -393,6 +393,8 @@ func skuSelectorForIntent(intent ModelRequestIntent) map[string]string {
 		} else if intent.Inputs["image"] > 0 {
 			selector["operation"] = "image_to_video"
 		}
+		// 全能参考等专属价格档可再按是否带参考视频区分，例如 Seedance 带视频输入的 Token 单价不同。
+		selector["videoInput"] = strconv.FormatBool(intent.Inputs["video"] > 0)
 		if count := intent.Inputs["image"]; count > 0 {
 			selector["imageCount"] = strconv.Itoa(count)
 		}

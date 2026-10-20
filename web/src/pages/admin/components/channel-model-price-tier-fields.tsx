@@ -117,6 +117,17 @@ export function PriceTierFields({
                                         <Select options={[{ label: "任意分辨率", value: "*" }, ...resolutionOptions.map((value) => ({ label: value.toUpperCase(), value }))]} />
                                     </Form.Item>
                                 ) : null}
+                                {isVideo ? (
+                                    <Form.Item className="mb-0" name={[index, "videoInput"]} label="参考视频" initialValue="*">
+                                        <Select
+                                            options={[
+                                                { label: "有没有都可以", value: "*" },
+                                                { label: "带参考视频", value: "true" },
+                                                { label: "不带参考视频", value: "false" },
+                                            ]}
+                                        />
+                                    </Form.Item>
+                                ) : null}
                                 {isImage && image?.parameters
                                     ? image.parameters
                                           .filter((field) => field.enabled !== false && field.pricing)
@@ -193,6 +204,25 @@ export function PriceTierFields({
                             <div className="admin-price-tier-helper" role="note">
                                 <strong>视频 Token 计费</strong>
                                 <span>估算：宽 × 高 × 24 帧/秒 ×（输出时长 + 参考视频时长）÷ 1024；优先按上游有效用量结算，无用量时使用公式，授权预留 10% 会在结算后补扣或退回。</span>
+                            </div>
+                        ) : null}
+                        {isVideo ? (
+                            <div className="admin-price-tier-surcharge">
+                                <div className="admin-price-tier-helper" role="note">
+                                    <strong>参考素材附加费</strong>
+                                    <span>在上面的价格之外另外加收，不需要就填 0。例如 MiniMax H3：前 5 张参考图免费，第 6 张起每张收费；参考视频按秒收费（时长未知按 15 秒计）。</span>
+                                </div>
+                                <div className="admin-price-tier-token-grid">
+                                    <Form.Item className="mb-0" name={[index, "surchargeFreeImages"]} label="免费参考图张数" initialValue={0}>
+                                        <InputNumber className="w-full" min={0} max={100} precision={0} />
+                                    </Form.Item>
+                                    <Form.Item className="mb-0" name={[index, "surchargeImagePrice"]} label="超出后每张参考图积分" initialValue={0}>
+                                        <InputNumber className="w-full" min={0} max={1_000_000} precision={6} step={0.1} />
+                                    </Form.Item>
+                                    <Form.Item className="mb-0" name={[index, "surchargeVideoSecondPrice"]} label="每秒参考视频积分" initialValue={0}>
+                                        <InputNumber className="w-full" min={0} max={1_000_000} precision={6} step={0.1} />
+                                    </Form.Item>
+                                </div>
                             </div>
                         ) : null}
                         <CreditCostFields index={index} form={form} billingMode={billingMode} isVideo={isVideo} />

@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const CurrentSchemaVersion int64 = 70
+const CurrentSchemaVersion int64 = 71
 
 const baselineSchemaChecksum = "sha256:open-ai-canvas-schema-v1-20260830"
 const schemaMigrationAppliedAtIndexChecksum = "sha256:schema-migrations-applied-at-index-v2-20260830"
@@ -237,6 +237,9 @@ var schemaMigrations = []migration{
 	}},
 	{version: 70, name: "studio_portraits", checksum: "sha256:studio-portraits-v70-20261020", apply: func(tx *gorm.DB) error {
 		return tx.AutoMigrate(&model.StudioPortrait{}, &model.StudioPortraitPhoto{})
+	}},
+	{version: 71, name: "price_tier_surcharge", checksum: "sha256:price-tier-surcharge-v71-20261020", apply: func(tx *gorm.DB) error {
+		return tx.AutoMigrate(&model.ChannelModelPriceTier{}, &model.BillingOrder{})
 	}},
 }
 

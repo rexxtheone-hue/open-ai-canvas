@@ -8,16 +8,28 @@ type CreditCostPricing struct {
 	InputTokenPriceMicrocredits  int64 `json:"inputTokenPriceMicrocredits" gorm:"not null;default:0"`
 	OutputTokenPriceMicrocredits int64 `json:"outputTokenPriceMicrocredits" gorm:"not null;default:0"`
 	CachedTokenPriceMicrocredits int64 `json:"cachedTokenPriceMicrocredits" gorm:"not null;default:0"`
+	// 附加费成本：超出免费张数的每张参考图、每秒参考视频。免费张数沿用价格档的附加费设置。
+	ExtraImagePriceMicrocredits       int64 `json:"extraImagePriceMicrocredits" gorm:"not null;default:0"`
+	ExtraVideoSecondPriceMicrocredits int64 `json:"extraVideoSecondPriceMicrocredits" gorm:"not null;default:0"`
+}
+
+// PriceSurcharge 是价格档在基础价之外按参考素材加收的费用，例如「前 5 张参考图免费，之后每张收费」。
+type PriceSurcharge struct {
+	FreeImages                   int   `json:"freeImages" gorm:"not null;default:0"`
+	ImagePriceMicrocredits       int64 `json:"imagePriceMicrocredits" gorm:"not null;default:0"`
+	VideoSecondPriceMicrocredits int64 `json:"videoSecondPriceMicrocredits" gorm:"not null;default:0"`
 }
 
 // CostSourcePricing 记录管理员按供应商原币种填写的成本，金额为该币种的百万分之一单位。
 // Currency 为空表示成本直接按积分填写；非空时 CreditCostPricing 由汇率设置换算得出。
 type CostSourcePricing struct {
-	Currency         string `json:"currency" gorm:"size:8;not null;default:''"`
-	UnitPrice        int64  `json:"unitPrice" gorm:"not null;default:0"`
-	InputTokenPrice  int64  `json:"inputTokenPrice" gorm:"not null;default:0"`
-	OutputTokenPrice int64  `json:"outputTokenPrice" gorm:"not null;default:0"`
-	CachedTokenPrice int64  `json:"cachedTokenPrice" gorm:"not null;default:0"`
+	Currency              string `json:"currency" gorm:"size:8;not null;default:''"`
+	UnitPrice             int64  `json:"unitPrice" gorm:"not null;default:0"`
+	InputTokenPrice       int64  `json:"inputTokenPrice" gorm:"not null;default:0"`
+	OutputTokenPrice      int64  `json:"outputTokenPrice" gorm:"not null;default:0"`
+	CachedTokenPrice      int64  `json:"cachedTokenPrice" gorm:"not null;default:0"`
+	ExtraImagePrice       int64  `json:"extraImagePrice" gorm:"not null;default:0"`
+	ExtraVideoSecondPrice int64  `json:"extraVideoSecondPrice" gorm:"not null;default:0"`
 }
 
 // BillingCostSnapshot 独立于销售价格，切换供应线路时始终更新为实际执行线路的成本。
@@ -26,4 +38,9 @@ type BillingCostSnapshot struct {
 	CostBillingMode        string            `json:"-" gorm:"size:32;not null;default:''"`
 	CostQuantity           int64             `json:"-" gorm:"not null;default:0"`
 	CostVideoFormulaTokens int64             `json:"-" gorm:"not null;default:0"`
+	// 附加费计量：计费的参考图张数（已扣除免费张数）与参考视频秒数，售价与成本共用。
+	SurchargeImages       int64 `json:"surchargeImages" gorm:"not null;default:0"`
+	SurchargeVideoSeconds int64 `json:"surchargeVideoSeconds" gorm:"not null;default:0"`
+	// SurchargeMicrocredits 是已套用倍率的附加费，已包含在订单金额内；Token 结算时在实际用量金额上加回。
+	SurchargeMicrocredits int64 `json:"surchargeMicrocredits" gorm:"not null;default:0"`
 }

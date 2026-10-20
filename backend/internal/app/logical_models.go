@@ -76,14 +76,22 @@ type PublicLogicalModel struct {
 // PublicLogicalModelPriceTier 是创作端用于约束规格选择和展示当前报价的安全投影，
 // 不暴露供应渠道、上游模型 ID 或内部路由信息。
 type PublicLogicalModelPriceTier struct {
-	Selector                     map[string]string `json:"selector"`
-	Resolution                   string            `json:"resolution"`
-	VideoSeconds                 int               `json:"videoSeconds"`
-	BillingMode                  string            `json:"billingMode"`
-	UnitPriceMicrocredits        int64             `json:"unitPriceMicrocredits"`
-	InputTokenPriceMicrocredits  int64             `json:"inputTokenPriceMicrocredits"`
-	OutputTokenPriceMicrocredits int64             `json:"outputTokenPriceMicrocredits"`
-	CachedTokenPriceMicrocredits int64             `json:"cachedTokenPriceMicrocredits"`
+	Selector                     map[string]string     `json:"selector"`
+	Resolution                   string                `json:"resolution"`
+	VideoSeconds                 int                   `json:"videoSeconds"`
+	BillingMode                  string                `json:"billingMode"`
+	UnitPriceMicrocredits        int64                 `json:"unitPriceMicrocredits"`
+	InputTokenPriceMicrocredits  int64                 `json:"inputTokenPriceMicrocredits"`
+	OutputTokenPriceMicrocredits int64                 `json:"outputTokenPriceMicrocredits"`
+	CachedTokenPriceMicrocredits int64                 `json:"cachedTokenPriceMicrocredits"`
+	Surcharge                    *model.PriceSurcharge `json:"surcharge,omitempty"`
+}
+
+func publicPriceSurcharge(surcharge model.PriceSurcharge) *model.PriceSurcharge {
+	if surcharge.ImagePriceMicrocredits <= 0 && surcharge.VideoSecondPriceMicrocredits <= 0 {
+		return nil
+	}
+	return &surcharge
 }
 
 type AdminLogicalRoute struct {

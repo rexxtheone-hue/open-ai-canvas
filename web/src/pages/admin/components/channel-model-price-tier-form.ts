@@ -23,6 +23,8 @@ export type PriceTierFormValues = {
     resolution: string;
     videoSeconds: number;
     videoGenerateAudio: string;
+    /** 视频价格档是否要求带参考视频：* 任意，true 有，false 无。 */
+    videoInput: string;
     imageCount: number;
     providerModelKey?: string;
     billingMode: ChannelModel["billingMode"];
@@ -37,6 +39,12 @@ export type PriceTierFormValues = {
     costInputTokenPrice: number;
     costOutputTokenPrice: number;
     costCachedTokenPrice: number;
+    costExtraImagePrice: number;
+    costExtraVideoSecondPrice: number;
+    /** 附加费：前 N 张参考图免费，之后每张收费；参考视频按秒收费。 */
+    surchargeFreeImages: number;
+    surchargeImagePrice: number;
+    surchargeVideoSecondPrice: number;
     priceConfigured: boolean;
     enabled: boolean;
 };
@@ -51,6 +59,7 @@ export function defaultPriceTier(matchMode: PriceTierMatchMode = "default"): Pri
         resolution: "*",
         videoSeconds: 0,
         videoGenerateAudio: "*",
+        videoInput: "*",
         imageCount: 0,
         providerModelKey: "",
         billingMode: "fixed_request",
@@ -64,6 +73,11 @@ export function defaultPriceTier(matchMode: PriceTierMatchMode = "default"): Pri
         costInputTokenPrice: 0,
         costOutputTokenPrice: 0,
         costCachedTokenPrice: 0,
+        costExtraImagePrice: 0,
+        costExtraVideoSecondPrice: 0,
+        surchargeFreeImages: 0,
+        surchargeImagePrice: 0,
+        surchargeVideoSecondPrice: 0,
         priceConfigured: true,
         enabled: true,
     };
@@ -77,7 +91,7 @@ export function priceTierToForm(tier: ChannelModelPriceTier, image?: ImageCapabi
         selector.imageResolution = legacyResolution;
         delete selector.quality;
     }
-    const candidates = image?.parameters ? Object.values(selector) : [selector.operation, selector.imageResolution, selector.quality, selector.resolution, selector.size];
+    const candidates = image?.parameters ? Object.values(selector) : [selector.operation, selector.imageResolution, selector.quality, selector.resolution, selector.size, selector.videoInput];
     const hasSpecificMatch = candidates.some((value) => value && value !== "*") || (tier.resolution && tier.resolution !== "*");
     return {
         matchMode: hasSpecificMatch ? "advanced" : "default",
@@ -89,6 +103,7 @@ export function priceTierToForm(tier: ChannelModelPriceTier, image?: ImageCapabi
         resolution: selector.resolution || tier.resolution || "*",
         videoSeconds: tier.videoSeconds || 0,
         videoGenerateAudio: selector.videoGenerateAudio || "*",
+        videoInput: selector.videoInput || "*",
         imageCount: Number(selector.imageCount || 0),
         providerModelKey: tier.providerModelKey || "",
         billingMode: tier.billingMode,
@@ -98,12 +113,15 @@ export function priceTierToForm(tier: ChannelModelPriceTier, image?: ImageCapabi
         cachedTokenPrice: tier.cachedTokenPriceMicrocredits / 1_000_000,
         costConfigured: tier.costPricing?.configured === true,
         ...costFormValues(tier),
+        surchargeFreeImages: tier.surcharge?.freeImages ?? 0,
+        surchargeImagePrice: (tier.surcharge?.imagePriceMicrocredits ?? 0) / 1_000_000,
+        surchargeVideoSecondPrice: (tier.surcharge?.videoSecondPriceMicrocredits ?? 0) / 1_000_000,
         priceConfigured: tier.priceConfigured,
         enabled: tier.enabled,
     };
 }
 
-function costFormValues(tier: ChannelModelPriceTier): Pick<PriceTierFormValues, "costCurrency" | "costUnitPrice" | "costInputTokenPrice" | "costOutputTokenPrice" | "costCachedTokenPrice"> {
+function costFormValues(tier: ChannelModelPriceTier): Pick<PriceTierFormValues, "costCurrency" | "costUnitPrice" | "costInputTokenPrice" | "costOutputTokenPrice" | "costCachedTokenPrice" | "costExtraImagePrice" | "costExtraVideoSecondPrice"> {
     const source = tier.costSource;
     if (source?.currency) {
         return {
@@ -112,6 +130,8 @@ function costFormValues(tier: ChannelModelPriceTier): Pick<PriceTierFormValues, 
             costInputTokenPrice: source.inputTokenPrice / 1_000_000,
             costOutputTokenPrice: source.outputTokenPrice / 1_000_000,
             costCachedTokenPrice: source.cachedTokenPrice / 1_000_000,
+            costExtraImagePrice: (source.extraImagePrice ?? 0) / 1_000_000,
+            costExtraVideoSecondPrice: (source.extraVideoSecondPrice ?? 0) / 1_000_000,
         };
     }
     return {
@@ -120,6 +140,8 @@ function costFormValues(tier: ChannelModelPriceTier): Pick<PriceTierFormValues, 
         costInputTokenPrice: (tier.costPricing?.inputTokenPriceMicrocredits ?? 0) / 1_000_000,
         costOutputTokenPrice: (tier.costPricing?.outputTokenPriceMicrocredits ?? 0) / 1_000_000,
         costCachedTokenPrice: (tier.costPricing?.cachedTokenPriceMicrocredits ?? 0) / 1_000_000,
+        costExtraImagePrice: (tier.costPricing?.extraImagePriceMicrocredits ?? 0) / 1_000_000,
+        costExtraVideoSecondPrice: (tier.costPricing?.extraVideoSecondPriceMicrocredits ?? 0) / 1_000_000,
     };
 }
 
@@ -144,6 +166,7 @@ export function skuSelectorFromForm(capability: ModelCapabilityChoice, tier: Pri
     if (tier.operation && tier.operation !== "*") selector.operation = tier.operation;
     if (capability === "video") {
         if (tier.resolution && tier.resolution !== "*") selector.vquality = tier.resolution;
+        if (tier.videoInput === "true" || tier.videoInput === "false") selector.videoInput = tier.videoInput;
     }
     if (capability === "image") {
         if (capabilityConfig?.image?.parameters) {
@@ -173,6 +196,8 @@ export function priceTierVideoSecondsFromForm(capability: ModelCapabilityChoice,
 
 export function priceTierPayloadFromForm(capability: ModelCapabilityChoice, tier: PriceTierFormValues, upstreamModel: string, capabilityConfig?: ModelCapabilityConfig) {
     const videoTokens = capability === "video" && tier.billingMode === "token";
+    const isVideo = capability === "video";
+    const micro = (value: number | undefined) => (isVideo ? Math.round((value || 0) * 1_000_000) : 0);
     return {
         selector: skuSelectorFromForm(capability, tier, capabilityConfig),
         resolution: priceTierResolutionFromForm(capability, tier),
@@ -189,6 +214,8 @@ export function priceTierPayloadFromForm(capability: ModelCapabilityChoice, tier
             inputTokenPriceMicrocredits: videoTokens ? 0 : Math.round(tier.costInputTokenPrice * 1_000_000),
             outputTokenPriceMicrocredits: Math.round(tier.costOutputTokenPrice * 1_000_000),
             cachedTokenPriceMicrocredits: videoTokens ? 0 : Math.round(tier.costCachedTokenPrice * 1_000_000),
+            extraImagePriceMicrocredits: micro(tier.costExtraImagePrice),
+            extraVideoSecondPriceMicrocredits: micro(tier.costExtraVideoSecondPrice),
         },
         costSource: {
             currency: tier.costConfigured && tier.costCurrency && tier.costCurrency !== "CREDIT" ? tier.costCurrency : ("" as const),
@@ -196,6 +223,13 @@ export function priceTierPayloadFromForm(capability: ModelCapabilityChoice, tier
             inputTokenPrice: videoTokens ? 0 : Math.round(tier.costInputTokenPrice * 1_000_000),
             outputTokenPrice: Math.round(tier.costOutputTokenPrice * 1_000_000),
             cachedTokenPrice: videoTokens ? 0 : Math.round(tier.costCachedTokenPrice * 1_000_000),
+            extraImagePrice: micro(tier.costExtraImagePrice),
+            extraVideoSecondPrice: micro(tier.costExtraVideoSecondPrice),
+        },
+        surcharge: {
+            freeImages: isVideo ? Math.max(0, Math.floor(tier.surchargeFreeImages || 0)) : 0,
+            imagePriceMicrocredits: micro(tier.surchargeImagePrice),
+            videoSecondPriceMicrocredits: micro(tier.surchargeVideoSecondPrice),
         },
         priceConfigured: tier.priceConfigured !== false,
         enabled: tier.enabled !== false,

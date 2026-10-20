@@ -80,6 +80,8 @@ export type ChannelModelPriceTier = {
     costPricing?: CreditCostPricing;
     /** 按供应商原币填写的成本（金额为百万分之一单位）；currency 为空表示直接按积分填写。 */
     costSource?: CostSourcePricing;
+    /** 参考素材附加费：超出免费张数的每张参考图、每秒参考视频。 */
+    surcharge?: PriceSurcharge;
     id: string;
     channelModelId: string;
     selector: Record<string, string>;
@@ -105,6 +107,14 @@ export type CostSourcePricing = {
     inputTokenPrice: number;
     outputTokenPrice: number;
     cachedTokenPrice: number;
+    extraImagePrice?: number;
+    extraVideoSecondPrice?: number;
+};
+
+export type PriceSurcharge = {
+    freeImages: number;
+    imagePriceMicrocredits: number;
+    videoSecondPriceMicrocredits: number;
 };
 
 export type CreditCostPricing = {
@@ -113,6 +123,8 @@ export type CreditCostPricing = {
     inputTokenPriceMicrocredits: number;
     outputTokenPriceMicrocredits: number;
     cachedTokenPriceMicrocredits: number;
+    extraImagePriceMicrocredits?: number;
+    extraVideoSecondPriceMicrocredits?: number;
 };
 
 // 系统渠道模型的写入合同。标量价格只用于兼容旧管理请求；新的后台界面只提交 priceTiers。

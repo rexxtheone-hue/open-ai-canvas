@@ -109,6 +109,8 @@ type tokenBillingEstimate struct {
 	OutputTokens int64
 	Video        *VideoTokenEstimate
 	Err          error
+	// ReferenceVideoSeconds 供参考视频附加费使用；时长未知的视频按 15 秒计。
+	ReferenceVideoSeconds int64
 }
 
 func (s *Service) Wallet(user *model.User, entryType string, page int, limit int) (*WalletSummary, error) {
@@ -646,6 +648,16 @@ func (s *Service) newBillingOrderWithPriceTier(userID string, taskID string, ide
 	if err != nil {
 		return nil, err
 	}
+	var surchargeImages, surchargeVideoSeconds int64
+	if capability == "video" && len(intents) > 0 {
+		surchargeImages = int64(max(0, intents[0].Inputs["image"]-tier.Surcharge.FreeImages))
+		surchargeVideoSeconds = tokenEstimate.ReferenceVideoSeconds
+	}
+	surcharge, err := surchargeAmount(tier.Surcharge.ImagePriceMicrocredits, surchargeImages, tier.Surcharge.VideoSecondPriceMicrocredits, surchargeVideoSeconds, multiplierBPS)
+	if err != nil {
+		return nil, err
+	}
+	amount += surcharge
 	var videoFormulaTokens int64
 	if tier.BillingMode == "token" && tokenEstimate.Video != nil {
 		videoFormulaTokens = tokenEstimate.Video.FormulaTokens
@@ -661,6 +673,7 @@ func (s *Service) newBillingOrderWithPriceTier(userID string, taskID string, ide
 		Status:             model.BillingStatusReserved,
 	}
 	snapshotCreditCost(order, tier, requestedQuantity, tokenEstimate)
+	order.SurchargeImages, order.SurchargeVideoSeconds, order.SurchargeMicrocredits = surchargeImages, surchargeVideoSeconds, surcharge
 	return order, nil
 }
 
@@ -709,7 +722,9 @@ func estimateTaskTokens(input map[string]any) tokenBillingEstimate {
 
 func estimateTaskBillingTokens(input map[string]any, capability string) tokenBillingEstimate {
 	if capability == "video" {
-		return estimateArkVideoTokens(input)
+		estimate := estimateArkVideoTokens(input)
+		estimate.ReferenceVideoSeconds = referenceVideoBillingSeconds(input["referenceVideos"])
+		return estimate
 	}
 	return estimateTaskTokens(input)
 }

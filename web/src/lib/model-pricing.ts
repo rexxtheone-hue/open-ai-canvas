@@ -27,8 +27,8 @@ export function requestCreditCost(options: { channelMode: string; modelCosts?: M
         const first = tiers[0];
         if (!first || first.billingMode === "token") return null;
         // 同一精确规格可能来自多个逻辑路由；只有价格一致时才可在客户端安全展示。
-        if (tiers.some((tier) => tier.billingMode !== first.billingMode || tier.unitPriceMicrocredits !== first.unitPriceMicrocredits)) return null;
-        return creditAmount(first.billingMode, first.unitPriceMicrocredits, options.count, options.seconds);
+        if (tiers.some((tier) => tier.billingMode !== first.billingMode || tier.unitPriceMicrocredits !== first.unitPriceMicrocredits || JSON.stringify(tier.surcharge || null) !== JSON.stringify(first.surcharge || null))) return null;
+        return creditAmount(first.billingMode, first.unitPriceMicrocredits, options.count, options.seconds) + surchargeCredits(first, options.requirements);
     }
     // Token 订单由服务端按请求体预授权并在 usage 返回后结算，前端不展示无依据的固定价格。
     if (cost.billingMode === "token") return null;
@@ -134,6 +134,15 @@ export function modelQuoteRequest(config: AiConfig, value: string, capability?: 
     return cost.logicalModelId ? { logicalModelID: cost.logicalModelId, intent } : { channelId: channel.id, modelKey: modelOptionName(value), intent };
 }
 
+// 与后端一致：超出免费张数的参考图逐张加收，参考视频按秒加收；客户端不知道视频时长，按每段 15 秒估算。
+function surchargeCredits(tier: ModelPriceTier, requirements?: ModelRequirements) {
+    const surcharge = tier.surcharge;
+    const input = requirements?.input;
+    if (!surcharge || !input) return 0;
+    const images = Math.max(0, (input.imageCount || 0) + (input.characterCount || 0) - (surcharge.freeImages || 0));
+    return (images * surcharge.imagePriceMicrocredits + (input.videoCount || 0) * 15 * surcharge.videoSecondPriceMicrocredits) / 1_000_000;
+}
+
 function creditAmount(billingMode: "fixed_request" | "per_second", unitPriceMicrocredits: number, count?: string | number, seconds?: string | number) {
     const quantity = billingMode === "per_second" ? Math.max(1, Math.floor(Math.abs(Number(seconds)) || 1)) : Math.max(1, Math.floor(Math.abs(Number(count)) || 1));
     return (unitPriceMicrocredits / 1_000_000) * quantity;
@@ -147,6 +156,7 @@ function priceSelectorForRequest(capability: ModelCapability | undefined, config
             const imageCount = (input.imageCount || 0) + (input.characterCount || 0);
             requested.operation = input.videoCount > 0 ? "video_to_video" : imageCount > 0 ? "image_to_video" : resolveVideoOperation(input, requirements?.videoOperation, requirements?.videoMode);
             if (imageCount > 0) requested.imageCount = String(imageCount);
+            requested.videoInput = String(input.videoCount > 0);
         } else if (requirements?.videoOperation) requested.operation = requirements.videoOperation;
         const options: Record<string, unknown> = { ...modelRequestOptions(config, "video"), ...requirements?.options, ...(requirements?.videoSeconds ? { videoSeconds: Number(requirements.videoSeconds) } : {}) };
         const resolution = normalizeTierResolution(String(options.vquality ?? ""));

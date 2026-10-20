@@ -58,6 +58,7 @@ export type PublicLogicalModelPriceTier = {
     inputTokenPriceMicrocredits: number;
     outputTokenPriceMicrocredits: number;
     cachedTokenPriceMicrocredits: number;
+    surcharge?: { freeImages: number; imagePriceMicrocredits: number; videoSecondPriceMicrocredits: number };
 };
 
 export type AdminLogicalRoute = {

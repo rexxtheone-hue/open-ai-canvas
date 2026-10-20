@@ -41,6 +41,7 @@ type ChannelModelPriceTierRequest struct {
 	CostPricing model.CreditCostPricing `json:"costPricing"`
 	// CostSource 非空币种时，CostPricing 的积分金额由汇率设置从原币成本换算，客户端提交的积分值被忽略。
 	CostSource model.CostSourcePricing `json:"costSource"`
+	Surcharge  model.PriceSurcharge    `json:"surcharge"`
 	// Selector 是 SKU 的规范匹配条件。支持 operation、quality、size、vquality、videoSeconds、imageCount、videoGenerateAudio；
 	// operation 可区分文生/图生/视频生，避免同一分辨率下错误复用价格。
 	Selector                     map[string]string `json:"selector"`
@@ -54,6 +55,22 @@ type ChannelModelPriceTierRequest struct {
 	CachedTokenPriceMicrocredits int64             `json:"cachedTokenPriceMicrocredits"`
 	PriceConfigured              bool              `json:"priceConfigured"`
 	Enabled                      *bool             `json:"enabled"`
+}
+
+func validatePriceSurcharge(capability string, surcharge model.PriceSurcharge) error {
+	if surcharge == (model.PriceSurcharge{}) {
+		return nil
+	}
+	if capability != "video" {
+		return BadAuthRequest("只有视频模型可以配置参考素材附加费")
+	}
+	if surcharge.FreeImages < 0 || surcharge.FreeImages > 100 {
+		return BadAuthRequest("免费参考图张数必须在 0 到 100 之间")
+	}
+	if surcharge.ImagePriceMicrocredits < 0 || surcharge.ImagePriceMicrocredits > 1_000_000_000_000 || surcharge.VideoSecondPriceMicrocredits < 0 || surcharge.VideoSecondPriceMicrocredits > 1_000_000_000_000 {
+		return BadAuthRequest("附加费必须在 0 到 1000000 积分之间")
+	}
+	return nil
 }
 
 // AdminChannelModelFetchResult 是管理员从上游拉目录后的汇总：models 为去重后的标识，added 为本次新建条数。

@@ -89,6 +89,21 @@ func estimateArkVideoTokenUsage(input map[string]any) (*VideoTokenEstimate, erro
 	}, nil
 }
 
+// referenceVideoBillingSeconds 汇总参考视频时长（向上取整到秒），时长未知的每段按 15 秒计。
+func referenceVideoBillingSeconds(raw any) int64 {
+	references, _ := raw.([]any)
+	var millis int64
+	for _, rawReference := range references {
+		media, _ := rawReference.(map[string]any)
+		duration, err := strconv.ParseInt(strings.TrimSpace(fmt.Sprint(media["durationMs"])), 10, 64)
+		if err != nil || duration <= 0 {
+			duration = 15_000
+		}
+		millis += min(duration, 3_600_000)
+	}
+	return (millis + 999) / 1000
+}
+
 func videoReferenceMillis(raw any) (int64, bool, error) {
 	if raw == nil {
 		return 0, false, nil

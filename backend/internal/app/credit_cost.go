@@ -6,7 +6,7 @@ import (
 )
 
 func validateCreditCostPricing(capability, billingMode string, cost model.CreditCostPricing) error {
-	for _, price := range []int64{cost.UnitPriceMicrocredits, cost.InputTokenPriceMicrocredits, cost.OutputTokenPriceMicrocredits, cost.CachedTokenPriceMicrocredits} {
+	for _, price := range []int64{cost.UnitPriceMicrocredits, cost.InputTokenPriceMicrocredits, cost.OutputTokenPriceMicrocredits, cost.CachedTokenPriceMicrocredits, cost.ExtraImagePriceMicrocredits, cost.ExtraVideoSecondPriceMicrocredits} {
 		if price < 0 || price > 1_000_000_000_000 {
 			return BadAuthRequest("积分成本价必须在 0 到 1000000 积分之间")
 		}
@@ -66,5 +66,26 @@ func billingCreditCost(order model.BillingOrder) (*int64, error) {
 	if err != nil {
 		return nil, err
 	}
+	extra, err := surchargeAmount(cost.ExtraImagePriceMicrocredits, order.SurchargeImages, cost.ExtraVideoSecondPriceMicrocredits, order.SurchargeVideoSeconds, 10_000)
+	if err != nil {
+		return nil, err
+	}
+	amount += extra
 	return &amount, nil
+}
+
+// surchargeAmount 计算附加费：计费参考图张数 × 单张价 + 参考视频秒数 × 每秒价，再套用倍率。
+func surchargeAmount(imagePrice, images, videoSecondPrice, videoSeconds, multiplierBPS int64) (int64, error) {
+	var total int64
+	for _, term := range [][2]int64{{imagePrice, images}, {videoSecondPrice, videoSeconds}} {
+		if term[0] <= 0 || term[1] <= 0 {
+			continue
+		}
+		amount, err := creditAmount(term[0], term[1], multiplierBPS)
+		if err != nil {
+			return 0, err
+		}
+		total += amount
+	}
+	return total, nil
 }
