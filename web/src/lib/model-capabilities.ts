@@ -5,6 +5,7 @@ import { IMAGE_RATIOS, IMAGE_RESOLUTIONS, imagePresetForRatio } from "@/lib/imag
 import { kemeiSeedreamPresets } from "./kemei-image-presets";
 import { type WorkflowVideoFieldLike, workflowImageCapabilityConfig, workflowVideoCapabilityConfig } from "./model-capabilities-workflow";
 import { resolveWorkflowVideoScreenSpec } from "./video-screen-specs";
+import { applyModelFamilyVideoDefaults } from "./model-family-defaults";
 
 export {
     workflowFieldChoiceValues,
@@ -483,6 +484,7 @@ export function defaultModelCapabilityConfig(protocol?: ModelProtocol, model = "
         video.defaultResolution = "720P";
         video.operations.push("reference_to_video", "audio_to_video");
     }
+    applyModelFamilyVideoDefaults(video, protocol, model);
     return { version: 1, text, image: defaultImageCapabilityConfig(protocol, model), video };
 }
 

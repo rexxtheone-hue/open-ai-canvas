@@ -87,6 +87,17 @@ export function ChannelModelEditor({
             if (!values.channelLabel?.trim() || values.channelLabel.trim() === previousUpstream.current) {
                 form.setFieldValue("channelLabel", upstream);
             }
+            // 视频规格仍是上一个模型名的默认值（未手动改过）时，换成新模型名对应的默认值。
+            if (values.capability === "video" && values.capabilityConfig?.video) {
+                const previousDefaults = normalizeModelCapabilityConfig(defaultModelCapabilityConfig(values.protocol, previousUpstream.current)).video;
+                const nextDefaults = normalizeModelCapabilityConfig(defaultModelCapabilityConfig(values.protocol, upstream)).video;
+                const current = normalizeModelCapabilityConfig(values.capabilityConfig).video;
+                if (stableJSON(current) === stableJSON(previousDefaults) && stableJSON(nextDefaults) !== stableJSON(previousDefaults)) {
+                    form.setFieldValue(["capabilityConfig", "video"], nextDefaults);
+                    values.capabilityConfig = { ...values.capabilityConfig, video: nextDefaults };
+                    setConfigurationChanged(true);
+                }
+            }
             previousUpstream.current = upstream;
             const next = updateChannelModelUpstreamCapabilities(values, protocols);
             if (next !== values) {
@@ -461,4 +472,16 @@ function CapabilityConfigField(_: { value?: ModelCapabilityConfig; onChange?: (v
 }
 function EnabledConfigField(_: { value?: boolean; onChange?: (value: boolean) => void }) {
     return null;
+}
+
+function stableJSON(value: unknown): string {
+    if (Array.isArray(value)) return `[${value.map(stableJSON).join(",")}]`;
+    if (value && typeof value === "object") {
+        return `{${Object.keys(value)
+            .sort()
+            .filter((key) => (value as Record<string, unknown>)[key] !== undefined)
+            .map((key) => `${JSON.stringify(key)}:${stableJSON((value as Record<string, unknown>)[key])}`)
+            .join(",")}}`;
+    }
+    return JSON.stringify(value);
 }
