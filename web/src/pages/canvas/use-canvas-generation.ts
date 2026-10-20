@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateA
 import { useQueryClient } from "@tanstack/react-query";
 import { App } from "antd";
 
+import { ApiError } from "@/services/api/request";
 import { applyGenerationTaskResultToNodes, generationTaskCanReloadResource, generationTaskNodeId, generationTaskOutputsApplied, shouldRecoverCanvasImageOutputs } from "@/lib/canvas/canvas-generation-task-sync";
 import { commitCanvasGenerationResult } from "@/lib/canvas/canvas-generation-result";
 import { reconcileImageBatchRoot } from "@/lib/canvas/canvas-image-batch-retry";
@@ -521,7 +522,16 @@ export function useCanvasGeneration({ projectId, domainProjectId, projectLoaded,
             if (autoSavedTaskIdsRef.current.has(saveKey)) return;
             autoSavedTaskIdsRef.current.add(saveKey);
             void runGenerationConsumer(consumerControllerRef.current.signal, async (signal) => {
-                await saveGeneratedAsset(node, taskId, signal);
+                // 多条结果同时完成时，另一条还在入库会让整张画布暂时同步不了；这是等待而不是失败，静默重试。
+                for (let attempt = 0; ; attempt += 1) {
+                    try {
+                        await saveGeneratedAsset(node, taskId, signal);
+                        return;
+                    } catch (error) {
+                        if (!(error instanceof ApiError && error.reason === "canvas_asset_pending") || attempt >= 5 || signal.aborted) throw error;
+                        await new Promise((resolve) => window.setTimeout(resolve, 3000 * (attempt + 1)));
+                    }
+                }
             }).catch((error) => {
                 autoSavedTaskIdsRef.current.delete(saveKey);
                 if (error instanceof Error && error.name === "AbortError") return;

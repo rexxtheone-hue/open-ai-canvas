@@ -33,6 +33,8 @@ const (
 	ReasonConflict               ErrorReason = "conflict"
 	ReasonProjectNameConflict    ErrorReason = "project_name_conflict"
 	ReasonCanvasResourcesMissing ErrorReason = "canvas_history_resources_missing"
+	// ReasonCanvasAssetPending 表示画布里有媒体还在入库途中（例如另一条生成结果尚未登记），稍后重试即可。
+	ReasonCanvasAssetPending ErrorReason = "canvas_asset_pending"
 	ReasonFailedPrecondition     ErrorReason = "failed_precondition"
 	ReasonQuotaExceeded          ErrorReason = "quota_exceeded"
 	ReasonRateLimited            ErrorReason = "rate_limited"
