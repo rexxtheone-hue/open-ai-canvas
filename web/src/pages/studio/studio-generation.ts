@@ -2,8 +2,8 @@ import { creationAttachmentKind, splitCreationAttachments, type CreationAttachme
 import { creationVideoConfig } from "@/pages/create/creation-generation-config";
 import { audioGenerationPrompt, isDoubaoAudioConfig } from "@/lib/audio-generation";
 import { imageParameterAccepts, imageParameterRequest } from "@/lib/image-parameters";
-import { modelCapabilityConfigFor, normalizeImageValue, videoDurationAllowed } from "@/lib/model-capabilities";
-import { inferVideoOperation, modelGroupReferenceLimits, modelPromptLengthError, resolveCompatibleModel, resolveModelVideoBooleanOptions, type ModelReferenceLimits, type ModelRequirements } from "@/lib/model-selection";
+import { modelCapabilityConfigFor, normalizeImageValue, videoDurationAllowed, type VideoCapabilityConfig } from "@/lib/model-capabilities";
+import { detectVideoMode, inferVideoOperation, modelGroupReferenceLimits, modelPromptLengthError, resolveCompatibleModel, resolveModelVideoBooleanOptions, type ModelReferenceLimits, type ModelRequirements } from "@/lib/model-selection";
 import { applyVideoModeImageRoles, pickVideoModeMaterials, videoModeInputError, videoModeOperation, videoModeUsedInput, type VideoMode } from "@/lib/video-modes";
 import { resolveModelRequestConfig, selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
 import type { StudioKind } from "@/services/api/studio";
@@ -270,10 +270,9 @@ export function studioGenerationConfig(config: AiConfig, state: StudioToolState,
 }
 
 /** 视频生效模式：手动选择优先，否则按素材推断，和创作页显示一致。 */
-export function studioEffectiveVideoMode(state: StudioToolState): VideoMode {
+export function studioEffectiveVideoMode(state: StudioToolState, profile?: VideoCapabilityConfig): VideoMode {
     if (state.video.mode) return state.video.mode;
-    const operation = inferVideoOperation({ textCount: 1, ...attachmentCounts(state.attachments), characterCount: 0 });
-    return operation === "text_to_video" || operation === "image_to_video" ? operation : "reference_to_video";
+    return detectVideoMode(profile, attachmentCounts(state.attachments));
 }
 
 export type StudioBlockContext = {
@@ -344,10 +343,13 @@ export function studioSubmission(config: AiConfig, state: StudioToolState, model
     }
     if (state.kind === "video") {
         const mode = state.video.mode;
-        const referenceImages = applyVideoModeImageRoles(mode, pickVideoModeMaterials(mode, "image", split.referenceImages));
+        const videoProfile = modelCapabilityConfigFor(config, model).video;
         const referenceVideos = pickVideoModeMaterials(mode, "video", split.referenceVideos);
         const referenceAudios = pickVideoModeMaterials(mode, "audio", split.referenceAudios);
-        const operation = mode ? videoModeOperation(mode) : inferVideoOperation({ textCount: 1, imageCount: referenceImages.length, videoCount: referenceVideos.length, audioCount: referenceAudios.length, characterCount: 0 });
+        const pickedImages = pickVideoModeMaterials(mode, "image", split.referenceImages);
+        const counts = { imageCount: pickedImages.length, videoCount: referenceVideos.length, audioCount: referenceAudios.length };
+        const referenceImages = applyVideoModeImageRoles(mode || detectVideoMode(videoProfile, counts), pickedImages);
+        const operation = mode ? videoModeOperation(mode) : inferVideoOperation({ textCount: 1, characterCount: 0, ...counts }, videoProfile?.operations);
         if (mode) metadata.videoMode = mode;
         metadata.videoEditOperation = operation;
         return { mode: "video", prompt: finalPrompt, config: generationConfig, count: videoCount, referenceImages, referenceVideos, referenceAudios, metadata };

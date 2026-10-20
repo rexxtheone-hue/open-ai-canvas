@@ -13,7 +13,7 @@ import { getActiveUserScope } from "@/lib/user-scope";
 import { continueCreationConversationOnCanvas } from "@/services/creation-canvas-conversation";
 import { useExternalAssetSources } from "@/hooks/use-external-asset-sources";
 import { modelCapabilityConfigFor, normalizeImageValue, normalizeVideoValue, videoDurationAllowed, videoDurationOptions } from "@/lib/model-capabilities";
-import { inferVideoOperation, modelGroupReferenceLimits, resolveCompatibleModel, mergedImageCapabilityConfig, type ModelRequirements } from "@/lib/model-selection";
+import { detectVideoMode, inferVideoOperation, modelGroupReferenceLimits, resolveCompatibleModel, mergedImageCapabilityConfig, type ModelRequirements } from "@/lib/model-selection";
 import type { BackendGenerationResult } from "@/services/api/generation-task";
 import type { Skill } from "@/services/api/skills";
 import type { GenerationTask } from "@/services/api/task-center";
@@ -175,10 +175,7 @@ export default function CreatePage() {
         : config, [config, mode, ratio, seconds, selectedModel, videoQuality]);
     const imageProfile = useMemo(() => modelCapabilityConfigFor(config, selectedModel).image!, [config, selectedModel]);
     const videoProfile = useMemo(() => modelCapabilityConfigFor(config, selectedModel).video!, [config, selectedModel]);
-    const inferredVideoMode = useMemo<VideoMode>(() => {
-        const operation = inferVideoOperation(modelRequirements.input!);
-        return operation === "text_to_video" || operation === "image_to_video" ? operation : "reference_to_video";
-    }, [modelRequirements.input]);
+    const inferredVideoMode = useMemo<VideoMode>(() => detectVideoMode(videoProfile, modelRequirements.input!), [modelRequirements.input, videoProfile]);
     const effectiveVideoMode = explicitVideoMode || inferredVideoMode;
     useEffect(() => {
         // 换成不支持的模型，或已有素材却选着文生视频时，回到按素材自动判断。
@@ -667,14 +664,9 @@ export default function CreatePage() {
         };
         const { referenceVideos, referenceAudios } = split;
         // 首尾帧模式：前两张图片分别标为首帧、尾帧，由后端与插件写入对应字段。
-        const referenceImages = mode === "video" ? applyVideoModeImageRoles(explicitVideoMode, split.referenceImages) : split.referenceImages;
-        const videoOperation = explicitVideoMode ? videoModeOperation(explicitVideoMode) : inferVideoOperation({
-            textCount: text ? 1 : 0,
-            imageCount: referenceImages.length,
-            videoCount: referenceVideos.length,
-            audioCount: referenceAudios.length,
-            characterCount: 0,
-        });
+        const submitCounts = { imageCount: split.referenceImages.length, videoCount: referenceVideos.length, audioCount: referenceAudios.length };
+        const referenceImages = mode === "video" ? applyVideoModeImageRoles(explicitVideoMode || detectVideoMode(videoProfile, submitCounts), split.referenceImages) : split.referenceImages;
+        const videoOperation = explicitVideoMode ? videoModeOperation(explicitVideoMode) : inferVideoOperation({ textCount: text ? 1 : 0, characterCount: 0, ...submitCounts }, videoProfile.operations);
         const skillReferences = references.flatMap((reference) => (reference.skill ? [reference.skill] : []));
         let runtime: CreationRuntime;
         try {

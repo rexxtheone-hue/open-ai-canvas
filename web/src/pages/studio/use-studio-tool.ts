@@ -327,7 +327,7 @@ export function useStudioTool(kind: StudioKind, tool: string, options: { special
         blockReason,
         submitting,
         uploading: uploading > 0,
-        effectiveVideoMode: kind === "video" ? studioEffectiveVideoMode(state) : undefined,
+        effectiveVideoMode: kind === "video" ? studioEffectiveVideoMode(state, resolvedModel ? modelCapabilityConfigFor(config, resolvedModel).video : undefined) : undefined,
         update,
         updateImage,
         updateVideo,

@@ -1,5 +1,5 @@
 import { Dropdown, type MenuProps } from "antd";
-import { Check, ChevronDown, Columns2, FastForward, Image as ImageIcon, Layers, PencilLine, Type } from "lucide-react";
+import { Check, ChevronDown, Columns2, FastForward, Image as ImageIcon, Layers, PencilLine, Sparkles, Type } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { VideoCapabilityConfig } from "@/lib/model-capabilities";
@@ -20,7 +20,9 @@ export function CanvasVideoModeMenu({
     input,
     value,
     explicit,
+    autoHint,
     onChange,
+    onAuto,
     stroke,
     muted,
     compact = false,
@@ -29,7 +31,11 @@ export function CanvasVideoModeMenu({
     input: VideoModeInput;
     value: VideoMode;
     explicit: boolean;
+    /** 未手动选择时显示的自动判断说明。 */
+    autoHint?: string;
     onChange: (mode: VideoMode) => void;
+    /** 手动选择后恢复按素材自动判断。 */
+    onAuto?: () => void;
     stroke: string;
     muted: string;
     compact?: boolean;
@@ -53,10 +59,10 @@ export function CanvasVideoModeMenu({
                 ),
             };
         }),
-        ...(!explicit ? [{ key: "hint", type: "group" as const, label: "未手动选择时，按连线素材自动判断模式" }] : []),
+        ...(!explicit ? [{ key: "hint", type: "group" as const, label: autoHint || "未手动选择时，按连线素材自动判断模式" }] : onAuto ? [{ type: "divider" as const }, { key: "auto", icon: <Sparkles />, label: "恢复自动判断" }] : []),
     ];
     return (
-        <Dropdown trigger={["click"]} menu={{ items, selectable: true, selectedKeys: [value], onClick: ({ key }) => onChange(key as VideoMode) }}>
+        <Dropdown trigger={["click"]} menu={{ items, selectable: true, selectedKeys: [value], onClick: ({ key }) => (key === "auto" ? onAuto?.() : onChange(key as VideoMode)) }}>
             <button
                 type="button"
                 aria-label={`视频生成模式：${videoModeLabel(value)}`}
@@ -64,7 +70,7 @@ export function CanvasVideoModeMenu({
                 style={{ borderColor: stroke, color: muted }}
             >
                 {icons[value]}
-                {compact ? null : <span className="max-w-[72px] truncate">{videoModeLabel(value)}</span>}
+                {compact ? null : <span className="max-w-[96px] truncate">{explicit ? videoModeLabel(value) : `自动 · ${videoModeLabel(value)}`}</span>}
                 <ChevronDown />
             </button>
         </Dropdown>

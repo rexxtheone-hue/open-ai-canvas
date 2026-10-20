@@ -10,7 +10,7 @@ import { PROMPT_EDITOR_VIEWPORT_MARGIN } from "@/lib/canvas/canvas-prompt-editor
 import { CreditSymbol, requestCreditCost } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { modelQuoteDescription, modelQuoteRequest } from "@/lib/model-pricing";
-import { modelRequestOptions, defaultImageParamsForModel, type ModelRequirements, inferVideoOperation } from "@/lib/model-selection";
+import { modelRequestOptions, defaultImageParamsForModel, type ModelRequirements, detectVideoMode, detectVideoModeHint } from "@/lib/model-selection";
 import { navigateToSettings } from "@/lib/settings-navigation";
 import { useActiveTheme } from "@/stores/canvas/use-canvas-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -190,10 +190,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     };
     const config = buildNodeConfig(globalConfig, node, mode, requirements);
     const videoProfile = mode === "video" ? modelCapabilityConfigFor(config, config.model).video : undefined;
-    const effectiveVideoMode: VideoMode = explicitVideoMode || (() => {
-        const operation = inferVideoOperation(requirements.input!, videoProfile?.operations);
-        return operation === "text_to_video" || operation === "image_to_video" ? operation : "reference_to_video";
-    })();
+    const effectiveVideoMode: VideoMode = explicitVideoMode || detectVideoMode(videoProfile, requirements.input!);
     useEffect(() => {
         // 换成不支持当前模式的模型时，回到按连线素材自动判断。
         if (explicitVideoMode && videoModeShouldReset(videoProfile, explicitVideoMode, videoModeInput)) onConfigChange(node.id, { videoMode: undefined });
@@ -511,7 +508,9 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                             input={videoModeInput}
                             value={effectiveVideoMode}
                             explicit={Boolean(explicitVideoMode)}
+                            autoHint={detectVideoModeHint(videoModeInput, effectiveVideoMode, videoModeLabel(effectiveVideoMode))}
                             onChange={(videoMode) => onConfigChange(node.id, { videoMode })}
+                            onAuto={() => onConfigChange(node.id, { videoMode: undefined })}
                             stroke={theme.node.stroke}
                             muted={theme.node.muted}
                             compact={!expanded}

@@ -148,6 +148,8 @@ export function videoModeInputError(mode: VideoMode, input: VideoModeInput): str
 
 /** 首尾帧模式：前两张图片分别标为首帧、尾帧。图生视频保持不标角色，由各模型按单图首帧的默认语义处理。 */
 export function applyVideoModeImageRoles<T extends { role?: string }>(mode: VideoMode | undefined, images: T[]): T[] {
+    // 图生视频承诺「用一张图片作为首帧」；不标角色时部分协议会把单图当参考图（如 Seedance 默认 reference_image）。
+    if (mode === "image_to_video") return images.map((image, index) => (index === 0 && !image.role ? { ...image, role: "first_frame" } : image));
     if (mode !== "first_last_frame") return images;
     return images.map((image, index) => (index === 0 ? { ...image, role: "first_frame" } : index === 1 ? { ...image, role: "last_frame" } : image));
 }

@@ -8,7 +8,7 @@ import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
 import { normalizeVideoDuration, normalizeVideoResolution } from "@/lib/video-generation-options";
 import { isSeedanceVideoConfig } from "@/lib/seedance-video";
 import { modelCapabilityConfigFor, workflowFieldCurrentValue, workflowFieldHasStoredValue, workflowFieldKey, workflowFieldRandomKey, workflowFieldSubmissionValue, workflowOutputSizeValue, workflowVideoFieldsFromJson } from "@/lib/model-capabilities";
-import { modelRequestOptions, resolveCompatibleModel, resolveModelGenerationDefaults, resolveVideoOperation, type ModelGenerationDefaults, type ModelRequirements } from "@/lib/model-selection";
+import { modelRequestOptions, resolveCompatibleModel, resolveModelGenerationDefaults, resolveVideoOperation, detectVideoMode, type ModelGenerationDefaults, type ModelRequirements } from "@/lib/model-selection";
 import { imageMetadata } from "@/lib/canvas/canvas-generation-task-sync";
 import { producedModelCandidateForGeneration } from "@/lib/canvas/produced-model";
 import { ensureMediaNodeMinimumSize } from "@/lib/canvas/canvas-node-size";
@@ -307,6 +307,7 @@ function resolveVideoEditOperation(
         referenceVideos: ReferenceVideo[];
         referenceAudios: ReferenceAudio[];
     },
+    config?: AiConfig,
 ): CanvasVideoEditOperation {
     if (node?.metadata?.videoMode) return videoModeOperation(node.metadata.videoMode) as CanvasVideoEditOperation;
     const storedOperation = node?.metadata?.videoEditOperation;
@@ -317,13 +318,18 @@ function resolveVideoEditOperation(
         audioCount: context?.referenceAudios.length || 0,
         characterCount: 0,
     };
-    return resolveVideoOperation(input, storedOperation) as CanvasVideoEditOperation;
+    const operations = config ? modelCapabilityConfigFor(config, config.model).video?.operations : undefined;
+    return resolveVideoOperation(input, storedOperation, undefined, operations) as CanvasVideoEditOperation;
 }
 
-/** 手动选择模式时，按参考图顺序标首帧、尾帧角色。 */
-export function videoModeReferenceImages<T extends { role?: string }>(node: CanvasNodeData | undefined, images: T[]): T[] {
+/** 按生效模式（手动选择，或按素材与模型自动判断）给参考图标首帧、尾帧角色。 */
+export function videoModeReferenceImages<T extends { role?: string }>(node: CanvasNodeData | undefined, images: T[], auto?: { config: AiConfig; videoCount: number; audioCount: number }): T[] {
     const metadata = node?.metadata;
-    return applyVideoModeImageRoles(metadata?.videoMode, images);
+    const autoMode =
+        !metadata?.videoMode && auto && !metadata?.videoStartFrameNodeId && !metadata?.videoEndFrameNodeId
+            ? detectVideoMode(modelCapabilityConfigFor(auto.config, auto.config.model).video, { imageCount: images.length, videoCount: auto.videoCount, audioCount: auto.audioCount })
+            : undefined;
+    return applyVideoModeImageRoles(metadata?.videoMode || autoMode, images);
 }
 
 export function buildVideoGenerationMetadata(
@@ -350,7 +356,7 @@ export function buildVideoGenerationMetadata(
     const endFrame = manualFrames ? requireConnectedVideoFrame(metadata?.videoEndFrameNodeId, "尾帧", referenceImageIds) : undefined;
     return {
         ...(config ? generationWorkflowMetadata(config) : {}),
-        videoEditOperation: resolveVideoEditOperation(node, context),
+        videoEditOperation: resolveVideoEditOperation(node, context, config),
         videoCameraMoveId: metadata?.videoCameraMoveId,
         videoCameraMovePrompt: metadata?.videoCameraMovePrompt,
         videoStartFrameNodeId: startFrame,

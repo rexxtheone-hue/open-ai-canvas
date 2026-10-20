@@ -4,6 +4,7 @@ import { imageParameterRequest, imageParameterDefaults, imageParameterAccepts } 
 import { imageSizePresets } from "@/lib/image-size-presets";
 import { modelOptionName, PUBLIC_MODEL_CATALOG_ID, resolveModelChannel, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
 import { videoModeOperation, type VideoMode } from "@/lib/video-modes";
+import type { VideoCapabilityConfig } from "@/lib/model-capabilities";
 
 export type ModelInputSummary = {
     textCount: number;
@@ -437,14 +438,46 @@ export function modelGroupReferenceLimits(config: AiConfig, selected: string, ca
     );
 }
 
+const VIDEO_EDIT_OPERATIONS = ["inpaint", "replace_element", "style_transfer", "camera_motion"];
+
+/**
+ * 按连线素材和模型能力自动判断视频操作。每种组合按优先顺序列出候选，取模型支持的第一个；
+ * 不知道模型能力时取第一个候选。规则：
+ * - 没有素材：文生视频
+ * - 只有一段视频：全能参考 → 视频编辑 → 视频续写；视频再加其它素材：全能参考
+ * - 只有音频：音频生视频 → 全能参考
+ * - 图片 + 音频：全能参考 → 图生视频（音频作驱动）
+ * - 1 张图：图生视频 → 全能参考
+ * - 2 张图：模型支持全能参考时当作两张参考图，否则首尾帧
+ * - 3 张以上：全能参考 → 图生视频
+ */
 export function inferVideoOperation(input: ModelInputSummary, supportedOperations?: readonly string[]) {
-    const visualInputCount = input.imageCount + input.characterCount;
-    if (input.videoCount > 0 || visualInputCount > 2) return "reference_to_video";
-    // 图片 + 音频是多模态参考（如 Seedance 全能参考）；已知模型不支持全能参考时，音频只作图生视频的附加输入。
-    if (visualInputCount > 0 && input.audioCount > 0 && (!supportedOperations || supportedOperations.includes("reference_to_video"))) return "reference_to_video";
-    if (visualInputCount > 0) return "image_to_video";
-    if (input.audioCount > 0) return "audio_to_video";
-    return "text_to_video";
+    const visual = input.imageCount + input.characterCount;
+    const supports = (operation: string) => !supportedOperations?.length || supportedOperations.includes(operation) || (operation === "inpaint" && supportedOperations.some((item) => VIDEO_EDIT_OPERATIONS.includes(item)));
+    const pick = (...candidates: string[]) => candidates.find(supports) ?? candidates[0];
+    if (visual + input.videoCount + input.audioCount === 0) return "text_to_video";
+    if (input.videoCount > 0) return visual === 0 && input.audioCount === 0 && input.videoCount === 1 ? pick("reference_to_video", "inpaint", "extend") : "reference_to_video";
+    if (visual === 0) return pick("audio_to_video", "reference_to_video");
+    if (input.audioCount > 0) return pick("reference_to_video", "image_to_video");
+    if (visual === 1) return pick("image_to_video", "reference_to_video");
+    return pick("reference_to_video", "image_to_video");
+}
+
+/** 自动判断出的输入框模式（与手动选择共用同一套模式）；两张图走图生视频时即首尾帧。 */
+export function detectVideoMode(profile: VideoCapabilityConfig | undefined, input: Pick<ModelInputSummary, "imageCount" | "videoCount" | "audioCount"> & { characterCount?: number }): VideoMode {
+    const summary = { textCount: 1, characterCount: 0, ...input };
+    const operation = inferVideoOperation(summary, profile?.operations);
+    const visual = summary.imageCount + summary.characterCount;
+    if (operation === "image_to_video") return visual >= 2 && (!profile || profile.references.maxImages >= 2) ? "first_last_frame" : "image_to_video";
+    if (operation === "text_to_video" || operation === "extend") return operation;
+    if (VIDEO_EDIT_OPERATIONS.includes(operation)) return "inpaint";
+    return "reference_to_video";
+}
+
+/** 自动判断时给用户看的说明，例如「1 张图 + 1 段音频 → 全能参考」。 */
+export function detectVideoModeHint(input: Pick<ModelInputSummary, "imageCount" | "videoCount" | "audioCount">, mode: VideoMode, label: string) {
+    const parts = [input.imageCount ? `${input.imageCount} 张图` : "", input.videoCount ? `${input.videoCount} 段视频` : "", input.audioCount ? `${input.audioCount} 段音频` : ""].filter(Boolean);
+    return `自动判断：${parts.length ? parts.join(" + ") : "只有文字"} → ${label}${mode === "reference_to_video" && parts.length === 1 && input.imageCount === 2 ? "（要首尾帧请手动选择）" : ""}`;
 }
 
 export function resolveVideoOperation(input: ModelInputSummary, storedOperation?: string, explicitMode?: VideoMode, supportedOperations?: readonly string[]) {

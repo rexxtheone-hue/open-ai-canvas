@@ -106,7 +106,7 @@ export async function executeVideoGeneration({
                 mode: "video",
                 prompt: effectivePrompt,
                 config: generationConfig,
-                referenceImages: videoModeReferenceImages(sourceNode, generationContext.referenceImages),
+                referenceImages: videoModeReferenceImages(sourceNode, generationContext.referenceImages, { config: generationConfig, videoCount: generationContext.referenceVideos.length, audioCount: generationContext.referenceAudios.length }),
                 referenceVideos: generationContext.referenceVideos,
                 referenceAudios: generationContext.referenceAudios,
                 signal: controller.signal,
