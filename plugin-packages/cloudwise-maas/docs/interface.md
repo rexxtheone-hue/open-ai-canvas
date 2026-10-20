@@ -3366,7 +3366,9 @@
             "parameters": {
               "resolution": {
                 "$omitEmpty": {
-                  "$ref": "request.resolution"
+                  "$upper": {
+                    "$ref": "request.resolution"
+                  }
                 }
               },
               "ratio": {

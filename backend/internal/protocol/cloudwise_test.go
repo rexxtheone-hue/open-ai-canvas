@@ -148,8 +148,11 @@ func TestCloudwiseUnifiedVideoAndImage(t *testing.T) {
 }
 
 func TestCloudwiseWan3UsesDashScopeBodyAndWrappedPollResult(t *testing.T) {
-	create, body := cloudwiseBody(t, "cloudwise-wan", GenerationRequest{Model: "wan3.0-video", Prompt: "图中女人在菜市场选菜", AspectRatio: "16:9", Resolution: "1080P", Duration: 5,
+	create, body := cloudwiseBody(t, "cloudwise-wan", GenerationRequest{Model: "wan3.0-video", Prompt: "图中女人在菜市场选菜", AspectRatio: "16:9", Resolution: "1080p", Duration: 5,
 		Images: []MediaReference{{URL: "https://x/a.jpg"}}})
+	if parameters, _ := body["parameters"].(map[string]any); parameters["resolution"] != "1080P" {
+		t.Fatalf("parameters = %#v", body["parameters"])
+	}
 	if create.Path != "/api/v1/services/aigc/video-generation/video-synthesis" || !create.OriginPath || create.Headers["X-DashScope-Async"] != "enable" {
 		t.Fatalf("create = %#v", create)
 	}
