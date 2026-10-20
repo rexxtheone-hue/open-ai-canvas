@@ -14,7 +14,8 @@
 | Cloudwise Kling 视频 | `POST /api/v1/videos/omni-video`，查询 `GET /api/v1/videos/omni-video/{id}` | kling-v3-omni、kling-video-o1 |
 | Cloudwise Kling 图片 | `POST /api/v1/images/omni-image`，查询 `GET /api/v1/images/omni-image/{id}` | kling-image-o1、kling-v3-omni |
 | Cloudwise MiniMax H3 | `POST /api/v2/video_generation`，查询 `GET /api/v2/query/video_generation/{id}` | MiniMax-H3、MiniMax-H3-Max |
-| Cloudwise 统一视频 | `POST /api/v1/video-generation/submit`，查询 `GET /api/v1/video-generation/video-content/{id}` | wan2.5/2.6、seedance-1.x、veo-3.1、sora-2 |
+| Cloudwise 统一视频 | `POST /api/v1/video-generation/submit`，查询 `GET /api/v1/video-generation/video-content/{id}` | wan2.5/2.6（不含万相 3.0）、seedance-1.x、veo-3.1、sora-2 |
+| Cloudwise 万相 3.0 | `POST /api/v1/services/aigc/video-generation/video-synthesis`（`X-DashScope-Async: enable`），查询 `GET /api/v1/tasks/{id}` | wan3.0-video、wan3.0-video-prime |
 | Cloudwise 统一图片 | `POST /api/v1/image-generation`（同步返回 `image_url`） | seedream-4.0/4.5、gemini 图片模型 |
 
 ## 字段映射要点
@@ -23,6 +24,7 @@
 - Kling：首尾帧与参考图进入 `image_list`（`type` 为 `first_frame`/`end_frame`），参考视频进入 `video_list`（`refer_type` 默认 `feature`，role 为 `base` 时为编辑）；`mode` 由分辨率推导（720p→std，1080p→pro，4k→4k）；`duration` 以字符串发送；状态 `succeed` 视为成功。
 - MiniMax H3：`content` 数组（text + image_url/video_url/audio_url，role 原样传递）；分辨率 1080p 及以上→`2K`，其余→`768P`（H3-Max 为 `768P`/`480P`）；结果在 `task.content.url`。
 - 统一视频：`content.prompt/image_url/image_url_last/video_url/audio_url`；万相文生视频的 `resolution` 按分辨率与比例换算成 `1280*720` 这类尺寸，Sora 换算成 `1280x720`；状态在 `taskStatus`，视频在 `video_url`。
+- 万相 3.0：请求体与 DashScope 官方相同（`input.prompt` + `input.media[{type,url}]`，`parameters.resolution/ratio/duration/audio/prompt_extend`）；查询结果读 `data.output.task_status` / `data.output.video_url`。
 - 统一图片：一张参考图发字符串、多张发数组；Seedream 的 `size` 为 `1K/2K/4K`。
 - 每个协议的 `providerOptions.<协议 ID>.body` 会合并进请求体，用于补充或覆盖字段。
 
@@ -30,7 +32,7 @@
 
 - 聊天：OpenAI Chat Completions（Claude、DeepSeek、Kimi、MiniMax-M、GLM、Grok、GPT、Gemini 等）。
 - 图片：OpenAI Images（GPT Image、xAI Imagine）、Google Gemini 图片（Nano Banana，`/v1beta/models/{model}:generateContent`）。
-- 视频：万相 3.0（DashScope 万相 3 协议）、xAI 视频。
+- 视频：xAI 视频。万相 3.0 请用本插件的「Cloudwise 万相 3.0」：Cloudwise 的查询结果包在 `data.output` 里，成功时 `code` 为 `10000`，DashScope 原协议会误判。
 
 <!-- YINGCE_MANIFEST_CONTRACT_START -->
 ## Manifest 完整接口定义
@@ -42,9 +44,9 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "cloudwise-maas",
   "name": "Cloudwise MaaS",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Cloudwise / 影策",
-  "description": "Cloudwise MaaS（api.cloudwise.ai）的视频与图片协议：Seedance 2.x、Kling、MiniMax H3、统一视频与统一图片接口。",
+  "description": "Cloudwise MaaS（api.cloudwise.ai）的视频与图片协议：Seedance 2.x、Kling、MiniMax H3、万相 3.0、统一视频与统一图片接口。",
   "documentation": "<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>",
   "permissions": [
     "generation.run",
@@ -1974,7 +1976,26 @@
             "description": "是否生成音频。"
           }
         ],
-        "validations": [],
+        "validations": [
+          {
+            "assert": {
+              "$not": {
+                "$in": [
+                  {
+                    "$lower": {
+                      "$ref": "request.model"
+                    }
+                  },
+                  [
+                    "wan3.0-video",
+                    "wan3.0-video-prime"
+                  ]
+                ]
+              }
+            },
+            "message": "万相 3.0 不支持 Cloudwise 统一视频接口，请把该模型的调用协议改成「Cloudwise 万相 3.0」"
+          }
+        ],
         "create": {
           "method": "POST",
           "path": "/api/v1/video-generation/submit",
@@ -3065,6 +3086,579 @@
           },
           "usage": {
             "$ref": "response.usage"
+          },
+          "resultEphemeral": true
+        }
+      },
+      {
+        "id": "cloudwise-wan",
+        "label": "Cloudwise 万相 3.0",
+        "capabilities": [
+          "video"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation",
+          "agent"
+        ],
+        "baseUrl": "https://api.cloudwise.ai",
+        "requiresPublicMediaUrls": true,
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey"
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "视频模型 ID。"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt/content/input",
+            "description": "视频提示词。"
+          },
+          {
+            "name": "images",
+            "type": "media[]",
+            "required": false,
+            "mapping": "first/last/reference image",
+            "description": "显式 role 图片输入。"
+          },
+          {
+            "name": "videos",
+            "type": "media[]",
+            "required": false,
+            "mapping": "reference video",
+            "description": "参考视频。"
+          },
+          {
+            "name": "audios",
+            "type": "media[]",
+            "required": false,
+            "mapping": "reference audio/voice",
+            "description": "参考音频或音色。"
+          },
+          {
+            "name": "duration",
+            "type": "integer",
+            "required": false,
+            "mapping": "duration/seconds",
+            "description": "时长秒数。"
+          },
+          {
+            "name": "aspectRatio",
+            "type": "string",
+            "required": false,
+            "mapping": "ratio/aspect_ratio/size",
+            "description": "画幅比例或尺寸。"
+          },
+          {
+            "name": "resolution",
+            "type": "string",
+            "required": false,
+            "mapping": "resolution",
+            "description": "分辨率档位。"
+          },
+          {
+            "name": "generateAudio",
+            "type": "boolean",
+            "required": false,
+            "mapping": "generate_audio",
+            "description": "是否生成音频。"
+          },
+          {
+            "name": "watermark",
+            "type": "boolean",
+            "required": false,
+            "mapping": "watermark",
+            "description": "水印开关。"
+          },
+          {
+            "name": "providerOptions",
+            "type": "object",
+            "required": false,
+            "mapping": "provider-specific fields",
+            "description": "插件命名空间内的厂商扩展字段。"
+          }
+        ],
+        "validations": [
+          {
+            "assert": {
+              "$in": [
+                {
+                  "$lower": {
+                    "$ref": "request.model"
+                  }
+                },
+                [
+                  "wan3.0-video-prime",
+                  "wan3.0-video"
+                ]
+              ]
+            },
+            "message": "Wan 3.0 Video 仅支持 wan3.0-video-prime 或 wan3.0-video"
+          },
+          {
+            "assert": {
+              "$lte": [
+                {
+                  "$len": {
+                    "$filter": {
+                      "from": {
+                        "$sortByOrder": {
+                          "$ref": "request.images"
+                        }
+                      },
+                      "as": "media",
+                      "where": {
+                        "$in": [
+                          {
+                            "$ref": "media.role"
+                          },
+                          [
+                            "first_frame"
+                          ]
+                        ]
+                      }
+                    }
+                  }
+                },
+                1
+              ]
+            },
+            "message": "Wan 3.0 Video 最多只能有一个 first_frame"
+          },
+          {
+            "assert": {
+              "$lte": [
+                {
+                  "$len": {
+                    "$filter": {
+                      "from": {
+                        "$sortByOrder": {
+                          "$ref": "request.images"
+                        }
+                      },
+                      "as": "media",
+                      "where": {
+                        "$in": [
+                          {
+                            "$ref": "media.role"
+                          },
+                          [
+                            "last_frame"
+                          ]
+                        ]
+                      }
+                    }
+                  }
+                },
+                1
+              ]
+            },
+            "message": "Wan 3.0 Video 最多只能有一个 last_frame"
+          }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/api/v1/services/aigc/video-generation/video-synthesis",
+          "contentType": "application/json",
+          "body": {
+            "model": {
+              "$ref": "request.model"
+            },
+            "input": {
+              "prompt": {
+                "$omitEmpty": {
+                  "$ref": "request.prompt"
+                }
+              },
+              "media": {
+                "$omitEmpty": {
+                  "$coalesce": [
+                    {
+                      "$ref": "request.providerOptions.cloudwise-wan.media"
+                    },
+                    {
+                      "$concatArrays": [
+                        {
+                          "$map": {
+                            "from": {
+                              "$sortByOrder": {
+                                "$ref": "request.images"
+                              }
+                            },
+                            "as": "media",
+                            "in": {
+                              "type": {
+                                "$coalesce": [
+                                  {
+                                    "$ref": "media.role"
+                                  },
+                                  "reference_image"
+                                ]
+                              },
+                              "url": {
+                                "$ref": "media.value"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "$map": {
+                            "from": {
+                              "$sortByOrder": {
+                                "$ref": "request.videos"
+                              }
+                            },
+                            "as": "media",
+                            "in": {
+                              "type": {
+                                "$coalesce": [
+                                  {
+                                    "$ref": "media.role"
+                                  },
+                                  "reference_video"
+                                ]
+                              },
+                              "url": {
+                                "$ref": "media.value"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "$map": {
+                            "from": {
+                              "$sortByOrder": {
+                                "$ref": "request.audios"
+                              }
+                            },
+                            "as": "media",
+                            "in": {
+                              "type": {
+                                "$coalesce": [
+                                  {
+                                    "$ref": "media.role"
+                                  },
+                                  "reference_audio"
+                                ]
+                              },
+                              "url": {
+                                "$ref": "media.value"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "parameters": {
+              "resolution": {
+                "$omitEmpty": {
+                  "$ref": "request.resolution"
+                }
+              },
+              "ratio": {
+                "$omitEmpty": {
+                  "$ref": "request.aspectRatio"
+                }
+              },
+              "duration": {
+                "$omitEmpty": {
+                  "$ref": "request.duration"
+                }
+              },
+              "audio": {
+                "$coalesce": [
+                  {
+                    "$ref": "request.providerOptions.cloudwise-wan.audio"
+                  },
+                  {
+                    "$ref": "request.generateAudio"
+                  }
+                ]
+              },
+              "seed": {
+                "$omitEmpty": {
+                  "$ref": "request.providerOptions.cloudwise-wan.seed"
+                }
+              },
+              "prompt_extend": {
+                "$coalesce": [
+                  {
+                    "$ref": "request.providerOptions.cloudwise-wan.prompt_extend"
+                  },
+                  true
+                ]
+              },
+              "watermark": {
+                "$ref": "request.watermark"
+              }
+            }
+          },
+          "headers": {
+            "X-DashScope-Async": "enable"
+          },
+          "originPath": true
+        },
+        "poll": {
+          "method": "GET",
+          "path": "/api/v1/tasks/{{taskId}}",
+          "originPath": true
+        },
+        "response": {
+          "taskId": {
+            "$coalesce": [
+              {
+                "$coalesce": [
+                  {
+                    "$ref": "response.data.output.task_id"
+                  },
+                  {
+                    "$ref": "response.output.task_id"
+                  }
+                ]
+              },
+              {
+                "$ref": "taskId"
+              }
+            ]
+          },
+          "status": {
+            "$if": {
+              "condition": {
+                "$coalesce": [
+                  {
+                    "$ref": "response.data.output.code"
+                  },
+                  {
+                    "$ref": "response.output.code"
+                  },
+                  {
+                    "$if": {
+                      "condition": {
+                        "$and": [
+                          {
+                            "$ref": "response.code"
+                          },
+                          {
+                            "$ne": [
+                              {
+                                "$toString": {
+                                  "$ref": "response.code"
+                                }
+                              },
+                              "10000"
+                            ]
+                          },
+                          {
+                            "$not": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "response.data.output.task_id"
+                                },
+                                {
+                                  "$ref": "response.output.task_id"
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "then": {
+                        "$ref": "response.code"
+                      },
+                      "else": null
+                    }
+                  }
+                ]
+              },
+              "then": "failed",
+              "else": {
+                "$switch": {
+                  "cases": [
+                    {
+                      "when": {
+                        "$in": [
+                          {
+                            "$lower": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "response.data.output.task_status"
+                                },
+                                {
+                                  "$ref": "response.output.task_status"
+                                }
+                              ]
+                            }
+                          },
+                          [
+                            "succeeded"
+                          ]
+                        ]
+                      },
+                      "then": "succeeded"
+                    },
+                    {
+                      "when": {
+                        "$in": [
+                          {
+                            "$lower": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "response.data.output.task_status"
+                                },
+                                {
+                                  "$ref": "response.output.task_status"
+                                }
+                              ]
+                            }
+                          },
+                          [
+                            "failed",
+                            "unknown"
+                          ]
+                        ]
+                      },
+                      "then": "failed"
+                    },
+                    {
+                      "when": {
+                        "$in": [
+                          {
+                            "$lower": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "response.data.output.task_status"
+                                },
+                                {
+                                  "$ref": "response.output.task_status"
+                                }
+                              ]
+                            }
+                          },
+                          [
+                            "canceled",
+                            "cancelled"
+                          ]
+                        ]
+                      },
+                      "then": "cancelled"
+                    },
+                    {
+                      "when": {
+                        "$in": [
+                          {
+                            "$lower": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "response.data.output.task_status"
+                                },
+                                {
+                                  "$ref": "response.output.task_status"
+                                }
+                              ]
+                            }
+                          },
+                          [
+                            "running"
+                          ]
+                        ]
+                      },
+                      "then": "running"
+                    },
+                    {
+                      "when": {
+                        "$in": [
+                          {
+                            "$lower": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "response.data.output.task_status"
+                                },
+                                {
+                                  "$ref": "response.output.task_status"
+                                }
+                              ]
+                            }
+                          },
+                          [
+                            "pending"
+                          ]
+                        ]
+                      },
+                      "then": "pending"
+                    }
+                  ],
+                  "default": {
+                    "$coalesce": [
+                      {
+                        "$coalesce": [
+                          {
+                            "$ref": "response.data.output.task_status"
+                          },
+                          {
+                            "$ref": "response.output.task_status"
+                          }
+                        ]
+                      },
+                      "pending"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "message": {
+            "$coalesce": [
+              {
+                "$coalesce": [
+                  {
+                    "$ref": "response.data.output.message"
+                  },
+                  {
+                    "$ref": "response.output.message"
+                  }
+                ]
+              },
+              {
+                "$ref": "response.message"
+              },
+              {
+                "$ref": "response.msg"
+              }
+            ]
+          },
+          "videos": {
+            "$coalesce": [
+              {
+                "$ref": "response.data.output.video_url"
+              },
+              {
+                "$ref": "response.output.video_url"
+              }
+            ]
+          },
+          "usage": {
+            "$coalesce": [
+              {
+                "$ref": "response.data.usage"
+              },
+              {
+                "$ref": "response.usage"
+              }
+            ]
           },
           "resultEphemeral": true
         }

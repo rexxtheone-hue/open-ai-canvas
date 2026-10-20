@@ -3,6 +3,7 @@ package protocol
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -143,5 +144,36 @@ func TestCloudwiseUnifiedVideoAndImage(t *testing.T) {
 	done, err := adapter.ParseCreate(context.Background(), []byte(`{"image_url":"https://download.cloudwise.ai/arts/img","usage":{"costs":0.05,"unit":"usd"},"task_id":"t9","model":"seedream-4.5"}`))
 	if err != nil || done.Status != StatusSucceeded || done.Result == nil || len(done.Result.Images) != 1 {
 		t.Fatalf("image = %#v, err = %v", done, err)
+	}
+}
+
+func TestCloudwiseWan3UsesDashScopeBodyAndWrappedPollResult(t *testing.T) {
+	create, body := cloudwiseBody(t, "cloudwise-wan", GenerationRequest{Model: "wan3.0-video", Prompt: "图中女人在菜市场选菜", AspectRatio: "16:9", Resolution: "1080P", Duration: 5,
+		Images: []MediaReference{{URL: "https://x/a.jpg"}}})
+	if create.Path != "/api/v1/services/aigc/video-generation/video-synthesis" || !create.OriginPath || create.Headers["X-DashScope-Async"] != "enable" {
+		t.Fatalf("create = %#v", create)
+	}
+	input, _ := body["input"].(map[string]any)
+	media, _ := input["media"].([]any)
+	if body["model"] != "wan3.0-video" || input["prompt"] != "图中女人在菜市场选菜" || len(media) != 1 {
+		t.Fatalf("body = %#v", body)
+	}
+	assertJSONEqual(t, media[0], `{"type":"reference_image","url":"https://x/a.jpg"}`)
+	assertCloudwiseLifecycle(t, "cloudwise-wan", "", "/api/v1/tasks/t1",
+		`{"output":{"task_id":"t1","task_status":"PENDING"},"request_id":"r1"}`,
+		`{"code":"10000","data":{"output":{"task_id":"t1","task_status":"RUNNING"}},"success":true}`,
+		`{"code":"10000","data":{"output":{"task_id":"t1","task_status":"SUCCEEDED","video_url":"https://download.cloudwise.ai/arts/1"}},"success":true,"taskStatus":"COMPLETED"}`,
+		`{"code":"10000","data":{"output":{"task_id":"t1","task_status":"FAILED","code":"DataInspectionFailed","message":"blocked"}},"success":true}`, "video")
+	adapter := loadModelVersePackageAdapter(t, "cloudwise-maas", "cloudwise-wan")
+	if rejected, err := adapter.ParseCreate(context.Background(), []byte(`{"code":"InvalidParameter","message":"bad ratio"}`)); err == nil && rejected.Status != StatusFailed {
+		t.Fatalf("rejected = %#v", rejected)
+	}
+}
+
+func TestCloudwiseUnifiedVideoRejectsWan3WithProtocolHint(t *testing.T) {
+	adapter := loadModelVersePackageAdapter(t, "cloudwise-maas", "cloudwise-unified-video")
+	_, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.cloudwise.ai/api", Request: GenerationRequest{Model: "wan3.0-video", Prompt: "x"}})
+	if err == nil || !strings.Contains(err.Error(), "Cloudwise 万相 3.0") {
+		t.Fatalf("err = %v", err)
 	}
 }
