@@ -10,7 +10,10 @@ import (
 	"yingce/backend/internal/repository"
 )
 
-const DefaultBrandName = "影策"
+const DefaultBrandName = "OmniMuse"
+
+// legacyBrandName 是改名前的默认品牌；按它保存的发件人名仍视为「跟随品牌」。
+const legacyBrandName = "影策"
 
 // Host 由组合根注入，避免 auth → service 回环。
 type Host interface {

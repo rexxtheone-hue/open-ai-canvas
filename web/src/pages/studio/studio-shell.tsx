@@ -11,13 +11,15 @@ import { CreditSymbol } from "@/constant/credits";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { useUserStore } from "@/stores/use-user-store";
+import { useAppearanceStore } from "@/stores/use-appearance-store";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { StudioToolThumb } from "./studio-tool-thumb";
 import { STUDIO_TOOL_TABS, STUDIO_TOOLS, studioToolById } from "./studio-tools";
 import { useStudioPins, useStudioToolCovers } from "./use-studio-tool-meta";
 import "./studio.css";
 
 export function StudioBrandName() {
-    return <>AI Studio</>;
+    return <>{useAppearanceStore((state) => state.appearance.brandName)}</>;
 }
 
 const COLLAPSE_KEY = "studio.sidebar.collapsed.v1";
@@ -113,7 +115,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
             <nav className="studio-sidebar" aria-label="AI Studio 导航">
                 <div className="studio-side-top">
                     <Link to="/studio" className="studio-side-brand" aria-label="AI Studio 首页">
-                        <span className="studio-side-logo">AI</span>
+                        <BrandLogo className="studio-side-logo" alt="" fallback={<span className="studio-side-logo" />} />
                         {collapsed ? null : (
                             <strong>
                                 <StudioBrandName />

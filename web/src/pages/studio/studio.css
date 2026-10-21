@@ -53,7 +53,7 @@
 .studio-root.is-collapsed .studio-side-top { flex-direction: column; padding: 12px 8px 8px; }
 .studio-side-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--studio-fg); text-decoration: none; min-width: 0; }
 .studio-side-brand strong { font-size: 17px; font-weight: 750; letter-spacing: -0.01em; white-space: nowrap; }
-.studio-side-logo { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--studio-accent); color: var(--studio-accent-ink); font-size: 12px; font-weight: 800; flex: 0 0 auto; }
+.studio-side-logo { display: block; width: 30px; height: 30px; object-fit: contain; flex: 0 0 auto; }
 .studio-side-collapse, .studio-icon-button { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--studio-soft); cursor: pointer; }
 .studio-side-collapse:hover, .studio-icon-button:hover { background: var(--studio-hover); color: var(--studio-fg); }
 .studio-side-collapse svg, .studio-icon-button svg { width: 18px; height: 18px; }

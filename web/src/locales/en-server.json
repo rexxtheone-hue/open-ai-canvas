@@ -2822,6 +2822,7 @@
   "思维导图节点": "Mind map node",
   "总笔数": "Total count",
   "总金额": "Total amount",
+  "恢复 OmniMuse 默认品牌标识": "Restored the default OmniMuse branding",
   "恢复 PostgreSQL：{0}": "Restore PostgreSQL: {0}",
   "恢复影策默认品牌标识": "Restore the default Yingce brand identity",
   "恢复文件与原始资源不一致": "The recovery file does not match the original resource",

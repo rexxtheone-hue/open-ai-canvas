@@ -6,26 +6,32 @@ import type { PublicAppearance } from "@/services/api/appearance";
 import { applySkinTheme, DEFAULT_CLASSIC_SKIN, normalizeSkinDefinition } from "@/lib/skin-themes";
 import { translateKnownText, translateServerText } from "@/lib/i18n/runtime";
 
+/** 内置品牌：OmniMuse 标志、浏览器图标和分享预览图，放在 public/brand。 */
+export const BUILTIN_LOGO_URL = "/brand/omnimuse-mark.png";
+const BUILTIN_FAVICON_URL = "/brand/favicon.ico";
+const BUILTIN_TOUCH_ICON_URL = "/brand/apple-touch-icon.png";
+const BUILTIN_SOCIAL_IMAGE_URL = "/brand/og-image.jpg";
+
 export const DEFAULT_PUBLIC_APPEARANCE: PublicAppearance = {
     updates: DEFAULT_UPDATE_ANNOUNCEMENT,
     canvas: DEFAULT_CANVAS_APPEARANCE,
     schemaVersion: 10,
-    brandName: "影策",
+    brandName: "OmniMuse",
     brandSlug: "open-ai-canvas",
-    authHeroTitle: "让一个故事，\n从文字走向银幕。",
+    authHeroTitle: "一个想法，\n生成所有创作。",
     authHeroDescription: "",
-    logoUrl: "/logo.svg",
-    darkLogoUrl: "/logo.svg",
-    logoFrameEnabled: true,
+    logoUrl: BUILTIN_LOGO_URL,
+    darkLogoUrl: BUILTIN_LOGO_URL,
+    logoFrameEnabled: false,
     authVideoUrl: "https://boss-shjd.biliapi.net/updream/aniforge/video/video_bbcb00bd-650d-4249-9346-5cd21fd2484c_m1hc-u0-1pu13x-3v1s.mp4",
     authVideoPosterUrl: "https://i0.hdslb.com/bfs/aitool/aniforge/image/02933f26-5f1b-49ff-a811-b7f95ee5e5b8_m1hc-u0-sau.jpg",
     authVideoAutoplay: true,
     skinId: "classic",
     activeSkin: DEFAULT_CLASSIC_SKIN,
-    seoTitle: "影策",
-    seoDescription: "影策，面向 AI 影视与短剧创作的工作台。",
+    seoTitle: "OmniMuse",
+    seoDescription: "OmniMuse，全能 AI 创作工作室：视频、图片、配音与广告，一站完成。",
     seoKeywords: "",
-    footerCopyright: `© ${new Date().getFullYear()} 影策. All rights reserved.`,
+    footerCopyright: `© ${new Date().getFullYear()} OmniMuse. All rights reserved.`,
     icpFilingEnabled: false,
     icpFilingNumber: "",
     redeemPurchaseUrl: "",
@@ -62,7 +68,7 @@ export function normalizePublicAppearance(value?: Partial<PublicAppearance> | nu
     const rawBrandName = String(value?.brandName || "").trim();
     const withBrand = (text: string) => (rawBrandName && brandName !== rawBrandName ? translateServerText(text).replaceAll(rawBrandName, brandName) : text);
     const seoTitle = withBrand(normalizeAppearanceCopy(value?.seoTitle, resolvedBrandName));
-    const seoDescription = withBrand(normalizeAppearanceCopy(value?.seoDescription, `${resolvedBrandName}，面向 AI 影视与短剧创作的工作台。`, true));
+    const seoDescription = withBrand(normalizeAppearanceCopy(value?.seoDescription, `${resolvedBrandName}，全能 AI 创作工作室：视频、图片、配音与广告，一站完成。`, true));
     const seoKeywords = normalizeAppearanceCopy(value?.seoKeywords, "", true);
     const footerCopyright = withBrand(normalizeAppearanceCopy(value?.footerCopyright, `© ${new Date().getFullYear()} ${resolvedBrandName}. All rights reserved.`));
     const icpFilingNumber = normalizeAppearanceCopy(value?.icpFilingNumber, "", true);
@@ -139,7 +145,17 @@ export function applyAppearanceMetadata(appearance: PublicAppearance, targetDocu
         favicon.rel = "icon";
         targetDocument.head.appendChild(favicon);
     }
-    favicon.href = appearanceLogoURL(appearance, targetDocument.documentElement.classList.contains("dark") ? "dark" : "light");
+    // 没有上传自定义 Logo 时用内置的圆角 App 图标，比透明标志在标签页里更清楚。
+    favicon.href = appearance.logoConfigured ? appearanceLogoURL(appearance, mode) : BUILTIN_FAVICON_URL;
+    let touchIcon = targetDocument.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]');
+    if (!touchIcon) {
+        touchIcon = targetDocument.createElement("link");
+        touchIcon.rel = "apple-touch-icon";
+        targetDocument.head.appendChild(touchIcon);
+    }
+    touchIcon.href = appearance.logoConfigured ? appearanceLogoURL(appearance, "light") : BUILTIN_TOUCH_ICON_URL;
+    const origin = targetDocument.defaultView?.location?.origin || "";
+    setMeta(targetDocument, "property", "og:image", appearance.logoConfigured ? "" : `${origin}${BUILTIN_SOCIAL_IMAGE_URL}`);
 
     const location = targetDocument.defaultView?.location;
     if (location && (location.protocol === "http:" || location.protocol === "https:")) {

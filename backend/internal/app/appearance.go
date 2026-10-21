@@ -41,13 +41,13 @@ const (
 )
 
 const (
-	defaultAppearanceBrandName = "影策"
+	defaultAppearanceBrandName = "OmniMuse"
 	defaultAppearanceBrandSlug = "open-ai-canvas"
 	defaultAppearanceSkinID    = "classic"
-	defaultAppearanceLogoURL   = "/logo.svg"
+	defaultAppearanceLogoURL   = "/brand/omnimuse-mark.png"
 	defaultAppearanceVideoURL  = "https://boss-shjd.biliapi.net/updream/aniforge/video/video_bbcb00bd-650d-4249-9346-5cd21fd2484c_m1hc-u0-1pu13x-3v1s.mp4"
 	defaultAppearancePosterURL = "https://i0.hdslb.com/bfs/aitool/aniforge/image/02933f26-5f1b-49ff-a811-b7f95ee5e5b8_m1hc-u0-sau.jpg"
-	defaultAppearanceHeroTitle = "让一个故事，\n从文字走向银幕。"
+	defaultAppearanceHeroTitle = "一个想法，\n生成所有创作。"
 	defaultRedeemPurchaseURL   = "" // 默认不配置购买链接，前端为空时不展示入口
 )
 
@@ -125,7 +125,7 @@ func defaultAppearanceSetting() AppearanceSetting {
 		BrandSlug:         defaultAppearanceBrandSlug,
 		AuthHeroTitle:     defaultAppearanceHeroTitle,
 		AuthVideoAutoplay: true,
-		LogoFrameEnabled:  true,
+		LogoFrameEnabled:  false,
 		SkinID:            defaultAppearanceSkinID,
 		SkinThemes:        defaultAppearanceSkinThemes(),
 		RedeemPurchaseURL: defaultRedeemPurchaseURL,
@@ -276,7 +276,7 @@ func (s *Service) ResetAppearance(actor *model.User) (*AdminAppearanceSetting, e
 		return nil, err
 	}
 	after := defaultAppearanceSetting()
-	if err := s.appendAdminAudit(actor, "appearance.reset", "system_setting", appearanceSettingKey, "恢复影策默认品牌标识", map[string]any{"before": before, "after": after}); err != nil {
+	if err := s.appendAdminAudit(actor, "appearance.reset", "system_setting", appearanceSettingKey, "恢复 OmniMuse 默认品牌标识", map[string]any{"before": before, "after": after}); err != nil {
 		return nil, err
 	}
 	return s.AdminAppearance(actor)
@@ -418,6 +418,8 @@ func (s *Service) readAppearance() (*model.SystemSetting, AppearanceSetting, err
 	// Decode stored themes without reusing built-in slice entries: omitted
 	// fields must be migrated according to each stored theme's identity.
 	value.SkinThemes = nil
+	// 改名前保存的配置没有该字段，保持当时默认的带框样式。
+	value.LogoFrameEnabled = true
 	if strings.TrimSpace(setting.ValueJSON) == "" || json.Unmarshal([]byte(setting.ValueJSON), &value) != nil {
 		return nil, AppearanceSetting{}, errors.New("外观配置格式无效")
 	}
