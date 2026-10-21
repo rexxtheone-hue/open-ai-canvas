@@ -211,8 +211,8 @@ describe("pricing write validation", () => {
             expect(priceTiers[0].outputTokenPrice).toBe(8);
         }
     });
-    test("rejects Token pricing after switching to image or audio", () => {
-        for (const capability of ["image", "audio"] as const) {
+    test("rejects Token pricing after switching to audio", () => {
+        for (const capability of ["audio"] as const) {
             expect(() => validateChannelModelPrices({ ...draft, capability, priceTiers: [{ ...defaultPriceTier(), billingMode: "token", outputTokenPrice: 8 }] })).toThrow("不支持 Token");
         }
     });

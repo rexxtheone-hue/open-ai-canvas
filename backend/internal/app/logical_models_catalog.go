@@ -104,12 +104,12 @@ func publicLogicalModelPriceTiers(cached cachedLogicalModel) []PublicLogicalMode
 			if selectorErr != nil {
 				continue
 			}
-			key := fmt.Sprintf("%s:%s:%d:%d:%d:%d:%v", selectorKey, tier.BillingMode, tier.UnitPriceMicrocredits, tier.InputTokenPriceMicrocredits, tier.OutputTokenPriceMicrocredits, tier.CachedTokenPriceMicrocredits, tier.Surcharge)
+			key := fmt.Sprintf("%s:%s:%d:%d:%d:%d:%d:%v", selectorKey, tier.BillingMode, tier.UnitPriceMicrocredits, tier.InputTokenPriceMicrocredits, tier.OutputTokenPriceMicrocredits, tier.CachedTokenPriceMicrocredits, tier.ImageTokenPriceMicrocredits, tier.Surcharge)
 			if seen[key] {
 				continue
 			}
 			seen[key] = true
-			result = append(result, PublicLogicalModelPriceTier{Selector: selector, Resolution: normalizeChannelModelTierResolution(tier.Resolution), VideoSeconds: tier.VideoSeconds, BillingMode: tier.BillingMode, UnitPriceMicrocredits: tier.UnitPriceMicrocredits, InputTokenPriceMicrocredits: tier.InputTokenPriceMicrocredits, OutputTokenPriceMicrocredits: tier.OutputTokenPriceMicrocredits, CachedTokenPriceMicrocredits: tier.CachedTokenPriceMicrocredits, Surcharge: publicPriceSurcharge(tier.Surcharge)})
+			result = append(result, PublicLogicalModelPriceTier{Selector: selector, Resolution: normalizeChannelModelTierResolution(tier.Resolution), VideoSeconds: tier.VideoSeconds, BillingMode: tier.BillingMode, UnitPriceMicrocredits: tier.UnitPriceMicrocredits, InputTokenPriceMicrocredits: tier.InputTokenPriceMicrocredits, OutputTokenPriceMicrocredits: tier.OutputTokenPriceMicrocredits, CachedTokenPriceMicrocredits: tier.CachedTokenPriceMicrocredits, Surcharge: publicPriceSurcharge(tier.Surcharge), ImageTokenPriceMicrocredits: tier.ImageTokenPriceMicrocredits})
 		}
 	}
 	return result

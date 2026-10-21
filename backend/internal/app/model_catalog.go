@@ -97,6 +97,7 @@ type PublicChannelModelPriceTier struct {
 	OutputTokenPriceMicrocredits int64                 `json:"outputTokenPriceMicrocredits"`
 	CachedTokenPriceMicrocredits int64                 `json:"cachedTokenPriceMicrocredits"`
 	Surcharge                    *model.PriceSurcharge `json:"surcharge,omitempty"`
+	ImageTokenPriceMicrocredits  int64                 `json:"imageTokenPriceMicrocredits,omitempty"`
 }
 
 // ModelCatalog 的创作端目录始终来自系统渠道模型，不反查逻辑模型或路由。
@@ -220,6 +221,7 @@ func (s *Service) sanitizeChannelModel(cm *model.ChannelModel) (PublicChannelMod
 			OutputTokenPriceMicrocredits: tier.OutputTokenPriceMicrocredits,
 			CachedTokenPriceMicrocredits: tier.CachedTokenPriceMicrocredits,
 			Surcharge:                    publicPriceSurcharge(tier.Surcharge),
+			ImageTokenPriceMicrocredits:  tier.ImageTokenPriceMicrocredits,
 		})
 	}
 

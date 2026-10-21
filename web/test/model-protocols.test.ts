@@ -14,9 +14,8 @@ describe("model protocol Token billing", () => {
         expect(modelProtocolSupportsTokenBilling("video")).toBe(true);
     });
 
-    test("does not enable Token billing for image, audio or unselected capabilities", () => {
-        expect(modelProtocolSupportsTokenBilling("image", "volcengine-ark-image")).toBe(false);
-        expect(modelProtocolSupportsTokenBilling("image", "volcengine-ark-agent-plan-image")).toBe(false);
+    test("enables Token billing for image (e.g. Gemini image tokens) but not audio or unselected capabilities", () => {
+        expect(modelProtocolSupportsTokenBilling("image", "gemini-image")).toBe(true);
         expect(modelProtocolSupportsTokenBilling("audio", "speech")).toBe(false);
         expect(modelProtocolSupportsTokenBilling(undefined, "volcengine-ark-video")).toBe(false);
     });

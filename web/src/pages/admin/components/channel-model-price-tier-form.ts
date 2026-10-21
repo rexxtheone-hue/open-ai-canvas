@@ -32,6 +32,7 @@ export type PriceTierFormValues = {
     inputTokenPrice: number;
     outputTokenPrice: number;
     cachedTokenPrice: number;
+    imageTokenPrice: number;
     costConfigured: boolean;
     /** 成本金额的填写币种；非积分时金额为原币，由后端按汇率换算成积分成本。 */
     costCurrency: CostCurrency;
@@ -41,6 +42,7 @@ export type PriceTierFormValues = {
     costCachedTokenPrice: number;
     costExtraImagePrice: number;
     costExtraVideoSecondPrice: number;
+    costImageTokenPrice: number;
     /** 附加费：前 N 张参考图免费，之后每张收费；参考视频按秒收费。 */
     surchargeFreeImages: number;
     surchargeImagePrice: number;
@@ -67,6 +69,7 @@ export function defaultPriceTier(matchMode: PriceTierMatchMode = "default"): Pri
         inputTokenPrice: 0,
         outputTokenPrice: 0,
         cachedTokenPrice: 0,
+        imageTokenPrice: 0,
         costConfigured: false,
         costCurrency: "CREDIT",
         costUnitPrice: 0,
@@ -75,6 +78,7 @@ export function defaultPriceTier(matchMode: PriceTierMatchMode = "default"): Pri
         costCachedTokenPrice: 0,
         costExtraImagePrice: 0,
         costExtraVideoSecondPrice: 0,
+        costImageTokenPrice: 0,
         surchargeFreeImages: 0,
         surchargeImagePrice: 0,
         surchargeVideoSecondPrice: 0,
@@ -111,6 +115,7 @@ export function priceTierToForm(tier: ChannelModelPriceTier, image?: ImageCapabi
         inputTokenPrice: tier.inputTokenPriceMicrocredits / 1_000_000,
         outputTokenPrice: tier.outputTokenPriceMicrocredits / 1_000_000,
         cachedTokenPrice: tier.cachedTokenPriceMicrocredits / 1_000_000,
+        imageTokenPrice: (tier.imageTokenPriceMicrocredits ?? 0) / 1_000_000,
         costConfigured: tier.costPricing?.configured === true,
         ...costFormValues(tier),
         surchargeFreeImages: tier.surcharge?.freeImages ?? 0,
@@ -121,7 +126,9 @@ export function priceTierToForm(tier: ChannelModelPriceTier, image?: ImageCapabi
     };
 }
 
-function costFormValues(tier: ChannelModelPriceTier): Pick<PriceTierFormValues, "costCurrency" | "costUnitPrice" | "costInputTokenPrice" | "costOutputTokenPrice" | "costCachedTokenPrice" | "costExtraImagePrice" | "costExtraVideoSecondPrice"> {
+function costFormValues(
+    tier: ChannelModelPriceTier,
+): Pick<PriceTierFormValues, "costCurrency" | "costUnitPrice" | "costInputTokenPrice" | "costOutputTokenPrice" | "costCachedTokenPrice" | "costExtraImagePrice" | "costExtraVideoSecondPrice" | "costImageTokenPrice"> {
     const source = tier.costSource;
     if (source?.currency) {
         return {
@@ -132,6 +139,7 @@ function costFormValues(tier: ChannelModelPriceTier): Pick<PriceTierFormValues, 
             costCachedTokenPrice: source.cachedTokenPrice / 1_000_000,
             costExtraImagePrice: (source.extraImagePrice ?? 0) / 1_000_000,
             costExtraVideoSecondPrice: (source.extraVideoSecondPrice ?? 0) / 1_000_000,
+            costImageTokenPrice: (source.imageTokenPrice ?? 0) / 1_000_000,
         };
     }
     return {
@@ -142,6 +150,7 @@ function costFormValues(tier: ChannelModelPriceTier): Pick<PriceTierFormValues, 
         costCachedTokenPrice: (tier.costPricing?.cachedTokenPriceMicrocredits ?? 0) / 1_000_000,
         costExtraImagePrice: (tier.costPricing?.extraImagePriceMicrocredits ?? 0) / 1_000_000,
         costExtraVideoSecondPrice: (tier.costPricing?.extraVideoSecondPriceMicrocredits ?? 0) / 1_000_000,
+        costImageTokenPrice: (tier.costPricing?.imageTokenPriceMicrocredits ?? 0) / 1_000_000,
     };
 }
 
@@ -198,6 +207,9 @@ export function priceTierPayloadFromForm(capability: ModelCapabilityChoice, tier
     const videoTokens = capability === "video" && tier.billingMode === "token";
     const isVideo = capability === "video";
     const micro = (value: number | undefined) => (isVideo ? Math.round((value || 0) * 1_000_000) : 0);
+    // 图片 Token 价只对按 Token 计费的图片模型有效，其它情况固定为 0，避免切换计费方式后残留。
+    const imageTokens = capability === "image" && tier.billingMode === "token";
+    const imageMicro = (value: number | undefined) => (imageTokens ? Math.round((value || 0) * 1_000_000) : 0);
     return {
         selector: skuSelectorFromForm(capability, tier, capabilityConfig),
         resolution: priceTierResolutionFromForm(capability, tier),
@@ -207,7 +219,8 @@ export function priceTierPayloadFromForm(capability: ModelCapabilityChoice, tier
         unitPriceMicrocredits: Math.round((tier.unitPrice || 0) * 1_000_000),
         inputTokenPriceMicrocredits: videoTokens ? 0 : Math.round((tier.inputTokenPrice || 0) * 1_000_000),
         outputTokenPriceMicrocredits: Math.round((tier.outputTokenPrice || 0) * 1_000_000),
-        cachedTokenPriceMicrocredits: videoTokens ? 0 : Math.round((tier.cachedTokenPrice || 0) * 1_000_000),
+        cachedTokenPriceMicrocredits: videoTokens || imageTokens ? 0 : Math.round((tier.cachedTokenPrice || 0) * 1_000_000),
+        imageTokenPriceMicrocredits: imageMicro(tier.imageTokenPrice),
         costPricing: {
             configured: tier.costConfigured,
             unitPriceMicrocredits: Math.round(tier.costUnitPrice * 1_000_000),
@@ -216,6 +229,7 @@ export function priceTierPayloadFromForm(capability: ModelCapabilityChoice, tier
             cachedTokenPriceMicrocredits: videoTokens ? 0 : Math.round(tier.costCachedTokenPrice * 1_000_000),
             extraImagePriceMicrocredits: micro(tier.costExtraImagePrice),
             extraVideoSecondPriceMicrocredits: micro(tier.costExtraVideoSecondPrice),
+            imageTokenPriceMicrocredits: imageMicro(tier.costImageTokenPrice),
         },
         costSource: {
             currency: tier.costConfigured && tier.costCurrency && tier.costCurrency !== "CREDIT" ? tier.costCurrency : ("" as const),
@@ -225,6 +239,7 @@ export function priceTierPayloadFromForm(capability: ModelCapabilityChoice, tier
             cachedTokenPrice: videoTokens ? 0 : Math.round(tier.costCachedTokenPrice * 1_000_000),
             extraImagePrice: micro(tier.costExtraImagePrice),
             extraVideoSecondPrice: micro(tier.costExtraVideoSecondPrice),
+            imageTokenPrice: imageMicro(tier.costImageTokenPrice),
         },
         surcharge: {
             freeImages: isVideo ? Math.max(0, Math.floor(tier.surchargeFreeImages || 0)) : 0,

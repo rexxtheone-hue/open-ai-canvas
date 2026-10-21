@@ -21,7 +21,7 @@ describe("channel model price tier defaults", () => {
     test("cost in a supplier currency round-trips as source amounts and credit costs stay unset", () => {
         const tier = { ...defaultPriceTier(), costConfigured: true, costCurrency: "USD" as const, costUnitPrice: 0.05 };
         const payload = priceTierPayloadFromForm("video", tier, "kling-v3");
-        expect(payload.costSource).toEqual({ currency: "USD", unitPrice: 50_000, inputTokenPrice: 0, outputTokenPrice: 0, cachedTokenPrice: 0, extraImagePrice: 0, extraVideoSecondPrice: 0 });
+        expect(payload.costSource).toEqual({ currency: "USD", unitPrice: 50_000, inputTokenPrice: 0, outputTokenPrice: 0, cachedTokenPrice: 0, extraImagePrice: 0, extraVideoSecondPrice: 0, imageTokenPrice: 0 });
         const saved = { ...payload, costPricing: { ...payload.costPricing, unitPriceMicrocredits: 22_000_000 } } as ChannelModelPriceTier;
         expect(priceTierToForm(saved)).toMatchObject({ costCurrency: "USD", costUnitPrice: 0.05 });
         expect(priceTierPayloadFromForm("video", { ...tier, costCurrency: "CREDIT" }, "kling-v3").costSource.currency).toBe("");

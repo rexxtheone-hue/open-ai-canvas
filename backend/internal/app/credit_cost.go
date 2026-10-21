@@ -6,7 +6,7 @@ import (
 )
 
 func validateCreditCostPricing(capability, billingMode string, cost model.CreditCostPricing) error {
-	for _, price := range []int64{cost.UnitPriceMicrocredits, cost.InputTokenPriceMicrocredits, cost.OutputTokenPriceMicrocredits, cost.CachedTokenPriceMicrocredits, cost.ExtraImagePriceMicrocredits, cost.ExtraVideoSecondPriceMicrocredits} {
+	for _, price := range []int64{cost.UnitPriceMicrocredits, cost.InputTokenPriceMicrocredits, cost.OutputTokenPriceMicrocredits, cost.CachedTokenPriceMicrocredits, cost.ExtraImagePriceMicrocredits, cost.ExtraVideoSecondPriceMicrocredits, cost.ImageTokenPriceMicrocredits} {
 		if price < 0 || price > 1_000_000_000_000 {
 			return BadAuthRequest("积分成本价必须在 0 到 1000000 积分之间")
 		}
@@ -59,6 +59,7 @@ func billingCreditCost(order model.BillingOrder) (*int64, error) {
 			kernel.TokenBillingTerm{Tokens: max(0, input-cached), PriceMicrocredits: cost.InputTokenPriceMicrocredits},
 			kernel.TokenBillingTerm{Tokens: output, PriceMicrocredits: cost.OutputTokenPriceMicrocredits},
 			kernel.TokenBillingTerm{Tokens: cached, PriceMicrocredits: cost.CachedTokenPriceMicrocredits},
+			kernel.TokenBillingTerm{Tokens: order.ImageTokens, PriceMicrocredits: cost.ImageTokenPriceMicrocredits},
 		)
 	default:
 		return nil, nil

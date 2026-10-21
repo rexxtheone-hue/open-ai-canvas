@@ -9,6 +9,7 @@ type CreditCostPricing struct {
 	OutputTokenPriceMicrocredits int64 `json:"outputTokenPriceMicrocredits" gorm:"not null;default:0"`
 	CachedTokenPriceMicrocredits int64 `json:"cachedTokenPriceMicrocredits" gorm:"not null;default:0"`
 	// 附加费成本：超出免费张数的每张参考图、每秒参考视频。免费张数沿用价格档的附加费设置。
+	ImageTokenPriceMicrocredits       int64 `json:"imageTokenPriceMicrocredits" gorm:"not null;default:0"`
 	ExtraImagePriceMicrocredits       int64 `json:"extraImagePriceMicrocredits" gorm:"not null;default:0"`
 	ExtraVideoSecondPriceMicrocredits int64 `json:"extraVideoSecondPriceMicrocredits" gorm:"not null;default:0"`
 }
@@ -28,6 +29,7 @@ type CostSourcePricing struct {
 	InputTokenPrice       int64  `json:"inputTokenPrice" gorm:"not null;default:0"`
 	OutputTokenPrice      int64  `json:"outputTokenPrice" gorm:"not null;default:0"`
 	CachedTokenPrice      int64  `json:"cachedTokenPrice" gorm:"not null;default:0"`
+	ImageTokenPrice       int64  `json:"imageTokenPrice" gorm:"not null;default:0"`
 	ExtraImagePrice       int64  `json:"extraImagePrice" gorm:"not null;default:0"`
 	ExtraVideoSecondPrice int64  `json:"extraVideoSecondPrice" gorm:"not null;default:0"`
 }

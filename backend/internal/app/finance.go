@@ -111,6 +111,8 @@ type tokenBillingEstimate struct {
 	Err          error
 	// ReferenceVideoSeconds 供参考视频附加费使用；时长未知的视频按 15 秒计。
 	ReferenceVideoSeconds int64
+	// ImageTokens 是图片模型按分辨率预估的图片输出 Token，单独按图片 Token 单价计。
+	ImageTokens int64
 }
 
 func (s *Service) Wallet(user *model.User, entryType string, page int, limit int) (*WalletSummary, error) {
@@ -625,10 +627,13 @@ func (s *Service) newBillingOrderWithPriceTier(userID string, taskID string, ide
 		if capability == "video" && tokenEstimate.OutputTokens <= 0 {
 			return nil, BadAuthRequest("无法计算视频 Token 用量，请检查时长与尺寸")
 		}
+		if capability == "image" && tokenEstimate.ImageTokens <= 0 {
+			return nil, BadAuthRequest("无法估算图片 Token 用量")
+		}
 		if capability == "video" && (tier.InputTokenPriceMicrocredits != 0 || tier.CachedTokenPriceMicrocredits != 0) {
 			return nil, BadAuthRequest("视频 Token 仅按视频用量定价，请将输入与缓存价格设为 0")
 		}
-		quantity = tokenEstimate.InputTokens + tokenEstimate.OutputTokens
+		quantity = tokenEstimate.InputTokens + tokenEstimate.OutputTokens + tokenEstimate.ImageTokens
 	default:
 		return nil, BadAuthRequest("当前模型计费方式暂不支持")
 	}
@@ -642,6 +647,11 @@ func (s *Service) newBillingOrderWithPriceTier(userID string, taskID string, ide
 	}
 	if tier.BillingMode == "token" {
 		amount, err = tokenEstimateAmount(&model.ChannelModel{InputTokenPriceMicrocredits: tier.InputTokenPriceMicrocredits, OutputTokenPriceMicrocredits: tier.OutputTokenPriceMicrocredits, CachedTokenPriceMicrocredits: tier.CachedTokenPriceMicrocredits}, tokenEstimate, multiplierBPS)
+		if err == nil && tokenEstimate.ImageTokens > 0 && tier.ImageTokenPriceMicrocredits > 0 {
+			var imageAmount int64
+			imageAmount, err = kernel.TokenBillingAmount(multiplierBPS, kernel.TokenBillingTerm{Tokens: tokenEstimate.ImageTokens, PriceMicrocredits: tier.ImageTokenPriceMicrocredits})
+			amount += imageAmount
+		}
 	} else {
 		amount, err = creditAmount(tier.UnitPriceMicrocredits, quantity, multiplierBPS)
 	}
@@ -669,8 +679,9 @@ func (s *Service) newBillingOrderWithPriceTier(userID string, taskID string, ide
 		UnitPriceMicrocredits: tier.UnitPriceMicrocredits, MultiplierBasisPoints: multiplierBPS, Quantity: quantity, AmountMicrocredits: amount,
 		ReservedAmountMicrocredits: amount, InputTokenPriceMicrocredits: tier.InputTokenPriceMicrocredits,
 		OutputTokenPriceMicrocredits: tier.OutputTokenPriceMicrocredits, CachedTokenPriceMicrocredits: tier.CachedTokenPriceMicrocredits,
-		VideoFormulaTokens: videoFormulaTokens,
-		Status:             model.BillingStatusReserved,
+		ImageTokenPriceMicrocredits: tier.ImageTokenPriceMicrocredits,
+		VideoFormulaTokens:          videoFormulaTokens,
+		Status:                      model.BillingStatusReserved,
 	}
 	snapshotCreditCost(order, tier, requestedQuantity, tokenEstimate)
 	order.SurchargeImages, order.SurchargeVideoSeconds, order.SurchargeMicrocredits = surchargeImages, surchargeVideoSeconds, surcharge
@@ -726,7 +737,27 @@ func estimateTaskBillingTokens(input map[string]any, capability string) tokenBil
 		estimate.ReferenceVideoSeconds = referenceVideoBillingSeconds(input["referenceVideos"])
 		return estimate
 	}
+	if capability == "image" {
+		return estimateImageTokens(input)
+	}
 	return estimateTaskTokens(input)
+}
+
+// estimateImageTokens 按 Gemini 图片模型的实测用量预授权：参考图每张按 1,120 输入 Token，
+// 思考与文字输出预留 2,000 Token，图片输出按分辨率（1K 1,120、2K 1,680、4K 3,780）。结算以实际用量为准。
+func estimateImageTokens(input map[string]any) tokenBillingEstimate {
+	config, _ := input["config"].(map[string]any)
+	prompt, _ := input["prompt"].(string)
+	references, _ := input["referenceImages"].([]any)
+	estimate := tokenBillingEstimate{InputTokens: estimatedTokens([]byte(prompt)) + int64(len(references))*1120, OutputTokens: 2000, ImageTokens: 1120}
+	resolution := strings.ToLower(firstNonEmpty(stringValue(config["imageResolution"]), stringValue(config["quality"]), stringValue(config["size"])))
+	switch {
+	case strings.Contains(resolution, "4k") || strings.Contains(resolution, "high"):
+		estimate.ImageTokens = 3780
+	case strings.Contains(resolution, "2k") || strings.Contains(resolution, "medium"):
+		estimate.ImageTokens = 1680
+	}
+	return estimate
 }
 
 func estimateProxyTokens(body []byte) tokenBillingEstimate {

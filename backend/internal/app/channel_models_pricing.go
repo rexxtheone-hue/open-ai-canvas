@@ -97,7 +97,7 @@ func (s *Service) syncLogicalModelsFromChannelModel(actor *model.User, channelMo
 }
 
 func supportsTokenBilling(capability string, _ model.ChannelInterfaceType) bool {
-	return capability == "text" || capability == "video"
+	return capability == "text" || capability == "video" || capability == "image"
 }
 
 func (s *Service) normalizeChannelModelPriceTiers(req ChannelModelRequest, capability string, protocol model.ChannelInterfaceType, fallbackProviderModelKey string) ([]model.ChannelModelPriceTier, error) {
@@ -177,6 +177,7 @@ func (s *Service) normalizeChannelModelPriceTiers(req ChannelModelRequest, capab
 			InputTokenPriceMicrocredits:  input.InputTokenPriceMicrocredits,
 			OutputTokenPriceMicrocredits: input.OutputTokenPriceMicrocredits,
 			CachedTokenPriceMicrocredits: input.CachedTokenPriceMicrocredits,
+			ImageTokenPriceMicrocredits:  input.ImageTokenPriceMicrocredits,
 			PriceConfigured:              input.PriceConfigured,
 			Enabled:                      enabled,
 			PriceVersion:                 1,
@@ -332,6 +333,12 @@ func validateChannelModelTierPricing(capability string, protocol model.ChannelIn
 	}
 	if err := validatePriceSurcharge(capability, input.Surcharge); err != nil {
 		return err
+	}
+	if input.ImageTokenPriceMicrocredits < 0 || input.ImageTokenPriceMicrocredits > maxChannelModelTokenPriceMicrocredits || input.CostPricing.ImageTokenPriceMicrocredits < 0 || input.CostPricing.ImageTokenPriceMicrocredits > maxChannelModelTokenPriceMicrocredits {
+		return BadAuthRequest("图片 Token 每百万用量价格必须在 0 到 1,000,000 积分之间")
+	}
+	if (input.ImageTokenPriceMicrocredits != 0 || input.CostPricing.ImageTokenPriceMicrocredits != 0) && (capability != "image" || strings.TrimSpace(billingMode) != "token") {
+		return BadAuthRequest("只有按 Token 计费的图片模型可以设置图片 Token 价格")
 	}
 	if billingMode != "fixed_request" && billingMode != "per_second" && billingMode != "token" {
 		return BadAuthRequest("模型计费方式仅支持按次、按秒或 Token")

@@ -130,11 +130,24 @@ func (s *Service) enrichAPICallLogPayload(log *model.ApiCallLog, payload map[str
 	if usageMetadata, ok := payload["usageMetadata"].(map[string]any); ok && log.Capability != "video" {
 		inputTokens, inputAvailable := firstInt64Value(usageMetadata, "promptTokenCount")
 		outputTokens, outputAvailable := firstInt64Value(usageMetadata, "candidatesTokenCount")
+		// Gemini 的思考 Token 不在 candidatesTokenCount 里，但按输出价计费；图片 Token 在其中，单独拆出按图片价计。
+		thoughts, _ := firstInt64Value(usageMetadata, "thoughtsTokenCount")
+		var imageTokens int64
+		if details, ok := usageMetadata["candidatesTokensDetails"].([]any); ok {
+			for _, raw := range details {
+				detail, _ := raw.(map[string]any)
+				if strings.EqualFold(stringField(detail, "modality"), "IMAGE") {
+					count, _ := firstInt64Value(detail, "tokenCount")
+					imageTokens += count
+				}
+			}
+		}
 		if inputAvailable {
 			log.InputTokens = inputTokens
 		}
 		if outputAvailable {
-			log.OutputTokens = outputTokens
+			log.OutputTokens = max(outputTokens-imageTokens, 0) + thoughts
+			log.ImageTokens = imageTokens
 		}
 		if inputAvailable || outputAvailable {
 			log.UsageAvailable = true

@@ -53,6 +53,7 @@ type ChannelModelPriceTierRequest struct {
 	InputTokenPriceMicrocredits  int64             `json:"inputTokenPriceMicrocredits"`
 	OutputTokenPriceMicrocredits int64             `json:"outputTokenPriceMicrocredits"`
 	CachedTokenPriceMicrocredits int64             `json:"cachedTokenPriceMicrocredits"`
+	ImageTokenPriceMicrocredits  int64             `json:"imageTokenPriceMicrocredits"`
 	PriceConfigured              bool              `json:"priceConfigured"`
 	Enabled                      *bool             `json:"enabled"`
 }

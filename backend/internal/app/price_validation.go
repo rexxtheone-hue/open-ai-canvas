@@ -31,7 +31,7 @@ func ValidateChannelModelPrice(billingMode string, capability string, protocol m
 		if validateTokenPrices(capability, inputPrice, outputPrice, cachedPrice) != nil {
 			return false
 		}
-		if capability == "video" {
+		if capability == "video" || capability == "image" {
 			return true
 		}
 		if capability != "" && capability != "text" {

@@ -82,6 +82,8 @@ export type ChannelModelPriceTier = {
     costSource?: CostSourcePricing;
     /** 参考素材附加费：超出免费张数的每张参考图、每秒参考视频。 */
     surcharge?: PriceSurcharge;
+    /** 图片模型按 Token 计费时，生成图片的输出 Token 单价（与文字、思考输出分开）。 */
+    imageTokenPriceMicrocredits?: number;
     id: string;
     channelModelId: string;
     selector: Record<string, string>;
@@ -109,6 +111,7 @@ export type CostSourcePricing = {
     cachedTokenPrice: number;
     extraImagePrice?: number;
     extraVideoSecondPrice?: number;
+    imageTokenPrice?: number;
 };
 
 export type PriceSurcharge = {
@@ -125,6 +128,7 @@ export type CreditCostPricing = {
     cachedTokenPriceMicrocredits: number;
     extraImagePriceMicrocredits?: number;
     extraVideoSecondPriceMicrocredits?: number;
+    imageTokenPriceMicrocredits?: number;
 };
 
 // 系统渠道模型的写入合同。标量价格只用于兼容旧管理请求；新的后台界面只提交 priceTiers。

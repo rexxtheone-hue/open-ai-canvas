@@ -161,7 +161,7 @@ func normalizeCostSource(source model.CostSourcePricing) (model.CostSourcePricin
 	if !supportedCostSourceCurrency(source.Currency) {
 		return model.CostSourcePricing{}, BadAuthRequest("成本币种仅支持积分、MYR、USD、CNY")
 	}
-	for _, price := range []int64{source.UnitPrice, source.InputTokenPrice, source.OutputTokenPrice, source.CachedTokenPrice, source.ExtraImagePrice, source.ExtraVideoSecondPrice} {
+	for _, price := range []int64{source.UnitPrice, source.InputTokenPrice, source.OutputTokenPrice, source.CachedTokenPrice, source.ExtraImagePrice, source.ExtraVideoSecondPrice, source.ImageTokenPrice} {
 		if price < 0 || price > 1_000_000_000_000_000 {
 			return model.CostSourcePricing{}, BadAuthRequest("原币成本价无效")
 		}
@@ -189,6 +189,7 @@ func (v BillingCurrencySetting) applyCostSource(cost *model.CreditCostPricing, s
 	cost.OutputTokenPriceMicrocredits = convert(source.OutputTokenPrice)
 	cost.CachedTokenPriceMicrocredits = convert(source.CachedTokenPrice)
 	cost.ExtraImagePriceMicrocredits = convert(source.ExtraImagePrice)
+	cost.ImageTokenPriceMicrocredits = convert(source.ImageTokenPrice)
 	cost.ExtraVideoSecondPriceMicrocredits = convert(source.ExtraVideoSecondPrice)
 	return nil
 }

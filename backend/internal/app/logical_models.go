@@ -85,6 +85,7 @@ type PublicLogicalModelPriceTier struct {
 	OutputTokenPriceMicrocredits int64                 `json:"outputTokenPriceMicrocredits"`
 	CachedTokenPriceMicrocredits int64                 `json:"cachedTokenPriceMicrocredits"`
 	Surcharge                    *model.PriceSurcharge `json:"surcharge,omitempty"`
+	ImageTokenPriceMicrocredits  int64                 `json:"imageTokenPriceMicrocredits,omitempty"`
 }
 
 func publicPriceSurcharge(surcharge model.PriceSurcharge) *model.PriceSurcharge {

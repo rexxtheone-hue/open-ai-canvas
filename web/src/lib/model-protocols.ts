@@ -19,7 +19,7 @@ export function isVolcengineArkVideoProtocol(protocol?: string) {
 }
 
 export function modelProtocolSupportsTokenBilling(capability?: string, _protocol?: string) {
-    return capability === "text" || capability === "video";
+    return capability === "text" || capability === "video" || capability === "image";
 }
 
 export function protocolForModelCatalog(_endpointTypes: string[] = []): ModelProtocol | undefined {

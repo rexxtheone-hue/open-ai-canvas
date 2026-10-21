@@ -150,6 +150,7 @@ type BillingUsage struct {
 	InputTokens  int64
 	OutputTokens int64
 	CachedTokens int64
+	ImageTokens  int64
 }
 
 func (r *Repository) BillingUsage(orderID string) (*BillingUsage, error) {
@@ -168,12 +169,14 @@ func billingUsage(db *gorm.DB, orderID string) (*BillingUsage, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &BillingUsage{InputTokens: log.InputTokens, OutputTokens: log.OutputTokens, CachedTokens: log.CachedTokens}, nil
+	return &BillingUsage{InputTokens: log.InputTokens, OutputTokens: log.OutputTokens, CachedTokens: log.CachedTokens, ImageTokens: log.ImageTokens}, nil
 }
 
 const (
 	billingUsageSourceProvider     = "provider"
 	billingUsageSourceVideoFormula = "video_formula"
+	// billingUsageSourceReservedEstimate：图片订单没有回传用量，按预授权金额结算。
+	billingUsageSourceReservedEstimate = "reserved_estimate"
 )
 
 func tokenSettlementUsage(db *gorm.DB, order model.BillingOrder) (*BillingUsage, string, error) {
@@ -271,6 +274,11 @@ func (r *Repository) settleBillingOrder(id string, providerRequestID string, aud
 		}
 		if order.BillingMode == "token" && !zeroPricedTokenOrder(order) {
 			usage, usageSource, err := tokenSettlementUsage(tx, order)
+			// 图片供应商没有回传用量时，按提交时的预估结算，不让订单卡住。
+			reservedEstimate := false
+			if err != nil && order.Capability == "image" && errors.Is(err, ErrBillingUsageUnavailable) {
+				usage, usageSource, err, reservedEstimate = &BillingUsage{}, billingUsageSourceReservedEstimate, nil, true
+			}
 			if err != nil {
 				return err
 			}
@@ -280,9 +288,12 @@ func (r *Repository) settleBillingOrder(id string, providerRequestID string, aud
 			if reserved <= 0 {
 				reserved = order.AmountMicrocredits
 			}
-			actual, err := tokenUsageAmount(order, usage)
-			if err != nil {
-				return err
+			actual := reserved - order.SurchargeMicrocredits
+			if !reservedEstimate {
+				actual, err = tokenUsageAmount(order, usage)
+				if err != nil {
+					return err
+				}
 			}
 			actual += order.SurchargeMicrocredits
 			chargeCapped := billingChargeLimitApplies(order) && actual > order.ChargeLimitMicrocredits
@@ -313,7 +324,7 @@ func (r *Repository) settleBillingOrder(id string, providerRequestID string, aud
 			now := time.Now()
 			updates := map[string]any{"status": model.BillingStatusSettled, "settled_at": &now, "updated_at": now,
 				"actual_amount_microcredits": actual, "refunded_amount_microcredits": refund,
-				"input_tokens": usage.InputTokens, "output_tokens": usage.OutputTokens, "cached_tokens": usage.CachedTokens,
+				"input_tokens": usage.InputTokens, "output_tokens": usage.OutputTokens, "cached_tokens": usage.CachedTokens, "image_tokens": usage.ImageTokens,
 				"usage_available": usageSource == billingUsageSourceProvider, "usage_source": usageSource}
 			if providerRequestID != "" {
 				updates["provider_request_id"] = providerRequestID
@@ -620,7 +631,7 @@ func (r *Repository) RestoreRefundedBillingOrder(id string, providerRequestID st
 }
 
 func zeroPricedTokenOrder(order model.BillingOrder) bool {
-	return order.BillingMode == "token" && order.SurchargeMicrocredits == 0 &&
+	return order.BillingMode == "token" && order.SurchargeMicrocredits == 0 && order.ImageTokenPriceMicrocredits == 0 &&
 		order.InputTokenPriceMicrocredits == 0 &&
 		order.OutputTokenPriceMicrocredits == 0 &&
 		order.CachedTokenPriceMicrocredits == 0
@@ -698,6 +709,7 @@ func tokenUsageAmount(order model.BillingOrder, usage *BillingUsage) (int64, err
 		terms = append(terms,
 			kernel.TokenBillingTerm{Tokens: input, PriceMicrocredits: order.InputTokenPriceMicrocredits},
 			kernel.TokenBillingTerm{Tokens: usage.CachedTokens, PriceMicrocredits: order.CachedTokenPriceMicrocredits},
+			kernel.TokenBillingTerm{Tokens: usage.ImageTokens, PriceMicrocredits: order.ImageTokenPriceMicrocredits},
 		)
 	}
 	amount, err := kernel.TokenBillingAmount(order.MultiplierBasisPoints, terms...)

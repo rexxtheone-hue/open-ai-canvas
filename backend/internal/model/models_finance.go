@@ -66,6 +66,9 @@ type BillingOrder struct {
 	InputTokens                  int64 `json:"inputTokens"`
 	OutputTokens                 int64 `json:"outputTokens"`
 	CachedTokens                 int64 `json:"cachedTokens"`
+	// 图片模型的图片输出 Token 单独计价（Gemini 图片 Token 与文字、思考 Token 单价不同）。
+	ImageTokenPriceMicrocredits int64 `json:"imageTokenPriceMicrocredits" gorm:"not null;default:0"`
+	ImageTokens                 int64 `json:"imageTokens" gorm:"not null;default:0"`
 	// VideoFormulaTokens 固化提交时的视频公式用量，不含预授权余量；旧订单保持 0，不反推历史用量。
 	VideoFormulaTokens int64         `json:"videoFormulaTokens" gorm:"not null;default:0"`
 	UsageSource        string        `json:"usageSource,omitempty" gorm:"size:32;not null;default:''"`

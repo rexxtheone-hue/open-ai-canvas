@@ -186,12 +186,18 @@ export function PriceTierFields({
                                         <Form.Item className="admin-price-tier-unit-price mb-0" name={[index, "inputTokenPrice"]} label="输入 / 百万 Token" rules={[{ required: true, message: "请输入输入 Token 价格" }]}>
                                             <InputNumber className="w-full" min={0} max={1_000_000} precision={6} step={0.1} />
                                         </Form.Item>
-                                        <Form.Item className="admin-price-tier-unit-price mb-0" name={[index, "outputTokenPrice"]} label="输出 / 百万 Token" rules={[{ required: true, message: "请输入输出 Token 价格" }]}>
+                                        <Form.Item className="admin-price-tier-unit-price mb-0" name={[index, "outputTokenPrice"]} label={isImage ? "文字与思考输出 / 百万 Token" : "输出 / 百万 Token"} rules={[{ required: true, message: "请输入输出 Token 价格" }]}>
                                             <InputNumber className="w-full" min={0} max={1_000_000} precision={6} step={0.1} />
                                         </Form.Item>
-                                        <Form.Item className="admin-price-tier-unit-price mb-0" name={[index, "cachedTokenPrice"]} label="缓存 / 百万 Token" rules={[{ required: true, message: "请输入缓存 Token 价格" }]}>
-                                            <InputNumber className="w-full" min={0} max={1_000_000} precision={6} step={0.1} />
-                                        </Form.Item>
+                                        {isImage ? (
+                                            <Form.Item className="admin-price-tier-unit-price mb-0" name={[index, "imageTokenPrice"]} label="图片输出 / 百万 Token" rules={[{ required: true, message: "请输入图片 Token 价格" }]} initialValue={0}>
+                                                <InputNumber className="w-full" min={0} max={1_000_000} precision={6} step={0.1} />
+                                            </Form.Item>
+                                        ) : (
+                                            <Form.Item className="admin-price-tier-unit-price mb-0" name={[index, "cachedTokenPrice"]} label="缓存 / 百万 Token" rules={[{ required: true, message: "请输入缓存 Token 价格" }]}>
+                                                <InputNumber className="w-full" min={0} max={1_000_000} precision={6} step={0.1} />
+                                            </Form.Item>
+                                        )}
                                     </div>
                                 )
                             ) : (
@@ -200,6 +206,12 @@ export function PriceTierFields({
                                 </Form.Item>
                             )}
                         </div>
+                        {isImage && billingMode === "token" ? (
+                            <div className="admin-price-tier-helper" role="note">
+                                <strong>图片 Token 计费</strong>
+                                <span>按供应商回传的实际用量结算：输入（提示词与参考图）、文字与思考输出、生成的图片分别计价。下单时按分辨率预估（1K 1,120、2K 1,680、4K 3,780 图片 Token，另预留 2,000 思考 Token），结算后多退少补。</span>
+                            </div>
+                        ) : null}
                         {isVideo && billingMode === "token" ? (
                             <div className="admin-price-tier-helper" role="note">
                                 <strong>视频 Token 计费</strong>
@@ -225,7 +237,7 @@ export function PriceTierFields({
                                 </div>
                             </div>
                         ) : null}
-                        <CreditCostFields index={index} form={form} billingMode={billingMode} isVideo={isVideo} />
+                        <CreditCostFields index={index} form={form} billingMode={billingMode} isVideo={isVideo} isImage={isImage} />
                     </section>
                 </div>
                 {staleTierUpstream ? (

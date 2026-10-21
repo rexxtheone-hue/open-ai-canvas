@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { costCurrencyOptions, costCurrencySymbol, costSourceToCredits, useBillingCurrency, type CostCurrency } from "./billing-currency";
 import type { ChannelModelFormValues } from "./channel-model-editor-form";
 
-export function CreditCostFields({ index, form, billingMode, isVideo }: { index: number; form: FormInstance<ChannelModelFormValues>; billingMode: string; isVideo: boolean }) {
+export function CreditCostFields({ index, form, billingMode, isVideo, isImage = false }: { index: number; form: FormInstance<ChannelModelFormValues>; billingMode: string; isVideo: boolean; isImage?: boolean }) {
     const configured = Form.useWatch(["priceTiers", index, "costConfigured"], form) === true;
     const currency: CostCurrency = Form.useWatch(["priceTiers", index, "costCurrency"], form) || "CREDIT";
     const billing = useBillingCurrency();
@@ -12,11 +12,17 @@ export function CreditCostFields({ index, form, billingMode, isVideo }: { index:
         billingMode === "token"
             ? isVideo
                 ? [["costOutputTokenPrice", `${unit} / 百万视频 Token`]]
-                : [
-                      ["costInputTokenPrice", `输入 ${unit} / 百万 Token`],
-                      ["costOutputTokenPrice", `输出 ${unit} / 百万 Token`],
-                      ["costCachedTokenPrice", `缓存 ${unit} / 百万 Token`],
-                  ]
+                : isImage
+                  ? [
+                        ["costInputTokenPrice", `输入 ${unit} / 百万 Token`],
+                        ["costOutputTokenPrice", `文字与思考输出 ${unit} / 百万 Token`],
+                        ["costImageTokenPrice", `图片输出 ${unit} / 百万 Token`],
+                    ]
+                  : [
+                        ["costInputTokenPrice", `输入 ${unit} / 百万 Token`],
+                        ["costOutputTokenPrice", `输出 ${unit} / 百万 Token`],
+                        ["costCachedTokenPrice", `缓存 ${unit} / 百万 Token`],
+                    ]
             : [["costUnitPrice", billingMode === "per_second" ? `${unit} / 秒` : `${unit} / 次`]];
     if (isVideo) {
         fields.push(["costExtraImagePrice", `超出免费张数后 ${unit} / 张参考图`], ["costExtraVideoSecondPrice", `${unit} / 秒参考视频`]);

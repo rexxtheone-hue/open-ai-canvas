@@ -91,6 +91,7 @@ type ChannelModelPriceTier struct {
 	InputTokenPriceMicrocredits  int64             `json:"inputTokenPriceMicrocredits"`
 	OutputTokenPriceMicrocredits int64             `json:"outputTokenPriceMicrocredits"`
 	CachedTokenPriceMicrocredits int64             `json:"cachedTokenPriceMicrocredits"`
+	ImageTokenPriceMicrocredits  int64             `json:"imageTokenPriceMicrocredits" gorm:"not null;default:0"`
 	PriceConfigured              bool              `json:"priceConfigured" gorm:"index"`
 	Enabled                      bool              `json:"enabled" gorm:"index"`
 	PriceVersion                 int64             `json:"priceVersion"`
@@ -134,6 +135,7 @@ type ApiCallLog struct {
 	InputTokens            int64         `json:"inputTokens"`
 	OutputTokens           int64         `json:"outputTokens"`
 	CachedTokens           int64         `json:"cachedTokens"`
+	ImageTokens            int64         `json:"imageTokens" gorm:"not null;default:0"`
 	UsageAvailable         bool          `json:"usageAvailable"`
 	MediaCount             int           `json:"mediaCount"`
 	MediaPreviewURL        string        `json:"mediaPreviewUrl,omitempty" gorm:"-"`
