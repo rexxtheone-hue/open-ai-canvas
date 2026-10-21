@@ -180,3 +180,25 @@ func TestCloudwiseUnifiedVideoRejectsWan3WithProtocolHint(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestCloudwiseViduRoutesFirstFrameAndReferenceRequests(t *testing.T) {
+	create, body := cloudwiseBody(t, "cloudwise-vidu", GenerationRequest{Model: "viduq4", Prompt: "让画面动起来", AspectRatio: "16:9", Resolution: "720p", Duration: 5, GenerateAudio: true,
+		Images: []MediaReference{{URL: "https://x/first.png", Role: "first_frame"}}})
+	if create.Path != "/api/ent/v2/img2video" || !create.OriginPath {
+		t.Fatalf("first frame create = %#v", create)
+	}
+	assertJSONEqual(t, body, `{"model":"viduq4","prompt":"让画面动起来","images":["https://x/first.png"],"duration":5,"aspect_ratio":"16:9","resolution":"720p","audio":true}`)
+
+	create, body = cloudwiseBody(t, "cloudwise-vidu", GenerationRequest{Model: "viduq4", Prompt: "图1在图2的场景里说话", AspectRatio: "3:4", Resolution: "2k", Duration: 8,
+		Images: []MediaReference{{URL: "https://x/a.png"}, {URL: "https://x/b.png"}}, Audios: []MediaReference{{URL: "https://x/v.mp3"}}})
+	if create.Path != "/api/ent/v2/reference2video" {
+		t.Fatalf("reference create = %#v", create)
+	}
+	assertJSONEqual(t, body, `{"model":"viduq4","prompt":"图1在图2的场景里说话","images":["https://x/a.png","https://x/b.png"],"sounds":["https://x/v.mp3"],"duration":8,"aspect_ratio":"3:4","resolution":"2K","audio":false}`)
+
+	assertCloudwiseLifecycle(t, "cloudwise-vidu", "", "/api/ent/v2/tasks/t1/creations",
+		`{"task_id":"t1","state":"created","model":"viduq4"}`,
+		`{"code":"10000","data":{"id":"t1","state":"processing","progress":40},"success":true}`,
+		`{"code":"10000","data":{"id":"t1","state":"success","creations":[{"id":"c1","url":"https://download.cloudwise.ai/arts/1"}]},"success":true,"taskStatus":"COMPLETED"}`,
+		`{"code":"10000","data":{"id":"t1","state":"failed","err_msg":"content blocked"},"success":true}`, "video")
+}

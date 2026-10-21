@@ -16,6 +16,7 @@
 | Cloudwise MiniMax H3 | `POST /api/v2/video_generation`，查询 `GET /api/v2/query/video_generation/{id}` | MiniMax-H3、MiniMax-H3-Max |
 | Cloudwise 统一视频 | `POST /api/v1/video-generation/submit`，查询 `GET /api/v1/video-generation/video-content/{id}` | wan2.5/2.6（不含万相 3.0）、seedance-1.x、veo-3.1、sora-2 |
 | Cloudwise 万相 3.0 | `POST /api/v1/services/aigc/video-generation/video-synthesis`（`X-DashScope-Async: enable`），查询 `GET /api/v1/tasks/{id}` | wan3.0-video、wan3.0-video-prime |
+| Cloudwise Vidu | 图生视频 `POST /api/ent/v2/img2video`，参考生视频 `POST /api/ent/v2/reference2video`，查询 `GET /api/ent/v2/tasks/{id}/creations` | viduq4 |
 | Cloudwise 统一图片 | `POST /api/v1/image-generation`（同步返回 `image_url`） | seedream-4.0/4.5、gemini 图片模型 |
 
 ## 字段映射要点
@@ -25,6 +26,7 @@
 - MiniMax H3：`content` 数组（text + image_url/video_url/audio_url，role 原样传递）；分辨率 1080p 及以上→`2K`，其余→`768P`（H3-Max 为 `768P`/`480P`）；结果在 `task.content.url`。
 - 统一视频：`content.prompt/image_url/image_url_last/video_url/audio_url`；万相文生视频的 `resolution` 按分辨率与比例换算成 `1280*720` 这类尺寸，Sora 换算成 `1280x720`；状态在 `taskStatus`，视频在 `video_url`。
 - 万相 3.0：请求体与 DashScope 官方相同（`input.prompt` + `input.media[{type,url}]`，`parameters.resolution/ratio/duration/audio/prompt_extend`）；查询结果读 `data.output.task_status` / `data.output.video_url`。
+- Vidu Q4：只有一张图且没有参考音频时走图生视频（首帧），其它组合走参考生视频（1–12 张图、0–3 段音频）；不支持纯文字和参考视频。分辨率 2K、4K 按大写发送；结果在 `data.creations[0].url`，`data.state` 为 success 时完成。
 - 统一图片：一张参考图发字符串、多张发数组；Seedream 的 `size` 为 `1K/2K/4K`。
 - 每个协议的 `providerOptions.<协议 ID>.body` 会合并进请求体，用于补充或覆盖字段。
 
@@ -44,9 +46,9 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "cloudwise-maas",
   "name": "Cloudwise MaaS",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "Cloudwise / 影策",
-  "description": "Cloudwise MaaS（api.cloudwise.ai）的视频与图片协议：Seedance 2.x、Kling、MiniMax H3、万相 3.0、统一视频与统一图片接口。",
+  "description": "Cloudwise MaaS（api.cloudwise.ai）的视频与图片协议：Seedance 2.x、Kling、MiniMax H3、万相 3.0、Vidu Q4、统一视频与统一图片接口。",
   "documentation": "<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>",
   "permissions": [
     "generation.run",
@@ -3661,6 +3663,578 @@
                 "$ref": "response.usage"
               }
             ]
+          },
+          "resultEphemeral": true
+        }
+      },
+      {
+        "id": "cloudwise-vidu",
+        "label": "Cloudwise Vidu",
+        "capabilities": [
+          "video"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation",
+          "agent"
+        ],
+        "baseUrl": "https://api.cloudwise.ai",
+        "requiresPublicMediaUrls": true,
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey"
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "Cloudwise 模型名：viduq4。"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt",
+            "description": "提示词，最多 5000 字。"
+          },
+          {
+            "name": "images",
+            "type": "media[]",
+            "required": true,
+            "mapping": "images",
+            "description": "一张首帧图（图生视频），或 1–12 张参考图（参考生视频）。"
+          },
+          {
+            "name": "audios",
+            "type": "media[]",
+            "required": false,
+            "mapping": "sounds",
+            "description": "参考音频 0–3 段，每段 3–12 秒 mp3，仅参考生视频。"
+          },
+          {
+            "name": "aspectRatio",
+            "type": "string",
+            "required": false,
+            "mapping": "aspect_ratio",
+            "description": "画面比例：16:9、9:16、1:1、3:4、4:3。"
+          },
+          {
+            "name": "resolution",
+            "type": "string",
+            "required": false,
+            "mapping": "resolution",
+            "description": "540p、720p、1080p、2K、4K。"
+          },
+          {
+            "name": "duration",
+            "type": "integer",
+            "required": false,
+            "mapping": "duration",
+            "description": "时长 3–16 秒。"
+          },
+          {
+            "name": "generateAudio",
+            "type": "boolean",
+            "required": false,
+            "mapping": "audio",
+            "description": "是否同步生成声音（Q4 默认开启）。"
+          }
+        ],
+        "validations": [
+          {
+            "assert": {
+              "$gt": [
+                {
+                  "$len": {
+                    "$ref": "request.images"
+                  }
+                },
+                0
+              ]
+            },
+            "message": "Vidu Q4 需要至少一张图片，不支持纯文字生成视频"
+          },
+          {
+            "assert": {
+              "$lte": [
+                {
+                  "$len": {
+                    "$ref": "request.images"
+                  }
+                },
+                12
+              ]
+            },
+            "message": "Vidu Q4 最多支持 12 张参考图"
+          },
+          {
+            "assert": {
+              "$lte": [
+                {
+                  "$len": {
+                    "$ref": "request.audios"
+                  }
+                },
+                3
+              ]
+            },
+            "message": "Vidu Q4 最多支持 3 段参考音频"
+          },
+          {
+            "assert": {
+              "$eq": [
+                {
+                  "$len": {
+                    "$ref": "request.videos"
+                  }
+                },
+                0
+              ]
+            },
+            "message": "Vidu Q4 不支持参考视频"
+          }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/api/ent/v2/reference2video",
+          "pathTemplate": {
+            "$if": {
+              "condition": {
+                "$and": [
+                  {
+                    "$eq": [
+                      {
+                        "$len": {
+                          "$ref": "request.images"
+                        }
+                      },
+                      1
+                    ]
+                  },
+                  {
+                    "$eq": [
+                      {
+                        "$len": {
+                          "$ref": "request.audios"
+                        }
+                      },
+                      0
+                    ]
+                  },
+                  {
+                    "$not": {
+                      "$in": [
+                        {
+                          "$first": {
+                            "$map": {
+                              "from": {
+                                "$ref": "request.images"
+                              },
+                              "as": "media",
+                              "in": {
+                                "$ref": "media.role"
+                              }
+                            }
+                          }
+                        },
+                        [
+                          "reference_image",
+                          "subject_reference",
+                          "style_reference"
+                        ]
+                      ]
+                    }
+                  }
+                ]
+              },
+              "then": "/api/ent/v2/img2video",
+              "else": "/api/ent/v2/reference2video"
+            }
+          },
+          "originPath": true,
+          "contentType": "application/json",
+          "body": {
+            "$merge": [
+              {
+                "model": {
+                  "$ref": "request.model"
+                },
+                "prompt": {
+                  "$ref": "request.prompt"
+                },
+                "images": {
+                  "$if": {
+                    "condition": {
+                      "$and": [
+                        {
+                          "$eq": [
+                            {
+                              "$len": {
+                                "$ref": "request.images"
+                              }
+                            },
+                            1
+                          ]
+                        },
+                        {
+                          "$eq": [
+                            {
+                              "$len": {
+                                "$ref": "request.audios"
+                              }
+                            },
+                            0
+                          ]
+                        },
+                        {
+                          "$not": {
+                            "$in": [
+                              {
+                                "$first": {
+                                  "$map": {
+                                    "from": {
+                                      "$ref": "request.images"
+                                    },
+                                    "as": "media",
+                                    "in": {
+                                      "$ref": "media.role"
+                                    }
+                                  }
+                                }
+                              },
+                              [
+                                "reference_image",
+                                "subject_reference",
+                                "style_reference"
+                              ]
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "then": [
+                      {
+                        "$first": {
+                          "$map": {
+                            "from": {
+                              "$sortByOrder": {
+                                "$ref": "request.images"
+                              }
+                            },
+                            "as": "media",
+                            "in": {
+                              "$ref": "media.value"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "else": {
+                      "$map": {
+                        "from": {
+                          "$sortByOrder": {
+                            "$ref": "request.images"
+                          }
+                        },
+                        "as": "media",
+                        "in": {
+                          "$ref": "media.value"
+                        }
+                      }
+                    }
+                  }
+                },
+                "sounds": {
+                  "$omitEmpty": {
+                    "$if": {
+                      "condition": {
+                        "$and": [
+                          {
+                            "$eq": [
+                              {
+                                "$len": {
+                                  "$ref": "request.images"
+                                }
+                              },
+                              1
+                            ]
+                          },
+                          {
+                            "$eq": [
+                              {
+                                "$len": {
+                                  "$ref": "request.audios"
+                                }
+                              },
+                              0
+                            ]
+                          },
+                          {
+                            "$not": {
+                              "$in": [
+                                {
+                                  "$first": {
+                                    "$map": {
+                                      "from": {
+                                        "$ref": "request.images"
+                                      },
+                                      "as": "media",
+                                      "in": {
+                                        "$ref": "media.role"
+                                      }
+                                    }
+                                  }
+                                },
+                                [
+                                  "reference_image",
+                                  "subject_reference",
+                                  "style_reference"
+                                ]
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "then": [],
+                      "else": {
+                        "$map": {
+                          "from": {
+                            "$sortByOrder": {
+                              "$ref": "request.audios"
+                            }
+                          },
+                          "as": "media",
+                          "in": {
+                            "$ref": "media.value"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "duration": {
+                  "$omitEmpty": {
+                    "$if": {
+                      "condition": {
+                        "$gt": [
+                          {
+                            "$ref": "request.duration"
+                          },
+                          0
+                        ]
+                      },
+                      "then": {
+                        "$ref": "request.duration"
+                      }
+                    }
+                  }
+                },
+                "aspect_ratio": {
+                  "$omitEmpty": {
+                    "$ref": "request.aspectRatio"
+                  }
+                },
+                "resolution": {
+                  "$omitEmpty": {
+                    "$switch": {
+                      "cases": [
+                        {
+                          "when": {
+                            "$in": [
+                              {
+                                "$lower": {
+                                  "$ref": "request.resolution"
+                                }
+                              },
+                              [
+                                "2k",
+                                "1440p"
+                              ]
+                            ]
+                          },
+                          "then": "2K"
+                        },
+                        {
+                          "when": {
+                            "$in": [
+                              {
+                                "$lower": {
+                                  "$ref": "request.resolution"
+                                }
+                              },
+                              [
+                                "4k",
+                                "2160p"
+                              ]
+                            ]
+                          },
+                          "then": "4K"
+                        }
+                      ],
+                      "default": {
+                        "$omitEmpty": {
+                          "$lower": {
+                            "$ref": "request.resolution"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "audio": {
+                  "$toBool": {
+                    "$ref": "request.generateAudio"
+                  }
+                }
+              },
+              {
+                "$ref": "request.providerOptions.cloudwise-vidu.body"
+              }
+            ]
+          }
+        },
+        "poll": {
+          "method": "GET",
+          "path": "/api/ent/v2/tasks/{{taskId}}/creations",
+          "originPath": true
+        },
+        "response": {
+          "taskId": {
+            "$coalesce": [
+              {
+                "$ref": "response.task_id"
+              },
+              {
+                "$ref": "response.data.task_id"
+              },
+              {
+                "$ref": "response.id"
+              },
+              {
+                "$ref": "response.data.id"
+              },
+              {
+                "$ref": "taskId"
+              }
+            ]
+          },
+          "status": {
+            "$switch": {
+              "cases": [
+                {
+                  "when": {
+                    "$eq": [
+                      {
+                        "$ref": "response.success"
+                      },
+                      false
+                    ]
+                  },
+                  "then": "failed"
+                },
+                {
+                  "when": {
+                    "$eq": [
+                      {
+                        "$lower": {
+                          "$coalesce": [
+                            {
+                              "$ref": "response.data.state"
+                            },
+                            {
+                              "$ref": "response.state"
+                            },
+                            "created"
+                          ]
+                        }
+                      },
+                      "success"
+                    ]
+                  },
+                  "then": "succeeded"
+                },
+                {
+                  "when": {
+                    "$eq": [
+                      {
+                        "$lower": {
+                          "$coalesce": [
+                            {
+                              "$ref": "response.data.state"
+                            },
+                            {
+                              "$ref": "response.state"
+                            },
+                            "created"
+                          ]
+                        }
+                      },
+                      "failed"
+                    ]
+                  },
+                  "then": "failed"
+                },
+                {
+                  "when": {
+                    "$eq": [
+                      {
+                        "$lower": {
+                          "$coalesce": [
+                            {
+                              "$ref": "response.data.state"
+                            },
+                            {
+                              "$ref": "response.state"
+                            },
+                            "created"
+                          ]
+                        }
+                      },
+                      "processing"
+                    ]
+                  },
+                  "then": "running"
+                }
+              ],
+              "default": "pending"
+            }
+          },
+          "message": {
+            "$coalesce": [
+              {
+                "$omitEmpty": {
+                  "$ref": "response.data.err_msg"
+                }
+              },
+              {
+                "$ref": "response.errorMessage"
+              },
+              {
+                "$ref": "response.message"
+              }
+            ]
+          },
+          "videos": {
+            "$first": {
+              "$map": {
+                "from": {
+                  "$coalesce": [
+                    {
+                      "$ref": "response.data.creations"
+                    },
+                    []
+                  ]
+                },
+                "as": "item",
+                "in": {
+                  "$ref": "item.url"
+                }
+              }
+            }
           },
           "resultEphemeral": true
         }
