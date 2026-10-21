@@ -116,6 +116,13 @@ export function findCanvasNodeAsset(assets: Asset[], node: CanvasNodeData, canva
     });
 }
 
+/** 在任务已物化的素材里找出这个节点对应的那一个（按资源地址匹配，单输出任务直接取唯一素材）。 */
+export function findMaterializedCanvasNodeAsset(assets: Asset[], node: CanvasNodeData, materializedIds: readonly string[]) {
+    const candidates = assets.filter((asset) => materializedIds.includes(asset.id));
+    const nodeResourceKey = node.metadata?.storageKey;
+    return candidates.find((asset) => nodeResourceKey && (asset.metadata?.resourceKey === nodeResourceKey || assetStorageKey(asset) === nodeResourceKey)) ?? (candidates.length === 1 ? candidates[0] : undefined);
+}
+
 function sameAssetResource(asset: Asset, node: CanvasNodeData) {
     const nodeResourceKey = node.metadata?.storageKey;
     const assetResourceKey = typeof asset.metadata?.resourceKey === "string" ? asset.metadata.resourceKey : assetStorageKey(asset);

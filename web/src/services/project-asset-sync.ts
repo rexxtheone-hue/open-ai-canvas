@@ -1,10 +1,10 @@
-import { canvasNodeToAsset, declaredCanvasNodeAssetCategory, findCanvasNodeAsset, requiresMaterializedCanvasAsset, type CanvasAssetSource } from "@/lib/canvas/canvas-node-asset";
+import { canvasNodeToAsset, declaredCanvasNodeAssetCategory, findCanvasNodeAsset, findMaterializedCanvasNodeAsset, requiresMaterializedCanvasAsset, type CanvasAssetSource } from "@/lib/canvas/canvas-node-asset";
 import { canvasVideoAssetPreviewUrl } from "@/lib/canvas/canvas-media-preview";
 import { readImageMeta } from "@/lib/image-utils";
 import { parseBackendGenerationResult, type BackendGenerationResult } from "@/services/api/generation-task";
 import { ApiError } from "@/services/api/request";
 import { linkProjectAsset, moveProjectAsset, updateProjectAssetCategory } from "@/services/api/projects";
-import type { GenerationTask, GenerationTaskOutput } from "@/services/api/task-center";
+import { queryGenerationTask, type GenerationTask, type GenerationTaskOutput } from "@/services/api/task-center";
 import { getMediaBlob, resolveMediaUrl, setMediaBlob } from "@/services/file-storage";
 import { createGenerationTaskMaterializer, createIdempotentMaterializeOutput, type MaterializeGenerationTaskOutput } from "@/services/generation-task-materializer";
 import { withGenerationArtifactCommitLock } from "@/services/generation-asset-repository";
@@ -104,6 +104,18 @@ async function persistCanvasNodeAsset(options: EnsureCanvasNodeAssetOptions): Pr
         await loadAssetsForUse([options.node.metadata.assetId]);
         throwIfAborted(options.signal);
         asset = findCanvasNodeAsset(useAssetStore.getState().assets, options.node, options.canvasId, options.taskId);
+    }
+    const generationTaskId = options.taskId || options.node.metadata?.taskId;
+    if (!asset && generationTaskId && requiresMaterializedCanvasAsset(options.node, options.taskId)) {
+        // 生成结果的素材记录可能还没载入本地（刷新页面后素材按需加载）：读取任务并登记，而不是报错。
+        const task = await queryGenerationTask(generationTaskId, { signal: options.signal });
+        const materialized = await materializeGenerationTaskAssets(task, options.signal);
+        const materializedIds = (materialized.outputs || []).flatMap((output) => (output.materializedAssetId ? [output.materializedAssetId] : []));
+        const missing = materializedIds.filter((id) => !useAssetStore.getState().assets.some((item) => item.id === id));
+        if (missing.length) await loadAssetsForUse(missing);
+        throwIfAborted(options.signal);
+        const assets = useAssetStore.getState().assets;
+        asset = findCanvasNodeAsset(assets, options.node, options.canvasId, options.taskId) || findMaterializedCanvasNodeAsset(assets, options.node, materializedIds);
     }
     const declaredCategory = options.category || declaredCanvasNodeAssetCategory(options.node);
     let created = false;
