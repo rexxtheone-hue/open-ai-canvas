@@ -1,0 +1,226 @@
+/* OmniMuse 品牌加载页：深色星空底、发光标志、渐变光环与进度条。不跟随明暗主题，首屏始终是品牌画面。 */
+.brand-loader {
+    --brand-cyan: #22d3ee;
+    --brand-violet: #8b5cf6;
+    --brand-pink: #f472d0;
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background:
+        radial-gradient(60% 50% at 50% 42%, rgba(76, 58, 200, 0.28), transparent 70%), radial-gradient(40% 35% at 30% 70%, rgba(34, 211, 238, 0.1), transparent 70%), radial-gradient(40% 35% at 72% 68%, rgba(244, 114, 208, 0.1), transparent 70%), #05061a;
+    color: #f5f6ff;
+    animation: brand-loader-in 420ms ease-out both;
+}
+
+.brand-loader::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.55) 0.6px, transparent 0.6px);
+    background-size: 46px 46px;
+    mask-image: radial-gradient(55% 55% at 50% 45%, black, transparent);
+    opacity: 0.18;
+}
+
+.brand-loader-stage {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+    padding: 24px;
+    text-align: center;
+}
+
+.brand-loader-emblem {
+    position: relative;
+    display: grid;
+    width: 168px;
+    height: 168px;
+    place-items: center;
+}
+
+.brand-loader-halo {
+    position: absolute;
+    inset: 22px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, var(--brand-cyan), var(--brand-violet), var(--brand-pink), var(--brand-cyan));
+    filter: blur(28px);
+    opacity: 0.55;
+    animation:
+        brand-loader-spin 6s linear infinite,
+        brand-loader-breathe 2.8s ease-in-out infinite;
+}
+
+.brand-loader-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent 0deg, transparent 200deg, var(--brand-cyan) 260deg, var(--brand-violet) 310deg, var(--brand-pink) 360deg);
+    mask: radial-gradient(farthest-side, transparent calc(100% - 2px), black calc(100% - 1.5px));
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), black calc(100% - 1.5px));
+    animation: brand-loader-spin 1.6s linear infinite;
+}
+
+.brand-loader-ring::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: -3px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 12px 3px var(--brand-pink);
+    transform: translateY(-50%);
+}
+
+.brand-loader-track {
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+}
+
+.brand-loader-mark {
+    position: relative;
+    display: grid;
+    width: 92px;
+    height: 92px;
+    place-items: center;
+    filter: drop-shadow(0 0 18px rgba(139, 92, 246, 0.55));
+    animation: brand-loader-float 3.2s ease-in-out infinite;
+}
+
+.brand-loader-mark img,
+.brand-loader-mark .brand-loader-mark-image {
+    width: 92px;
+    height: 92px;
+    object-fit: contain;
+}
+
+.brand-loader-name {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    background: linear-gradient(90deg, #ffffff 0%, #ffffff 45%, var(--brand-violet) 62%, var(--brand-pink) 80%, var(--brand-cyan) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.brand-loader-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-top: -14px;
+}
+
+.brand-loader-copy strong {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(245, 246, 255, 0.92);
+}
+
+.brand-loader-copy span {
+    font-size: 12px;
+    color: rgba(245, 246, 255, 0.5);
+}
+
+.brand-loader-progress {
+    position: relative;
+    width: 168px;
+    height: 3px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.brand-loader-progress i {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 45%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--brand-cyan), var(--brand-violet), var(--brand-pink));
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.8);
+    animation: brand-loader-progress 1.5s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes brand-loader-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes brand-loader-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes brand-loader-breathe {
+    0%,
+    100% {
+        opacity: 0.4;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+@keyframes brand-loader-float {
+    0%,
+    100% {
+        transform: translateY(0) scale(1);
+    }
+    50% {
+        transform: translateY(-4px) scale(1.03);
+    }
+}
+
+@keyframes brand-loader-progress {
+    0% {
+        transform: translateX(-110%);
+    }
+    100% {
+        transform: translateX(260%);
+    }
+}
+
+@media (max-width: 480px) {
+    .brand-loader-emblem {
+        width: 140px;
+        height: 140px;
+    }
+    .brand-loader-mark,
+    .brand-loader-mark img,
+    .brand-loader-mark .brand-loader-mark-image {
+        width: 76px;
+        height: 76px;
+    }
+    .brand-loader-name {
+        font-size: 22px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .brand-loader,
+    .brand-loader-halo,
+    .brand-loader-ring,
+    .brand-loader-mark,
+    .brand-loader-progress i {
+        animation: none;
+    }
+    .brand-loader-progress i {
+        width: 100%;
+        opacity: 0.6;
+    }
+}

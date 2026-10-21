@@ -113,9 +113,11 @@ describe("workspace route loading", () => {
         const loader = source("../src/components/ui/aceternity/full-screen-loader.tsx");
         const css = source("../src/styles/globals.css");
 
-        expect(loader).toContain("full-screen-loader-scene");
-        expect(loader).toContain("full-screen-loader-guide");
+        const brandCss = source("../src/components/ui/aceternity/brand-loader.css");
+        expect(loader).toContain("brand-loader-emblem");
+        expect(loader).toContain("brand-loader-progress");
         expect(loader).toContain("LoadingSignal");
+        expect(brandCss).toContain("@media (prefers-reduced-motion: reduce)");
         expect(loader).not.toContain("YINGCE STUDIO");
         expect(loader).not.toContain("loading-cue");
         expect(css).toContain("@keyframes loading-signal-spin");
