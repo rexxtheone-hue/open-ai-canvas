@@ -12,17 +12,25 @@ type LobeIconComponent = ComponentType<SVGProps<SVGSVGElement> & { size?: number
 // eager 会让每次进入工作区都发起数百个开发模块请求，即使用户从未打开 Logo 选择器。
 const iconModules = "Bun" in globalThis ? {} : import.meta.glob("../../node_modules/@lobehub/icons/es/*/components/Mono.js", { import: "default" });
 const colorIconModules = "Bun" in globalThis ? {} : import.meta.glob("../../node_modules/@lobehub/icons/es/*/components/Color.js", { import: "default" });
-const iconLoaders = Object.fromEntries(
-    [...Object.entries(iconModules), ...Object.entries(colorIconModules)]
+// 平台自有品牌不在 lobehub 图标库里，用 public/brand 下的图片补上，排在列表最前。
+const OmniMuseIcon: LobeIconComponent = ({ size = 18, className }) => <img src="/brand/omnimuse-mark.png" width={size} height={size} className={cn("object-contain", className)} alt="" />;
+const ownIcons: Array<{ id: string; title: string; component: LobeIconComponent }> = [{ id: "omnimuse", title: "OmniMuse", component: OmniMuseIcon }];
+
+const iconLoaders = Object.fromEntries([
+    ...[...Object.entries(iconModules), ...Object.entries(colorIconModules)]
         .map(([path, loader]) => [path.match(/\/([^/]+)\/components\/(?:Mono|Color)\.js$/)?.[1], loader])
         .filter((entry): entry is [string, () => Promise<LobeIconComponent>] => Boolean(entry[0] && entry[1])),
-) as Record<string, () => Promise<LobeIconComponent>>;
-const iconRegistry = new Map<string, LobeIconComponent>();
+    ...ownIcons.map((item) => [item.id, () => Promise.resolve(item.component)]),
+]) as Record<string, () => Promise<LobeIconComponent>>;
+const iconRegistry = new Map<string, LobeIconComponent>(ownIcons.map((item) => [item.id, item.component]));
 const iconLoadPromises = new Map<string, Promise<LobeIconComponent | undefined>>();
-const iconOptions = toc
-    .filter((item) => item.group === "model" || item.group === "provider" || item.group === "application")
-    .map((item) => ({ id: item.id, title: item.fullTitle || item.title }))
-    .filter((item) => Boolean(iconLoaders[item.id]));
+const iconOptions = [
+    ...ownIcons.map(({ id, title }) => ({ id, title })),
+    ...toc
+        .filter((item) => item.group === "model" || item.group === "provider" || item.group === "application")
+        .map((item) => ({ id: item.id, title: item.fullTitle || item.title }))
+        .filter((item) => Boolean(iconLoaders[item.id])),
+];
 
 function loadIcon(icon?: string) {
     if (!icon) return Promise.resolve(undefined);
