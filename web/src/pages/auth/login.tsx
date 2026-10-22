@@ -132,9 +132,9 @@ export function LoginForm({ next, onSuccess, onSwitch, onNavigate }: { next: str
             <Button type="primary" htmlType="submit" size="large" block loading={submitting} icon={<ArrowRight className="size-4" />} iconPlacement="end">
                 登录
             </Button>
-            <p className="auth-scene-muted m-0 text-center text-sm">
-                还没有账号？
-                <button type="button" className="auth-scene-link ml-1 font-medium" onClick={onSwitch}>
+            <p className="auth-scene-muted m-0 flex justify-center gap-1.5 text-sm">
+                <span>还没有账号？</span>
+                <button type="button" className="auth-scene-link font-medium" onClick={onSwitch}>
                     免费注册
                 </button>
             </p>

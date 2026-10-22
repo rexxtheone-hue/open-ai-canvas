@@ -51,7 +51,7 @@ describe("注册服务协议", () => {
         expect(page).toContain("读取注册设置失败，暂时无法确认服务协议名称与条款。");
         expect(page).toContain("setSettingsReloadKey((value) => value + 1)");
         // 协议入口只在拿到设置后渲染，读不到配置就不展示协议名。
-        expect(page).toContain("{settings && !registrationClosed ? (");
+        expect(page).toContain("{settings && canSignUp ? (");
     });
 
     test("公开认证设置暴露协议字段，管理接口可回传协议正文", () => {

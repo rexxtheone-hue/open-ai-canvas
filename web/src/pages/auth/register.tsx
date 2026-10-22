@@ -9,6 +9,7 @@ import { safeNext } from "./login";
 import { ApiError } from "@/services/api/request";
 import { VerificationFields } from "@/components/auth/verification-fields";
 import { emptyVerification, startVerification, verificationMethods, type VerificationMethod } from "@/services/api/verification";
+import { currentLocale } from "@/lib/i18n/runtime";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
 import "./auth-forms.css";
 
@@ -47,7 +48,7 @@ export function RegisterForm({ next, onSuccess, onSwitch }: { next: string; onSu
     // 协议标题与条款由后台「登录与注册」配置下发。标题未配置时才回退到当前品牌名，
     // 且只在确认拿到设置（settings 非空）后回退；接口失败时不猜标题，避免展示
     // 与后台真实配置不符的协议名。标题统一去掉书名号后由页面补《》。
-    const agreementTitle = ((settings?.agreementTitle || "").trim() || `${brandName}服务协议`).replace(/^《|》$/g, "");
+    const agreementTitle = localizedAgreementTitle(((settings?.agreementTitle || "").trim() || `${brandName}服务协议`).replace(/^《|》$/g, ""));
     const agreementContent = (settings?.agreementContent || "").trim();
     const agreementParagraphs = agreementContent ? agreementContent.split(/\n\s*\n/) : [];
 
@@ -86,6 +87,8 @@ export function RegisterForm({ next, onSuccess, onSwitch }: { next: string; onSu
     const otherMethod = !emailFlow ? methods[0] : undefined;
     const thirdParty = Boolean(settings?.googleEnabled || settings?.linuxdoEnabled);
     const formAvailable = Boolean(settings) && !registrationClosed && (emailFlow || Boolean(otherMethod));
+    // 没有任何可用的注册方式时，不展示赠送积分和协议勾选，只留提示。
+    const canSignUp = !registrationClosed && (formAvailable || thirdParty);
     const bonusCredits = Math.floor((settings?.signupBonusMicrocredits ?? 0) / 1_000_000);
 
     const requireAgreement = () => {
@@ -151,7 +154,7 @@ export function RegisterForm({ next, onSuccess, onSwitch }: { next: string; onSu
 
     return (
         <div className="space-y-4">
-            {bonusCredits > 0 && !registrationClosed ? (
+            {bonusCredits > 0 && canSignUp ? (
                 <div className="auth-bonus flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-medium">
                     <Gift className="size-4 shrink-0" aria-hidden />
                     注册即送 {bonusCredits} 积分，免费开始创作
@@ -267,7 +270,7 @@ export function RegisterForm({ next, onSuccess, onSwitch }: { next: string; onSu
                 </form>
             ) : null}
 
-            {settings && !registrationClosed ? (
+            {settings && canSignUp ? (
                 <div className="auth-agreement-row" data-accepted={agreementAccepted ? "true" : "false"} data-nudge={agreementNudge && !agreementAccepted ? "true" : undefined}>
                     <Checkbox
                         checked={agreementAccepted}
@@ -279,15 +282,15 @@ export function RegisterForm({ next, onSuccess, onSwitch }: { next: string; onSu
                         <span className="auth-agreement-label">我已阅读并同意</span>
                     </Checkbox>
                     <button type="button" className="auth-agreement-link" onClick={() => setAgreementOpen(true)}>
-                        《{agreementTitle}》
+                        {currentLocale === "en" ? agreementTitle : `《${agreementTitle}》`}
                     </button>
                     <span className="auth-agreement-label">并确认已年满 18 岁</span>
                 </div>
             ) : null}
 
-            <p className="auth-scene-muted m-0 text-center text-sm">
-                已有账号？
-                <button type="button" className="auth-scene-link ml-1 font-medium" onClick={onSwitch}>
+            <p className="auth-scene-muted m-0 flex justify-center gap-1.5 text-sm">
+                <span>已有账号？</span>
+                <button type="button" className="auth-scene-link font-medium" onClick={onSwitch}>
                     登录
                 </button>
             </p>
@@ -319,6 +322,12 @@ export function RegisterForm({ next, onSuccess, onSwitch }: { next: string; onSu
             </Modal>
         </div>
     );
+}
+
+/** 英文界面下，默认的「某某服务协议」显示为「某某 Terms of Service」；后台自定义的其他标题原样显示。 */
+function localizedAgreementTitle(title: string) {
+    if (currentLocale !== "en") return title;
+    return title.replace(/\s*服务协议$/, " Terms of Service");
 }
 
 function AuthField({ label, children }: { label: string; children: ReactNode }) {
