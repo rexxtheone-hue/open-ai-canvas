@@ -107,5 +107,8 @@ test("price tier surcharge and reference-video condition round-trip", () => {
     expect(payload.selector).toEqual({ operation: "reference_to_video", videoInput: "true" });
     expect(payload.surcharge).toEqual({ freeImages: 5, imagePriceMicrocredits: 4_000_000, videoSecondPriceMicrocredits: 13_000_000 });
     const image = priceTierPayloadFromForm("image", { ...tier, matchMode: "default" }, "img");
-    expect(image.surcharge).toEqual({ freeImages: 0, imagePriceMicrocredits: 0, videoSecondPriceMicrocredits: 0 });
+    // 图片模型可按参考图张数加收，但参考视频按秒附加费只属于视频模型。
+    expect(image.surcharge).toEqual({ freeImages: 5, imagePriceMicrocredits: 4_000_000, videoSecondPriceMicrocredits: 0 });
+    const text = priceTierPayloadFromForm("text", { ...tier, matchMode: "default" }, "txt");
+    expect(text.surcharge).toEqual({ freeImages: 0, imagePriceMicrocredits: 0, videoSecondPriceMicrocredits: 0 });
 });

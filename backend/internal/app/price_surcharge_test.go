@@ -66,3 +66,43 @@ func TestVideoPriceSurchargeAndReferenceVideoTier(t *testing.T) {
 		t.Fatalf("omni without video tier = %s", got.PriceTierID)
 	}
 }
+
+func TestImagePriceSurchargeChargesExtraReferenceImages(t *testing.T) {
+	if err := validatePriceSurcharge("image", model.PriceSurcharge{FreeImages: 1, ImagePriceMicrocredits: 1_260_000}); err != nil {
+		t.Fatal(err)
+	}
+	if err := validatePriceSurcharge("image", model.PriceSurcharge{VideoSecondPriceMicrocredits: 1}); err == nil {
+		t.Fatal("image model accepted a reference video surcharge")
+	}
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&model.SystemSetting{}, &model.ChannelModel{}, &model.ChannelModelPriceTier{}); err != nil {
+		t.Fatal(err)
+	}
+	item := model.ChannelModel{ID: "cm", ChannelID: "ch", ModelKey: "seedream", Capability: "image", Enabled: true, PriceConfigured: true}
+	tier := model.ChannelModelPriceTier{ID: "t", ChannelModelID: "cm", SelectorKey: `{}`, SelectorJSON: `{}`, Resolution: "*", BillingMode: "fixed_request", UnitPriceMicrocredits: 19_000_000, Enabled: true, PriceConfigured: true,
+		Surcharge: model.PriceSurcharge{FreeImages: 1, ImagePriceMicrocredits: 1_260_000}}
+	if err := db.Create(&item).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&tier).Error; err != nil {
+		t.Fatal(err)
+	}
+	svc := &Service{repo: repository.New(db)}
+	for _, tc := range []struct {
+		images int
+		want   int64
+	}{{0, 19_000_000}, {1, 19_000_000}, {4, 19_000_000 + 3*1_260_000}} {
+		input := map[string]any{"mode": "image", "prompt": "p", "referenceImages": make([]any, tc.images), "config": map[string]any{"channelId": "ch", "model": "seedream"}}
+		intent := ModelRequestIntentFromTaskInput(input, "canvas_image", "image")
+		order, err := svc.newBillingOrderWithPriceTier("u", "t", "k", "ch", "seedream", "image", "test", 1, estimateTaskBillingTokens(input, "image"), "", intent)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if order.AmountMicrocredits != tc.want || order.SurchargeImages != int64(max(0, tc.images-1)) {
+			t.Fatalf("%d images: amount %d surcharge images %d", tc.images, order.AmountMicrocredits, order.SurchargeImages)
+		}
+	}
+}

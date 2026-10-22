@@ -659,9 +659,11 @@ func (s *Service) newBillingOrderWithPriceTier(userID string, taskID string, ide
 		return nil, err
 	}
 	var surchargeImages, surchargeVideoSeconds int64
-	if capability == "video" && len(intents) > 0 {
+	if (capability == "video" || capability == "image") && len(intents) > 0 {
 		surchargeImages = int64(max(0, intents[0].Inputs["image"]-tier.Surcharge.FreeImages))
-		surchargeVideoSeconds = tokenEstimate.ReferenceVideoSeconds
+		if capability == "video" {
+			surchargeVideoSeconds = tokenEstimate.ReferenceVideoSeconds
+		}
 	}
 	surcharge, err := surchargeAmount(tier.Surcharge.ImagePriceMicrocredits, surchargeImages, tier.Surcharge.VideoSecondPriceMicrocredits, surchargeVideoSeconds, multiplierBPS)
 	if err != nil {

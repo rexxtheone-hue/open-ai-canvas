@@ -26,6 +26,8 @@ export function CreditCostFields({ index, form, billingMode, isVideo, isImage = 
             : [["costUnitPrice", billingMode === "per_second" ? `${unit} / 秒` : `${unit} / 次`]];
     if (isVideo) {
         fields.push(["costExtraImagePrice", `超出免费张数后 ${unit} / 张参考图`], ["costExtraVideoSecondPrice", `${unit} / 秒参考视频`]);
+    } else if (isImage) {
+        fields.push(["costExtraImagePrice", `超出免费张数后 ${unit} / 张参考图`]);
     }
     return (
         <section className="admin-price-tier-cost-panel" aria-label="成本设置">

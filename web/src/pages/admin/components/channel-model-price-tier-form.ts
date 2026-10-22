@@ -207,6 +207,9 @@ export function priceTierPayloadFromForm(capability: ModelCapabilityChoice, tier
     const videoTokens = capability === "video" && tier.billingMode === "token";
     const isVideo = capability === "video";
     const micro = (value: number | undefined) => (isVideo ? Math.round((value || 0) * 1_000_000) : 0);
+    // 参考图附加费视频、图片模型都可用；参考视频按秒只对视频模型有效。
+    const hasImageSurcharge = isVideo || capability === "image";
+    const imageSurchargeMicro = (value: number | undefined) => (hasImageSurcharge ? Math.round((value || 0) * 1_000_000) : 0);
     // 图片 Token 价只对按 Token 计费的图片模型有效，其它情况固定为 0，避免切换计费方式后残留。
     const imageTokens = capability === "image" && tier.billingMode === "token";
     const imageMicro = (value: number | undefined) => (imageTokens ? Math.round((value || 0) * 1_000_000) : 0);
@@ -227,7 +230,7 @@ export function priceTierPayloadFromForm(capability: ModelCapabilityChoice, tier
             inputTokenPriceMicrocredits: videoTokens ? 0 : Math.round(tier.costInputTokenPrice * 1_000_000),
             outputTokenPriceMicrocredits: Math.round(tier.costOutputTokenPrice * 1_000_000),
             cachedTokenPriceMicrocredits: videoTokens ? 0 : Math.round(tier.costCachedTokenPrice * 1_000_000),
-            extraImagePriceMicrocredits: micro(tier.costExtraImagePrice),
+            extraImagePriceMicrocredits: imageSurchargeMicro(tier.costExtraImagePrice),
             extraVideoSecondPriceMicrocredits: micro(tier.costExtraVideoSecondPrice),
             imageTokenPriceMicrocredits: imageMicro(tier.costImageTokenPrice),
         },
@@ -237,13 +240,13 @@ export function priceTierPayloadFromForm(capability: ModelCapabilityChoice, tier
             inputTokenPrice: videoTokens ? 0 : Math.round(tier.costInputTokenPrice * 1_000_000),
             outputTokenPrice: Math.round(tier.costOutputTokenPrice * 1_000_000),
             cachedTokenPrice: videoTokens ? 0 : Math.round(tier.costCachedTokenPrice * 1_000_000),
-            extraImagePrice: micro(tier.costExtraImagePrice),
+            extraImagePrice: imageSurchargeMicro(tier.costExtraImagePrice),
             extraVideoSecondPrice: micro(tier.costExtraVideoSecondPrice),
             imageTokenPrice: imageMicro(tier.costImageTokenPrice),
         },
         surcharge: {
-            freeImages: isVideo ? Math.max(0, Math.floor(tier.surchargeFreeImages || 0)) : 0,
-            imagePriceMicrocredits: micro(tier.surchargeImagePrice),
+            freeImages: hasImageSurcharge ? Math.max(0, Math.floor(tier.surchargeFreeImages || 0)) : 0,
+            imagePriceMicrocredits: imageSurchargeMicro(tier.surchargeImagePrice),
             videoSecondPriceMicrocredits: micro(tier.surchargeVideoSecondPrice),
         },
         priceConfigured: tier.priceConfigured !== false,

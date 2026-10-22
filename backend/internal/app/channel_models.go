@@ -62,8 +62,11 @@ func validatePriceSurcharge(capability string, surcharge model.PriceSurcharge) e
 	if surcharge == (model.PriceSurcharge{}) {
 		return nil
 	}
-	if capability != "video" {
-		return BadAuthRequest("只有视频模型可以配置参考素材附加费")
+	if capability != "video" && capability != "image" {
+		return BadAuthRequest("只有视频和图片模型可以配置参考素材附加费")
+	}
+	if capability == "image" && surcharge.VideoSecondPriceMicrocredits != 0 {
+		return BadAuthRequest("图片模型不能配置参考视频附加费")
 	}
 	if surcharge.FreeImages < 0 || surcharge.FreeImages > 100 {
 		return BadAuthRequest("免费参考图张数必须在 0 到 100 之间")

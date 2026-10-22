@@ -4696,6 +4696,7 @@
   "在「添加参考」里上传图片或从作品、角色库选择。编辑图片、换背景、扩图等工具会按格子要求的素材使用。": "Upload an image under \"Add references\" or pick one from your creations or character library. Tools like Edit Image, Replace Background and Expand Image use the assets their slots ask for.",
   "在一段已有视频后继续生成": "Continue generating after an existing video",
   "在上面的价格之外另外加收，不需要就填 0。例如 MiniMax H3：前 5 张参考图免费，第 6 张起每张收费；参考视频按秒收费（时长未知按 15 秒计）。": "Charged on top of the price above; enter 0 if not needed. For example, MiniMax H3: the first 5 reference images are free and each one after that is charged; reference video is charged per second (unknown durations count as 15 seconds).",
+  "在上面的价格之外另外加收，不需要就填 0。例如 Seedream 5.0 Pro：第 1 张参考图免费，第 2 张起每张收费。": "Charged on top of the price above; enter 0 if not needed. For example, Seedream 5.0 Pro: the first reference image is free, and each image from the second onward is charged.",
   "在下方发送一条视频消息，就会自动成为第 1 镜。": "Send a video message below and it will automatically become shot 1.",
   "在下方告诉我想改哪里，调整后再确认。": "Tell me below what you'd like to change, then confirm after adjusting.",
   "在主页和作品上显示的名字": "The name shown on your profile and posts",
