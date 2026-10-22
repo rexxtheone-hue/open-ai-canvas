@@ -716,6 +716,7 @@ button.studio-block-link { border: 0; background: none; cursor: pointer; font: i
 .studio-model-row-main b { font-size: 14px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .studio-model-row-main small { font-size: 11.5px; color: var(--studio-muted); }
 .studio-model-row-main small.is-warn { color: #f5a524; }
+.studio-model-row-main small.studio-model-description { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; line-height: 1.4; }
 .studio-model-chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
 .studio-model-chips i { font-style: normal; font-size: 11px; line-height: 20px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--studio-line-strong); color: var(--studio-soft); white-space: nowrap; }
 .studio-model-price { color: var(--studio-soft); font-size: 12px; white-space: nowrap; }

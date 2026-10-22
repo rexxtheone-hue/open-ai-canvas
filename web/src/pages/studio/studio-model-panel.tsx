@@ -7,13 +7,24 @@ import { modelDisplayName, modelOptionName, resolveModelChannel, selectableModel
 import type { StudioKind } from "@/services/api/studio";
 import { studioModelChips } from "./studio-model-chips";
 
-/** 同名模型来自不同渠道时用来区分：后台填的「渠道展示名」，自建渠道没填时用渠道名称。 */
-export function studioModelChannelLabel(config: AiConfig, model: string) {
+function studioModelCost(config: AiConfig, model: string) {
+    return resolveModelChannel(config, model).modelCosts?.find((item) => item.model === modelOptionName(model));
+}
+
+/** Studio 里模型的主名称：后台填的「渠道展示名」更具体（如 Wan 3.0 Prime），没填时用显示名称。 */
+export function studioModelTitle(config: AiConfig, model: string) {
     if (!model) return "";
+    return studioModelCost(config, model)?.channelLabel?.trim() || modelDisplayName(config, model) || model;
+}
+
+/** 自建渠道的同名模型用渠道名称区分；系统渠道不显示。 */
+function studioModelChannelName(config: AiConfig, model: string) {
     const channel = resolveModelChannel(config, model);
-    const label = channel.modelCosts?.find((item) => item.model === modelOptionName(model))?.channelLabel?.trim();
-    if (label) return label;
     return channel.scope === "system" ? "" : channel.name || "";
+}
+
+function studioModelDescription(config: AiConfig, model: string) {
+    return studioModelCost(config, model)?.description?.trim() || "";
 }
 
 /** 面板里的模型卡片：图标 + 「模型」+ 名称，点开右侧模型面板。 */
@@ -21,7 +32,7 @@ export function StudioModelCard({ config, model, open, onToggle }: { config: AiC
     return (
         <button type="button" className="studio-model-card" aria-expanded={open} aria-label="选择模型" onClick={onToggle}>
             <span className="studio-model-icon"><ModelIcon config={config} model={model} /></span>
-            <span className="studio-model-card-text"><small>模型</small><b>{model ? modelDisplayName(config, model) || model : "后台还没有可用的模型"}{studioModelChannelLabel(config, model) ? <em className="studio-model-channel"> · {studioModelChannelLabel(config, model)}</em> : null}</b></span>
+            <span className="studio-model-card-text"><small>模型</small><b>{model ? studioModelTitle(config, model) : "后台还没有可用的模型"}{studioModelChannelName(config, model) ? <em className="studio-model-channel"> · {studioModelChannelName(config, model)}</em> : null}</b></span>
             <ChevronRight aria-hidden />
         </button>
     );
@@ -54,7 +65,7 @@ export function StudioModelPanel({
         return groupModelsByDisplayName(config, models);
     }, [config, filter, kind]);
     const keyword = query.trim().toLowerCase();
-    const visible = keyword ? groups.filter((group) => group.label.toLowerCase().includes(keyword)) : groups;
+    const visible = keyword ? groups.filter((group) => group.models.some((model) => `${group.label} ${studioModelTitle(config, model)} ${studioModelDescription(config, model)}`.toLowerCase().includes(keyword))) : groups;
 
     return (
         <aside className="studio-model-panel" aria-label="选择模型">
@@ -88,8 +99,8 @@ export function StudioModelPanel({
                         >
                             <span className="studio-model-icon"><ModelIcon config={config} model={target} /></span>
                             <span className="studio-model-row-main">
-                                <b>{group.label}</b>
-                                {studioModelChannelLabel(config, target) ? <small>{studioModelChannelLabel(config, target)}</small> : null}
+                                <b>{studioModelTitle(config, target) || group.label}{studioModelChannelName(config, target) ? <em className="studio-model-channel"> · {studioModelChannelName(config, target)}</em> : null}</b>
+                                {studioModelDescription(config, target) ? <small className="studio-model-description">{studioModelDescription(config, target)}</small> : null}
                                 {reason ? <small className="is-warn">{reason}</small> : null}
                             </span>
                             <span className="studio-model-chips">
