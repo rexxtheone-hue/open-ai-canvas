@@ -272,6 +272,19 @@ describe("AI Studio 专项工具", () => {
         expect((submission.referenceImages[0] as { role?: string }).role).toBeUndefined();
     });
 
+    test("Replicate 动作同步按动作视频时长计价，其它动作同步模型按所选时长", () => {
+        const config = studioConfig();
+        const video = config.channels[0].modelCosts![1].capabilityConfig!.video!;
+        video.operations = [...video.operations, "motion_transfer"];
+        const spec = studioSpecialtySpec("motion-sync")!;
+        const values = { character: attachment("a", "image/png"), motion: { ...attachment("v", "video/mp4"), durationMs: 12_400 } as CreationAttachment };
+        const motion = state("video", { specialty: buildSpecialtyState(spec, values, "", {}), attachments: orderedSlotAttachments(spec, values) });
+        expect(studioModelRequirements(config, motion).videoSeconds).toBe("5");
+        config.channels[0].modelCosts![1].protocol = "replicate-kling-motion";
+        expect(studioModelRequirements(config, motion).videoSeconds).toBe("13");
+        expect(studioGenerationConfig(config, motion, "relay::clip-pro").videoSeconds).toBe("13");
+    });
+
     test("只做高清、配音效的视频模型不出现在生成视频里", () => {
         const config = studioConfig();
         const upscale = defaultModelCapabilityConfig(undefined, "upscaler");

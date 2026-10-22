@@ -149,6 +149,71 @@ func TestFalIndexTTS2SendsVoiceSampleAndParsesSpeech(t *testing.T) {
 	}
 }
 
+func TestReplicateMotionProvidersSendImageAndDrivingVideo(t *testing.T) {
+	request := GenerationRequest{
+		Model: "bytedance/dreamactor-m2.0", Prompt: "跳舞", Resolution: "720p",
+		Images: []MediaReference{{URL: "https://cdn.example/hero.png"}},
+		Videos: []MediaReference{{URL: "https://cdn.example/dance.mp4"}},
+	}
+	dream := loadPackageProvider(t, "replicate-prediction-video", "replicate-dreamactor")
+	create, err := dream.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.replicate.com", Request: request})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if create.Path != "/v1/models/bytedance/dreamactor-m2.0/predictions" {
+		t.Fatalf("path = %s", create.Path)
+	}
+	assertJSONEqual(t, create.Body, `{"input":{"image":"https://cdn.example/hero.png","video":"https://cdn.example/dance.mp4","cut_first_second":true}}`)
+	if _, err := dream.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: request.Model, Images: request.Images}}); err == nil {
+		t.Fatal("motion sync without a driving video must be rejected")
+	}
+
+	kling := loadPackageProvider(t, "replicate-prediction-video", "replicate-kling-motion")
+	request.Model = "kwaivgi/kling-v3-motion-control"
+	std, err := kling.BuildCreate(context.Background(), RequestContext{Request: request})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertJSONEqual(t, std.Body, `{"input":{"image":"https://cdn.example/hero.png","video":"https://cdn.example/dance.mp4","prompt":"跳舞","mode":"std","character_orientation":"video","keep_original_sound":true}}`)
+	request.Resolution, request.Prompt = "1080p", ""
+	pro, err := kling.BuildCreate(context.Background(), RequestContext{Request: request})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body := pro.Body.(map[string]any)["input"].(map[string]any); body["mode"] != "pro" || body["prompt"] != nil {
+		t.Fatalf("pro body = %#v", body)
+	}
+	done, err := kling.ParsePoll(context.Background(), PollContext{TaskID: "p1"}, []byte(`{"id":"p1","status":"succeeded","output":"https://replicate.delivery/out.mp4"}`))
+	if err != nil || done.Status != StatusSucceeded || done.Result == nil || len(done.Result.Videos) != 1 || done.Result.Videos[0].URL != "https://replicate.delivery/out.mp4" {
+		t.Fatalf("done = %#v, err = %v", done, err)
+	}
+}
+
+func TestReplicateLTXMapsFramesAndRejectsLongHighResolution(t *testing.T) {
+	ltx := loadPackageProvider(t, "replicate-prediction-video", "replicate-ltx")
+	request := GenerationRequest{Model: "lightricks/ltx-2.5-fast", Prompt: "海边日落", Duration: 8, AspectRatio: "9:16", Resolution: "1080p", GenerateAudio: true,
+		Images: []MediaReference{{URL: "https://cdn.example/first.png"}, {URL: "https://cdn.example/last.png"}}}
+	create, err := ltx.BuildCreate(context.Background(), RequestContext{Request: request})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if create.Path != "/v1/models/lightricks/ltx-2.5-fast/predictions" {
+		t.Fatalf("path = %s", create.Path)
+	}
+	assertJSONEqual(t, create.Body, `{"input":{"prompt":"海边日落","image":"https://cdn.example/first.png","last_frame_image":"https://cdn.example/last.png","duration":8,"aspect_ratio":"9:16","resolution":"1080p","fps":25,"generate_audio":true}}`)
+	textOnly, err := ltx.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: request.Model, Prompt: "城市夜景", Duration: 6, Resolution: "720p"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if input := textOnly.Body.(map[string]any)["input"].(map[string]any); input["image"] != nil || input["last_frame_image"] != nil {
+		t.Fatalf("text-only input = %#v", input)
+	}
+	request.Resolution, request.Duration = "4k", 12
+	if _, err := ltx.BuildCreate(context.Background(), RequestContext{Request: request}); err == nil {
+		t.Fatal("4K longer than 10 seconds must be rejected")
+	}
+}
+
 func TestCloudwiseSeedAudioMatchesDoubaoContract(t *testing.T) {
 	adapter := loadPackageProvider(t, "cloudwise-maas", "cloudwise-seedaudio")
 	create, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.cloudwise.ai/api", Request: GenerationRequest{

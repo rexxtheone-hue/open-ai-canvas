@@ -11,13 +11,17 @@ import (
 // 输出与原视频等长的专项操作：按原视频时长计费，时长取服务器入库时测得的资源时长，不信任请求里的 videoSeconds。
 var sourceLengthVideoOperations = map[string]bool{"video_upscale": true, "video_sfx": true, "dubbing": true}
 
+// 这些动作同步协议输出时长等于动作参考视频，同样按参考视频时长计费；其它动作同步模型按所选时长生成。
+var sourceLengthMotionProtocols = map[string]bool{"replicate-dreamactor": true, "replicate-kling-motion": true}
+
 func (s *Service) applySourceLengthVideoSeconds(userID string, input map[string]any, operation string) error {
 	metadata, _ := input["metadata"].(map[string]any)
 	operation = firstNonEmpty(metadataString(metadata, "videoEditOperation"), strings.TrimSpace(operation))
-	if !sourceLengthVideoOperations[operation] || normalizeCapability(stringValue(input["mode"])) != "video" {
+	config, _ := input["config"].(map[string]any)
+	sourceLength := sourceLengthVideoOperations[operation] || operation == "motion_transfer" && sourceLengthMotionProtocols[stringValue(config["interfaceType"])]
+	if !sourceLength || normalizeCapability(stringValue(input["mode"])) != "video" {
 		return nil
 	}
-	config, _ := input["config"].(map[string]any)
 	references, _ := input["referenceVideos"].([]any)
 	if config == nil || len(references) == 0 {
 		return nil

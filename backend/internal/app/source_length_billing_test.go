@@ -148,6 +148,21 @@ func TestSourceLengthOperationsBillServerDuration(t *testing.T) {
 			t.Fatalf("%s videoSeconds = %v, want 38", operation, got)
 		}
 	}
+	motion := input("motion_transfer")
+	motion["config"].(map[string]any)["interfaceType"] = "replicate-kling-motion"
+	if err := svc.applySourceLengthVideoSeconds("user-1", motion, ""); err != nil {
+		t.Fatal(err)
+	}
+	if got := motion["config"].(map[string]any)["videoSeconds"]; got != "38" {
+		t.Fatalf("replicate motion videoSeconds = %v, want 38", got)
+	}
+	seedanceMotion := input("motion_transfer")
+	if err := svc.applySourceLengthVideoSeconds("user-1", seedanceMotion, ""); err != nil {
+		t.Fatal(err)
+	}
+	if got := seedanceMotion["config"].(map[string]any)["videoSeconds"]; got != "1" {
+		t.Fatalf("other motion videoSeconds = %v, want untouched", got)
+	}
 	other := input("lip_sync")
 	if err := svc.applySourceLengthVideoSeconds("user-1", other, ""); err != nil {
 		t.Fatal(err)
