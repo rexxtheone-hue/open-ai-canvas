@@ -1,0 +1,166 @@
+/* OmniMuse 登录页：左侧品牌画面固定深色（作品墙或品牌影片），右侧表单跟随明暗主题与皮肤配色，
+   只借用品牌渐变（青 → 紫 → 粉）做强调。 */
+.auth-scene {
+    --brand-cyan: #22d3ee;
+    --brand-violet: #8b5cf6;
+    --brand-pink: #f472d0;
+    --brand-gradient: linear-gradient(100deg, var(--brand-cyan), var(--brand-violet) 48%, var(--brand-pink));
+}
+
+.auth-scene .auth-scene-hero {
+    background: #05061a;
+    color: #f5f6ff;
+}
+
+.auth-scene .auth-scene-hero-overlay {
+    background:
+        linear-gradient(180deg, rgba(5, 6, 26, 0.72) 0%, rgba(5, 6, 26, 0) 22%),
+        linear-gradient(0deg, rgba(5, 6, 26, 0.96) 0%, rgba(5, 6, 26, 0.78) 26%, rgba(5, 6, 26, 0) 62%),
+        radial-gradient(70% 60% at 20% 100%, rgba(139, 92, 246, 0.28), transparent 70%);
+}
+
+.auth-scene .auth-scene-brand,
+.auth-scene .auth-scene-brand:hover,
+.auth-scene .auth-scene-hero-title {
+    color: #fff;
+}
+
+.auth-scene .auth-scene-hero-eyebrow,
+.auth-scene .auth-scene-hero-muted {
+    color: rgba(236, 238, 255, 0.66);
+}
+
+.auth-scene .auth-scene-hero-control {
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(5, 6, 26, 0.5);
+    color: rgba(255, 255, 255, 0.86);
+}
+
+.auth-scene .auth-scene-hero-control:hover {
+    background: rgba(5, 6, 26, 0.7);
+}
+
+.auth-scene-hero-accent {
+    background: var(--brand-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.auth-scene-chip {
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.88);
+}
+
+/* 作品墙：四列错速上下滚动，整体略微倾斜；首屏图片直接加载，复制的第二轮懒加载。 */
+.auth-showcase {
+    background: radial-gradient(60% 50% at 50% 40%, rgba(76, 58, 200, 0.22), transparent 70%), #05061a;
+}
+
+.auth-showcase-grid {
+    position: absolute;
+    inset: -20% -14% -20% -10%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    transform: rotate(-7deg);
+}
+
+.auth-showcase-column {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    animation-name: auth-showcase-scroll;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    will-change: transform;
+}
+
+.auth-showcase-column img {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 18px;
+    object-fit: cover;
+    box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.7);
+    opacity: 0.9;
+    user-select: none;
+}
+
+.auth-showcase[data-still] .auth-showcase-column {
+    animation: none;
+}
+
+@keyframes auth-showcase-scroll {
+    from {
+        transform: translateY(0);
+    }
+    to {
+        transform: translateY(calc(-50% - 8px));
+    }
+}
+
+@media (max-width: 640px) {
+    .auth-showcase-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+    }
+    .auth-showcase-column {
+        gap: 10px;
+    }
+    .auth-showcase-column:nth-child(4) {
+        display: none;
+    }
+    .auth-showcase-column img {
+        border-radius: 12px;
+    }
+}
+
+/* 表单区：保留主题面板色，在卡片后方加一层很淡的品牌光晕。 */
+.auth-scene-glow::before,
+.auth-scene-glow::after {
+    position: absolute;
+    width: 520px;
+    height: 520px;
+    border-radius: 50%;
+    content: "";
+    filter: blur(90px);
+    opacity: 0.14;
+}
+
+.auth-scene-glow::before {
+    top: 12%;
+    left: 8%;
+    background: var(--brand-violet);
+}
+
+.auth-scene-glow::after {
+    right: -6%;
+    bottom: 8%;
+    background: var(--brand-cyan);
+}
+
+.dark .auth-scene-glow::before,
+.dark .auth-scene-glow::after {
+    opacity: 0.2;
+}
+
+.auth-scene .auth-scene-card {
+    border: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+    background: color-mix(in srgb, var(--auth-card-bg) 92%, transparent);
+    box-shadow:
+        0 1px 0 color-mix(in srgb, var(--foreground) 4%, transparent) inset,
+        0 30px 60px -28px rgba(17, 12, 46, 0.32);
+}
+
+.auth-scene .auth-scene-eyebrow {
+    background: var(--brand-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.auth-scene .auth-card-tabs .ant-tabs-tab-active::after {
+    width: 28px;
+    background: var(--brand-gradient);
+}
