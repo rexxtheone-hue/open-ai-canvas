@@ -115,7 +115,8 @@ export async function imageToDataUrl(image: { url?: string; dataUrl?: string; st
     if (!url) return url;
     if (url.startsWith("data:image/")) return url;
     if (url.startsWith("data:")) return blobToDataUrl(await normalizeImageBlob(await (await fetch(url)).blob(), image.name));
-    const blob = await (await fetch(url, { credentials: isResourceUrl(url) ? "include" : "same-origin" })).blob();
+    // 平台资源在同源时用 same-origin：会话 Cookie 照常带给后端，跳转到对象存储签名链接时不再带凭据。
+    const blob = await (await fetch(url, { credentials: isResourceUrl(url) && !url.startsWith("/") ? "include" : "same-origin" })).blob();
     return blobToDataUrl(await normalizeImageBlob(blob, image.name || url));
 }
 

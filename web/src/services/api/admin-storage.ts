@@ -92,7 +92,8 @@ export function adminResourceFileUrl(id: string, download = false) {
 }
 
 export async function downloadAdminResource(resource: AdminStorageResource) {
-    const response = await fetch(adminResourceFileUrl(resource.id, true), { credentials: "include" });
+    // 文件在对象存储时后端会 302 到签名链接；同源请求不带凭据跟随跳转，否则跨域响应会因缺少 Allow-Credentials 被拦。
+    const response = await fetch(adminResourceFileUrl(resource.id, true), { credentials: String(apiBaseURL).startsWith("/") ? "same-origin" : "include" });
     if (!response.ok) {
         let message = "下载资源失败";
         try {
