@@ -202,3 +202,28 @@ func TestCloudwiseViduRoutesFirstFrameAndReferenceRequests(t *testing.T) {
 		`{"code":"10000","data":{"id":"t1","state":"success","creations":[{"id":"c1","url":"https://download.cloudwise.ai/arts/1"}]},"success":true,"taskStatus":"COMPLETED"}`,
 		`{"code":"10000","data":{"id":"t1","state":"failed","err_msg":"content blocked"},"success":true}`, "video")
 }
+
+func TestCloudwiseSeedream5ProMapsRatioToPixelsAndParsesSyncResult(t *testing.T) {
+	create, body := cloudwiseBody(t, "cloudwise-seedream-image", GenerationRequest{Model: "doubao-seedream-5-0-pro-260628", Prompt: "咖啡馆", AspectRatio: "16:9", Resolution: "2k"})
+	if create.Path != "/api/v1/aiproducts/image/seedream" || !create.OriginPath {
+		t.Fatalf("create = %#v", create)
+	}
+	assertJSONEqual(t, body, `{"model":"doubao-seedream-5-0-pro-260628","prompt":"咖啡馆","size":"2848x1600","response_format":"url","watermark":false,"output_format":"png"}`)
+	_, one := cloudwiseBody(t, "cloudwise-seedream-image", GenerationRequest{Model: "m", Prompt: "p", AspectRatio: "9:16", Resolution: "1K", Images: []MediaReference{{URL: "https://x/1.png"}}})
+	assertJSONEqual(t, one, `{"model":"m","prompt":"p","image":"https://x/1.png","size":"736x1312","response_format":"url","watermark":false,"output_format":"png"}`)
+	_, many := cloudwiseBody(t, "cloudwise-seedream-image", GenerationRequest{Model: "m", Prompt: "p", AspectRatio: "1600x900", Images: []MediaReference{{URL: "https://x/1.png"}, {URL: "https://x/2.png"}}})
+	assertJSONEqual(t, many, `{"model":"m","prompt":"p","image":["https://x/1.png","https://x/2.png"],"size":"1600x900","response_format":"url","watermark":false,"output_format":"png"}`)
+	_, auto := cloudwiseBody(t, "cloudwise-seedream-image", GenerationRequest{Model: "m", Prompt: "p", AspectRatio: "auto", Resolution: "1k"})
+	if auto["size"] != "1K" {
+		t.Fatalf("auto size = %#v", auto["size"])
+	}
+	adapter := loadModelVersePackageAdapter(t, "cloudwise-maas", "cloudwise-seedream-image")
+	done, err := adapter.ParseCreate(context.Background(), []byte(`{"model":"m","data":[{"url":"https://ark.example/a.jpeg","size":"2848x1600"}],"usage":{"generated_images":1,"output_tokens":17800}}`))
+	if err != nil || done.Status != StatusSucceeded || done.Result == nil || len(done.Result.Images) != 1 || done.Result.Images[0].URL == "" {
+		t.Fatalf("done = %#v, err = %v", done, err)
+	}
+	bad, err := adapter.ParseCreate(context.Background(), []byte(`{"model":"m","data":[{"error":{"code":"OutputImageSensitiveContentDetected","message":"blocked"}}],"usage":{"generated_images":0}}`))
+	if err != nil || bad.Status != StatusFailed || bad.Message != "blocked" {
+		t.Fatalf("bad = %#v, err = %v", bad, err)
+	}
+}

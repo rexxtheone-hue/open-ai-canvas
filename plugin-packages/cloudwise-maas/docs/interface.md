@@ -17,6 +17,7 @@
 | Cloudwise 统一视频 | `POST /api/v1/video-generation/submit`，查询 `GET /api/v1/video-generation/video-content/{id}` | wan2.5/2.6（不含万相 3.0）、seedance-1.x、veo-3.1、sora-2 |
 | Cloudwise 万相 3.0 | `POST /api/v1/services/aigc/video-generation/video-synthesis`（`X-DashScope-Async: enable`），查询 `GET /api/v1/tasks/{id}` | wan3.0-video、wan3.0-video-prime |
 | Cloudwise Vidu | 图生视频 `POST /api/ent/v2/img2video`，参考生视频 `POST /api/ent/v2/reference2video`，查询 `GET /api/ent/v2/tasks/{id}/creations` | viduq4 |
+| Cloudwise Seedream 图片 | 同步 `POST /api/v1/aiproducts/image/seedream` | doubao-seedream-5-0-pro-260628 |
 | Cloudwise 统一图片 | `POST /api/v1/image-generation`（同步返回 `image_url`） | seedream-4.0/4.5、gemini 图片模型 |
 
 ## 字段映射要点
@@ -27,6 +28,7 @@
 - 统一视频：`content.prompt/image_url/image_url_last/video_url/audio_url`；万相文生视频的 `resolution` 按分辨率与比例换算成 `1280*720` 这类尺寸，Sora 换算成 `1280x720`；状态在 `taskStatus`，视频在 `video_url`。
 - 万相 3.0：请求体与 DashScope 官方相同（`input.prompt` + `input.media[{type,url}]`，`parameters.resolution/ratio/duration/audio/prompt_extend`）；查询结果读 `data.output.task_status` / `data.output.video_url`。
 - Vidu Q4：只有一张图且没有参考音频时走图生视频（首帧），其它组合走参考生视频（1–12 张图、0–3 段音频）；不支持纯文字和参考视频。分辨率 2K、4K 按大写发送；结果在 `data.creations[0].url`，`data.state` 为 success 时完成。
+- Seedream 5.0 Pro：同步返回，结果在 `data[0].url`（24 小时有效）。只有 1K、2K 两档；按官方表把「档位 + 比例」换成像素尺寸发送，传入的已是 WxH 时原样发送。参考图 0–10 张，一张发字符串、多张发数组。不支持组图、联网搜索和流式。
 - 统一图片：一张参考图发字符串、多张发数组；Seedream 的 `size` 为 `1K/2K/4K`。
 - 每个协议的 `providerOptions.<协议 ID>.body` 会合并进请求体，用于补充或覆盖字段。
 
@@ -46,9 +48,9 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "cloudwise-maas",
   "name": "Cloudwise MaaS",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "author": "Cloudwise / 影策",
-  "description": "Cloudwise MaaS（api.cloudwise.ai）的视频与图片协议：Seedance 2.x、Kling、MiniMax H3、万相 3.0、Vidu Q4、统一视频与统一图片接口。",
+  "description": "Cloudwise MaaS（api.cloudwise.ai）的视频与图片协议：Seedance 2.x、Kling、MiniMax H3、万相 3.0、Vidu Q4、Seedream 5.0 Pro、统一视频与统一图片接口。",
   "documentation": "<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>",
   "permissions": [
     "generation.run",
@@ -4235,6 +4237,826 @@
                 }
               }
             }
+          },
+          "resultEphemeral": true
+        }
+      },
+      {
+        "id": "cloudwise-seedream-image",
+        "label": "Cloudwise Seedream 图片",
+        "capabilities": [
+          "image"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation",
+          "agent"
+        ],
+        "baseUrl": "https://api.cloudwise.ai",
+        "requiresPublicMediaUrls": true,
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey"
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "Cloudwise 模型名：doubao-seedream-5-0-pro-260628。"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt",
+            "description": "提示词，建议不超过 600 个英文单词。"
+          },
+          {
+            "name": "images",
+            "type": "media[]",
+            "required": false,
+            "mapping": "image",
+            "description": "参考图 0–10 张；一张时发字符串，多张时发数组。"
+          },
+          {
+            "name": "aspectRatio",
+            "type": "string",
+            "required": false,
+            "mapping": "size",
+            "description": "比例 1:1、4:3、3:4、16:9、9:16、3:2、2:3、21:9，按分辨率换算成像素尺寸。"
+          },
+          {
+            "name": "resolution",
+            "type": "string",
+            "required": false,
+            "mapping": "size",
+            "description": "1K 或 2K。"
+          }
+        ],
+        "validations": [
+          {
+            "assert": {
+              "$lte": [
+                {
+                  "$len": {
+                    "$ref": "request.images"
+                  }
+                },
+                10
+              ]
+            },
+            "message": "Seedream 5.0 Pro 最多支持 10 张参考图"
+          }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/api/v1/aiproducts/image/seedream",
+          "originPath": true,
+          "contentType": "application/json",
+          "body": {
+            "$merge": [
+              {
+                "model": {
+                  "$ref": "request.model"
+                },
+                "prompt": {
+                  "$ref": "request.prompt"
+                },
+                "image": {
+                  "$omitEmpty": {
+                    "$if": {
+                      "condition": {
+                        "$gt": [
+                          {
+                            "$len": {
+                              "$ref": "request.images"
+                            }
+                          },
+                          1
+                        ]
+                      },
+                      "then": {
+                        "$map": {
+                          "from": {
+                            "$sortByOrder": {
+                              "$ref": "request.images"
+                            }
+                          },
+                          "as": "media",
+                          "in": {
+                            "$ref": "media.value"
+                          }
+                        }
+                      },
+                      "else": {
+                        "$first": {
+                          "$map": {
+                            "from": {
+                              "$sortByOrder": {
+                                "$ref": "request.images"
+                              }
+                            },
+                            "as": "media",
+                            "in": {
+                              "$ref": "media.value"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "size": {
+                  "$switch": {
+                    "cases": [
+                      {
+                        "when": {
+                          "$eq": [
+                            {
+                              "$concat": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.resolution"
+                                        }
+                                      },
+                                      "2k"
+                                    ]
+                                  }
+                                },
+                                "|",
+                                {
+                                  "$coalesce": [
+                                    {
+                                      "$omitEmpty": {
+                                        "$ref": "request.aspectRatio"
+                                      }
+                                    },
+                                    "1:1"
+                                  ]
+                                }
+                              ]
+                            },
+                            "1k|1:1"
+                          ]
+                        },
+                        "then": "1024x1024"
+                      },
+                      {
+                        "when": {
+                          "$eq": [
+                            {
+                              "$concat": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.resolution"
+                                        }
+                                      },
+                                      "2k"
+                                    ]
+                                  }
+                                },
+                                "|",
+                                {
+                                  "$coalesce": [
+                                    {
+                                      "$omitEmpty": {
+                                        "$ref": "request.aspectRatio"
+                                      }
+                                    },
+                                    "1:1"
+                                  ]
+                                }
+                              ]
+                            },
+                            "1k|4:3"
+                          ]
+                        },
+                        "then": "1152x864"
+                      },
+                      {
+                        "when": {
+                          "$eq": [
+                            {
+                              "$concat": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.resolution"
+                                        }
+                                      },
+                                      "2k"
+                                    ]
+                                  }
+                                },
+                                "|",
+                                {
+                                  "$coalesce": [
+                                    {
+                                      "$omitEmpty": {
+                                        "$ref": "request.aspectRatio"
+                                      }
+                                    },
+                                    "1:1"
+                                  ]
+                                }
+                              ]
+                            },
+                            "1k|3:4"
+                          ]
+                        },
+                        "then": "864x1152"
+                      },
+                      {
+                        "when": {
+                          "$eq": [
+                            {
+                              "$concat": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.resolution"
+                                        }
+                                      },
+                                      "2k"
+                                    ]
+                                  }
+                                },
+                                "|",
+                                {
+                                  "$coalesce": [
+                                    {
+                                      "$omitEmpty": {
+                                        "$ref": "request.aspectRatio"
+                                      }
+                                    },
+                                    "1:1"
+                                  ]
+                                }
+                              ]
+                            },
+                            "1k|16:9"
+                          ]
+                        },
+                        "then": "1312x736"
+                      },
+                      {
+                        "when": {
+                          "$eq": [
+                            {
+                              "$concat": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.resolution"
+                                        }
+                                      },
+                                      "2k"
+                                    ]
+                                  }
+                                },
+                                "|",
+                                {
+                                  "$coalesce": [
+                                    {
+                                      "$omitEmpty": {
+                                        "$ref": "request.aspectRatio"
+                                      }
+                                    },
+                                    "1:1"
+                                  ]
+                                }
+                              ]
+                            },
+                            "1k|9:16"
+                          ]
+                        },
+                        "then": "736x1312"
+                      },
+                      {
+                        "when": {
+                          "$eq": [
+                            {
+                              "$concat": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.resolution"
+                                        }
+                                      },
+                                      "2k"
+                                    ]
+                                  }
+                                },
+                                "|",
+                                {
+                                  "$coalesce": [
+                                    {
+                                      "$omitEmpty": {
+                                        "$ref": "request.aspectRatio"
+                                      }
+                                    },
+                                    "1:1"
+                                  ]
+                                }
+                              ]
+                            },
+                            "1k|3:2"
+                          ]
+                        },
+                        "then": "1248x832"
+                      },
+                      {
+                        "when": {
+                          "$eq": [
+                            {
+                              "$concat": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.resolution"
+                                        }
+                                      },
+                                      "2k"
+                                    ]
+                                  }
+                                },
+                                "|",
+                                {
+                                  "$coalesce": [
+                                    {
+                                      "$omitEmpty": {
+                                        "$ref": "request.aspectRatio"
+                                      }
+                                    },
+                                    "1:1"
+                                  ]
+                                }
+                              ]
+                            },
+                            "1k|2:3"
+                          ]
+                        },
+                        "then": "832x1248"
+                      },
+                      {
+                        "when": {
+                          "$eq": [
+                            {
+                              "$concat": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.resolution"
+                                        }
+                                      },
+                                      "2k"
+                                    ]
+                                  }
+                                },
+                                "|",
+                                {
+                                  "$coalesce": [
+                                    {
+                                      "$omitEmpty": {
+                                        "$ref": "request.aspectRatio"
+                                      }
+                                    },
+                                    "1:1"
+                                  ]
+                                }
+                              ]
+                            },
+                            "1k|21:9"
+                          ]
+                        },
+                        "then": "1568x672"
+                      },
+                      {
+                        "when": {
+                          "$eq": [
+                            {
+                              "$concat": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.resolution"
+                                        }
+                                      },
+                                      "2k"
+                                    ]
+                                  }
+                                },
+                                "|",
+                                {
+                                  "$coalesce": [
+                                    {
+                                      "$omitEmpty": {
+                                        "$ref": "request.aspectRatio"
+                                      }
+                                    },
+                                    "1:1"
+                                  ]
+                                }
+                              ]
+                            },
+                            "2k|1:1"
+                          ]
+                        },
+                        "then": "2048x2048"
+                      },
+                      {
+                        "when": {
+                          "$eq": [
+                            {
+                              "$concat": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.resolution"
+                                        }
+                                      },
+                                      "2k"
+                                    ]
+                                  }
+                                },
+                                "|",
+                                {
+                                  "$coalesce": [
+                                    {
+                                      "$omitEmpty": {
+                                        "$ref": "request.aspectRatio"
+                                      }
+                                    },
+                                    "1:1"
+                                  ]
+                                }
+                              ]
+                            },
+                            "2k|4:3"
+                          ]
+                        },
+                        "then": "2304x1728"
+                      },
+                      {
+                        "when": {
+                          "$eq": [
+                            {
+                              "$concat": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.resolution"
+                                        }
+                                      },
+                                      "2k"
+                                    ]
+                                  }
+                                },
+                                "|",
+                                {
+                                  "$coalesce": [
+                                    {
+                                      "$omitEmpty": {
+                                        "$ref": "request.aspectRatio"
+                                      }
+                                    },
+                                    "1:1"
+                                  ]
+                                }
+                              ]
+                            },
+                            "2k|3:4"
+                          ]
+                        },
+                        "then": "1728x2304"
+                      },
+                      {
+                        "when": {
+                          "$eq": [
+                            {
+                              "$concat": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.resolution"
+                                        }
+                                      },
+                                      "2k"
+                                    ]
+                                  }
+                                },
+                                "|",
+                                {
+                                  "$coalesce": [
+                                    {
+                                      "$omitEmpty": {
+                                        "$ref": "request.aspectRatio"
+                                      }
+                                    },
+                                    "1:1"
+                                  ]
+                                }
+                              ]
+                            },
+                            "2k|16:9"
+                          ]
+                        },
+                        "then": "2848x1600"
+                      },
+                      {
+                        "when": {
+                          "$eq": [
+                            {
+                              "$concat": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.resolution"
+                                        }
+                                      },
+                                      "2k"
+                                    ]
+                                  }
+                                },
+                                "|",
+                                {
+                                  "$coalesce": [
+                                    {
+                                      "$omitEmpty": {
+                                        "$ref": "request.aspectRatio"
+                                      }
+                                    },
+                                    "1:1"
+                                  ]
+                                }
+                              ]
+                            },
+                            "2k|9:16"
+                          ]
+                        },
+                        "then": "1600x2848"
+                      },
+                      {
+                        "when": {
+                          "$eq": [
+                            {
+                              "$concat": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.resolution"
+                                        }
+                                      },
+                                      "2k"
+                                    ]
+                                  }
+                                },
+                                "|",
+                                {
+                                  "$coalesce": [
+                                    {
+                                      "$omitEmpty": {
+                                        "$ref": "request.aspectRatio"
+                                      }
+                                    },
+                                    "1:1"
+                                  ]
+                                }
+                              ]
+                            },
+                            "2k|3:2"
+                          ]
+                        },
+                        "then": "2496x1664"
+                      },
+                      {
+                        "when": {
+                          "$eq": [
+                            {
+                              "$concat": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.resolution"
+                                        }
+                                      },
+                                      "2k"
+                                    ]
+                                  }
+                                },
+                                "|",
+                                {
+                                  "$coalesce": [
+                                    {
+                                      "$omitEmpty": {
+                                        "$ref": "request.aspectRatio"
+                                      }
+                                    },
+                                    "1:1"
+                                  ]
+                                }
+                              ]
+                            },
+                            "2k|2:3"
+                          ]
+                        },
+                        "then": "1664x2496"
+                      },
+                      {
+                        "when": {
+                          "$eq": [
+                            {
+                              "$concat": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.resolution"
+                                        }
+                                      },
+                                      "2k"
+                                    ]
+                                  }
+                                },
+                                "|",
+                                {
+                                  "$coalesce": [
+                                    {
+                                      "$omitEmpty": {
+                                        "$ref": "request.aspectRatio"
+                                      }
+                                    },
+                                    "1:1"
+                                  ]
+                                }
+                              ]
+                            },
+                            "2k|21:9"
+                          ]
+                        },
+                        "then": "3136x1344"
+                      }
+                    ],
+                    "default": {
+                      "$if": {
+                        "condition": {
+                          "$eq": [
+                            {
+                              "$len": {
+                                "$split": [
+                                  {
+                                    "$coalesce": [
+                                      {
+                                        "$omitEmpty": {
+                                          "$ref": "request.aspectRatio"
+                                        }
+                                      },
+                                      "1:1"
+                                    ]
+                                  },
+                                  "x"
+                                ]
+                              }
+                            },
+                            2
+                          ]
+                        },
+                        "then": {
+                          "$coalesce": [
+                            {
+                              "$omitEmpty": {
+                                "$ref": "request.aspectRatio"
+                              }
+                            },
+                            "1:1"
+                          ]
+                        },
+                        "else": {
+                          "$upper": {
+                            "$lower": {
+                              "$coalesce": [
+                                {
+                                  "$omitEmpty": {
+                                    "$ref": "request.resolution"
+                                  }
+                                },
+                                "2k"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "response_format": "url",
+                "watermark": false,
+                "output_format": "png"
+              },
+              {
+                "$ref": "request.providerOptions.cloudwise-seedream-image.body"
+              }
+            ]
+          }
+        },
+        "response": {
+          "status": {
+            "$if": {
+              "condition": {
+                "$gt": [
+                  {
+                    "$len": {
+                      "$coalesce": [
+                        {
+                          "$ref": "response.data.0.url"
+                        },
+                        ""
+                      ]
+                    }
+                  },
+                  0
+                ]
+              },
+              "then": "succeeded",
+              "else": "failed"
+            }
+          },
+          "message": {
+            "$coalesce": [
+              {
+                "$omitEmpty": {
+                  "$ref": "response.error.message"
+                }
+              },
+              {
+                "$omitEmpty": {
+                  "$ref": "response.data.0.error.message"
+                }
+              },
+              {
+                "$ref": "response.message"
+              }
+            ]
+          },
+          "images": {
+            "$map": {
+              "from": {
+                "$coalesce": [
+                  {
+                    "$ref": "response.data"
+                  },
+                  []
+                ]
+              },
+              "as": "item",
+              "in": {
+                "url": {
+                  "$omitEmpty": {
+                    "$ref": "item.url"
+                  }
+                }
+              }
+            }
+          },
+          "usage": {
+            "$ref": "response.usage"
           },
           "resultEphemeral": true
         }
