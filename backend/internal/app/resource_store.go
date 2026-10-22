@@ -302,6 +302,12 @@ func (s *Service) storeResourceWithWriter(userID string, kind string, fileName s
 		}
 		return nil, false, resourceUploadInProgress()
 	}
+	// 视频时长参与按秒计费，能从文件读出时就以服务器测得的为准，不用客户端上报的。
+	if seeker, ok := body.(io.ReadSeeker); ok && strings.HasPrefix(mimeType, "video/") {
+		if measured := probeVideoDurationMs(seeker); measured > 0 {
+			durationMs = measured
+		}
+	}
 	now := time.Now()
 	var setting ossSettingValue
 	var storageSettingID string

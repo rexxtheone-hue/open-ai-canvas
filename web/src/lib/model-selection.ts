@@ -496,5 +496,6 @@ function videoOperationLabel(operation: string) {
     if (operation === "motion_transfer") return "动作同步";
     if (operation === "video_upscale") return "视频高清";
     if (operation === "dubbing") return "视频配音翻译";
+    if (operation === "video_sfx") return "视频配音效";
     return "当前生成模式";
 }

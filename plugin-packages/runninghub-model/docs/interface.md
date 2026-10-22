@@ -62,6 +62,16 @@
 
 扩展键：`providerOptions.runninghub-wan.seed`、`duration`（可填 `auto` 智能时长）、`aspectRatio`、`resolution`。
 
+
+
+## RunningHub 视频超分（Provider `runninghub-upscale`）
+
+- 模型 ID 填 `rhart-video/rh-upscale/enhance-frame`。
+- 请求体：`fileUrl`（第一段参考视频）、`model`（增强档位，默认 `max`，可用 `providerOptions.runninghub-upscale.tier` 改为 high / medium / low）、`resolution`、`outputFps`。
+- 分辨率和帧率读取 Studio 专项工具选项 `extra.specialtyOptions`：分辨率 720 / 1080 / 1440 / 2160 对应 `720p` / `1080p` / `2k` / `4k`，默认 `1080p`；帧率 30 / 60 / 120 原样发送，未选时为 `1x`（不插帧）。
+- 查询与结果解析与 `runninghub-model` 相同：`POST /openapi/v2/query`，结果在 `results[].url`（24 小时有效）。
+- 官方价格按秒计：max ¥0.08、high ¥0.07、medium ¥0.06、low ¥0.05，与分辨率无关。
+
 <!-- YINGCE_MANIFEST_CONTRACT_START -->
 ## Manifest 完整接口定义
 
@@ -72,7 +82,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "runninghub-model",
   "name": "RunningHub 标准模型 API",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "author": "Rexx",
   "description": "RunningHub 标准模型 API 视频协议插件（异步任务），适配 MiniMax H3 RH Enhanced 多参考生视频与万相 3.0 参考生视频。",
   "permissions": [
@@ -1619,6 +1629,367 @@
             "seed": {
               "$omitEmpty": {
                 "$ref": "request.providerOptions.runninghub-wan.seed"
+              }
+            }
+          }
+        },
+        "poll": {
+          "method": "POST",
+          "path": "/openapi/v2/query",
+          "originPath": true,
+          "contentType": "application/json",
+          "body": {
+            "taskId": {
+              "$ref": "taskId"
+            }
+          }
+        },
+        "response": {
+          "taskId": {
+            "$coalesce": [
+              {
+                "$ref": "response.taskId"
+              },
+              {
+                "$ref": "taskId"
+              }
+            ]
+          },
+          "status": {
+            "$if": {
+              "condition": {
+                "$and": [
+                  {
+                    "$eq": [
+                      {
+                        "$len": {
+                          "$coalesce": [
+                            {
+                              "$ref": "response.status"
+                            },
+                            ""
+                          ]
+                        }
+                      },
+                      0
+                    ]
+                  },
+                  {
+                    "$gt": [
+                      {
+                        "$len": {
+                          "$coalesce": [
+                            {
+                              "$ref": "response.errorCode"
+                            },
+                            ""
+                          ]
+                        }
+                      },
+                      0
+                    ]
+                  }
+                ]
+              },
+              "then": "FAILED",
+              "else": {
+                "$coalesce": [
+                  {
+                    "$ref": "response.status"
+                  },
+                  "QUEUED"
+                ]
+              }
+            }
+          },
+          "message": {
+            "$coalesce": [
+              {
+                "$ref": "response.errorMessage"
+              },
+              {
+                "$ref": "response.msg"
+              },
+              {
+                "$ref": "response.message"
+              }
+            ]
+          },
+          "videos": {
+            "$filter": {
+              "from": {
+                "$ref": "response.results"
+              },
+              "as": "item",
+              "where": {
+                "$in": [
+                  {
+                    "$lower": {
+                      "$coalesce": [
+                        {
+                          "$ref": "item.outputType"
+                        },
+                        "mp4"
+                      ]
+                    }
+                  },
+                  [
+                    "mp4",
+                    "mov",
+                    "webm",
+                    "mkv",
+                    "avi"
+                  ]
+                ]
+              }
+            }
+          },
+          "usage": {
+            "$ref": "response.usage"
+          },
+          "errorPaths": [
+            "errorCode",
+            "code"
+          ],
+          "resultEphemeral": true,
+          "messagePaths": [
+            "errorMessage",
+            "msg",
+            "message"
+          ]
+        }
+      },
+      {
+        "id": "runninghub-upscale",
+        "label": "RunningHub 视频超分",
+        "capabilities": [
+          "video"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation",
+          "agent"
+        ],
+        "baseUrl": "https://www.runninghub.cn",
+        "requiresPublicMediaUrls": true,
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey"
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "path",
+            "description": "上游接口：rhart-video/rh-upscale/enhance-frame。"
+          },
+          {
+            "name": "videos",
+            "type": "media[]",
+            "required": true,
+            "mapping": "fileUrl",
+            "description": "要超分的视频，1 段，100MB 以内。"
+          },
+          {
+            "name": "providerOptions",
+            "type": "object",
+            "required": false,
+            "mapping": "model",
+            "description": "providerOptions.runninghub-upscale.tier 选增强档位 max / high / medium / low，默认 max。"
+          }
+        ],
+        "validations": [
+          {
+            "assert": {
+              "$eq": [
+                {
+                  "$len": {
+                    "$ref": "request.videos"
+                  }
+                },
+                1
+              ]
+            },
+            "message": "视频超分需要 1 段视频"
+          }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/openapi/v2/{{model}}",
+          "originPath": true,
+          "contentType": "application/json",
+          "body": {
+            "fileUrl": {
+              "$first": {
+                "$map": {
+                  "from": {
+                    "$ref": "request.videos"
+                  },
+                  "as": "media",
+                  "in": {
+                    "$coalesce": [
+                      {
+                        "$ref": "media.url"
+                      },
+                      {
+                        "$ref": "media.dataUrl"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "model": {
+              "$coalesce": [
+                {
+                  "$omitEmpty": {
+                    "$ref": "request.providerOptions.runninghub-upscale.tier"
+                  }
+                },
+                "max"
+              ]
+            },
+            "resolution": {
+              "$switch": {
+                "cases": [
+                  {
+                    "when": {
+                      "$eq": [
+                        {
+                          "$coalesce": [
+                            {
+                              "$omitEmpty": {
+                                "$ref": "request.extra.specialtyOptions.resolution"
+                              }
+                            },
+                            ""
+                          ]
+                        },
+                        "720"
+                      ]
+                    },
+                    "then": "720p"
+                  },
+                  {
+                    "when": {
+                      "$eq": [
+                        {
+                          "$coalesce": [
+                            {
+                              "$omitEmpty": {
+                                "$ref": "request.extra.specialtyOptions.resolution"
+                              }
+                            },
+                            ""
+                          ]
+                        },
+                        "1080"
+                      ]
+                    },
+                    "then": "1080p"
+                  },
+                  {
+                    "when": {
+                      "$eq": [
+                        {
+                          "$coalesce": [
+                            {
+                              "$omitEmpty": {
+                                "$ref": "request.extra.specialtyOptions.resolution"
+                              }
+                            },
+                            ""
+                          ]
+                        },
+                        "1440"
+                      ]
+                    },
+                    "then": "2k"
+                  },
+                  {
+                    "when": {
+                      "$eq": [
+                        {
+                          "$coalesce": [
+                            {
+                              "$omitEmpty": {
+                                "$ref": "request.extra.specialtyOptions.resolution"
+                              }
+                            },
+                            ""
+                          ]
+                        },
+                        "2160"
+                      ]
+                    },
+                    "then": "4k"
+                  }
+                ],
+                "default": "1080p"
+              }
+            },
+            "outputFps": {
+              "$switch": {
+                "cases": [
+                  {
+                    "when": {
+                      "$eq": [
+                        {
+                          "$coalesce": [
+                            {
+                              "$omitEmpty": {
+                                "$ref": "request.extra.specialtyOptions.fps"
+                              }
+                            },
+                            ""
+                          ]
+                        },
+                        "30"
+                      ]
+                    },
+                    "then": "30"
+                  },
+                  {
+                    "when": {
+                      "$eq": [
+                        {
+                          "$coalesce": [
+                            {
+                              "$omitEmpty": {
+                                "$ref": "request.extra.specialtyOptions.fps"
+                              }
+                            },
+                            ""
+                          ]
+                        },
+                        "60"
+                      ]
+                    },
+                    "then": "60"
+                  },
+                  {
+                    "when": {
+                      "$eq": [
+                        {
+                          "$coalesce": [
+                            {
+                              "$omitEmpty": {
+                                "$ref": "request.extra.specialtyOptions.fps"
+                              }
+                            },
+                            ""
+                          ]
+                        },
+                        "120"
+                      ]
+                    },
+                    "then": "120"
+                  }
+                ],
+                "default": "1x"
               }
             }
           }

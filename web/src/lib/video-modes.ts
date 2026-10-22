@@ -22,6 +22,7 @@ export const SPECIALTY_VIDEO_OPERATIONS = [
     { value: "motion_transfer", label: "动作同步" },
     { value: "video_upscale", label: "视频高清" },
     { value: "dubbing", label: "视频配音翻译" },
+    { value: "video_sfx", label: "视频配音效" },
 ] as const;
 
 export type SpecialtyVideoOperation = (typeof SPECIALTY_VIDEO_OPERATIONS)[number]["value"];

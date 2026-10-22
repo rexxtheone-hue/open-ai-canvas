@@ -567,7 +567,7 @@ export const STUDIO_SPECIALTY_SPECS: Record<string, StudioSpecialtySpec> = {
     },
     "add-sound-effect": {
         kind: "video",
-        unsupported: "视频配音效",
+        operation: "video_sfx",
         slots: [{ key: "source", label: "原视频", accept: "video", required: true, hint: "上传或选择一段视频", constraint: "MP4 / MOV，200MB 以内，最长 60 秒" }],
         options: [keepSoundOption],
         prompt: { label: "描述音效", placeholder: "可选，例如：脚步声、远处的雷声、风吹树叶。", required: false },
@@ -845,6 +845,7 @@ const OPERATION_LABELS: Record<string, string> = {
     motion_transfer: "动作同步",
     video_upscale: "视频高清",
     dubbing: "视频配音翻译",
+    video_sfx: "视频配音效",
     inpaint: "视频编辑",
     replace_element: "换角色",
     style_transfer: "视频换风格",

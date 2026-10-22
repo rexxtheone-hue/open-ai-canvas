@@ -145,6 +145,21 @@ export function studioPreferredModel(config: AiConfig, kind: StudioKind, remembe
     return options[0];
 }
 
+/** 输出与原视频等长的专项操作，按原视频时长计费，不用输出设置里的时长。 */
+const SOURCE_LENGTH_OPERATIONS = new Set(["video_upscale", "video_sfx", "dubbing"]);
+
+function sourceLengthSeconds(state: StudioToolState) {
+    if (!state.specialty?.operation || !SOURCE_LENGTH_OPERATIONS.has(state.specialty.operation)) return "";
+    const source = state.attachments.find((attachment) => creationAttachmentKind(attachment) === "video");
+    const durationMs = source && "durationMs" in source ? source.durationMs : undefined;
+    return durationMs && durationMs > 0 ? String(Math.ceil(durationMs / 1000)) : "";
+}
+
+/** 计价和提交用的视频时长。 */
+export function studioVideoSeconds(state: StudioToolState) {
+    return sourceLengthSeconds(state) || state.video.seconds;
+}
+
 function attachmentCounts(attachments: CreationAttachment[]) {
     let imageCount = 0;
     let videoCount = 0;
@@ -169,7 +184,8 @@ export function studioModelRequirements(config: AiConfig, state: StudioToolState
         return { capability: "image", input, imageSize: state.image.ratio, options: imageParameterRequest(profile, values) ?? { size: state.image.ratio, imageResolution: state.image.imageResolution, quality: state.image.quality, count: state.count, transparentBackground: config.transparentBackground === "true" } };
     }
     if (state.kind === "video") {
-        return { capability: "video", input, videoSeconds: state.video.seconds, ...(state.specialty?.operation ? { videoOperation: state.specialty.operation } : { videoMode: state.video.mode }), options: { size: state.video.ratio, videoSeconds: Number(state.video.seconds), vquality: state.video.videoQuality } };
+        const seconds = studioVideoSeconds(state);
+        return { capability: "video", input, videoSeconds: seconds, ...(state.specialty?.operation ? { videoOperation: state.specialty.operation } : { videoMode: state.video.mode }), options: { size: state.video.ratio, videoSeconds: Number(seconds), vquality: state.video.videoQuality } };
     }
     return { capability: "audio", input, options: {} };
 }
@@ -264,7 +280,8 @@ export function studioGenerationConfig(config: AiConfig, state: StudioToolState,
     }
     if (state.kind === "video") {
         const base = creationVideoConfig(config, model, { ratio: state.video.ratio, seconds: state.video.seconds, videoQuality: state.video.videoQuality });
-        return { ...base, ...resolveModelVideoBooleanOptions(config, model, { videoGenerateAudio: state.video.generateAudio ? "true" : "false" }, { videoWatermark: config.videoWatermark }) };
+        const sourceSeconds = sourceLengthSeconds(state);
+        return { ...base, ...(sourceSeconds ? { videoSeconds: sourceSeconds } : {}), ...resolveModelVideoBooleanOptions(config, model, { videoGenerateAudio: state.video.generateAudio ? "true" : "false" }, { videoWatermark: config.videoWatermark }) };
     }
     return { ...config, model, audioModel: model, audioVoice: state.audio.voice, audioFormat: state.audio.format, audioSpeed: state.audio.speed };
 }
@@ -295,7 +312,7 @@ export function studioBlockReason(config: AiConfig, state: StudioToolState, mode
     }
     if (state.kind === "video") {
         const profile = modelCapabilityConfigFor(config, model).video!;
-        if (!videoDurationAllowed(profile, Number(state.video.seconds))) return "当前模型不支持所选视频时长";
+        if (!sourceLengthSeconds(state) && !videoDurationAllowed(profile, Number(state.video.seconds))) return "当前模型不支持所选视频时长";
         if (state.video.mode && !state.specialty) {
             const counts = attachmentCounts(state.attachments);
             const error = videoModeInputError(state.video.mode, counts);

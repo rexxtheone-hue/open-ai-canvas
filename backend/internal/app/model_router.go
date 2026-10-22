@@ -283,7 +283,7 @@ func videoPricingOperation(intent ModelRequestIntent) string {
 	case "inpaint", "replace_element", "style_transfer", "camera_motion":
 		return "video_edit"
 	// 专项操作需要供应商专门支持，各自单独定价。
-	case "lip_sync", "motion_transfer", "video_upscale", "dubbing":
+	case "lip_sync", "motion_transfer", "video_upscale", "dubbing", "video_sfx":
 		return strings.ToLower(strings.TrimSpace(intent.Operation))
 	}
 	return ""

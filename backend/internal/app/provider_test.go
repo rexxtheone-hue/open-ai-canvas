@@ -2425,6 +2425,17 @@ func TestNewAPIChannel1VideoBodyMapsFramesAndReferences(t *testing.T) {
 	}
 }
 
+func TestProtocolRequestPassesStudioSpecialtyOptionsAsShortStrings(t *testing.T) {
+	request := protocolRequestFromInput(canvasGenerationInput{
+		Mode:     "video",
+		Metadata: map[string]interface{}{"specialtyOptions": map[string]any{"resolution": "1440", "fps": "60", "bad": 123, "long": strings.Repeat("x", 41)}},
+	})
+	options, _ := request.Extra["specialtyOptions"].(map[string]any)
+	if !reflect.DeepEqual(options, map[string]any{"resolution": "1440", "fps": "60"}) {
+		t.Fatalf("specialtyOptions = %#v", request.Extra["specialtyOptions"])
+	}
+}
+
 func TestProtocolRequestPreservesVideoImageIDsAndRoles(t *testing.T) {
 	request := protocolRequestFromInput(canvasGenerationInput{
 		Mode: "video",

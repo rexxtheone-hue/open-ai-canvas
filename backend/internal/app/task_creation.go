@@ -108,6 +108,9 @@ func (s *Service) CreateTask(userID string, req CreateTaskRequest) (*model.Task,
 	if containsInlineMediaDataURL(normalizedInput) {
 		return nil, BadAuthRequest("任务输入不能包含内嵌媒体，请先上传到资源存储")
 	}
+	if err := s.applySourceLengthVideoSeconds(userID, normalizedInput, req.Operation); err != nil {
+		return nil, err
+	}
 	policy, err := s.RuntimePolicy()
 	if err != nil {
 		return nil, err

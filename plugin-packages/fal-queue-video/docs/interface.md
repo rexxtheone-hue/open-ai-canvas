@@ -50,6 +50,15 @@
 
 `PUT /{owner}/{app}/requests/{request_id}/cancel`。
 
+
+
+## Mirelo 视频配音效（Provider `fal-mirelo-sfx`）
+
+- 模型 ID 填 `mirelo-ai/sfx2.0/video-to-video`。
+- 请求体：`video_url`（第一段参考视频）、`text_prompt`（提示词）、`negative_prompt` 固定为 `music`、`num_samples` 固定为 1（fal 按样本数计费，默认 2 会翻倍）。
+- `preserve_speech` 读取 Studio 选项 `extra.specialtyOptions.keep`：为 `off` 时只生成音效、去掉原人声，其它情况保留原视频人声。
+- 返回的是带新音轨的原视频（`video[].url`），画面不重新生成。时长等于输入视频，官方按输出秒数计费（$0.015/秒）。
+
 <!-- YINGCE_MANIFEST_CONTRACT_START -->
 ## Manifest 完整接口定义
 
@@ -60,7 +69,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "fal-queue-video",
   "name": "fal.ai Queue Video",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "author": "fal.ai / 影策",
   "description": "fal.ai 队列接口（queue.fal.run）的视频生成协议插件：提交、查询状态、获取结果、取消。",
   "documentation": "<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>",
@@ -341,6 +350,289 @@
                 "$ref": "request.providerOptions.fal-queue-video.input"
               }
             ]
+          }
+        },
+        "poll": {
+          "method": "GET",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              {
+                "$concat": [
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      1
+                    ]
+                  },
+                  "/requests/{{taskId}}"
+                ]
+              },
+              "/status"
+            ]
+          }
+        },
+        "result": {
+          "method": "GET",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              "/",
+              {
+                "$at": [
+                  {
+                    "$split": [
+                      {
+                        "$ref": "request.model"
+                      },
+                      "/"
+                    ]
+                  },
+                  0
+                ]
+              },
+              "/",
+              {
+                "$at": [
+                  {
+                    "$split": [
+                      {
+                        "$ref": "request.model"
+                      },
+                      "/"
+                    ]
+                  },
+                  1
+                ]
+              },
+              "/requests/{{taskId}}"
+            ]
+          }
+        },
+        "cancel": {
+          "method": "PUT",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              {
+                "$concat": [
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      1
+                    ]
+                  },
+                  "/requests/{{taskId}}"
+                ]
+              },
+              "/cancel"
+            ]
+          }
+        },
+        "response": {
+          "taskId": {
+            "$coalesce": [
+              {
+                "$ref": "response.request_id"
+              },
+              {
+                "$ref": "taskId"
+              }
+            ]
+          },
+          "status": {
+            "$if": {
+              "condition": {
+                "$ref": "response.error"
+              },
+              "then": "failed",
+              "else": {
+                "$coalesce": [
+                  {
+                    "$ref": "response.status"
+                  },
+                  "pending"
+                ]
+              }
+            }
+          },
+          "message": {
+            "$coalesce": [
+              {
+                "$ref": "response.error"
+              },
+              {
+                "$ref": "response.detail"
+              },
+              {
+                "$ref": "response.message"
+              }
+            ]
+          },
+          "videos": {
+            "$coalesce": [
+              {
+                "$ref": "response.video"
+              },
+              {
+                "$ref": "response.videos"
+              }
+            ]
+          },
+          "resultEphemeral": true,
+          "resultJson": true
+        }
+      },
+      {
+        "id": "fal-mirelo-sfx",
+        "label": "fal.ai Mirelo 视频配音效",
+        "capabilities": [
+          "video"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation",
+          "agent"
+        ],
+        "baseUrl": "https://queue.fal.run",
+        "requiresPublicMediaUrls": true,
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey",
+          "prefix": "Key "
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "fal 模型 ID：mirelo-ai/sfx2.0/video-to-video。"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": false,
+            "mapping": "text_prompt",
+            "description": "音效描述，可写画面外的声音或环境音。"
+          },
+          {
+            "name": "videos",
+            "type": "media[]",
+            "required": true,
+            "mapping": "video_url",
+            "description": "要配音效的视频，1 段。"
+          }
+        ],
+        "validations": [
+          {
+            "assert": {
+              "$eq": [
+                {
+                  "$len": {
+                    "$ref": "request.videos"
+                  }
+                },
+                1
+              ]
+            },
+            "message": "视频配音效需要 1 段视频"
+          }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/{{model}}",
+          "originPath": true,
+          "contentType": "application/json",
+          "body": {
+            "video_url": {
+              "$first": {
+                "$map": {
+                  "from": {
+                    "$sortByOrder": {
+                      "$ref": "request.videos"
+                    }
+                  },
+                  "as": "media",
+                  "in": {
+                    "$ref": "media.value"
+                  }
+                }
+              }
+            },
+            "text_prompt": {
+              "$omitEmpty": {
+                "$ref": "request.prompt"
+              }
+            },
+            "negative_prompt": "music",
+            "preserve_speech": {
+              "$not": {
+                "$eq": [
+                  {
+                    "$coalesce": [
+                      {
+                        "$omitEmpty": {
+                          "$ref": "request.extra.specialtyOptions.keep"
+                        }
+                      },
+                      ""
+                    ]
+                  },
+                  "off"
+                ]
+              }
+            },
+            "num_samples": 1
           }
         },
         "poll": {

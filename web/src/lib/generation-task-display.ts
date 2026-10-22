@@ -95,6 +95,7 @@ export const operationOptions = [
     { label: "动作同步", value: "motion_transfer" },
     { label: "视频高清", value: "video_upscale" },
     { label: "视频配音翻译", value: "dubbing" },
+    { label: "视频配音效", value: "video_sfx" },
 ];
 
 export const operationLabelByValue = new Map(operationOptions.map((item) => [item.value, item.label]));

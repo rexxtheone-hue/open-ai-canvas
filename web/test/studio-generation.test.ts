@@ -272,6 +272,20 @@ describe("AI Studio 专项工具", () => {
         expect((submission.referenceImages[0] as { role?: string }).role).toBeUndefined();
     });
 
+    test("配音效按原视频时长计价，不用输出设置的时长", () => {
+        const config = studioConfig();
+        const video = config.channels[0].modelCosts![1].capabilityConfig!.video!;
+        video.operations = [...video.operations, "video_sfx"];
+        const spec = studioSpecialtySpec("add-sound-effect")!;
+        const values = { source: { ...attachment("v", "video/mp4"), durationMs: 37_200 } as CreationAttachment };
+        const sfx = state("video", { specialty: buildSpecialtyState(spec, values, "", defaultSpecialtyOptions(spec)), attachments: orderedSlotAttachments(spec, values) });
+        expect(studioModelRequirements(config, sfx).videoSeconds).toBe("38");
+        expect(studioGenerationConfig(config, sfx, "relay::clip-pro").videoSeconds).toBe("38");
+        expect(studioBlockReason(config, sfx, "relay::clip-pro", ready)).toBe("");
+        const unknown = state("video", { specialty: buildSpecialtyState(spec, { source: attachment("v", "video/mp4") }, "", {}), attachments: [attachment("v", "video/mp4")] });
+        expect(studioModelRequirements(config, unknown).videoSeconds).toBe("5");
+    });
+
     test("缺素材时生成按钮给出原因", () => {
         const config = lipConfig();
         const spec = studioSpecialtySpec("lip-sync")!;

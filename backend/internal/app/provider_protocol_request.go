@@ -72,6 +72,16 @@ func protocolRequestFromInput(input canvasGenerationInput) protocol.GenerationRe
 	request.Inputs = append(request.Inputs, request.Images...)
 	request.Inputs = append(request.Inputs, request.Videos...)
 	request.Inputs = append(request.Inputs, request.Audios...)
+	// Studio 专项工具的选项（如超分分辨率、帧率）交给插件按需取用，只保留短字符串。
+	if options, ok := input.Metadata["specialtyOptions"].(map[string]any); ok {
+		clean := map[string]any{}
+		for key, value := range options {
+			if text, isText := value.(string); isText && len(key) <= 40 && len(text) <= 40 {
+				clean[key] = text
+			}
+		}
+		request.Extra["specialtyOptions"] = clean
+	}
 	if input.MaxOutputTokens > 0 {
 		request.Extra["max_output_tokens"] = input.MaxOutputTokens
 		request.Extra["max_tokens"] = input.MaxOutputTokens
