@@ -286,6 +286,43 @@ describe("AI Studio 专项工具", () => {
         expect(studioModelRequirements(config, unknown).videoSeconds).toBe("5");
     });
 
+    test("生成音效只用 Mirelo 音效模型，配音工具不会选到它", () => {
+        const config = studioConfig();
+        const channel = config.channels[0];
+        channel.models.push("tts", "sfx");
+        channel.modelCosts!.push(
+            { model: "tts", displayName: "TTS", capability: "audio" as const, billingMode: "per_second" as const, unitPriceMicrocredits: 1 },
+            { model: "sfx", displayName: "SFX", capability: "audio" as const, billingMode: "per_second" as const, unitPriceMicrocredits: 1, protocol: "fal-mirelo-sfx-text" },
+        );
+        config.models.push("relay::tts", "relay::sfx");
+        config.audioModels = ["relay::tts", "relay::sfx"];
+        const sfx = studioSpecialtySpec("create-sound-effect")!;
+        const sfxState = buildSpecialtyState(sfx, {}, "雷声", defaultSpecialtyOptions(sfx));
+        expect(sfxState.operationLabel).toBe("音效生成");
+        expect(studioPreferredModel(config, "audio", "relay::tts", sfxState)).toBe("relay::sfx");
+        expect(studioPreferredModel(config, "audio", "relay::sfx")).toBe("relay::tts");
+        expect(specialtyPrompt(sfx, "雷声", { loop: "on", duration: "5" })).toBe("雷声；可无缝循环");
+
+        channel.models.push("lyria");
+        channel.modelCosts!.push({ model: "lyria", displayName: "Lyria 3 Pro", capability: "audio" as const, billingMode: "fixed_request" as const, unitPriceMicrocredits: 1, protocol: "fal-lyria3" });
+        config.audioModels.push("relay::lyria");
+        const music = studioSpecialtySpec("create-music")!;
+        const musicState = buildSpecialtyState(music, {}, "Lo-fi", defaultSpecialtyOptions(music));
+        expect(musicState.operationLabel).toBe("音乐生成");
+        expect(studioPreferredModel(config, "audio", "relay::sfx", musicState)).toBe("relay::lyria");
+        expect(studioPreferredModel(config, "audio", "relay::lyria")).toBe("relay::tts");
+        expect(specialtyInputError(music, { refs: [attachment("a", "image/png"), attachment("b", "image/png")] }, "Lo-fi")).not.toBe("");
+
+        channel.models.push("index");
+        channel.modelCosts!.push({ model: "index", displayName: "IndexTTS 2", capability: "audio" as const, billingMode: "per_second" as const, unitPriceMicrocredits: 1, protocol: "fal-index-tts2" });
+        config.audioModels.push("relay::index");
+        const clone = studioSpecialtySpec("voice-clone")!;
+        const cloneState = buildSpecialtyState(clone, { voice: attachment("v", "audio/mpeg") }, "你好", {});
+        expect(studioPreferredModel(config, "audio", "relay::index", cloneState)).toBe("relay::index");
+        expect(studioPreferredModel(config, "audio", "relay::tts", cloneState)).toBe("relay::index");
+        expect(studioPreferredModel(config, "audio", "relay::index")).toBe("relay::tts");
+    });
+
     test("缺素材时生成按钮给出原因", () => {
         const config = lipConfig();
         const spec = studioSpecialtySpec("lip-sync")!;

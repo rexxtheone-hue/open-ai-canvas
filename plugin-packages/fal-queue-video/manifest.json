@@ -2,10 +2,10 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "fal-queue-video",
   "name": "fal.ai Queue Video",
-  "version": "3.0.1",
+  "version": "3.0.4",
   "author": "fal.ai / 影策",
   "description": "fal.ai 队列接口（queue.fal.run）的视频生成协议插件：提交、查询状态、获取结果、取消。",
-  "documentation": "# fal.ai Queue Video\n\n该目录是独立官方协议插件源码。后端从生成的 `fal-queue-video.yingce-plugin` 包加载，不依赖系统内置 `host:` 适配器。\n\n完整接口见 [docs/interface.md](docs/interface.md)。\n\n---\n\n# fal.ai Queue Video 接口说明\n\n## 渠道配置\n\n- Base URL：`https://queue.fal.run`\n- API Key：fal 控制台生成的 Key。插件以 `Authorization: Key <API Key>` 发送。\n- 模型名：填写完整的 fal 模型 ID，例如 `fal-ai/kling-video/v2.1/pro/image-to-video`。\n\n## 提交任务\n\n`POST /{model}`，请求体直接是模型输入（不包 `input`）：\n\n- `prompt`\n- `image_url`\n- `end_image_url`\n- `tail_image_url`\n- `video_url`\n- `audio_url`\n- `duration`\n- `aspect_ratio`\n- `resolution`\n- `generate_audio`\n- `seed`\n\n空值字段不会发送。`providerOptions.fal-queue-video.input` 中的字段会合并进请求体，并覆盖同名默认字段，用于模型特有参数。参考素材需要公网 URL，宿主会先把素材转存为公网链接。\n\n响应示例：\n\n```json\n{\"request_id\": \"764cabcf-...\", \"status\": \"IN_QUEUE\", \"status_url\": \"...\", \"response_url\": \"...\"}\n```\n\n## 查询状态\n\n`GET /{owner}/{app}/requests/{request_id}/status`。`owner/app` 取模型 ID 的前两段，例如 `fal-ai/flux/dev` 的状态地址在 `fal-ai/flux` 下。\n\n状态 `IN_QUEUE`、`IN_PROGRESS`、`COMPLETED` 分别对应排队、处理中、完成。响应带 `error` 字段时任务视为失败。\n\n## 获取结果\n\n状态为 `COMPLETED` 后请求 `GET /{owner}/{app}/requests/{request_id}`，返回 JSON，视频从 `video` 字段读取：\n\n```json\n{\"video\": {\"url\": \"https://v3.fal.media/files/...mp4\"}}\n```\n\n结果链接是临时链接，宿主会转存。\n\n## 取消\n\n`PUT /{owner}/{app}/requests/{request_id}/cancel`。\n\n\n\n## Mirelo 视频配音效（Provider `fal-mirelo-sfx`）\n\n- 模型 ID 填 `mirelo-ai/sfx2.0/video-to-video`。\n- 请求体：`video_url`（第一段参考视频）、`text_prompt`（提示词）、`negative_prompt` 固定为 `music`、`num_samples` 固定为 1（fal 按样本数计费，默认 2 会翻倍）。\n- `preserve_speech` 读取 Studio 选项 `extra.specialtyOptions.keep`：为 `off` 时只生成音效、去掉原人声，其它情况保留原视频人声。\n- 返回的是带新音轨的原视频（`video[].url`），画面不重新生成。时长等于输入视频，官方按输出秒数计费（$0.015/秒）。\n\n<!-- YINGCE_MANIFEST_CONTRACT_START -->\n## Manifest 完整接口定义\n\n以下 JSON 与插件包内实际 `manifest.json` 逐字段一致，覆盖插件身份、权限、配置、鉴权、参数、校验、创建、Agent、查询、取消、结果下载、响应和 Agent 响应映射。`documentation` 字段的值就是当前完整文档；为避免文档在自身内部无限递归，JSON 中仅用等义占位文本表示正文。\n\n```json\n{\n  \"apiVersion\": \"yingce.plugin/v2\",\n  \"id\": \"fal-queue-video\",\n  \"name\": \"fal.ai Queue Video\",\n  \"version\": \"3.0.1\",\n  \"author\": \"fal.ai / 影策\",\n  \"description\": \"fal.ai 队列接口（queue.fal.run）的视频生成协议插件：提交、查询状态、获取结果、取消。\",\n  \"documentation\": \"<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>\",\n  \"permissions\": [\n    \"generation.run\",\n    \"media.read\"\n  ],\n  \"configuration\": {\n    \"fields\": [\n      {\n        \"name\": \"apiKey\",\n        \"type\": \"secret\",\n        \"label\": \"API Key\",\n        \"required\": true\n      }\n    ]\n  },\n  \"contributes\": {\n    \"providers\": [\n      {\n        \"id\": \"fal-queue-video\",\n        \"label\": \"fal.ai Queue Video\",\n        \"capabilities\": [\n          \"video\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\",\n          \"agent\"\n        ],\n        \"baseUrl\": \"https://queue.fal.run\",\n        \"requiresPublicMediaUrls\": true,\n        \"auth\": {\n          \"type\": \"bearer\",\n          \"field\": \"apiKey\",\n          \"prefix\": \"Key \"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\",\n            \"description\": \"fal 模型 ID，例如 fal-ai/nano-banana/edit、fal-ai/kling-video/v2.1/pro/image-to-video。\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\",\n            \"description\": \"提示词，映射到 prompt。\"\n          },\n          {\n            \"name\": \"images\",\n            \"type\": \"media[]\",\n            \"required\": false,\n            \"mapping\": \"images\",\n            \"description\": \"参考图：第一张映射 image_url，两张以上时最后一张映射 end_image_url / tail_image_url。\"\n          },\n          {\n            \"name\": \"videos\",\n            \"type\": \"media[]\",\n            \"required\": false,\n            \"mapping\": \"videos\",\n            \"description\": \"第一个参考视频映射 video_url。\"\n          },\n          {\n            \"name\": \"audios\",\n            \"type\": \"media[]\",\n            \"required\": false,\n            \"mapping\": \"audios\",\n            \"description\": \"第一个参考音频映射 audio_url。\"\n          },\n          {\n            \"name\": \"duration\",\n            \"type\": \"integer\",\n            \"required\": false,\n            \"mapping\": \"duration\",\n            \"description\": \"时长（秒），以字符串发送到 duration。\"\n          },\n          {\n            \"name\": \"aspectRatio\",\n            \"type\": \"string\",\n            \"required\": false,\n            \"mapping\": \"aspectRatio\",\n            \"description\": \"画面比例，映射 aspect_ratio。\"\n          },\n          {\n            \"name\": \"resolution\",\n            \"type\": \"string\",\n            \"required\": false,\n            \"mapping\": \"resolution\",\n            \"description\": \"分辨率，映射 resolution。\"\n          },\n          {\n            \"name\": \"generateAudio\",\n            \"type\": \"boolean\",\n            \"required\": false,\n            \"mapping\": \"generateAudio\",\n            \"description\": \"是否生成音频，映射 generate_audio。\"\n          },\n          {\n            \"name\": \"providerOptions\",\n            \"type\": \"object\",\n            \"required\": false,\n            \"mapping\": \"providerOptions\",\n            \"description\": \"providerOptions.fal-queue-video.input 中的字段会原样合并进请求体，可覆盖默认字段；seed 映射 seed。\"\n          }\n        ],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/{{model}}\",\n          \"originPath\": true,\n          \"contentType\": \"application/json\",\n          \"body\": {\n            \"$merge\": [\n              {\n                \"prompt\": {\n                  \"$ref\": \"request.prompt\"\n                },\n                \"image_url\": {\n                  \"$omitEmpty\": {\n                    \"$first\": {\n                      \"$map\": {\n                        \"from\": {\n                          \"$sortByOrder\": {\n                            \"$ref\": \"request.images\"\n                          }\n                        },\n                        \"as\": \"media\",\n                        \"in\": {\n                          \"$ref\": \"media.value\"\n                        }\n                      }\n                    }\n                  }\n                },\n                \"end_image_url\": {\n                  \"$omitEmpty\": {\n                    \"$if\": {\n                      \"condition\": {\n                        \"$gte\": [\n                          {\n                            \"$len\": {\n                              \"$ref\": \"request.images\"\n                            }\n                          },\n                          2\n                        ]\n                      },\n                      \"then\": {\n                        \"$last\": {\n                          \"$map\": {\n                            \"from\": {\n                              \"$sortByOrder\": {\n                                \"$ref\": \"request.images\"\n                              }\n                            },\n                            \"as\": \"media\",\n                            \"in\": {\n                              \"$ref\": \"media.value\"\n                            }\n                          }\n                        }\n                      },\n                      \"else\": null\n                    }\n                  }\n                },\n                \"tail_image_url\": {\n                  \"$omitEmpty\": {\n                    \"$if\": {\n                      \"condition\": {\n                        \"$gte\": [\n                          {\n                            \"$len\": {\n                              \"$ref\": \"request.images\"\n                            }\n                          },\n                          2\n                        ]\n                      },\n                      \"then\": {\n                        \"$last\": {\n                          \"$map\": {\n                            \"from\": {\n                              \"$sortByOrder\": {\n                                \"$ref\": \"request.images\"\n                              }\n                            },\n                            \"as\": \"media\",\n                            \"in\": {\n                              \"$ref\": \"media.value\"\n                            }\n                          }\n                        }\n                      },\n                      \"else\": null\n                    }\n                  }\n                },\n                \"video_url\": {\n                  \"$omitEmpty\": {\n                    \"$first\": {\n                      \"$map\": {\n                        \"from\": {\n                          \"$sortByOrder\": {\n                            \"$ref\": \"request.videos\"\n                          }\n                        },\n                        \"as\": \"media\",\n                        \"in\": {\n                          \"$ref\": \"media.value\"\n                        }\n                      }\n                    }\n                  }\n                },\n                \"audio_url\": {\n                  \"$omitEmpty\": {\n                    \"$first\": {\n                      \"$map\": {\n                        \"from\": {\n                          \"$sortByOrder\": {\n                            \"$ref\": \"request.audios\"\n                          }\n                        },\n                        \"as\": \"media\",\n                        \"in\": {\n                          \"$ref\": \"media.value\"\n                        }\n                      }\n                    }\n                  }\n                },\n                \"duration\": {\n                  \"$omitEmpty\": {\n                    \"$if\": {\n                      \"condition\": {\n                        \"$gt\": [\n                          {\n                            \"$ref\": \"request.duration\"\n                          },\n                          0\n                        ]\n                      },\n                      \"then\": {\n                        \"$toString\": {\n                          \"$ref\": \"request.duration\"\n                        }\n                      },\n                      \"else\": null\n                    }\n                  }\n                },\n                \"aspect_ratio\": {\n                  \"$omitEmpty\": {\n                    \"$ref\": \"request.aspectRatio\"\n                  }\n                },\n                \"resolution\": {\n                  \"$omitEmpty\": {\n                    \"$ref\": \"request.resolution\"\n                  }\n                },\n                \"generate_audio\": {\n                  \"$ref\": \"request.generateAudio\"\n                },\n                \"seed\": {\n                  \"$omitEmpty\": {\n                    \"$ref\": \"request.providerOptions.fal-queue-video.seed\"\n                  }\n                }\n              },\n              {\n                \"$ref\": \"request.providerOptions.fal-queue-video.input\"\n              }\n            ]\n          }\n        },\n        \"poll\": {\n          \"method\": \"GET\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              {\n                \"$concat\": [\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      0\n                    ]\n                  },\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      1\n                    ]\n                  },\n                  \"/requests/{{taskId}}\"\n                ]\n              },\n              \"/status\"\n            ]\n          }\n        },\n        \"result\": {\n          \"method\": \"GET\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              \"/\",\n              {\n                \"$at\": [\n                  {\n                    \"$split\": [\n                      {\n                        \"$ref\": \"request.model\"\n                      },\n                      \"/\"\n                    ]\n                  },\n                  0\n                ]\n              },\n              \"/\",\n              {\n                \"$at\": [\n                  {\n                    \"$split\": [\n                      {\n                        \"$ref\": \"request.model\"\n                      },\n                      \"/\"\n                    ]\n                  },\n                  1\n                ]\n              },\n              \"/requests/{{taskId}}\"\n            ]\n          }\n        },\n        \"cancel\": {\n          \"method\": \"PUT\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              {\n                \"$concat\": [\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      0\n                    ]\n                  },\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      1\n                    ]\n                  },\n                  \"/requests/{{taskId}}\"\n                ]\n              },\n              \"/cancel\"\n            ]\n          }\n        },\n        \"response\": {\n          \"taskId\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.request_id\"\n              },\n              {\n                \"$ref\": \"taskId\"\n              }\n            ]\n          },\n          \"status\": {\n            \"$if\": {\n              \"condition\": {\n                \"$ref\": \"response.error\"\n              },\n              \"then\": \"failed\",\n              \"else\": {\n                \"$coalesce\": [\n                  {\n                    \"$ref\": \"response.status\"\n                  },\n                  \"pending\"\n                ]\n              }\n            }\n          },\n          \"message\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.error\"\n              },\n              {\n                \"$ref\": \"response.detail\"\n              },\n              {\n                \"$ref\": \"response.message\"\n              }\n            ]\n          },\n          \"videos\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.video\"\n              },\n              {\n                \"$ref\": \"response.videos\"\n              }\n            ]\n          },\n          \"resultEphemeral\": true,\n          \"resultJson\": true\n        }\n      },\n      {\n        \"id\": \"fal-mirelo-sfx\",\n        \"label\": \"fal.ai Mirelo 视频配音效\",\n        \"capabilities\": [\n          \"video\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\",\n          \"agent\"\n        ],\n        \"baseUrl\": \"https://queue.fal.run\",\n        \"requiresPublicMediaUrls\": true,\n        \"auth\": {\n          \"type\": \"bearer\",\n          \"field\": \"apiKey\",\n          \"prefix\": \"Key \"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\",\n            \"description\": \"fal 模型 ID：mirelo-ai/sfx2.0/video-to-video。\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": false,\n            \"mapping\": \"text_prompt\",\n            \"description\": \"音效描述，可写画面外的声音或环境音。\"\n          },\n          {\n            \"name\": \"videos\",\n            \"type\": \"media[]\",\n            \"required\": true,\n            \"mapping\": \"video_url\",\n            \"description\": \"要配音效的视频，1 段。\"\n          }\n        ],\n        \"validations\": [\n          {\n            \"assert\": {\n              \"$eq\": [\n                {\n                  \"$len\": {\n                    \"$ref\": \"request.videos\"\n                  }\n                },\n                1\n              ]\n            },\n            \"message\": \"视频配音效需要 1 段视频\"\n          }\n        ],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/{{model}}\",\n          \"originPath\": true,\n          \"contentType\": \"application/json\",\n          \"body\": {\n            \"video_url\": {\n              \"$first\": {\n                \"$map\": {\n                  \"from\": {\n                    \"$sortByOrder\": {\n                      \"$ref\": \"request.videos\"\n                    }\n                  },\n                  \"as\": \"media\",\n                  \"in\": {\n                    \"$ref\": \"media.value\"\n                  }\n                }\n              }\n            },\n            \"text_prompt\": {\n              \"$omitEmpty\": {\n                \"$ref\": \"request.prompt\"\n              }\n            },\n            \"negative_prompt\": \"music\",\n            \"preserve_speech\": {\n              \"$not\": {\n                \"$eq\": [\n                  {\n                    \"$coalesce\": [\n                      {\n                        \"$omitEmpty\": {\n                          \"$ref\": \"request.extra.specialtyOptions.keep\"\n                        }\n                      },\n                      \"\"\n                    ]\n                  },\n                  \"off\"\n                ]\n              }\n            },\n            \"num_samples\": 1\n          }\n        },\n        \"poll\": {\n          \"method\": \"GET\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              {\n                \"$concat\": [\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      0\n                    ]\n                  },\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      1\n                    ]\n                  },\n                  \"/requests/{{taskId}}\"\n                ]\n              },\n              \"/status\"\n            ]\n          }\n        },\n        \"result\": {\n          \"method\": \"GET\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              \"/\",\n              {\n                \"$at\": [\n                  {\n                    \"$split\": [\n                      {\n                        \"$ref\": \"request.model\"\n                      },\n                      \"/\"\n                    ]\n                  },\n                  0\n                ]\n              },\n              \"/\",\n              {\n                \"$at\": [\n                  {\n                    \"$split\": [\n                      {\n                        \"$ref\": \"request.model\"\n                      },\n                      \"/\"\n                    ]\n                  },\n                  1\n                ]\n              },\n              \"/requests/{{taskId}}\"\n            ]\n          }\n        },\n        \"cancel\": {\n          \"method\": \"PUT\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              {\n                \"$concat\": [\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      0\n                    ]\n                  },\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      1\n                    ]\n                  },\n                  \"/requests/{{taskId}}\"\n                ]\n              },\n              \"/cancel\"\n            ]\n          }\n        },\n        \"response\": {\n          \"taskId\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.request_id\"\n              },\n              {\n                \"$ref\": \"taskId\"\n              }\n            ]\n          },\n          \"status\": {\n            \"$if\": {\n              \"condition\": {\n                \"$ref\": \"response.error\"\n              },\n              \"then\": \"failed\",\n              \"else\": {\n                \"$coalesce\": [\n                  {\n                    \"$ref\": \"response.status\"\n                  },\n                  \"pending\"\n                ]\n              }\n            }\n          },\n          \"message\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.error\"\n              },\n              {\n                \"$ref\": \"response.detail\"\n              },\n              {\n                \"$ref\": \"response.message\"\n              }\n            ]\n          },\n          \"videos\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.video\"\n              },\n              {\n                \"$ref\": \"response.videos\"\n              }\n            ]\n          },\n          \"resultEphemeral\": true,\n          \"resultJson\": true\n        }\n      }\n    ]\n  }\n}\n```\n<!-- YINGCE_MANIFEST_CONTRACT_END -->\n",
+  "documentation": "# fal.ai Queue Video\n\n该目录是独立官方协议插件源码。后端从生成的 `fal-queue-video.yingce-plugin` 包加载，不依赖系统内置 `host:` 适配器。\n\n完整接口见 [docs/interface.md](docs/interface.md)。\n\n---\n\n# fal.ai Queue Video 接口说明\n\n## 渠道配置\n\n- Base URL：`https://queue.fal.run`\n- API Key：fal 控制台生成的 Key。插件以 `Authorization: Key <API Key>` 发送。\n- 模型名：填写完整的 fal 模型 ID，例如 `fal-ai/kling-video/v2.1/pro/image-to-video`。\n\n## 提交任务\n\n`POST /{model}`，请求体直接是模型输入（不包 `input`）：\n\n- `prompt`\n- `image_url`\n- `end_image_url`\n- `tail_image_url`\n- `video_url`\n- `audio_url`\n- `duration`\n- `aspect_ratio`\n- `resolution`\n- `generate_audio`\n- `seed`\n\n空值字段不会发送。`providerOptions.fal-queue-video.input` 中的字段会合并进请求体，并覆盖同名默认字段，用于模型特有参数。参考素材需要公网 URL，宿主会先把素材转存为公网链接。\n\n响应示例：\n\n```json\n{\"request_id\": \"764cabcf-...\", \"status\": \"IN_QUEUE\", \"status_url\": \"...\", \"response_url\": \"...\"}\n```\n\n## 查询状态\n\n`GET /{owner}/{app}/requests/{request_id}/status`。`owner/app` 取模型 ID 的前两段，例如 `fal-ai/flux/dev` 的状态地址在 `fal-ai/flux` 下。\n\n状态 `IN_QUEUE`、`IN_PROGRESS`、`COMPLETED` 分别对应排队、处理中、完成。响应带 `error` 字段时任务视为失败。\n\n## 获取结果\n\n状态为 `COMPLETED` 后请求 `GET /{owner}/{app}/requests/{request_id}`，返回 JSON，视频从 `video` 字段读取：\n\n```json\n{\"video\": {\"url\": \"https://v3.fal.media/files/...mp4\"}}\n```\n\n结果链接是临时链接，宿主会转存。\n\n## 取消\n\n`PUT /{owner}/{app}/requests/{request_id}/cancel`。\n\n\n\n## Mirelo 视频配音效（Provider `fal-mirelo-sfx`）\n\n- 模型 ID 填 `mirelo-ai/sfx2.0/video-to-video`。\n- 请求体：`video_url`（第一段参考视频）、`text_prompt`（提示词）、`negative_prompt` 固定为 `music`、`num_samples` 固定为 1（fal 按样本数计费，默认 2 会翻倍）。\n- `preserve_speech` 读取 Studio 选项 `extra.specialtyOptions.keep`：为 `off` 时只生成音效、去掉原人声，其它情况保留原视频人声。\n- 返回的是带新音轨的原视频（`video[].url`），画面不重新生成。时长等于输入视频，官方按输出秒数计费（$0.015/秒）。\n\n## Mirelo 文字生成音效（Provider `fal-mirelo-sfx-text`）\n\n- 模型 ID 填 `mirelo-ai/sfx2.0/text-to-audio`，渠道能力为音频。\n- 请求体：`prompt`（音效描述）、`duration`（秒，读取 Studio 选项 `extra.specialtyOptions.duration`，未选时为 5）、`negative_prompt` 固定为 `music, voices`、`num_samples` 固定为 1、`upload_audio_format` 固定为 `wav`。\n- 输出 WAV，便于宿主在没有 ffprobe 时也能读出时长做按秒结算。\n- 返回 `audio[].url`。官方按输出秒数计费（$0.015/秒）。\n\n## Lyria 3 Pro 音乐生成（Provider `fal-lyria3`）\n\n- 模型 ID 填 `fal-ai/lyria3/pro`，渠道能力为音频。\n- 请求体：`prompt`（风格、情绪、乐器、节奏、人声或歌词，最多 5000 字）、`image_url`（可选，只取第一张参考图）。\n- 没有时长、纯音乐等独立参数，Studio 把这些选项写进提示词。\n- 返回 `audio.url`（MP3，最长约 3 分钟）和 `lyrics`。官方按次计费（$0.08/首）。\n\n## IndexTTS 2 声音克隆（Provider `fal-index-tts2`）\n\n- 模型 ID 填 `fal-ai/index-tts-2/text-to-speech`，渠道能力为音频。\n- 请求体：`prompt`（要朗读的文案）、`audio_url`（第一段声音样本，必填）。\n- 返回 `audio.url`（MP3）。官方按生成音频秒数计费（$0.002/秒）。\n\n<!-- YINGCE_MANIFEST_CONTRACT_START -->\n## Manifest 完整接口定义\n\n以下 JSON 与插件包内实际 `manifest.json` 逐字段一致，覆盖插件身份、权限、配置、鉴权、参数、校验、创建、Agent、查询、取消、结果下载、响应和 Agent 响应映射。`documentation` 字段的值就是当前完整文档；为避免文档在自身内部无限递归，JSON 中仅用等义占位文本表示正文。\n\n```json\n{\n  \"apiVersion\": \"yingce.plugin/v2\",\n  \"id\": \"fal-queue-video\",\n  \"name\": \"fal.ai Queue Video\",\n  \"version\": \"3.0.4\",\n  \"author\": \"fal.ai / 影策\",\n  \"description\": \"fal.ai 队列接口（queue.fal.run）的视频生成协议插件：提交、查询状态、获取结果、取消。\",\n  \"documentation\": \"<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>\",\n  \"permissions\": [\n    \"generation.run\",\n    \"media.read\"\n  ],\n  \"configuration\": {\n    \"fields\": [\n      {\n        \"name\": \"apiKey\",\n        \"type\": \"secret\",\n        \"label\": \"API Key\",\n        \"required\": true\n      }\n    ]\n  },\n  \"contributes\": {\n    \"providers\": [\n      {\n        \"id\": \"fal-queue-video\",\n        \"label\": \"fal.ai Queue Video\",\n        \"capabilities\": [\n          \"video\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\",\n          \"agent\"\n        ],\n        \"baseUrl\": \"https://queue.fal.run\",\n        \"requiresPublicMediaUrls\": true,\n        \"auth\": {\n          \"type\": \"bearer\",\n          \"field\": \"apiKey\",\n          \"prefix\": \"Key \"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\",\n            \"description\": \"fal 模型 ID，例如 fal-ai/nano-banana/edit、fal-ai/kling-video/v2.1/pro/image-to-video。\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\",\n            \"description\": \"提示词，映射到 prompt。\"\n          },\n          {\n            \"name\": \"images\",\n            \"type\": \"media[]\",\n            \"required\": false,\n            \"mapping\": \"images\",\n            \"description\": \"参考图：第一张映射 image_url，两张以上时最后一张映射 end_image_url / tail_image_url。\"\n          },\n          {\n            \"name\": \"videos\",\n            \"type\": \"media[]\",\n            \"required\": false,\n            \"mapping\": \"videos\",\n            \"description\": \"第一个参考视频映射 video_url。\"\n          },\n          {\n            \"name\": \"audios\",\n            \"type\": \"media[]\",\n            \"required\": false,\n            \"mapping\": \"audios\",\n            \"description\": \"第一个参考音频映射 audio_url。\"\n          },\n          {\n            \"name\": \"duration\",\n            \"type\": \"integer\",\n            \"required\": false,\n            \"mapping\": \"duration\",\n            \"description\": \"时长（秒），以字符串发送到 duration。\"\n          },\n          {\n            \"name\": \"aspectRatio\",\n            \"type\": \"string\",\n            \"required\": false,\n            \"mapping\": \"aspectRatio\",\n            \"description\": \"画面比例，映射 aspect_ratio。\"\n          },\n          {\n            \"name\": \"resolution\",\n            \"type\": \"string\",\n            \"required\": false,\n            \"mapping\": \"resolution\",\n            \"description\": \"分辨率，映射 resolution。\"\n          },\n          {\n            \"name\": \"generateAudio\",\n            \"type\": \"boolean\",\n            \"required\": false,\n            \"mapping\": \"generateAudio\",\n            \"description\": \"是否生成音频，映射 generate_audio。\"\n          },\n          {\n            \"name\": \"providerOptions\",\n            \"type\": \"object\",\n            \"required\": false,\n            \"mapping\": \"providerOptions\",\n            \"description\": \"providerOptions.fal-queue-video.input 中的字段会原样合并进请求体，可覆盖默认字段；seed 映射 seed。\"\n          }\n        ],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/{{model}}\",\n          \"originPath\": true,\n          \"contentType\": \"application/json\",\n          \"body\": {\n            \"$merge\": [\n              {\n                \"prompt\": {\n                  \"$ref\": \"request.prompt\"\n                },\n                \"image_url\": {\n                  \"$omitEmpty\": {\n                    \"$first\": {\n                      \"$map\": {\n                        \"from\": {\n                          \"$sortByOrder\": {\n                            \"$ref\": \"request.images\"\n                          }\n                        },\n                        \"as\": \"media\",\n                        \"in\": {\n                          \"$ref\": \"media.value\"\n                        }\n                      }\n                    }\n                  }\n                },\n                \"end_image_url\": {\n                  \"$omitEmpty\": {\n                    \"$if\": {\n                      \"condition\": {\n                        \"$gte\": [\n                          {\n                            \"$len\": {\n                              \"$ref\": \"request.images\"\n                            }\n                          },\n                          2\n                        ]\n                      },\n                      \"then\": {\n                        \"$last\": {\n                          \"$map\": {\n                            \"from\": {\n                              \"$sortByOrder\": {\n                                \"$ref\": \"request.images\"\n                              }\n                            },\n                            \"as\": \"media\",\n                            \"in\": {\n                              \"$ref\": \"media.value\"\n                            }\n                          }\n                        }\n                      },\n                      \"else\": null\n                    }\n                  }\n                },\n                \"tail_image_url\": {\n                  \"$omitEmpty\": {\n                    \"$if\": {\n                      \"condition\": {\n                        \"$gte\": [\n                          {\n                            \"$len\": {\n                              \"$ref\": \"request.images\"\n                            }\n                          },\n                          2\n                        ]\n                      },\n                      \"then\": {\n                        \"$last\": {\n                          \"$map\": {\n                            \"from\": {\n                              \"$sortByOrder\": {\n                                \"$ref\": \"request.images\"\n                              }\n                            },\n                            \"as\": \"media\",\n                            \"in\": {\n                              \"$ref\": \"media.value\"\n                            }\n                          }\n                        }\n                      },\n                      \"else\": null\n                    }\n                  }\n                },\n                \"video_url\": {\n                  \"$omitEmpty\": {\n                    \"$first\": {\n                      \"$map\": {\n                        \"from\": {\n                          \"$sortByOrder\": {\n                            \"$ref\": \"request.videos\"\n                          }\n                        },\n                        \"as\": \"media\",\n                        \"in\": {\n                          \"$ref\": \"media.value\"\n                        }\n                      }\n                    }\n                  }\n                },\n                \"audio_url\": {\n                  \"$omitEmpty\": {\n                    \"$first\": {\n                      \"$map\": {\n                        \"from\": {\n                          \"$sortByOrder\": {\n                            \"$ref\": \"request.audios\"\n                          }\n                        },\n                        \"as\": \"media\",\n                        \"in\": {\n                          \"$ref\": \"media.value\"\n                        }\n                      }\n                    }\n                  }\n                },\n                \"duration\": {\n                  \"$omitEmpty\": {\n                    \"$if\": {\n                      \"condition\": {\n                        \"$gt\": [\n                          {\n                            \"$ref\": \"request.duration\"\n                          },\n                          0\n                        ]\n                      },\n                      \"then\": {\n                        \"$toString\": {\n                          \"$ref\": \"request.duration\"\n                        }\n                      },\n                      \"else\": null\n                    }\n                  }\n                },\n                \"aspect_ratio\": {\n                  \"$omitEmpty\": {\n                    \"$ref\": \"request.aspectRatio\"\n                  }\n                },\n                \"resolution\": {\n                  \"$omitEmpty\": {\n                    \"$ref\": \"request.resolution\"\n                  }\n                },\n                \"generate_audio\": {\n                  \"$ref\": \"request.generateAudio\"\n                },\n                \"seed\": {\n                  \"$omitEmpty\": {\n                    \"$ref\": \"request.providerOptions.fal-queue-video.seed\"\n                  }\n                }\n              },\n              {\n                \"$ref\": \"request.providerOptions.fal-queue-video.input\"\n              }\n            ]\n          }\n        },\n        \"poll\": {\n          \"method\": \"GET\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              {\n                \"$concat\": [\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      0\n                    ]\n                  },\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      1\n                    ]\n                  },\n                  \"/requests/{{taskId}}\"\n                ]\n              },\n              \"/status\"\n            ]\n          }\n        },\n        \"result\": {\n          \"method\": \"GET\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              \"/\",\n              {\n                \"$at\": [\n                  {\n                    \"$split\": [\n                      {\n                        \"$ref\": \"request.model\"\n                      },\n                      \"/\"\n                    ]\n                  },\n                  0\n                ]\n              },\n              \"/\",\n              {\n                \"$at\": [\n                  {\n                    \"$split\": [\n                      {\n                        \"$ref\": \"request.model\"\n                      },\n                      \"/\"\n                    ]\n                  },\n                  1\n                ]\n              },\n              \"/requests/{{taskId}}\"\n            ]\n          }\n        },\n        \"cancel\": {\n          \"method\": \"PUT\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              {\n                \"$concat\": [\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      0\n                    ]\n                  },\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      1\n                    ]\n                  },\n                  \"/requests/{{taskId}}\"\n                ]\n              },\n              \"/cancel\"\n            ]\n          }\n        },\n        \"response\": {\n          \"taskId\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.request_id\"\n              },\n              {\n                \"$ref\": \"taskId\"\n              }\n            ]\n          },\n          \"status\": {\n            \"$if\": {\n              \"condition\": {\n                \"$ref\": \"response.error\"\n              },\n              \"then\": \"failed\",\n              \"else\": {\n                \"$coalesce\": [\n                  {\n                    \"$ref\": \"response.status\"\n                  },\n                  \"pending\"\n                ]\n              }\n            }\n          },\n          \"message\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.error\"\n              },\n              {\n                \"$ref\": \"response.detail\"\n              },\n              {\n                \"$ref\": \"response.message\"\n              }\n            ]\n          },\n          \"videos\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.video\"\n              },\n              {\n                \"$ref\": \"response.videos\"\n              }\n            ]\n          },\n          \"resultEphemeral\": true,\n          \"resultJson\": true\n        }\n      },\n      {\n        \"id\": \"fal-mirelo-sfx\",\n        \"label\": \"fal.ai Mirelo 视频配音效\",\n        \"capabilities\": [\n          \"video\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\",\n          \"agent\"\n        ],\n        \"baseUrl\": \"https://queue.fal.run\",\n        \"requiresPublicMediaUrls\": true,\n        \"auth\": {\n          \"type\": \"bearer\",\n          \"field\": \"apiKey\",\n          \"prefix\": \"Key \"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\",\n            \"description\": \"fal 模型 ID：mirelo-ai/sfx2.0/video-to-video。\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": false,\n            \"mapping\": \"text_prompt\",\n            \"description\": \"音效描述，可写画面外的声音或环境音。\"\n          },\n          {\n            \"name\": \"videos\",\n            \"type\": \"media[]\",\n            \"required\": true,\n            \"mapping\": \"video_url\",\n            \"description\": \"要配音效的视频，1 段。\"\n          }\n        ],\n        \"validations\": [\n          {\n            \"assert\": {\n              \"$eq\": [\n                {\n                  \"$len\": {\n                    \"$ref\": \"request.videos\"\n                  }\n                },\n                1\n              ]\n            },\n            \"message\": \"视频配音效需要 1 段视频\"\n          }\n        ],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/{{model}}\",\n          \"originPath\": true,\n          \"contentType\": \"application/json\",\n          \"body\": {\n            \"video_url\": {\n              \"$first\": {\n                \"$map\": {\n                  \"from\": {\n                    \"$sortByOrder\": {\n                      \"$ref\": \"request.videos\"\n                    }\n                  },\n                  \"as\": \"media\",\n                  \"in\": {\n                    \"$ref\": \"media.value\"\n                  }\n                }\n              }\n            },\n            \"text_prompt\": {\n              \"$omitEmpty\": {\n                \"$ref\": \"request.prompt\"\n              }\n            },\n            \"negative_prompt\": \"music\",\n            \"preserve_speech\": {\n              \"$not\": {\n                \"$eq\": [\n                  {\n                    \"$coalesce\": [\n                      {\n                        \"$omitEmpty\": {\n                          \"$ref\": \"request.extra.specialtyOptions.keep\"\n                        }\n                      },\n                      \"\"\n                    ]\n                  },\n                  \"off\"\n                ]\n              }\n            },\n            \"num_samples\": 1\n          }\n        },\n        \"poll\": {\n          \"method\": \"GET\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              {\n                \"$concat\": [\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      0\n                    ]\n                  },\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      1\n                    ]\n                  },\n                  \"/requests/{{taskId}}\"\n                ]\n              },\n              \"/status\"\n            ]\n          }\n        },\n        \"result\": {\n          \"method\": \"GET\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              \"/\",\n              {\n                \"$at\": [\n                  {\n                    \"$split\": [\n                      {\n                        \"$ref\": \"request.model\"\n                      },\n                      \"/\"\n                    ]\n                  },\n                  0\n                ]\n              },\n              \"/\",\n              {\n                \"$at\": [\n                  {\n                    \"$split\": [\n                      {\n                        \"$ref\": \"request.model\"\n                      },\n                      \"/\"\n                    ]\n                  },\n                  1\n                ]\n              },\n              \"/requests/{{taskId}}\"\n            ]\n          }\n        },\n        \"cancel\": {\n          \"method\": \"PUT\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              {\n                \"$concat\": [\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      0\n                    ]\n                  },\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      1\n                    ]\n                  },\n                  \"/requests/{{taskId}}\"\n                ]\n              },\n              \"/cancel\"\n            ]\n          }\n        },\n        \"response\": {\n          \"taskId\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.request_id\"\n              },\n              {\n                \"$ref\": \"taskId\"\n              }\n            ]\n          },\n          \"status\": {\n            \"$if\": {\n              \"condition\": {\n                \"$ref\": \"response.error\"\n              },\n              \"then\": \"failed\",\n              \"else\": {\n                \"$coalesce\": [\n                  {\n                    \"$ref\": \"response.status\"\n                  },\n                  \"pending\"\n                ]\n              }\n            }\n          },\n          \"message\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.error\"\n              },\n              {\n                \"$ref\": \"response.detail\"\n              },\n              {\n                \"$ref\": \"response.message\"\n              }\n            ]\n          },\n          \"videos\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.video\"\n              },\n              {\n                \"$ref\": \"response.videos\"\n              }\n            ]\n          },\n          \"resultEphemeral\": true,\n          \"resultJson\": true\n        }\n      },\n      {\n        \"id\": \"fal-mirelo-sfx-text\",\n        \"label\": \"fal.ai Mirelo 文字生成音效\",\n        \"capabilities\": [\n          \"audio\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\",\n          \"agent\"\n        ],\n        \"baseUrl\": \"https://queue.fal.run\",\n        \"requiresPublicMediaUrls\": true,\n        \"auth\": {\n          \"type\": \"bearer\",\n          \"field\": \"apiKey\",\n          \"prefix\": \"Key \"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\",\n            \"description\": \"fal 模型 ID：mirelo-ai/sfx2.0/text-to-audio。\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\",\n            \"description\": \"音效描述：声源、情绪和音色。\"\n          }\n        ],\n        \"validations\": [],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/{{model}}\",\n          \"originPath\": true,\n          \"contentType\": \"application/json\",\n          \"body\": {\n            \"prompt\": {\n              \"$ref\": \"request.prompt\"\n            },\n            \"duration\": {\n              \"$toFloat\": {\n                \"$coalesce\": [\n                  {\n                    \"$omitEmpty\": {\n                      \"$ref\": \"request.extra.specialtyOptions.duration\"\n                    }\n                  },\n                  \"5\"\n                ]\n              }\n            },\n            \"negative_prompt\": \"music, voices\",\n            \"num_samples\": 1,\n            \"upload_audio_format\": \"wav\"\n          }\n        },\n        \"poll\": {\n          \"method\": \"GET\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              {\n                \"$concat\": [\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      0\n                    ]\n                  },\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      1\n                    ]\n                  },\n                  \"/requests/{{taskId}}\"\n                ]\n              },\n              \"/status\"\n            ]\n          }\n        },\n        \"result\": {\n          \"method\": \"GET\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              \"/\",\n              {\n                \"$at\": [\n                  {\n                    \"$split\": [\n                      {\n                        \"$ref\": \"request.model\"\n                      },\n                      \"/\"\n                    ]\n                  },\n                  0\n                ]\n              },\n              \"/\",\n              {\n                \"$at\": [\n                  {\n                    \"$split\": [\n                      {\n                        \"$ref\": \"request.model\"\n                      },\n                      \"/\"\n                    ]\n                  },\n                  1\n                ]\n              },\n              \"/requests/{{taskId}}\"\n            ]\n          }\n        },\n        \"cancel\": {\n          \"method\": \"PUT\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              {\n                \"$concat\": [\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      0\n                    ]\n                  },\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      1\n                    ]\n                  },\n                  \"/requests/{{taskId}}\"\n                ]\n              },\n              \"/cancel\"\n            ]\n          }\n        },\n        \"response\": {\n          \"taskId\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.request_id\"\n              },\n              {\n                \"$ref\": \"taskId\"\n              }\n            ]\n          },\n          \"status\": {\n            \"$if\": {\n              \"condition\": {\n                \"$ref\": \"response.error\"\n              },\n              \"then\": \"failed\",\n              \"else\": {\n                \"$coalesce\": [\n                  {\n                    \"$ref\": \"response.status\"\n                  },\n                  \"pending\"\n                ]\n              }\n            }\n          },\n          \"message\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.error\"\n              },\n              {\n                \"$ref\": \"response.detail\"\n              },\n              {\n                \"$ref\": \"response.message\"\n              }\n            ]\n          },\n          \"resultEphemeral\": true,\n          \"resultJson\": true,\n          \"audios\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.audio\"\n              },\n              {\n                \"$ref\": \"response.audios\"\n              }\n            ]\n          }\n        }\n      },\n      {\n        \"id\": \"fal-lyria3\",\n        \"label\": \"fal.ai Lyria 3 Pro 音乐生成\",\n        \"capabilities\": [\n          \"audio\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\",\n          \"agent\"\n        ],\n        \"baseUrl\": \"https://queue.fal.run\",\n        \"requiresPublicMediaUrls\": true,\n        \"auth\": {\n          \"type\": \"bearer\",\n          \"field\": \"apiKey\",\n          \"prefix\": \"Key \"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\",\n            \"description\": \"fal 模型 ID：fal-ai/lyria3/pro。\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\",\n            \"description\": \"音乐描述：风格、情绪、乐器、节奏、人声或歌词。\"\n          },\n          {\n            \"name\": \"images\",\n            \"type\": \"media[]\",\n            \"required\": false,\n            \"mapping\": \"image_url\",\n            \"description\": \"可选参考图，只发送第一张，用来让音乐贴合画面情绪。\"\n          }\n        ],\n        \"validations\": [],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/{{model}}\",\n          \"originPath\": true,\n          \"contentType\": \"application/json\",\n          \"body\": {\n            \"prompt\": {\n              \"$ref\": \"request.prompt\"\n            },\n            \"image_url\": {\n              \"$omitEmpty\": {\n                \"$first\": {\n                  \"$map\": {\n                    \"from\": {\n                      \"$sortByOrder\": {\n                        \"$ref\": \"request.images\"\n                      }\n                    },\n                    \"as\": \"media\",\n                    \"in\": {\n                      \"$ref\": \"media.value\"\n                    }\n                  }\n                }\n              }\n            }\n          }\n        },\n        \"poll\": {\n          \"method\": \"GET\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              {\n                \"$concat\": [\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      0\n                    ]\n                  },\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      1\n                    ]\n                  },\n                  \"/requests/{{taskId}}\"\n                ]\n              },\n              \"/status\"\n            ]\n          }\n        },\n        \"result\": {\n          \"method\": \"GET\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              \"/\",\n              {\n                \"$at\": [\n                  {\n                    \"$split\": [\n                      {\n                        \"$ref\": \"request.model\"\n                      },\n                      \"/\"\n                    ]\n                  },\n                  0\n                ]\n              },\n              \"/\",\n              {\n                \"$at\": [\n                  {\n                    \"$split\": [\n                      {\n                        \"$ref\": \"request.model\"\n                      },\n                      \"/\"\n                    ]\n                  },\n                  1\n                ]\n              },\n              \"/requests/{{taskId}}\"\n            ]\n          }\n        },\n        \"cancel\": {\n          \"method\": \"PUT\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              {\n                \"$concat\": [\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      0\n                    ]\n                  },\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      1\n                    ]\n                  },\n                  \"/requests/{{taskId}}\"\n                ]\n              },\n              \"/cancel\"\n            ]\n          }\n        },\n        \"response\": {\n          \"taskId\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.request_id\"\n              },\n              {\n                \"$ref\": \"taskId\"\n              }\n            ]\n          },\n          \"status\": {\n            \"$if\": {\n              \"condition\": {\n                \"$ref\": \"response.error\"\n              },\n              \"then\": \"failed\",\n              \"else\": {\n                \"$coalesce\": [\n                  {\n                    \"$ref\": \"response.status\"\n                  },\n                  \"pending\"\n                ]\n              }\n            }\n          },\n          \"message\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.error\"\n              },\n              {\n                \"$ref\": \"response.detail\"\n              },\n              {\n                \"$ref\": \"response.message\"\n              }\n            ]\n          },\n          \"resultEphemeral\": true,\n          \"resultJson\": true,\n          \"audios\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.audio\"\n              },\n              {\n                \"$ref\": \"response.audios\"\n              }\n            ]\n          }\n        }\n      },\n      {\n        \"id\": \"fal-index-tts2\",\n        \"label\": \"fal.ai IndexTTS 2 声音克隆\",\n        \"capabilities\": [\n          \"audio\"\n        ],\n        \"scopes\": [\n          \"admin.system-channel\",\n          \"user.custom-channel\",\n          \"canvas\",\n          \"creation\",\n          \"agent\"\n        ],\n        \"baseUrl\": \"https://queue.fal.run\",\n        \"requiresPublicMediaUrls\": true,\n        \"auth\": {\n          \"type\": \"bearer\",\n          \"field\": \"apiKey\",\n          \"prefix\": \"Key \"\n        },\n        \"parameters\": [\n          {\n            \"name\": \"model\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"model\",\n            \"description\": \"fal 模型 ID：fal-ai/index-tts-2/text-to-speech。\"\n          },\n          {\n            \"name\": \"prompt\",\n            \"type\": \"string\",\n            \"required\": true,\n            \"mapping\": \"prompt\",\n            \"description\": \"要朗读的文案。\"\n          },\n          {\n            \"name\": \"audios\",\n            \"type\": \"media[]\",\n            \"required\": true,\n            \"mapping\": \"audio_url\",\n            \"description\": \"声音样本，只发送第一段，按它的音色朗读。\"\n          }\n        ],\n        \"validations\": [\n          {\n            \"assert\": {\n              \"$gte\": [\n                {\n                  \"$len\": {\n                    \"$ref\": \"request.audios\"\n                  }\n                },\n                1\n              ]\n            },\n            \"message\": \"声音克隆需要 1 段声音样本\"\n          }\n        ],\n        \"create\": {\n          \"method\": \"POST\",\n          \"path\": \"/{{model}}\",\n          \"originPath\": true,\n          \"contentType\": \"application/json\",\n          \"body\": {\n            \"prompt\": {\n              \"$ref\": \"request.prompt\"\n            },\n            \"audio_url\": {\n              \"$first\": {\n                \"$map\": {\n                  \"from\": {\n                    \"$sortByOrder\": {\n                      \"$ref\": \"request.audios\"\n                    }\n                  },\n                  \"as\": \"media\",\n                  \"in\": {\n                    \"$ref\": \"media.value\"\n                  }\n                }\n              }\n            }\n          }\n        },\n        \"poll\": {\n          \"method\": \"GET\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              {\n                \"$concat\": [\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      0\n                    ]\n                  },\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      1\n                    ]\n                  },\n                  \"/requests/{{taskId}}\"\n                ]\n              },\n              \"/status\"\n            ]\n          }\n        },\n        \"result\": {\n          \"method\": \"GET\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              \"/\",\n              {\n                \"$at\": [\n                  {\n                    \"$split\": [\n                      {\n                        \"$ref\": \"request.model\"\n                      },\n                      \"/\"\n                    ]\n                  },\n                  0\n                ]\n              },\n              \"/\",\n              {\n                \"$at\": [\n                  {\n                    \"$split\": [\n                      {\n                        \"$ref\": \"request.model\"\n                      },\n                      \"/\"\n                    ]\n                  },\n                  1\n                ]\n              },\n              \"/requests/{{taskId}}\"\n            ]\n          }\n        },\n        \"cancel\": {\n          \"method\": \"PUT\",\n          \"path\": \"\",\n          \"originPath\": true,\n          \"pathTemplate\": {\n            \"$concat\": [\n              {\n                \"$concat\": [\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      0\n                    ]\n                  },\n                  \"/\",\n                  {\n                    \"$at\": [\n                      {\n                        \"$split\": [\n                          {\n                            \"$ref\": \"request.model\"\n                          },\n                          \"/\"\n                        ]\n                      },\n                      1\n                    ]\n                  },\n                  \"/requests/{{taskId}}\"\n                ]\n              },\n              \"/cancel\"\n            ]\n          }\n        },\n        \"response\": {\n          \"taskId\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.request_id\"\n              },\n              {\n                \"$ref\": \"taskId\"\n              }\n            ]\n          },\n          \"status\": {\n            \"$if\": {\n              \"condition\": {\n                \"$ref\": \"response.error\"\n              },\n              \"then\": \"failed\",\n              \"else\": {\n                \"$coalesce\": [\n                  {\n                    \"$ref\": \"response.status\"\n                  },\n                  \"pending\"\n                ]\n              }\n            }\n          },\n          \"message\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.error\"\n              },\n              {\n                \"$ref\": \"response.detail\"\n              },\n              {\n                \"$ref\": \"response.message\"\n              }\n            ]\n          },\n          \"resultEphemeral\": true,\n          \"resultJson\": true,\n          \"audios\": {\n            \"$coalesce\": [\n              {\n                \"$ref\": \"response.audio\"\n              },\n              {\n                \"$ref\": \"response.audios\"\n              }\n            ]\n          }\n        }\n      }\n    ]\n  }\n}\n```\n<!-- YINGCE_MANIFEST_CONTRACT_END -->\n",
   "permissions": [
     "generation.run",
     "media.read"
@@ -744,6 +744,759 @@
           },
           "resultEphemeral": true,
           "resultJson": true
+        }
+      },
+      {
+        "id": "fal-mirelo-sfx-text",
+        "label": "fal.ai Mirelo 文字生成音效",
+        "capabilities": [
+          "audio"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation",
+          "agent"
+        ],
+        "baseUrl": "https://queue.fal.run",
+        "requiresPublicMediaUrls": true,
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey",
+          "prefix": "Key "
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "fal 模型 ID：mirelo-ai/sfx2.0/text-to-audio。"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt",
+            "description": "音效描述：声源、情绪和音色。"
+          }
+        ],
+        "validations": [],
+        "create": {
+          "method": "POST",
+          "path": "/{{model}}",
+          "originPath": true,
+          "contentType": "application/json",
+          "body": {
+            "prompt": {
+              "$ref": "request.prompt"
+            },
+            "duration": {
+              "$toFloat": {
+                "$coalesce": [
+                  {
+                    "$omitEmpty": {
+                      "$ref": "request.extra.specialtyOptions.duration"
+                    }
+                  },
+                  "5"
+                ]
+              }
+            },
+            "negative_prompt": "music, voices",
+            "num_samples": 1,
+            "upload_audio_format": "wav"
+          }
+        },
+        "poll": {
+          "method": "GET",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              {
+                "$concat": [
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      1
+                    ]
+                  },
+                  "/requests/{{taskId}}"
+                ]
+              },
+              "/status"
+            ]
+          }
+        },
+        "result": {
+          "method": "GET",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              "/",
+              {
+                "$at": [
+                  {
+                    "$split": [
+                      {
+                        "$ref": "request.model"
+                      },
+                      "/"
+                    ]
+                  },
+                  0
+                ]
+              },
+              "/",
+              {
+                "$at": [
+                  {
+                    "$split": [
+                      {
+                        "$ref": "request.model"
+                      },
+                      "/"
+                    ]
+                  },
+                  1
+                ]
+              },
+              "/requests/{{taskId}}"
+            ]
+          }
+        },
+        "cancel": {
+          "method": "PUT",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              {
+                "$concat": [
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      1
+                    ]
+                  },
+                  "/requests/{{taskId}}"
+                ]
+              },
+              "/cancel"
+            ]
+          }
+        },
+        "response": {
+          "taskId": {
+            "$coalesce": [
+              {
+                "$ref": "response.request_id"
+              },
+              {
+                "$ref": "taskId"
+              }
+            ]
+          },
+          "status": {
+            "$if": {
+              "condition": {
+                "$ref": "response.error"
+              },
+              "then": "failed",
+              "else": {
+                "$coalesce": [
+                  {
+                    "$ref": "response.status"
+                  },
+                  "pending"
+                ]
+              }
+            }
+          },
+          "message": {
+            "$coalesce": [
+              {
+                "$ref": "response.error"
+              },
+              {
+                "$ref": "response.detail"
+              },
+              {
+                "$ref": "response.message"
+              }
+            ]
+          },
+          "resultEphemeral": true,
+          "resultJson": true,
+          "audios": {
+            "$coalesce": [
+              {
+                "$ref": "response.audio"
+              },
+              {
+                "$ref": "response.audios"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "fal-lyria3",
+        "label": "fal.ai Lyria 3 Pro 音乐生成",
+        "capabilities": [
+          "audio"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation",
+          "agent"
+        ],
+        "baseUrl": "https://queue.fal.run",
+        "requiresPublicMediaUrls": true,
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey",
+          "prefix": "Key "
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "fal 模型 ID：fal-ai/lyria3/pro。"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt",
+            "description": "音乐描述：风格、情绪、乐器、节奏、人声或歌词。"
+          },
+          {
+            "name": "images",
+            "type": "media[]",
+            "required": false,
+            "mapping": "image_url",
+            "description": "可选参考图，只发送第一张，用来让音乐贴合画面情绪。"
+          }
+        ],
+        "validations": [],
+        "create": {
+          "method": "POST",
+          "path": "/{{model}}",
+          "originPath": true,
+          "contentType": "application/json",
+          "body": {
+            "prompt": {
+              "$ref": "request.prompt"
+            },
+            "image_url": {
+              "$omitEmpty": {
+                "$first": {
+                  "$map": {
+                    "from": {
+                      "$sortByOrder": {
+                        "$ref": "request.images"
+                      }
+                    },
+                    "as": "media",
+                    "in": {
+                      "$ref": "media.value"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "poll": {
+          "method": "GET",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              {
+                "$concat": [
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      1
+                    ]
+                  },
+                  "/requests/{{taskId}}"
+                ]
+              },
+              "/status"
+            ]
+          }
+        },
+        "result": {
+          "method": "GET",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              "/",
+              {
+                "$at": [
+                  {
+                    "$split": [
+                      {
+                        "$ref": "request.model"
+                      },
+                      "/"
+                    ]
+                  },
+                  0
+                ]
+              },
+              "/",
+              {
+                "$at": [
+                  {
+                    "$split": [
+                      {
+                        "$ref": "request.model"
+                      },
+                      "/"
+                    ]
+                  },
+                  1
+                ]
+              },
+              "/requests/{{taskId}}"
+            ]
+          }
+        },
+        "cancel": {
+          "method": "PUT",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              {
+                "$concat": [
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      1
+                    ]
+                  },
+                  "/requests/{{taskId}}"
+                ]
+              },
+              "/cancel"
+            ]
+          }
+        },
+        "response": {
+          "taskId": {
+            "$coalesce": [
+              {
+                "$ref": "response.request_id"
+              },
+              {
+                "$ref": "taskId"
+              }
+            ]
+          },
+          "status": {
+            "$if": {
+              "condition": {
+                "$ref": "response.error"
+              },
+              "then": "failed",
+              "else": {
+                "$coalesce": [
+                  {
+                    "$ref": "response.status"
+                  },
+                  "pending"
+                ]
+              }
+            }
+          },
+          "message": {
+            "$coalesce": [
+              {
+                "$ref": "response.error"
+              },
+              {
+                "$ref": "response.detail"
+              },
+              {
+                "$ref": "response.message"
+              }
+            ]
+          },
+          "resultEphemeral": true,
+          "resultJson": true,
+          "audios": {
+            "$coalesce": [
+              {
+                "$ref": "response.audio"
+              },
+              {
+                "$ref": "response.audios"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "fal-index-tts2",
+        "label": "fal.ai IndexTTS 2 声音克隆",
+        "capabilities": [
+          "audio"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation",
+          "agent"
+        ],
+        "baseUrl": "https://queue.fal.run",
+        "requiresPublicMediaUrls": true,
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey",
+          "prefix": "Key "
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "fal 模型 ID：fal-ai/index-tts-2/text-to-speech。"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt",
+            "description": "要朗读的文案。"
+          },
+          {
+            "name": "audios",
+            "type": "media[]",
+            "required": true,
+            "mapping": "audio_url",
+            "description": "声音样本，只发送第一段，按它的音色朗读。"
+          }
+        ],
+        "validations": [
+          {
+            "assert": {
+              "$gte": [
+                {
+                  "$len": {
+                    "$ref": "request.audios"
+                  }
+                },
+                1
+              ]
+            },
+            "message": "声音克隆需要 1 段声音样本"
+          }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/{{model}}",
+          "originPath": true,
+          "contentType": "application/json",
+          "body": {
+            "prompt": {
+              "$ref": "request.prompt"
+            },
+            "audio_url": {
+              "$first": {
+                "$map": {
+                  "from": {
+                    "$sortByOrder": {
+                      "$ref": "request.audios"
+                    }
+                  },
+                  "as": "media",
+                  "in": {
+                    "$ref": "media.value"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "poll": {
+          "method": "GET",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              {
+                "$concat": [
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      1
+                    ]
+                  },
+                  "/requests/{{taskId}}"
+                ]
+              },
+              "/status"
+            ]
+          }
+        },
+        "result": {
+          "method": "GET",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              "/",
+              {
+                "$at": [
+                  {
+                    "$split": [
+                      {
+                        "$ref": "request.model"
+                      },
+                      "/"
+                    ]
+                  },
+                  0
+                ]
+              },
+              "/",
+              {
+                "$at": [
+                  {
+                    "$split": [
+                      {
+                        "$ref": "request.model"
+                      },
+                      "/"
+                    ]
+                  },
+                  1
+                ]
+              },
+              "/requests/{{taskId}}"
+            ]
+          }
+        },
+        "cancel": {
+          "method": "PUT",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              {
+                "$concat": [
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      1
+                    ]
+                  },
+                  "/requests/{{taskId}}"
+                ]
+              },
+              "/cancel"
+            ]
+          }
+        },
+        "response": {
+          "taskId": {
+            "$coalesce": [
+              {
+                "$ref": "response.request_id"
+              },
+              {
+                "$ref": "taskId"
+              }
+            ]
+          },
+          "status": {
+            "$if": {
+              "condition": {
+                "$ref": "response.error"
+              },
+              "then": "failed",
+              "else": {
+                "$coalesce": [
+                  {
+                    "$ref": "response.status"
+                  },
+                  "pending"
+                ]
+              }
+            }
+          },
+          "message": {
+            "$coalesce": [
+              {
+                "$ref": "response.error"
+              },
+              {
+                "$ref": "response.detail"
+              },
+              {
+                "$ref": "response.message"
+              }
+            ]
+          },
+          "resultEphemeral": true,
+          "resultJson": true,
+          "audios": {
+            "$coalesce": [
+              {
+                "$ref": "response.audio"
+              },
+              {
+                "$ref": "response.audios"
+              }
+            ]
+          }
         }
       }
     ]

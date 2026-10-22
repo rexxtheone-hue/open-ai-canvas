@@ -96,3 +96,114 @@ func TestFalMireloSfxSendsOneSampleAndParsesVideoList(t *testing.T) {
 		t.Fatalf("done = %#v, err = %v", done, err)
 	}
 }
+
+func TestFalMireloTextSfxSendsDurationAndParsesAudioList(t *testing.T) {
+	adapter := loadPackageProvider(t, "fal-queue-video", "fal-mirelo-sfx-text")
+	create, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://queue.fal.run", Request: GenerationRequest{
+		Model: "mirelo-ai/sfx2.0/text-to-audio", Prompt: "汽水罐打开后冒泡的嘶嘶声",
+		Extra: map[string]any{"specialtyOptions": map[string]any{"duration": "3"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if create.Path != "/mirelo-ai/sfx2.0/text-to-audio" {
+		t.Fatalf("create = %#v", create)
+	}
+	assertJSONEqual(t, create.Body, `{"prompt":"汽水罐打开后冒泡的嘶嘶声","duration":3,"negative_prompt":"music, voices","num_samples":1,"upload_audio_format":"wav"}`)
+
+	defaults, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: "mirelo-ai/sfx2.0/text-to-audio", Prompt: "雷声"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body := defaults.Body.(map[string]any); body["duration"] != float64(5) {
+		t.Fatalf("default duration = %#v", body["duration"])
+	}
+
+	pc := PollContext{Model: "mirelo-ai/sfx2.0/text-to-audio", TaskID: "req-2"}
+	done, err := adapter.ParsePoll(context.Background(), pc, []byte(`{"model":"sfx-2.0","seeds":[7],"audio":[{"url":"https://v3.fal.media/files/out.wav","content_type":"audio/wav"}]}`))
+	if err != nil || done.Status != StatusSucceeded || done.Result == nil || len(done.Result.Audios) != 1 || done.Result.Audios[0].URL != "https://v3.fal.media/files/out.wav" {
+		t.Fatalf("done = %#v, err = %v", done, err)
+	}
+}
+
+func TestFalIndexTTS2SendsVoiceSampleAndParsesSpeech(t *testing.T) {
+	adapter := loadPackageProvider(t, "fal-queue-video", "fal-index-tts2")
+	create, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://queue.fal.run", Request: GenerationRequest{
+		Model: "fal-ai/index-tts-2/text-to-speech", Prompt: "大家好，欢迎来到马六甲。",
+		Audios: []MediaReference{{URL: "https://cdn.example/voice.wav"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if create.Path != "/fal-ai/index-tts-2/text-to-speech" {
+		t.Fatalf("create = %#v", create)
+	}
+	assertJSONEqual(t, create.Body, `{"prompt":"大家好，欢迎来到马六甲。","audio_url":"https://cdn.example/voice.wav"}`)
+	if _, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: "fal-ai/index-tts-2/text-to-speech", Prompt: "你好"}}); err == nil {
+		t.Fatal("voice clone without a sample must be rejected")
+	}
+	pc := PollContext{Model: "fal-ai/index-tts-2/text-to-speech", TaskID: "req-4"}
+	done, err := adapter.ParsePoll(context.Background(), pc, []byte(`{"audio":{"url":"https://v3.fal.media/files/tts_out.mp3","content_type":"audio/mpeg"}}`))
+	if err != nil || done.Status != StatusSucceeded || done.Result == nil || len(done.Result.Audios) != 1 || done.Result.Audios[0].URL != "https://v3.fal.media/files/tts_out.mp3" {
+		t.Fatalf("done = %#v, err = %v", done, err)
+	}
+}
+
+func TestCloudwiseSeedAudioMatchesDoubaoContract(t *testing.T) {
+	adapter := loadPackageProvider(t, "cloudwise-maas", "cloudwise-seedaudio")
+	create, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.cloudwise.ai/api", Request: GenerationRequest{
+		Capability: CapabilityAudio, Model: "seed-audio-1.0", Prompt: "@Audio1 大家好",
+		Audios: []MediaReference{{URL: "https://cdn.example/voice.wav", Kind: "audio"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if create.Path != "/api/v3/tts/create" || !create.OriginPath {
+		t.Fatalf("create = %#v", create)
+	}
+	body := create.Body.(map[string]any)
+	references, _ := body["references"].([]any)
+	first, _ := references[0].(map[string]any)
+	if body["model"] != "seed-audio-1.0" || body["text_prompt"] != "@Audio1 大家好" || len(references) != 1 || first["audio_url"] != "https://cdn.example/voice.wav" {
+		t.Fatalf("body = %#v", body)
+	}
+	done, err := adapter.ParseCreate(context.Background(), []byte(`{"code":0,"message":"ok","url":"https://cdn.cloudwise.ai/out.wav","original_duration":3.2}`))
+	if err != nil || done.Status != StatusSucceeded || done.Result == nil || len(done.Result.Audios) != 1 || done.Result.Audios[0].URL != "https://cdn.cloudwise.ai/out.wav" {
+		t.Fatalf("done = %#v, err = %v", done, err)
+	}
+	// 实测同时返回 Base64 和字节 CDN 链接，CDN 在部分网络下连不上，优先用 Base64。
+	both, err := adapter.ParseCreate(context.Background(), []byte(`{"audio":"SUQz","url":"https://lf3-speech-sign.bytednsdoc.com/out.mp3","duration":5.08,"original_duration":5.08}`))
+	if err != nil || both.Result == nil || len(both.Result.Audios) != 1 || both.Result.Audios[0].URL == "https://lf3-speech-sign.bytednsdoc.com/out.mp3" {
+		t.Fatalf("both = %#v, err = %v", both, err)
+	}
+}
+
+func TestFalLyria3SendsFirstImageAndParsesSong(t *testing.T) {
+	adapter := loadPackageProvider(t, "fal-queue-video", "fal-lyria3")
+	create, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://queue.fal.run", Request: GenerationRequest{
+		Model: "fal-ai/lyria3/pro", Prompt: "温暖的 Lo-fi，纯音乐",
+		Images: []MediaReference{{URL: "https://cdn.example/a.png"}, {URL: "https://cdn.example/b.png"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if create.Path != "/fal-ai/lyria3/pro" {
+		t.Fatalf("create = %#v", create)
+	}
+	assertJSONEqual(t, create.Body, `{"prompt":"温暖的 Lo-fi，纯音乐","image_url":"https://cdn.example/a.png"}`)
+
+	text, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: "fal-ai/lyria3/pro", Prompt: "流行"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertJSONEqual(t, text.Body, `{"prompt":"流行"}`)
+
+	pc := PollContext{Model: "fal-ai/lyria3/pro", TaskID: "req-3"}
+	if poll, err := adapter.BuildPoll(context.Background(), pc); err != nil || poll.Path != "/fal-ai/lyria3/requests/req-3/status" {
+		t.Fatalf("poll = %#v, err = %v", poll, err)
+	}
+	done, err := adapter.ParsePoll(context.Background(), pc, []byte(`{"lyrics":"","audio":{"url":"https://v3.fal.media/files/song.mp3","content_type":"audio/mpeg"}}`))
+	if err != nil || done.Status != StatusSucceeded || done.Result == nil || len(done.Result.Audios) != 1 || done.Result.Audios[0].URL != "https://v3.fal.media/files/song.mp3" {
+		t.Fatalf("done = %#v, err = %v", done, err)
+	}
+}

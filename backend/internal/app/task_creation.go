@@ -111,6 +111,7 @@ func (s *Service) CreateTask(userID string, req CreateTaskRequest) (*model.Task,
 	if err := s.applySourceLengthVideoSeconds(userID, normalizedInput, req.Operation); err != nil {
 		return nil, err
 	}
+	applyRequestedAudioSeconds(normalizedInput)
 	policy, err := s.RuntimePolicy()
 	if err != nil {
 		return nil, err

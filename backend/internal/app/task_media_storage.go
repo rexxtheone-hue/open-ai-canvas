@@ -253,6 +253,9 @@ func (s *Service) storeTaskMediaFile(task *model.Task, index int, path, mimeType
 		// media can still be saved when ffprobe is unavailable; settlement then
 		// moves the order to review instead of silently charging a fake length.
 		durationMs = probeMediaDurationMs(path)
+		if durationMs <= 0 {
+			durationMs = probeAudioDurationMs(file)
+		}
 	}
 	day, err := s.reserveGeneratedResourceQuota(task.UserID, info.Size())
 	if err != nil {

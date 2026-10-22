@@ -2,7 +2,7 @@ import { creationAttachmentKind, type CreationAttachment } from "@/pages/create/
 import type { SpecialtyVideoOperation } from "@/lib/video-modes";
 import type { StudioKind } from "@/services/api/studio";
 import { selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
-import { studioModelSupportsSpecialty, type StudioSpecialtyState } from "./studio-generation";
+import { MUSIC_PROTOCOL, SOUND_EFFECT_PROTOCOL, studioModelSupportsSpecialty, type StudioSpecialtyState } from "./studio-generation";
 
 /** 专项工具使用的视频操作：供应商专门支持的操作，以及视频编辑类和参考生视频（模型须在能力里勾选）。 */
 export type StudioSpecialtyOperation = SpecialtyVideoOperation | "inpaint" | "replace_element" | "style_transfer" | "camera_motion" | "extend" | "reference_to_video";
@@ -10,7 +10,7 @@ export type StudioSpecialtyOperation = SpecialtyVideoOperation | "inpaint" | "re
 /**
  * 专项工具：每个工具规定好要哪些素材、有哪些选项、提示词怎么写。
  * 视频类走供应商专门支持的操作（模型必须在能力里勾选）；图片类用图片编辑模型 + 固定指令；
- * 还没有接入协议的能力（音乐、音效、声音克隆等）标记 unsupported，面板完整可用，生成按钮说明原因。
+ * 还没有接入协议的能力标记 unsupported，面板完整可用，生成按钮说明原因。
  */
 export type StudioSlotAccept = "image" | "video" | "audio" | "image_or_video" | "audio_or_video";
 
@@ -57,6 +57,10 @@ export type StudioSpecialtySpec = {
     operation?: StudioSpecialtyOperation;
     /** 还没有接入的能力名称；设置后没有模型能用，生成按钮显示原因。 */
     unsupported?: string;
+    /** 音频专项只能用这个协议插件的模型（例如文字生成音效），配音模型不出现在这里。 */
+    audioProtocol?: string;
+    /** 音频专项的能力名称，生成按钮和提示里使用。 */
+    audioLabel?: string;
     /** 固定输出比例（例如全景图 2:1）；为空时用面板里选的比例。 */
     outputRatio?: string;
     /** 取值是输出比例的选项（扩图、多视角），选中后同步到输出设置；original 表示不改。 */
@@ -375,28 +379,10 @@ const sfxDurationOption: StudioSpecialtyOption = {
     key: "duration",
     label: "时长",
     type: "select",
-    info: "短音效适合点击、硬币声；长音效适合环境声。自动由模型决定，费用随时长变化。",
-    choices: [{ value: "auto", label: "自动", prompt: "" }, ...[1, 2, 3, 5, 10, 15, 22].map((seconds) => ({ value: String(seconds), label: `${seconds} 秒`, prompt: `${seconds} 秒` }))],
+    default: "5",
+    info: "短音效适合点击、硬币声；长音效适合环境声。按秒计费。",
+    choices: [1, 2, 3, 5, 10, 15, 22, 30].map((seconds) => ({ value: String(seconds), label: `${seconds} 秒`, prompt: `${seconds} 秒` })),
 };
-const influenceOption: StudioSpecialtyOption = { key: "influence", label: "贴合提示词", type: "slider", choices: [], min: 0, max: 1, step: 0.05, default: "0.3", minLabel: "宽松", maxLabel: "严格", info: "越高越贴合描述；越低越自由，每次结果差异越大。" };
-const voiceOption: StudioSpecialtyOption = {
-    key: "voice",
-    label: "目标声音",
-    type: "select",
-    choices: [
-        { value: "female-young", label: "年轻女声 · 亲切", prompt: "年轻女声", group: "女声" },
-        { value: "female-mature", label: "成熟女声 · 自信", prompt: "成熟女声" },
-        { value: "female-news", label: "播音女声 · 清晰", prompt: "播音女声" },
-        { value: "male-young", label: "年轻男声 · 阳光", prompt: "年轻男声", group: "男声" },
-        { value: "male-mature", label: "成熟男声 · 稳重", prompt: "成熟男声" },
-        { value: "male-story", label: "讲故事男声 · 低沉", prompt: "低沉的讲故事男声" },
-        { value: "child", label: "童声", prompt: "童声", group: "其他" },
-        { value: "elder", label: "老年声", prompt: "老年人声音" },
-    ],
-};
-const stabilityOption: StudioSpecialtyOption = { key: "stability", label: "稳定度", type: "slider", choices: [], min: 0, max: 1, step: 0.05, default: "0.5", minLabel: "更多变化", maxLabel: "更稳定" };
-const similarityOption: StudioSpecialtyOption = { key: "similarity", label: "相似度", type: "slider", choices: [], min: 0, max: 1, step: 0.05, default: "0.75", minLabel: "低", maxLabel: "高" };
-const exaggerationOption: StudioSpecialtyOption = { key: "style", label: "风格夸张度", type: "slider", choices: [], min: 0, max: 1, step: 0.05, default: "0" };
 
 function finiteOr(value: string | undefined, fallback: number) {
     const number = Number(value);
@@ -656,11 +642,12 @@ export const STUDIO_SPECIALTY_SPECS: Record<string, StudioSpecialtySpec> = {
         instruction: (text, options) => withNote(`把第一张图片中人物的脸换成第二张图片中人物的脸：${choicePrompt(faceModeOption, options.mode)}；保留第一张图的身体、服装、姿势、光线和背景，五官、肤色和年龄特征与第二张一致，边缘自然融合，没有拼接痕迹。`, text),
     },
 
-    // ---- 音频（尚未接入协议） ----
+    // ---- 音频 ----
     "create-music": {
         kind: "audio",
-        unsupported: "音乐生成",
-        slots: [{ key: "refs", label: "视觉参考", accept: "image", required: false, max: 10, hint: "可选，用图片影响音乐情绪", constraint: "JPEG / PNG / WEBP，20MB 以内" }],
+        audioProtocol: MUSIC_PROTOCOL,
+        audioLabel: "音乐生成",
+        slots: [{ key: "refs", label: "视觉参考", accept: "image", required: false, hint: "可选，用一张图片影响音乐情绪", constraint: "JPEG / PNG / WEBP，20MB 以内" }],
         options: [musicLengthOption, instrumentalOption, bpmOption, intensityOption, keyOption],
         promptChips: [
             { label: "流行", text: "流行", mode: "append" },
@@ -673,9 +660,10 @@ export const STUDIO_SPECIALTY_SPECS: Record<string, StudioSpecialtySpec> = {
     },
     "create-sound-effect": {
         kind: "audio",
-        unsupported: "音效生成",
+        audioProtocol: SOUND_EFFECT_PROTOCOL,
+        audioLabel: "音效生成",
         slots: [],
-        options: [loopOption, sfxDurationOption, influenceOption],
+        options: [loopOption, sfxDurationOption],
         promptChips: [
             { label: "嗖", text: "快速划过的嗖声", mode: "append" },
             { label: "魔法", text: "闪亮的魔法音效", mode: "append" },
@@ -683,21 +671,13 @@ export const STUDIO_SPECIALTY_SPECS: Record<string, StudioSpecialtySpec> = {
             { label: "爆炸", text: "低沉的爆炸声", mode: "append" },
         ],
         prompt: { label: "描述声音", placeholder: "写清声源、情绪和音色，例如：汽水罐打开后冒泡的嘶嘶声。", required: true },
-        instruction: (text, options) => [text.trim(), options.loop === "on" ? "可无缝循环" : "", choicePrompt(sfxDurationOption, options.duration)].filter(Boolean).join("；"),
+        instruction: (text, options) => [text.trim(), options.loop === "on" ? "可无缝循环" : ""].filter(Boolean).join("；"),
     },
     "voice-clone": {
         kind: "audio",
         slots: [{ key: "voice", label: "声音样本", accept: "audio", required: true, hint: "上传或录制一段清晰的人声", constraint: "最长 90 秒", record: "audio" }],
         prompt: { label: "配音文案", placeholder: "输入要用这个声音朗读的文案。", required: true, maxChars: 5000 },
         instruction: (text) => text.trim(),
-    },
-    "voice-changer": {
-        kind: "audio",
-        unsupported: "变声",
-        slots: [{ key: "source", label: "原声音", accept: "audio_or_video", required: true, hint: "上传音频或视频", constraint: "音频或视频，100MB 以内", record: "audio" }],
-        options: [voiceOption, stabilityOption, similarityOption, exaggerationOption],
-        prompt: { label: "补充说明", placeholder: "可选，例如：语气更温柔。", required: false },
-        instruction: (text, options) => withNote(`把这段声音转换成${choicePrompt(voiceOption, options.voice)}，保留原来的内容、语速和停顿。`, text),
     },
 
     // ---- 角色与世界 ----
@@ -859,8 +839,9 @@ export function buildSpecialtyState(spec: StudioSpecialtySpec, values: StudioSlo
     const requiredCount = (accept: StudioSlotAccept) => spec.slots.filter((slot) => slot.required && slot.accept === accept).length;
     return {
         operation: spec.operation,
-        operationLabel: spec.unsupported || (spec.operation ? OPERATION_LABELS[spec.operation] || spec.operation : spec.kind === "video" ? "视频生成" : spec.kind === "audio" ? "声音克隆" : "图片编辑"),
+        operationLabel: spec.unsupported || spec.audioLabel || (spec.operation ? OPERATION_LABELS[spec.operation] || spec.operation : spec.kind === "video" ? "视频生成" : spec.kind === "audio" ? "声音克隆" : "图片编辑"),
         unsupported: Boolean(spec.unsupported),
+        audioProtocol: spec.audioProtocol,
         kind: spec.kind,
         allowCount: Boolean(spec.count),
         instruction: specialtyPrompt(spec, userText, options, context),

@@ -307,6 +307,8 @@ func (s *Service) storeResourceWithWriter(userID string, kind string, fileName s
 		if measured := probeVideoDurationMs(seeker); measured > 0 {
 			durationMs = measured
 		}
+	} else if ok && strings.HasPrefix(mimeType, "audio/") && durationMs <= 0 {
+		durationMs = probeAudioDurationMs(seeker)
 	}
 	now := time.Now()
 	var setting ossSettingValue

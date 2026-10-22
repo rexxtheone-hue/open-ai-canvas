@@ -30,6 +30,8 @@ export type StudioSpecialtyState = {
     operationLabel: string;
     /** 还没有接入协议的能力：没有模型可用。 */
     unsupported?: boolean;
+    /** 音频专项限定的协议插件。 */
+    audioProtocol?: string;
     /** 作品类型；没有专项操作的视频工具按视频模型的参考上限挑模型。 */
     kind?: StudioKind;
     /** 视频专项是否允许一次生成多个。 */
@@ -90,13 +92,28 @@ export function studioFinalPrompt(state: Pick<StudioToolState, "kind" | "prompt"
 
 export type StudioReferenceLimits = { maxImages: number; maxVideos: number; maxAudios: number; exclusiveImageAudio?: boolean };
 
+/** 文字生成音效、音乐的协议插件；这类模型不能朗读文案，只给对应的专项工具用。 */
+export const SOUND_EFFECT_PROTOCOL = "fal-mirelo-sfx-text";
+export const MUSIC_PROTOCOL = "fal-lyria3";
+const NON_SPEECH_AUDIO_PROTOCOLS = new Set([SOUND_EFFECT_PROTOCOL, MUSIC_PROTOCOL]);
+/** 必须带声音样本的克隆语音协议，只给声音克隆用。 */
+export const VOICE_CLONE_PROTOCOL = "fal-index-tts2";
+
+function modelProtocol(config: AiConfig, model: string) {
+    return resolveModelRequestConfig(config, model).interfaceType || "";
+}
+
 /** 专项工具只考虑支持该操作（视频）或能放下必需参考图（图片）的模型。 */
 export function studioModelSupportsSpecialty(config: AiConfig, model: string, specialty: StudioSpecialtyState | undefined) {
+    if (specialty?.audioProtocol) return modelProtocol(config, model) === specialty.audioProtocol;
+    const protocol = modelProtocol(config, model);
+    if (NON_SPEECH_AUDIO_PROTOCOLS.has(protocol)) return false;
+    if (protocol === VOICE_CLONE_PROTOCOL && !specialty?.minAudios) return false;
     if (!specialty) return true;
     if (specialty.unsupported) return false;
     if (specialty.kind === "audio") {
-        // 配音专项（声音克隆）靠参考音频复刻音色，只有豆包流式语音接受参考音频。
-        const maxAudios = isDoubaoAudioConfig({ ...config, model, audioModel: model }) ? 3 : 0;
+        // 配音专项（声音克隆）靠参考音频复刻音色：豆包流式语音最多 3 段，IndexTTS 用第一段。
+        const maxAudios = isDoubaoAudioConfig({ ...config, model, audioModel: model }) ? 3 : protocol === VOICE_CLONE_PROTOCOL ? 1 : 0;
         return maxAudios >= (specialty.minAudios || 0);
     }
     const profile = modelCapabilityConfigFor(config, model);

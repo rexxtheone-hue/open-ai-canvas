@@ -19,6 +19,7 @@
 | Cloudwise Vidu | 图生视频 `POST /api/ent/v2/img2video`，参考生视频 `POST /api/ent/v2/reference2video`，查询 `GET /api/ent/v2/tasks/{id}/creations` | viduq4 |
 | Cloudwise Seedream 图片 | 同步 `POST /api/v1/aiproducts/image/seedream` | doubao-seedream-5-0-pro-260628 |
 | Cloudwise 统一图片 | `POST /api/v1/image-generation`（同步返回 `image_url`） | seedream-4.0/4.5、gemini 图片模型 |
+| Cloudwise SeedAudio | 同步 `POST /api/v3/tts/create` | seed-audio-1.0 |
 
 ## 字段映射要点
 
@@ -31,6 +32,7 @@
 - Vidu Q4：只有一张图且没有参考音频时走图生视频（首帧），其它组合走参考生视频（1–12 张图、0–3 段音频）；不支持纯文字和参考视频。分辨率 2K、4K 按大写发送；结果在 `data.creations[0].url`，`data.state` 为 success 时完成。
 - Seedream 5.0 Pro：同步返回，结果在 `data[0].url`（24 小时有效）。只有 1K、2K 两档；按官方表把「档位 + 比例」换成像素尺寸发送，传入的已是 WxH 时原样发送。参考图 0–10 张，一张发字符串、多张发数组。不支持组图、联网搜索和流式。
 - 统一图片：一张参考图发字符串、多张发数组；Seedream 的 `size` 为 `1K/2K/4K`。
+- SeedAudio 1.0：请求体与豆包流式语音相同（`text_prompt` + `references` + `audio_config`），最多 3 段参考音频（每段 30 秒内）或 1 张参考图，不能混用；用 `@Audio1` 等标记引用参考音频。同步返回 Base64 `audio` 和 `url`（2 小时有效）；优先用 Base64，`url` 所在的字节 CDN 在部分网络下连接超时，只在没有 Base64 时使用。官方按 `original_duration` 计费，$0.15/分钟（$0.0025/秒），单次最长 120 秒。
 - 每个协议的 `providerOptions.<协议 ID>.body` 会合并进请求体，用于补充或覆盖字段。
 
 ## 同一渠道可直接使用的现有协议
@@ -49,7 +51,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "cloudwise-maas",
   "name": "Cloudwise MaaS",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "author": "Cloudwise / 影策",
   "description": "Cloudwise MaaS（api.cloudwise.ai）的视频与图片协议：Seedance 2.x、Kling、MiniMax H3、万相 3.0、Vidu Q4、Seedream 5.0 Pro、统一视频与统一图片接口。",
   "documentation": "<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>",
@@ -5183,6 +5185,360 @@
             "$ref": "response.usage"
           },
           "resultEphemeral": true
+        }
+      },
+      {
+        "id": "cloudwise-seedaudio",
+        "label": "Cloudwise SeedAudio 1.0",
+        "capabilities": [
+          "audio"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation",
+          "agent"
+        ],
+        "baseUrl": "https://api.cloudwise.ai",
+        "requiresPublicMediaUrls": false,
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey"
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "模型 ID：seed-audio-1.0。"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "input",
+            "description": "待合成文本。"
+          },
+          {
+            "name": "providerOptions",
+            "type": "object",
+            "required": false,
+            "mapping": "provider-specific fields",
+            "description": "插件命名空间内的厂商扩展字段。"
+          }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/api/v3/tts/create",
+          "contentType": "application/json",
+          "body": {
+            "model": {
+              "$ref": "request.model"
+            },
+            "text_prompt": {
+              "$ref": "request.prompt"
+            },
+            "references": {
+              "$omitEmpty": {
+                "$if": {
+                  "condition": {
+                    "$gt": [
+                      {
+                        "$len": {
+                          "$ref": "request.images"
+                        }
+                      },
+                      0
+                    ]
+                  },
+                  "then": {
+                    "$map": {
+                      "from": {
+                        "$ref": "request.images"
+                      },
+                      "as": "media",
+                      "in": {
+                        "image_url": {
+                          "$omitEmpty": {
+                            "$if": {
+                              "condition": {
+                                "$eq": [
+                                  {
+                                    "$ref": "media.source.type"
+                                  },
+                                  "url"
+                                ]
+                              },
+                              "then": {
+                                "$ref": "media.url"
+                              },
+                              "else": null
+                            }
+                          }
+                        },
+                        "image_data": {
+                          "$omitEmpty": {
+                            "$if": {
+                              "condition": {
+                                "$eq": [
+                                  {
+                                    "$ref": "media.source.type"
+                                  },
+                                  "data"
+                                ]
+                              },
+                              "then": {
+                                "$dataPayload": {
+                                  "$ref": "media.value"
+                                }
+                              },
+                              "else": null
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "else": {
+                    "$if": {
+                      "condition": {
+                        "$gt": [
+                          {
+                            "$len": {
+                              "$ref": "request.audios"
+                            }
+                          },
+                          0
+                        ]
+                      },
+                      "then": {
+                        "$concatArrays": [
+                          {
+                            "$map": {
+                              "from": {
+                                "$ref": "request.audios"
+                              },
+                              "as": "media",
+                              "in": {
+                                "audio_url": {
+                                  "$omitEmpty": {
+                                    "$if": {
+                                      "condition": {
+                                        "$eq": [
+                                          {
+                                            "$ref": "media.source.type"
+                                          },
+                                          "url"
+                                        ]
+                                      },
+                                      "then": {
+                                        "$ref": "media.url"
+                                      },
+                                      "else": null
+                                    }
+                                  }
+                                },
+                                "audio_data": {
+                                  "$omitEmpty": {
+                                    "$if": {
+                                      "condition": {
+                                        "$eq": [
+                                          {
+                                            "$ref": "media.source.type"
+                                          },
+                                          "data"
+                                        ]
+                                      },
+                                      "then": {
+                                        "$dataPayload": {
+                                          "$ref": "media.value"
+                                        }
+                                      },
+                                      "else": null
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "$if": {
+                              "condition": {
+                                "$and": [
+                                  {
+                                    "$ref": "request.extra.audioVoice"
+                                  },
+                                  {
+                                    "$lt": [
+                                      {
+                                        "$len": {
+                                          "$ref": "request.audios"
+                                        }
+                                      },
+                                      3
+                                    ]
+                                  }
+                                ]
+                              },
+                              "then": [
+                                {
+                                  "speaker": {
+                                    "$ref": "request.extra.audioVoice"
+                                  }
+                                }
+                              ],
+                              "else": []
+                            }
+                          }
+                        ]
+                      },
+                      "else": {
+                        "$if": {
+                          "condition": {
+                            "$ref": "request.extra.audioVoice"
+                          },
+                          "then": [
+                            {
+                              "speaker": {
+                                "$ref": "request.extra.audioVoice"
+                              }
+                            }
+                          ],
+                          "else": null
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "audio_config": {
+              "format": {
+                "$coalesce": [
+                  {
+                    "$ref": "request.extra.audioFormat"
+                  },
+                  "mp3"
+                ]
+              },
+              "speech_rate": {
+                "$omitEmpty": {
+                  "$if": {
+                    "condition": {
+                      "$ne": [
+                        {
+                          "$toFloat": {
+                            "$ref": "request.extra.audioSpeed"
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "then": {
+                      "$add": [
+                        {
+                          "$multiply": [
+                            {
+                              "$toFloat": {
+                                "$ref": "request.extra.audioSpeed"
+                              }
+                            },
+                            100
+                          ]
+                        },
+                        -100
+                      ]
+                    },
+                    "else": null
+                  }
+                }
+              }
+            }
+          },
+          "headers": {
+            "X-Api-Request-Id": {
+              "$ref": "request.extra.idempotencyKey"
+            }
+          },
+          "originPath": true
+        },
+        "response": {
+          "errorPaths": [
+            "code"
+          ],
+          "messagePaths": [
+            "message"
+          ],
+          "status": "succeeded",
+          "resultKind": "audio",
+          "audios": {
+            "$if": {
+              "condition": {
+                "$ref": "response.audio"
+              },
+              "then": {
+                "dataUrl": {
+                  "$ref": "response.audio"
+                },
+                "mimeType": {
+                  "$if": {
+                    "condition": {
+                      "$eq": [
+                        {
+                          "$ref": "request.extra.audioFormat"
+                        },
+                        "wav"
+                      ]
+                    },
+                    "then": "audio/wav",
+                    "else": {
+                      "$if": {
+                        "condition": {
+                          "$eq": [
+                            {
+                              "$ref": "request.extra.audioFormat"
+                            },
+                            "pcm"
+                          ]
+                        },
+                        "then": "audio/pcm",
+                        "else": {
+                          "$if": {
+                            "condition": {
+                              "$eq": [
+                                {
+                                  "$ref": "request.extra.audioFormat"
+                                },
+                                "ogg_opus"
+                              ]
+                            },
+                            "then": "audio/ogg",
+                            "else": "audio/mpeg"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "else": {
+                "$if": {
+                  "condition": {
+                    "$ref": "response.url"
+                  },
+                  "then": {
+                    "url": {
+                      "$ref": "response.url"
+                    },
+                    "ephemeral": true
+                  },
+                  "else": null
+                }
+              }
+            }
+          }
         }
       }
     ]

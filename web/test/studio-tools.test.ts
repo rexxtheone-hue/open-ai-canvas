@@ -24,7 +24,7 @@ describe("AI Studio 工具分类", () => {
         expect(studioToolsInTab(STUDIO_TOOLS, "video").map((tool) => tool.id)).toContain("lip-sync");
         expect(studioToolsInTab(STUDIO_TOOLS, "character").map((tool) => tool.id)).toEqual(["create-character", "character-image", "character-video", "cast-in-scene", "replace-character", "motion-sync", "lip-sync", "multi-view", "face-swap"]);
         expect(studioToolsInTab(STUDIO_TOOLS, "world").map((tool) => tool.id)).toEqual(["create-pano", "world-cam", "cast-in-scene"]);
-        expect(studioToolsInTab(STUDIO_TOOLS, "audio").map((tool) => tool.id)).toEqual(["create-audio", "create-music", "create-sound-effect", "voice-clone", "voice-changer", "video-dubbing", "add-sound-effect"]);
+        expect(studioToolsInTab(STUDIO_TOOLS, "audio").map((tool) => tool.id)).toEqual(["create-audio", "create-music", "create-sound-effect", "voice-clone", "video-dubbing", "add-sound-effect"]);
         expect(studioToolForKind("video")?.id).toBe("create-video");
         expect(studioToolForKind("image")?.id).toBe("create-image");
         expect(STUDIO_TOOL_TABS.every((tab) => tab.path === `/studio/${tab.id}`)).toBe(true);
@@ -157,7 +157,7 @@ describe("OpenArt 式工具面板", () => {
 
     test("尚未接入的音频能力没有模型可用，生成按钮说明原因", () => {
         const config = toolConfig({ operations: ["image_to_video", "reference_to_video"], maxVideos: 1, maxImages: 2 }, 4);
-        for (const id of ["create-music", "create-sound-effect", "voice-clone", "voice-changer", "add-sound-effect"]) expect(studioSpecialtyAvailable(config, id)).toBe(false);
+        for (const id of ["create-music", "create-sound-effect", "voice-clone", "add-sound-effect"]) expect(studioSpecialtyAvailable(config, id)).toBe(false);
         // 声音克隆不是未接入能力：有接受参考音频的配音模型（豆包流式语音）就能用。
         const clone = buildSpecialtyState(studioSpecialtySpec("voice-clone")!, {}, "你好", {});
         expect(clone).toMatchObject({ unsupported: false, minAudios: 1, operationLabel: "声音克隆", instruction: "你好" });

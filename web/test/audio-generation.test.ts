@@ -19,6 +19,7 @@ describe("audio voice protocol handling", () => {
     test("uses provider-specific Doubao defaults instead of OpenAI alloy", () => {
         const doubao = { ...config("doubao-streaming-tts"), model: "seed-audio-1.0", audioModel: "seed-audio-1.0" } as any;
         expect(isDoubaoAudioConfig(doubao)).toBe(true);
+        expect(isDoubaoAudioConfig({ ...config("cloudwise-seedaudio"), model: "seed-audio-1.0", audioModel: "seed-audio-1.0" } as any)).toBe(true);
         expect(normalizeAudioVoiceForConfig(doubao, "alloy")).toBe("");
     });
 

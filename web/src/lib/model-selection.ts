@@ -42,12 +42,15 @@ export type ModelReferenceLimits = {
  * 或 1 张参考图片，两者不能同时使用。
  */
 export function audioReferenceCapacity(config: AiConfig, model: string) {
-    return audioProtocol(config, model) === "doubao-streaming-tts" ? 3 : 0;
+    return SEED_AUDIO_PROTOCOLS.has(audioProtocol(config, model) || "") ? 3 : 0;
 }
+
+/** 豆包语音官方接口和 Cloudwise 转发的 SeedAudio 1.0 是同一套请求合同。 */
+export const SEED_AUDIO_PROTOCOLS = new Set(["doubao-streaming-tts", "cloudwise-seedaudio"]);
 
 export function isDoubaoAudioModel(config: AiConfig, model: string) {
     if (!String(model || "").trim()) return false;
-    if (audioProtocol(config, model) === "doubao-streaming-tts") return true;
+    if (SEED_AUDIO_PROTOCOLS.has(audioProtocol(config, model) || "")) return true;
     // seed-audio-1.0 与 seed-audio-1.0-multilingual 共用同一套 references 合同。
     return modelOptionName(model).toLowerCase().startsWith("seed-audio");
 }

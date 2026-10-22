@@ -38,6 +38,80 @@ func TestProbeVideoDurationReadsMoovAtEndAndRestoresPosition(t *testing.T) {
 	}
 }
 
+func testWAV(byteRate uint32, dataBytes int) []byte {
+	chunk := func(name string, body []byte) []byte {
+		out := make([]byte, 8, 8+len(body))
+		copy(out, name)
+		binary.LittleEndian.PutUint32(out[4:8], uint32(len(body)))
+		return append(out, body...)
+	}
+	format := make([]byte, 16)
+	binary.LittleEndian.PutUint16(format[0:2], 1)
+	binary.LittleEndian.PutUint16(format[2:4], 2)
+	binary.LittleEndian.PutUint32(format[4:8], byteRate/4)
+	binary.LittleEndian.PutUint32(format[8:12], byteRate)
+	body := bytes.Join([][]byte{[]byte("WAVE"), chunk("fmt ", format), chunk("LIST", []byte("abc")), {0}, chunk("data", make([]byte, dataBytes))}, nil)
+	return append(chunk("RIFF", nil)[:4], append(binary.LittleEndian.AppendUint32(nil, uint32(len(body))), body...)...)
+}
+
+func TestProbeWAVDurationSkipsOddChunks(t *testing.T) {
+	if got := probeWAVDurationMs(bytes.NewReader(testWAV(1000, 2_500))); got != 2_500 {
+		t.Fatalf("duration = %d, want 2500", got)
+	}
+	if got := probeWAVDurationMs(bytes.NewReader(testMP4(1000, 1000))); got != 0 {
+		t.Fatalf("mp4 as wav = %d", got)
+	}
+}
+
+func testMP3(frames int) []byte {
+	// ID3v2 标签 + MPEG1 Layer III 128kbps 44.1kHz 帧，每帧 417 字节、1152 个采样。
+	data := append([]byte("ID3\x04\x00\x00\x00\x00\x00\x05"), []byte("TAG01")...)
+	for range frames {
+		frame := make([]byte, 417)
+		copy(frame, []byte{0xFF, 0xFB, 0x90, 0x00})
+		data = append(data, frame...)
+	}
+	return data
+}
+
+func TestProbeMP3DurationSumsFrames(t *testing.T) {
+	// 100 帧 × 1152 / 44100 ≈ 2612.2 毫秒。
+	if got := probeMP3DurationMs(bytes.NewReader(testMP3(100))); got < 2612 || got > 2613 {
+		t.Fatalf("duration = %d, want about 2612", got)
+	}
+	if got := probeAudioDurationMs(bytes.NewReader(testMP3(100))); got < 2612 || got > 2613 {
+		t.Fatalf("audio duration = %d", got)
+	}
+	if got := probeMP3DurationMs(bytes.NewReader(testWAV(1000, 2_000))); got != 0 {
+		t.Fatalf("wav as mp3 = %d", got)
+	}
+}
+
+func TestStoredWAVGetsMeasuredDuration(t *testing.T) {
+	svc := newResourceTestService(t)
+	data := testWAV(1000, 3_000)
+	resource, _, err := svc.storeResource("user-1", "audio", "sfx.wav", "audio/wav", int64(len(data)), 0, 0, 0, bytes.NewReader(data), nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resource.DurationMs != 3_000 {
+		t.Fatalf("duration = %d, want 3000", resource.DurationMs)
+	}
+}
+
+func TestRequestedAudioSecondsComesFromSpecialtyDuration(t *testing.T) {
+	input := map[string]any{"mode": "audio", "config": map[string]any{}, "metadata": map[string]any{"specialtyOptions": map[string]any{"duration": "2.5"}}}
+	applyRequestedAudioSeconds(input)
+	if got := input["config"].(map[string]any)["audioSeconds"]; got != "3" {
+		t.Fatalf("audioSeconds = %v, want 3", got)
+	}
+	tts := map[string]any{"mode": "audio", "config": map[string]any{}, "metadata": map[string]any{}}
+	applyRequestedAudioSeconds(tts)
+	if _, ok := tts["config"].(map[string]any)["audioSeconds"]; ok {
+		t.Fatal("TTS without a duration option must keep the default reservation")
+	}
+}
+
 func TestStoredVideoUsesMeasuredDurationOverClientValue(t *testing.T) {
 	svc := newResourceTestService(t)
 	data := testMP4(600, 600*42)

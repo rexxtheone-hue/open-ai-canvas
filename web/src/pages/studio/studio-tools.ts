@@ -1,5 +1,5 @@
 import type { LucideIcon } from "./studio-icons";
-import { AudioFill, AudioLines, AudioWaveform, Camera, CharacterFill, Clapperboard, Copy, Earth, Expand, FastForward, Film, Flame, Globe, Grid3x3, Image as ImageIcon, ImageFill, ImagePlay, Languages, Layers, Lightbulb, ListVideo, MicVocal, MonitorUp, MountainSnow, Music, Orbit, Palette, PenLine, PersonStanding, Replace, Rotate3d, ScanFace, Speaker, SunMedium, Type, UserPen, UserPlus, UserRound, VideoFill, Volume2, Wallpaper, WorldFill, ZoomIn } from "./studio-icons";
+import { AudioFill, AudioLines, Camera, CharacterFill, Clapperboard, Copy, Earth, Expand, FastForward, Film, Flame, Globe, Grid3x3, Image as ImageIcon, ImageFill, ImagePlay, Languages, Layers, Lightbulb, ListVideo, MicVocal, MonitorUp, MountainSnow, Music, Orbit, Palette, PenLine, PersonStanding, Replace, Rotate3d, ScanFace, Speaker, SunMedium, Type, UserPen, UserPlus, UserRound, VideoFill, Volume2, Wallpaper, WorldFill, ZoomIn } from "./studio-icons";
 
 import type { VideoMode } from "@/lib/video-modes";
 import type { StudioKind } from "@/services/api/studio";
@@ -71,7 +71,6 @@ export const STUDIO_TOOLS: StudioToolDefinition[] = [
     { id: "create-music", label: "生成音乐", description: "描述风格和情绪，生成配乐或歌曲", icon: Music, path: "/studio/tools/create-music", tabs: ["audio"], kind: "audio", specialty: true, gradient: ["#8360c3", "#2ebf91"] },
     { id: "create-sound-effect", label: "生成音效", description: "一句话生成任意音效", icon: Speaker, path: "/studio/tools/create-sound-effect", tabs: ["audio"], kind: "audio", specialty: true, gradient: ["#b24592", "#f15f79"] },
     { id: "voice-clone", label: "声音克隆", description: "用一段样本复刻声音来朗读文案", icon: MicVocal, path: "/studio/tools/voice-clone", tabs: ["audio"], kind: "audio", specialty: true, gradient: ["#1d976c", "#93f9b9"] },
-    { id: "voice-changer", label: "变声", description: "把录音换成另一种声音", icon: AudioWaveform, path: "/studio/tools/voice-changer", tabs: ["audio"], kind: "audio", specialty: true, gradient: ["#e44d26", "#f16529"] },
     // 角色
     { id: "create-character", label: "创建角色", description: "描述或搭建一个原创角色，生成后存进角色库", icon: UserPlus, path: "/studio/tools/create-character", tabs: ["character"], kind: "image", specialty: true, gradient: ["#ee9ca7", "#ffdde1"] },
     { id: "character-image", label: "角色图片", description: "让你的角色出现在新画面里", icon: UserPen, path: "/studio/tools/character-image", tabs: ["character"], kind: "image", specialty: true, gradient: ["#f857a6", "#ff5858"] },

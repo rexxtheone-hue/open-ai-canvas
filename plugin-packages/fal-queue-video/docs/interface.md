@@ -59,6 +59,26 @@
 - `preserve_speech` 读取 Studio 选项 `extra.specialtyOptions.keep`：为 `off` 时只生成音效、去掉原人声，其它情况保留原视频人声。
 - 返回的是带新音轨的原视频（`video[].url`），画面不重新生成。时长等于输入视频，官方按输出秒数计费（$0.015/秒）。
 
+## Mirelo 文字生成音效（Provider `fal-mirelo-sfx-text`）
+
+- 模型 ID 填 `mirelo-ai/sfx2.0/text-to-audio`，渠道能力为音频。
+- 请求体：`prompt`（音效描述）、`duration`（秒，读取 Studio 选项 `extra.specialtyOptions.duration`，未选时为 5）、`negative_prompt` 固定为 `music, voices`、`num_samples` 固定为 1、`upload_audio_format` 固定为 `wav`。
+- 输出 WAV，便于宿主在没有 ffprobe 时也能读出时长做按秒结算。
+- 返回 `audio[].url`。官方按输出秒数计费（$0.015/秒）。
+
+## Lyria 3 Pro 音乐生成（Provider `fal-lyria3`）
+
+- 模型 ID 填 `fal-ai/lyria3/pro`，渠道能力为音频。
+- 请求体：`prompt`（风格、情绪、乐器、节奏、人声或歌词，最多 5000 字）、`image_url`（可选，只取第一张参考图）。
+- 没有时长、纯音乐等独立参数，Studio 把这些选项写进提示词。
+- 返回 `audio.url`（MP3，最长约 3 分钟）和 `lyrics`。官方按次计费（$0.08/首）。
+
+## IndexTTS 2 声音克隆（Provider `fal-index-tts2`）
+
+- 模型 ID 填 `fal-ai/index-tts-2/text-to-speech`，渠道能力为音频。
+- 请求体：`prompt`（要朗读的文案）、`audio_url`（第一段声音样本，必填）。
+- 返回 `audio.url`（MP3）。官方按生成音频秒数计费（$0.002/秒）。
+
 <!-- YINGCE_MANIFEST_CONTRACT_START -->
 ## Manifest 完整接口定义
 
@@ -69,7 +89,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "fal-queue-video",
   "name": "fal.ai Queue Video",
-  "version": "3.0.1",
+  "version": "3.0.4",
   "author": "fal.ai / 影策",
   "description": "fal.ai 队列接口（queue.fal.run）的视频生成协议插件：提交、查询状态、获取结果、取消。",
   "documentation": "<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>",
@@ -811,6 +831,759 @@
           },
           "resultEphemeral": true,
           "resultJson": true
+        }
+      },
+      {
+        "id": "fal-mirelo-sfx-text",
+        "label": "fal.ai Mirelo 文字生成音效",
+        "capabilities": [
+          "audio"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation",
+          "agent"
+        ],
+        "baseUrl": "https://queue.fal.run",
+        "requiresPublicMediaUrls": true,
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey",
+          "prefix": "Key "
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "fal 模型 ID：mirelo-ai/sfx2.0/text-to-audio。"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt",
+            "description": "音效描述：声源、情绪和音色。"
+          }
+        ],
+        "validations": [],
+        "create": {
+          "method": "POST",
+          "path": "/{{model}}",
+          "originPath": true,
+          "contentType": "application/json",
+          "body": {
+            "prompt": {
+              "$ref": "request.prompt"
+            },
+            "duration": {
+              "$toFloat": {
+                "$coalesce": [
+                  {
+                    "$omitEmpty": {
+                      "$ref": "request.extra.specialtyOptions.duration"
+                    }
+                  },
+                  "5"
+                ]
+              }
+            },
+            "negative_prompt": "music, voices",
+            "num_samples": 1,
+            "upload_audio_format": "wav"
+          }
+        },
+        "poll": {
+          "method": "GET",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              {
+                "$concat": [
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      1
+                    ]
+                  },
+                  "/requests/{{taskId}}"
+                ]
+              },
+              "/status"
+            ]
+          }
+        },
+        "result": {
+          "method": "GET",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              "/",
+              {
+                "$at": [
+                  {
+                    "$split": [
+                      {
+                        "$ref": "request.model"
+                      },
+                      "/"
+                    ]
+                  },
+                  0
+                ]
+              },
+              "/",
+              {
+                "$at": [
+                  {
+                    "$split": [
+                      {
+                        "$ref": "request.model"
+                      },
+                      "/"
+                    ]
+                  },
+                  1
+                ]
+              },
+              "/requests/{{taskId}}"
+            ]
+          }
+        },
+        "cancel": {
+          "method": "PUT",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              {
+                "$concat": [
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      1
+                    ]
+                  },
+                  "/requests/{{taskId}}"
+                ]
+              },
+              "/cancel"
+            ]
+          }
+        },
+        "response": {
+          "taskId": {
+            "$coalesce": [
+              {
+                "$ref": "response.request_id"
+              },
+              {
+                "$ref": "taskId"
+              }
+            ]
+          },
+          "status": {
+            "$if": {
+              "condition": {
+                "$ref": "response.error"
+              },
+              "then": "failed",
+              "else": {
+                "$coalesce": [
+                  {
+                    "$ref": "response.status"
+                  },
+                  "pending"
+                ]
+              }
+            }
+          },
+          "message": {
+            "$coalesce": [
+              {
+                "$ref": "response.error"
+              },
+              {
+                "$ref": "response.detail"
+              },
+              {
+                "$ref": "response.message"
+              }
+            ]
+          },
+          "resultEphemeral": true,
+          "resultJson": true,
+          "audios": {
+            "$coalesce": [
+              {
+                "$ref": "response.audio"
+              },
+              {
+                "$ref": "response.audios"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "fal-lyria3",
+        "label": "fal.ai Lyria 3 Pro 音乐生成",
+        "capabilities": [
+          "audio"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation",
+          "agent"
+        ],
+        "baseUrl": "https://queue.fal.run",
+        "requiresPublicMediaUrls": true,
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey",
+          "prefix": "Key "
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "fal 模型 ID：fal-ai/lyria3/pro。"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt",
+            "description": "音乐描述：风格、情绪、乐器、节奏、人声或歌词。"
+          },
+          {
+            "name": "images",
+            "type": "media[]",
+            "required": false,
+            "mapping": "image_url",
+            "description": "可选参考图，只发送第一张，用来让音乐贴合画面情绪。"
+          }
+        ],
+        "validations": [],
+        "create": {
+          "method": "POST",
+          "path": "/{{model}}",
+          "originPath": true,
+          "contentType": "application/json",
+          "body": {
+            "prompt": {
+              "$ref": "request.prompt"
+            },
+            "image_url": {
+              "$omitEmpty": {
+                "$first": {
+                  "$map": {
+                    "from": {
+                      "$sortByOrder": {
+                        "$ref": "request.images"
+                      }
+                    },
+                    "as": "media",
+                    "in": {
+                      "$ref": "media.value"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "poll": {
+          "method": "GET",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              {
+                "$concat": [
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      1
+                    ]
+                  },
+                  "/requests/{{taskId}}"
+                ]
+              },
+              "/status"
+            ]
+          }
+        },
+        "result": {
+          "method": "GET",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              "/",
+              {
+                "$at": [
+                  {
+                    "$split": [
+                      {
+                        "$ref": "request.model"
+                      },
+                      "/"
+                    ]
+                  },
+                  0
+                ]
+              },
+              "/",
+              {
+                "$at": [
+                  {
+                    "$split": [
+                      {
+                        "$ref": "request.model"
+                      },
+                      "/"
+                    ]
+                  },
+                  1
+                ]
+              },
+              "/requests/{{taskId}}"
+            ]
+          }
+        },
+        "cancel": {
+          "method": "PUT",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              {
+                "$concat": [
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      1
+                    ]
+                  },
+                  "/requests/{{taskId}}"
+                ]
+              },
+              "/cancel"
+            ]
+          }
+        },
+        "response": {
+          "taskId": {
+            "$coalesce": [
+              {
+                "$ref": "response.request_id"
+              },
+              {
+                "$ref": "taskId"
+              }
+            ]
+          },
+          "status": {
+            "$if": {
+              "condition": {
+                "$ref": "response.error"
+              },
+              "then": "failed",
+              "else": {
+                "$coalesce": [
+                  {
+                    "$ref": "response.status"
+                  },
+                  "pending"
+                ]
+              }
+            }
+          },
+          "message": {
+            "$coalesce": [
+              {
+                "$ref": "response.error"
+              },
+              {
+                "$ref": "response.detail"
+              },
+              {
+                "$ref": "response.message"
+              }
+            ]
+          },
+          "resultEphemeral": true,
+          "resultJson": true,
+          "audios": {
+            "$coalesce": [
+              {
+                "$ref": "response.audio"
+              },
+              {
+                "$ref": "response.audios"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "fal-index-tts2",
+        "label": "fal.ai IndexTTS 2 声音克隆",
+        "capabilities": [
+          "audio"
+        ],
+        "scopes": [
+          "admin.system-channel",
+          "user.custom-channel",
+          "canvas",
+          "creation",
+          "agent"
+        ],
+        "baseUrl": "https://queue.fal.run",
+        "requiresPublicMediaUrls": true,
+        "auth": {
+          "type": "bearer",
+          "field": "apiKey",
+          "prefix": "Key "
+        },
+        "parameters": [
+          {
+            "name": "model",
+            "type": "string",
+            "required": true,
+            "mapping": "model",
+            "description": "fal 模型 ID：fal-ai/index-tts-2/text-to-speech。"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": true,
+            "mapping": "prompt",
+            "description": "要朗读的文案。"
+          },
+          {
+            "name": "audios",
+            "type": "media[]",
+            "required": true,
+            "mapping": "audio_url",
+            "description": "声音样本，只发送第一段，按它的音色朗读。"
+          }
+        ],
+        "validations": [
+          {
+            "assert": {
+              "$gte": [
+                {
+                  "$len": {
+                    "$ref": "request.audios"
+                  }
+                },
+                1
+              ]
+            },
+            "message": "声音克隆需要 1 段声音样本"
+          }
+        ],
+        "create": {
+          "method": "POST",
+          "path": "/{{model}}",
+          "originPath": true,
+          "contentType": "application/json",
+          "body": {
+            "prompt": {
+              "$ref": "request.prompt"
+            },
+            "audio_url": {
+              "$first": {
+                "$map": {
+                  "from": {
+                    "$sortByOrder": {
+                      "$ref": "request.audios"
+                    }
+                  },
+                  "as": "media",
+                  "in": {
+                    "$ref": "media.value"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "poll": {
+          "method": "GET",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              {
+                "$concat": [
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      1
+                    ]
+                  },
+                  "/requests/{{taskId}}"
+                ]
+              },
+              "/status"
+            ]
+          }
+        },
+        "result": {
+          "method": "GET",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              "/",
+              {
+                "$at": [
+                  {
+                    "$split": [
+                      {
+                        "$ref": "request.model"
+                      },
+                      "/"
+                    ]
+                  },
+                  0
+                ]
+              },
+              "/",
+              {
+                "$at": [
+                  {
+                    "$split": [
+                      {
+                        "$ref": "request.model"
+                      },
+                      "/"
+                    ]
+                  },
+                  1
+                ]
+              },
+              "/requests/{{taskId}}"
+            ]
+          }
+        },
+        "cancel": {
+          "method": "PUT",
+          "path": "",
+          "originPath": true,
+          "pathTemplate": {
+            "$concat": [
+              {
+                "$concat": [
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      0
+                    ]
+                  },
+                  "/",
+                  {
+                    "$at": [
+                      {
+                        "$split": [
+                          {
+                            "$ref": "request.model"
+                          },
+                          "/"
+                        ]
+                      },
+                      1
+                    ]
+                  },
+                  "/requests/{{taskId}}"
+                ]
+              },
+              "/cancel"
+            ]
+          }
+        },
+        "response": {
+          "taskId": {
+            "$coalesce": [
+              {
+                "$ref": "response.request_id"
+              },
+              {
+                "$ref": "taskId"
+              }
+            ]
+          },
+          "status": {
+            "$if": {
+              "condition": {
+                "$ref": "response.error"
+              },
+              "then": "failed",
+              "else": {
+                "$coalesce": [
+                  {
+                    "$ref": "response.status"
+                  },
+                  "pending"
+                ]
+              }
+            }
+          },
+          "message": {
+            "$coalesce": [
+              {
+                "$ref": "response.error"
+              },
+              {
+                "$ref": "response.detail"
+              },
+              {
+                "$ref": "response.message"
+              }
+            ]
+          },
+          "resultEphemeral": true,
+          "resultJson": true,
+          "audios": {
+            "$coalesce": [
+              {
+                "$ref": "response.audio"
+              },
+              {
+                "$ref": "response.audios"
+              }
+            ]
+          }
         }
       }
     ]
