@@ -532,7 +532,7 @@ export const STUDIO_SPECIALTY_SPECS: Record<string, StudioSpecialtySpec> = {
             { key: "motion", label: "动作参考", accept: "video", required: true, hint: "上传或录制一段动作视频", constraint: "MP4 / MOV，100MB 以内，3–30 秒，边长 340–3850px", record: "video" },
         ],
         prompt: { label: "补充说明", placeholder: "可选，例如：保持服装不变，背景换成海边。", required: false },
-        instruction: (text) => withNote("让图片中的角色完整模仿参考视频里的动作、表情和节奏，保持角色外貌一致。", text),
+        instruction: (text) => withNote("视频中唯一的人物是参考图片中的角色（脸、发型、服装都按图片）。完整复制参考视频里的身体动作、手势、头部动作和节奏，但不要使用参考视频里的人物，要把那个人完全替换成图片中的角色。保留参考视频的背景、构图和光线。", text),
     },
     "lip-sync": {
         kind: "video",
@@ -543,7 +543,7 @@ export const STUDIO_SPECIALTY_SPECS: Record<string, StudioSpecialtySpec> = {
         ],
         options: [lipQualityOption],
         prompt: { label: "补充说明", placeholder: "可选，例如：表情自然，微笑，轻微点头。", required: false },
-        instruction: (text, options) => withNote(`让人物按照参考音频说话，口型与声音精确同步，保持人物外貌和背景不变。${choicePrompt(lipQualityOption, options.quality)}`, text),
+        instruction: (text, options) => withNote(`让人物对着镜头说出参考音频里的原话，口型与声音精确同步；直接使用参考音频作为人物的声音，不要改变音色和内容，不要添加音频里没有的道具。保持人物外貌和背景不变。${choicePrompt(lipQualityOption, options.quality)}`, text),
     },
     "video-upscale": {
         kind: "video",
