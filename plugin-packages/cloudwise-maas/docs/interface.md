@@ -26,6 +26,7 @@
 - Kling：首尾帧与参考图进入 `image_list`（`type` 为 `first_frame`/`end_frame`），参考视频进入 `video_list`（`refer_type` 默认 `feature`，role 为 `base` 时为编辑）；`mode` 由分辨率推导（720p→std，1080p→pro，4k→4k）；`duration` 以字符串发送；状态 `succeed` 视为成功。
 - MiniMax H3：`content` 数组（text + image_url/video_url/audio_url，role 原样传递）；分辨率 1080p 及以上→`2K`，其余→`768P`（H3-Max 为 `768P`/`480P`）；结果在 `task.content.url`。
 - 统一视频：`content.prompt/image_url/image_url_last/video_url/audio_url`；万相文生视频的 `resolution` 按分辨率与比例换算成 `1280*720` 这类尺寸，Sora 换算成 `1280x720`；状态在 `taskStatus`，视频在 `video_url`。
+- Seedance 视频编辑（inpaint、换角色、换风格、运镜重拍）不发送 `ratio` 和 `duration`：输出比例与时长跟随原视频，Seedance 2.5 收到这两个参数会直接拒绝。
 - 万相 3.0：请求体与 DashScope 官方相同（`input.prompt` + `input.media[{type,url}]`，`parameters.resolution/ratio/duration/audio/prompt_extend`）；查询结果读 `data.output.task_status` / `data.output.video_url`。
 - Vidu Q4：只有一张图且没有参考音频时走图生视频（首帧），其它组合走参考生视频（1–12 张图、0–3 段音频）；不支持纯文字和参考视频。分辨率 2K、4K 按大写发送；结果在 `data.creations[0].url`，`data.state` 为 success 时完成。
 - Seedream 5.0 Pro：同步返回，结果在 `data[0].url`（24 小时有效）。只有 1K、2K 两档；按官方表把「档位 + 比例」换成像素尺寸发送，传入的已是 WxH 时原样发送。参考图 0–10 张，一张发字符串、多张发数组。不支持组图、联网搜索和流式。
@@ -48,7 +49,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "cloudwise-maas",
   "name": "Cloudwise MaaS",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "author": "Cloudwise / 影策",
   "description": "Cloudwise MaaS（api.cloudwise.ai）的视频与图片协议：Seedance 2.x、Kling、MiniMax H3、万相 3.0、Vidu Q4、Seedream 5.0 Pro、统一视频与统一图片接口。",
   "documentation": "<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>",
@@ -329,12 +330,32 @@
               ]
             },
             "ratio": {
-              "$coalesce": [
-                {
-                  "$ref": "request.aspectRatio"
-                },
-                "16:9"
-              ]
+              "$omitEmpty": {
+                "$if": {
+                  "condition": {
+                    "$in": [
+                      {
+                        "$ref": "request.operation"
+                      },
+                      [
+                        "inpaint",
+                        "replace_element",
+                        "style_transfer",
+                        "camera_motion"
+                      ]
+                    ]
+                  },
+                  "then": null,
+                  "else": {
+                    "$coalesce": [
+                      {
+                        "$ref": "request.aspectRatio"
+                      },
+                      "16:9"
+                    ]
+                  }
+                }
+              }
             },
             "resolution": {
               "$coalesce": [
@@ -345,19 +366,39 @@
               ]
             },
             "duration": {
-              "$if": {
-                "condition": {
-                  "$gt": [
-                    {
-                      "$ref": "request.duration"
-                    },
-                    0
-                  ]
-                },
-                "then": {
-                  "$ref": "request.duration"
-                },
-                "else": 5
+              "$omitEmpty": {
+                "$if": {
+                  "condition": {
+                    "$in": [
+                      {
+                        "$ref": "request.operation"
+                      },
+                      [
+                        "inpaint",
+                        "replace_element",
+                        "style_transfer",
+                        "camera_motion"
+                      ]
+                    ]
+                  },
+                  "then": null,
+                  "else": {
+                    "$if": {
+                      "condition": {
+                        "$gt": [
+                          {
+                            "$ref": "request.duration"
+                          },
+                          0
+                        ]
+                      },
+                      "then": {
+                        "$ref": "request.duration"
+                      },
+                      "else": 5
+                    }
+                  }
+                }
               }
             },
             "generate_audio": {

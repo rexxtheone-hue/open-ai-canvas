@@ -227,3 +227,17 @@ func TestCloudwiseSeedream5ProMapsRatioToPixelsAndParsesSyncResult(t *testing.T)
 		t.Fatalf("bad = %#v, err = %v", bad, err)
 	}
 }
+
+func TestCloudwiseSeedanceVideoEditOmitsRatioAndDuration(t *testing.T) {
+	_, body := cloudwiseBody(t, "cloudwise-seedance", GenerationRequest{Model: "dreamina-seedance-2-5-260628", Prompt: "把面换成番茄汤", Operation: "inpaint", AspectRatio: "16:9", Resolution: "480p", Duration: 5,
+		Videos: []MediaReference{{URL: "asset://video-1"}}})
+	if _, ok := body["duration"]; ok {
+		t.Fatalf("edit request still sends duration: %#v", body)
+	}
+	if _, ok := body["ratio"]; ok {
+		t.Fatalf("edit request still sends ratio: %#v", body)
+	}
+	if body["resolution"] != "480p" {
+		t.Fatalf("resolution = %#v", body["resolution"])
+	}
+}
