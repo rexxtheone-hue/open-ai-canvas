@@ -4,7 +4,7 @@ import { audioGenerationPrompt, isDoubaoAudioConfig } from "@/lib/audio-generati
 import { imageParameterAccepts, imageParameterRequest } from "@/lib/image-parameters";
 import { modelCapabilityConfigFor, normalizeImageValue, videoDurationAllowed, type VideoCapabilityConfig } from "@/lib/model-capabilities";
 import { detectVideoMode, inferVideoOperation, modelGroupReferenceLimits, modelPromptLengthError, resolveCompatibleModel, resolveModelVideoBooleanOptions, type ModelReferenceLimits, type ModelRequirements } from "@/lib/model-selection";
-import { applyVideoModeImageRoles, pickVideoModeMaterials, videoModeInputError, videoModeOperation, videoModeUsedInput, type VideoMode } from "@/lib/video-modes";
+import { applyVideoModeImageRoles, isSpecialtyVideoOperation, pickVideoModeMaterials, videoModeInputError, videoModeOperation, videoModeUsedInput, type VideoMode } from "@/lib/video-modes";
 import { resolveModelRequestConfig, selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
 import type { StudioKind } from "@/services/api/studio";
 
@@ -109,6 +109,11 @@ export function studioModelSupportsSpecialty(config: AiConfig, model: string, sp
     const protocol = modelProtocol(config, model);
     if (NON_SPEECH_AUDIO_PROTOCOLS.has(protocol)) return false;
     if (protocol === VOICE_CLONE_PROTOCOL && !specialty?.minAudios) return false;
+    // 只会做高清、配音效这类专项操作的视频模型不能生成视频，只出现在对应的专项工具里。
+    if (!specialty?.operation) {
+        const operations = modelCapabilityConfigFor(config, model).video?.operations || [];
+        if (operations.length && operations.every(isSpecialtyVideoOperation)) return false;
+    }
     if (!specialty) return true;
     if (specialty.unsupported) return false;
     if (specialty.kind === "audio") {

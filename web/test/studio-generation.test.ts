@@ -272,6 +272,22 @@ describe("AI Studio 专项工具", () => {
         expect((submission.referenceImages[0] as { role?: string }).role).toBeUndefined();
     });
 
+    test("只做高清、配音效的视频模型不出现在生成视频里", () => {
+        const config = studioConfig();
+        const upscale = defaultModelCapabilityConfig(undefined, "upscaler");
+        upscale.video!.operations = ["video_upscale"];
+        upscale.video!.references.maxVideos = 1;
+        config.channels[0].models.push("upscaler");
+        config.channels[0].modelCosts!.push({ model: "upscaler", displayName: "Upscaler", capability: "video" as const, billingMode: "per_second" as const, unitPriceMicrocredits: 1, capabilityConfig: upscale });
+        config.models.push("relay::upscaler");
+        config.videoModels.push("relay::upscaler");
+        expect(studioModelSupportsSpecialty(config, "relay::upscaler", undefined)).toBe(false);
+        expect(studioModelSupportsSpecialty(config, "relay::clip-pro", undefined)).toBe(true);
+        const spec = studioSpecialtySpec("video-upscale")!;
+        const specialty = buildSpecialtyState(spec, {}, "", defaultSpecialtyOptions(spec));
+        expect(studioPreferredModel(config, "video", "", specialty)).toBe("relay::upscaler");
+    });
+
     test("配音效按原视频时长计价，不用输出设置的时长", () => {
         const config = studioConfig();
         const video = config.channels[0].modelCosts![1].capabilityConfig!.video!;
