@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useRef, useState, type ReactNode } from "react";
-import { App, Button, Checkbox, Divider, Input, Modal } from "antd";
+import { App, Button, Checkbox, Divider, Input, Modal, type InputRef } from "antd";
 import { ArrowLeft, ArrowRight, FileText, Gift, Info, LockKeyhole, Mail, TriangleAlert } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -10,6 +10,7 @@ import { ApiError } from "@/services/api/request";
 import { VerificationFields } from "@/components/auth/verification-fields";
 import { emptyVerification, startVerification, verificationMethods, type VerificationMethod } from "@/services/api/verification";
 import { currentLocale } from "@/lib/i18n/runtime";
+import { readLastAuthMethod, rememberAuthMethod } from "@/lib/last-auth-method";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
 import "./auth-forms.css";
 
@@ -44,6 +45,8 @@ export function RegisterForm({ next, onSuccess, onSwitch }: { next: string; onSu
     const [submitting, setSubmitting] = useState(false);
     const [registerCountdown, setRegisterCountdown] = useState(0);
     const registering = useRef(false);
+    const emailInputRef = useRef<InputRef>(null);
+    const [lastMethod] = useState(readLastAuthMethod);
 
     // 协议标题与条款由后台「登录与注册」配置下发。标题未配置时才回退到当前品牌名，
     // 且只在确认拿到设置（settings 非空）后回退；接口失败时不猜标题，避免展示
@@ -130,6 +133,7 @@ export function RegisterForm({ next, onSuccess, onSwitch }: { next: string; onSu
             const { applyUserSession } = await import("@/lib/user-session");
             await applyUserSession(await getAuthSession());
             if (!firstUser) window.sessionStorage.setItem("yingce:model-setup-guide", "1");
+            rememberAuthMethod("email");
             message.success(firstUser ? "管理员账号已创建" : "注册成功");
             onSuccess();
         } catch (error) {
@@ -153,12 +157,12 @@ export function RegisterForm({ next, onSuccess, onSwitch }: { next: string; onSu
     );
 
     return (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
             {bonusCredits > 0 && canSignUp ? (
-                <div className="auth-bonus flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-medium">
+                <button type="button" className="auth-bonus flex items-center justify-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-medium" onClick={() => emailInputRef.current?.focus()}>
                     <Gift className="size-4 shrink-0" aria-hidden />
                     注册即送 {bonusCredits} 积分，免费开始创作
-                </div>
+                </button>
             ) : null}
             {firstUser ? (
                 <Notice icon={<Info className="size-3.5" />} tone="blue">
@@ -189,8 +193,18 @@ export function RegisterForm({ next, onSuccess, onSwitch }: { next: string; onSu
             {step === "start" && !registrationClosed ? (
                 <>
                     {settings?.googleEnabled ? (
-                        <Button size="large" block icon={<GoogleIcon />} onClick={() => requireAgreement() && window.location.assign(googleLoginURL(next, true))}>
+                        <Button
+                            size="large"
+                            block
+                            icon={<GoogleIcon />}
+                            onClick={() => {
+                                if (!requireAgreement()) return;
+                                rememberAuthMethod("google");
+                                window.location.assign(googleLoginURL(next, true));
+                            }}
+                        >
                             使用 Google 继续
+                            {lastMethod === "google" ? <span className="auth-last-used-badge">上次使用</span> : null}
                         </Button>
                     ) : null}
                     {settings?.linuxdoEnabled ? (
@@ -214,9 +228,19 @@ export function RegisterForm({ next, onSuccess, onSwitch }: { next: string; onSu
                     ) : formAvailable && emailFlow ? (
                         <form onSubmit={(event) => void sendCode(event)} className="space-y-4">
                             <AuthField label="邮箱">
-                                <Input size="large" type="email" prefix={<Mail className="auth-scene-icon size-4" />} value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" autoComplete="email" required />
+                                <Input
+                                    ref={emailInputRef}
+                                    size="large"
+                                    type="email"
+                                    prefix={<Mail className="auth-scene-icon size-4" />}
+                                    value={email}
+                                    onChange={(event) => setEmail(event.target.value)}
+                                    placeholder="name@example.com"
+                                    autoComplete="email"
+                                    required
+                                />
                             </AuthField>
-                            <Button type="primary" htmlType="submit" size="large" block loading={sending} icon={<ArrowRight className="size-4" />} iconPlacement="end">
+                            <Button type="primary" htmlType="submit" size="large" block loading={sending} disabled={!EMAIL_PATTERN.test(email.trim())} icon={<ArrowRight className="size-4" />} iconPlacement="end">
                                 继续
                             </Button>
                         </form>
@@ -323,6 +347,8 @@ export function RegisterForm({ next, onSuccess, onSwitch }: { next: string; onSu
         </div>
     );
 }
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** 英文界面下，默认的「某某服务协议」显示为「某某 Terms of Service」；后台自定义的其他标题原样显示。 */
 function localizedAgreementTitle(title: string) {

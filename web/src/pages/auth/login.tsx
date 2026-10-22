@@ -4,9 +4,11 @@ import { ArrowRight, LockKeyhole, UserRound } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 
 import { getAuthSession, getAuthSettings, googleLoginURL, linuxDOLoginURL, login } from "@/services/api/auth";
+import { readLastAuthMethod, rememberAuthMethod } from "@/lib/last-auth-method";
 import { useUserStore } from "@/stores/use-user-store";
 import { GoogleIcon, LinuxDOIcon } from "./auth-scene";
 import { VerificationFields } from "@/components/auth/verification-fields";
+import "./auth-forms.css";
 import { emptyVerification, loginVerification, methodLabels, verificationMethods, type VerificationMethod } from "@/services/api/verification";
 
 export default function LoginPage() {
@@ -44,6 +46,7 @@ export function LoginForm({ next, onSuccess, onSwitch, onNavigate }: { next: str
     const [method, setMethod] = useState<"password" | VerificationMethod>("password");
     const [verification, setVerification] = useState({ ...emptyVerification });
     const forgotPasswordURL = `/forgot-password?next=${encodeURIComponent(next)}`;
+    const [lastMethod] = useState(readLastAuthMethod);
 
     useEffect(() => {
         void getAuthSettings()
@@ -70,6 +73,7 @@ export function LoginForm({ next, onSuccess, onSwitch, onNavigate }: { next: str
             }
             const { applyUserSession } = await import("@/lib/user-session");
             await applyUserSession(await getAuthSession());
+            rememberAuthMethod("email");
             message.success("登录成功");
             onSuccess();
         } catch (error) {
@@ -80,10 +84,11 @@ export function LoginForm({ next, onSuccess, onSwitch, onNavigate }: { next: str
     };
 
     return (
-        <form onSubmit={submit} className="space-y-5">
+        <form onSubmit={submit} className="flex flex-col gap-5">
             {googleEnabled ? (
-                <Button size="large" block icon={<GoogleIcon />} href={googleLoginURL(next, true)}>
+                <Button size="large" block icon={<GoogleIcon />} href={googleLoginURL(next, true)} onClick={() => rememberAuthMethod("google")}>
                     使用 Google 继续
+                    {lastMethod === "google" ? <span className="auth-last-used-badge">上次使用</span> : null}
                 </Button>
             ) : null}
             {linuxdoEnabled ? (

@@ -13,7 +13,8 @@ describe("注册服务协议", () => {
         expect(source).toContain("[agreementAccepted, setAgreementAccepted] = useState(false)");
         expect(source).toContain("if (registering.current || registerCountdown > 0 || !requireAgreement()) return;");
         expect(source).toContain("if (!requireAgreement() || sending || resendIn > 0) return;");
-        expect(source).toContain("requireAgreement() && window.location.assign(googleLoginURL(next, true))");
+        // Google：先确认同意，再记下「上次使用」并跳转。
+        expect(source).toMatch(/if \(!requireAgreement\(\)\) return;\s+rememberAuthMethod\("google"\);\s+window\.location\.assign\(googleLoginURL\(next, true\)\)/);
     });
 
     test("普通注册与 Linux.do 注册传递同意状态，登录入口保留原合同", () => {
