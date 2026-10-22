@@ -49,7 +49,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "cloudwise-maas",
   "name": "Cloudwise MaaS",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "author": "Cloudwise / 影策",
   "description": "Cloudwise MaaS（api.cloudwise.ai）的视频与图片协议：Seedance 2.x、Kling、MiniMax H3、万相 3.0、Vidu Q4、Seedream 5.0 Pro、统一视频与统一图片接口。",
   "documentation": "<当前插件的完整 documentation，由 README.md 与 docs/interface.md 拼接而成；为避免 JSON 递归，此处不重复展开正文。>",
@@ -3418,12 +3418,52 @@
               },
               "ratio": {
                 "$omitEmpty": {
-                  "$ref": "request.aspectRatio"
+                  "$if": {
+                    "condition": {
+                      "$in": [
+                        {
+                          "$ref": "request.operation"
+                        },
+                        [
+                          "inpaint",
+                          "replace_element",
+                          "style_transfer",
+                          "camera_motion"
+                        ]
+                      ]
+                    },
+                    "then": null,
+                    "else": {
+                      "$omitEmpty": {
+                        "$ref": "request.aspectRatio"
+                      }
+                    }
+                  }
                 }
               },
               "duration": {
                 "$omitEmpty": {
-                  "$ref": "request.duration"
+                  "$if": {
+                    "condition": {
+                      "$in": [
+                        {
+                          "$ref": "request.operation"
+                        },
+                        [
+                          "inpaint",
+                          "replace_element",
+                          "style_transfer",
+                          "camera_motion"
+                        ]
+                      ]
+                    },
+                    "then": null,
+                    "else": {
+                      "$omitEmpty": {
+                        "$ref": "request.duration"
+                      }
+                    }
+                  }
                 }
               },
               "audio": {

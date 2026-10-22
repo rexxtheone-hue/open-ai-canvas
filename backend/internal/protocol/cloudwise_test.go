@@ -241,3 +241,22 @@ func TestCloudwiseSeedanceVideoEditOmitsRatioAndDuration(t *testing.T) {
 		t.Fatalf("resolution = %#v", body["resolution"])
 	}
 }
+
+func TestCloudwiseWan3RestyleOmitsRatioAndDuration(t *testing.T) {
+	_, body := cloudwiseBody(t, "cloudwise-wan", GenerationRequest{Model: "wan3.0-video", Prompt: "转成动漫风格", Operation: "style_transfer", AspectRatio: "16:9", Resolution: "720p", Duration: 5,
+		Videos: []MediaReference{{URL: "https://x/v.mp4", Role: "reference_video"}}})
+	params, _ := body["parameters"].(map[string]any)
+	if _, ok := params["duration"]; ok {
+		t.Fatalf("restyle still sends duration: %#v", params)
+	}
+	if _, ok := params["ratio"]; ok {
+		t.Fatalf("restyle still sends ratio: %#v", params)
+	}
+	if params["resolution"] != "720P" {
+		t.Fatalf("resolution = %#v", params["resolution"])
+	}
+	_, normal := cloudwiseBody(t, "cloudwise-wan", GenerationRequest{Model: "wan3.0-video", Prompt: "日落", AspectRatio: "16:9", Resolution: "720p", Duration: 5})
+	if p, _ := normal["parameters"].(map[string]any); p["duration"] == nil || p["ratio"] != "16:9" {
+		t.Fatalf("normal generation lost ratio/duration: %#v", p)
+	}
+}
