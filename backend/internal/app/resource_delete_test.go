@@ -3,6 +3,7 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -543,4 +544,44 @@ func newResourceDeletionTestService(t *testing.T) (*Service, *gorm.DB, string) {
 	svc := New(repository.New(db), dataDir)
 	startDeletionTestWorkers(t, svc)
 	return svc, db, dataDir
+}
+
+func TestDetachedResourceCleanupKeepsStudioReferences(t *testing.T) {
+	svc, db, _ := newResourceDeletionTestService(t)
+	if err := db.AutoMigrate(&model.StudioToolCover{}, &model.StudioUpload{}, &model.StudioVoice{}, &model.StudioProfile{}, &model.StudioBrandKit{}, &model.StudioCharacter{}, &model.StudioPost{}, &model.StudioChatMessage{}, &model.StudioStory{}, &model.StudioShot{}); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-48 * time.Hour)
+	ids := []string{"cover", "upload", "voice", "avatar", "logo", "kit-asset", "character", "chat", "orphan"}
+	var resources []model.Resource
+	for _, id := range ids {
+		resource := model.Resource{ID: id + "-0123456789abcdef", UserID: "admin", Status: model.ResourceStatusReady, Provider: "unsupported-test-provider", ObjectKey: id, CreatedAt: old, UpdatedAt: old}
+		if err := db.Create(&resource).Error; err != nil {
+			t.Fatal(err)
+		}
+		resources = append(resources, resource)
+	}
+	rid := func(name string) string { return name + "-0123456789abcdef" }
+	for _, item := range []any{
+		&model.StudioToolCover{ToolID: "create-image", ResourceID: rid("cover")},
+		&model.StudioUpload{ID: "u1", UserID: "admin", ResourceID: rid("upload")},
+		&model.StudioVoice{ID: "v1", UserID: "admin", ResourceID: rid("voice")},
+		&model.StudioProfile{UserID: "admin", Handle: "admin", AvatarResourceID: rid("avatar")},
+		&model.StudioBrandKit{ID: "k1", UserID: "admin", LogoResourceID: rid("logo"), AssetsJSON: `["` + rid("kit-asset") + `"]`},
+		&model.StudioCharacter{ID: "c1", UserID: "admin", ImagesJSON: `[{"storageKey":"resource:` + rid("character") + `"}]`},
+		&model.StudioChatMessage{ID: "m1", UserID: "admin", AttachJSON: `[{"url":"/api/resources/` + rid("chat") + `/file"}]`},
+	} {
+		if err := db.Create(item).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := svc.cleanupDetachedUserResources("admin", resources); err != nil {
+		t.Fatal(err)
+	}
+	var remaining []string
+	db.Model(&model.Resource{}).Order("id").Pluck("id", &remaining)
+	if len(remaining) != len(ids)-1 || slices.Contains(remaining, rid("orphan")) {
+		t.Fatalf("remaining resources = %v", remaining)
+	}
 }

@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getActiveUserScope } from "@/lib/user-scope";
 import { listStudioToolCovers } from "@/services/api/studio";
-import { useUserStore } from "@/stores/use-user-store";
 
 const PINS_EVENT = "studio:pins-changed";
 
@@ -49,11 +48,10 @@ export function useStudioPins() {
 
 /** 管理员上传的工具封面，没有封面的工具用渐变图标。 */
 export function useStudioToolCovers() {
-    const user = useUserStore((state) => state.user);
+    // 封面是公开内容，访客浏览 Studio 时同样读取。
     const query = useQuery({
-        queryKey: ["studio", "tool-covers", user?.id || ""],
+        queryKey: ["studio", "tool-covers"],
         queryFn: async () => (await listStudioToolCovers()).covers,
-        enabled: Boolean(user),
         staleTime: 10 * 60_000,
     });
     return query.data || {};

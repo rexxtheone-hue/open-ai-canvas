@@ -282,14 +282,15 @@ func RegisterStudioCommunityRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		ok(c, plan)
 	}
-	r.GET("/studio/tool-covers", withUser(func(c *gin.Context, _ *model.User) {
+	// 工具封面是公开展示内容，访客浏览 Studio 时也要看到。
+	r.GET("/studio/tool-covers", func(c *gin.Context) {
 		covers, err := svc.StudioToolCovers()
 		if err != nil {
 			failService(c, err)
 			return
 		}
 		ok(c, gin.H{"covers": covers})
-	}))
+	})
 	r.PUT("/admin/studio/tool-covers/:toolId", withUser(func(c *gin.Context, user *model.User) {
 		var req struct {
 			ResourceID string `json:"resourceId"`
