@@ -749,7 +749,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                         kind={kind}
                         value={state.model}
                         requirements={studio.requirements}
-                        filter={specialty ? (model) => studioModelSupportsSpecialty(config, model, specialty) : undefined}
+                        filter={(model) => studioModelSupportsSpecialty(config, model, specialty)}
                         onChange={(model) => studio.update({ model })}
                         onClose={() => setModelPanelOpen(false)}
                     />
