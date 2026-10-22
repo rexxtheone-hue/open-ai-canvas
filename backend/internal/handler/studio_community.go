@@ -69,15 +69,7 @@ func RegisterStudioCommunityRoutes(r *gin.RouterGroup, svc *service.Service) {
 			Mine: c.Query("mine") == "true", Following: c.Query("following") == "true", Search: c.Query("q"), Offset: queryInt(c, "offset"), Limit: queryInt(c, "pageSize"),
 		}
 	}
-	r.GET("/studio/community", withUser(func(c *gin.Context, user *model.User) {
-		page, err := svc.StudioCommunity(user.ID, communityQuery(c))
-		if err != nil {
-			failService(c, err)
-			return
-		}
-		ok(c, page)
-	}))
-	// 创作者主页：读主页不需要登录（viewer 为空），方便把主页链接分享出去。
+	// 创作者主页、社区作品：读取不需要登录（viewer 为空），方便访客浏览和分享链接。
 	viewerID := func(c *gin.Context) string {
 		if sessionCookie(c) == "" {
 			return ""
@@ -87,6 +79,21 @@ func RegisterStudioCommunityRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		return ""
 	}
+	r.GET("/studio/community", func(c *gin.Context) {
+		query := communityQuery(c)
+		viewer := viewerID(c)
+		// 访客没有「我的作品」和「关注」：空 viewer 在仓储层等于不过滤，必须在这里拦住。
+		if viewer == "" && (query.Mine || query.Following) {
+			ok(c, gin.H{"posts": []any{}})
+			return
+		}
+		page, err := svc.StudioCommunity(viewer, query)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, page)
+	})
 	r.GET("/studio/profile", withUser(func(c *gin.Context, user *model.User) {
 		view, err := svc.StudioMyProfile(user.ID)
 		if err != nil {
@@ -216,14 +223,14 @@ func RegisterStudioCommunityRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		ok(c, gin.H{"deleted": true})
 	}))
-	r.GET("/studio/plans", withUser(func(c *gin.Context, _ *model.User) {
+	r.GET("/studio/plans", func(c *gin.Context) {
 		offers, err := svc.StudioPlanOffers()
 		if err != nil {
 			failService(c, err)
 			return
 		}
 		ok(c, gin.H{"plans": offers})
-	}))
+	})
 	r.GET("/studio/membership", withUser(func(c *gin.Context, user *model.User) {
 		view, err := svc.StudioMembership(user.ID)
 		if err != nil {

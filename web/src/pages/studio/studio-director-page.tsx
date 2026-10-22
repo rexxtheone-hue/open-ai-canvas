@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { App } from "antd";
+import { requireUser } from "@/stores/use-auth-gate-store";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, ArrowUpLeft, Clapperboard, Plus, Sparkles, Trash2 } from "./studio-icons";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
@@ -88,10 +89,7 @@ export default function StudioDirectorPage() {
 
     const start = async (value: DirectorBrief, kickoff: string) => {
         if (starting) return;
-        if (!user) {
-            navigate(`/login?next=${encodeURIComponent("/studio/director")}`);
-            return;
-        }
+        if (!requireUser()) return;
         setStarting(true);
         try {
             const story = await createStudioStory({

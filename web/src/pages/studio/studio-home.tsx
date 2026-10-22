@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { requireUser } from "@/stores/use-auth-gate-store";
 import { ArrowRight, ArrowUp, ChevronLeft, ChevronRight, Clapperboard, Film, ImageIcon, MessageSquareText, Music, Sparkles, Wand2 } from "./studio-icons";
 import { Link, useNavigate } from "react-router";
 
@@ -98,10 +99,7 @@ export default function StudioHomePage({ initialMode = "agents" }: { initialMode
         const text = prompt.trim();
         if (!text) return;
         const target = agent === "chat" ? `/studio/agents?q=${encodeURIComponent(text)}` : `/studio/director?q=${encodeURIComponent(text)}`;
-        if (!user) {
-            navigate(`/login?next=${encodeURIComponent(target)}`);
-            return;
-        }
+        if (!requireUser({ next: target })) return;
         navigate(target);
     };
 

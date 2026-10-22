@@ -135,10 +135,11 @@ func RegisterStudioAgentRoutes(r *gin.RouterGroup, svc *service.Service) {
 		item, err := svc.SubmitStudioFeedback(user.ID, req.Category, req.Content, req.Contact, req.Page)
 		respond(c, gin.H{"id": item.ID}, err)
 	}))
-	r.GET("/studio/site-content", withUser(func(c *gin.Context, _ *model.User) {
+	// 帮助与条款是公开内容，访客也能阅读。
+	r.GET("/studio/site-content", func(c *gin.Context) {
 		content, err := svc.StudioSiteContent()
 		respond(c, content, err)
-	}))
+	})
 	r.GET("/admin/studio/feedback", withUser(func(c *gin.Context, user *model.User) {
 		items, err := svc.AdminStudioFeedback(user, c.Query("status"))
 		respond(c, gin.H{"items": items}, err)

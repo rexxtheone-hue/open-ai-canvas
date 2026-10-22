@@ -171,12 +171,15 @@ func TestChannelCostHTTPAuthorizationAndPublicProjection(t *testing.T) {
 		if strings.HasSuffix(path, "/quote") {
 			payload = []byte(`{"channelId":"channel","modelKey":"text-model","intent":{"capability":"text","operation":"text_generation","inputs":{"text":1}}}`)
 		}
-		w := call("user", method, path, payload)
-		if w.Code != http.StatusOK {
-			t.Fatalf("public %s: %d %s", path, w.Code, w.Body.String())
-		}
-		if strings.Contains(w.Body.String(), "costPricing") || strings.Contains(w.Body.String(), "123456") {
-			t.Fatalf("public cost leaked: %s", w.Body.String())
+		// 访客（不带登录）也能读取目录与报价，用来浏览工具和看价格；成本价依旧不能外泄。
+		for _, role := range []string{"user", ""} {
+			w := call(role, method, path, payload)
+			if w.Code != http.StatusOK {
+				t.Fatalf("public %s as %q: %d %s", path, role, w.Code, w.Body.String())
+			}
+			if strings.Contains(w.Body.String(), "costPricing") || strings.Contains(w.Body.String(), "123456") {
+				t.Fatalf("public cost leaked: %s", w.Body.String())
+			}
 		}
 	}
 }

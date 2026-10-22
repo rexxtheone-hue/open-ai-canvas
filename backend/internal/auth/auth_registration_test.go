@@ -200,3 +200,21 @@ func TestLinuxDORegistrationAgreement(t *testing.T) {
 		})
 	}
 }
+
+func TestRegisterWithoutUsernameDerivesOneFromEmail(t *testing.T) {
+	svc, _ := newRegistrationTestService(t)
+	first, err := svc.Register(RegisterRequest{Email: "nadia.lee@example.com", Password: "password", AcceptedTerms: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.User.Username != "nadia_lee" || first.User.DisplayName != "nadia_lee" {
+		t.Fatalf("first user = %q / %q", first.User.Username, first.User.DisplayName)
+	}
+	taken, err := svc.availableUsername("nadia.lee@other.com")
+	if err != nil || taken == "nadia_lee" || ValidateUsername(taken) != nil {
+		t.Fatalf("collision username = %q, err = %v", taken, err)
+	}
+	if short, err := svc.availableUsername(""); err != nil || ValidateUsername(short) != nil || short[:5] != "user_" {
+		t.Fatalf("fallback username = %q, err = %v", short, err)
+	}
+}

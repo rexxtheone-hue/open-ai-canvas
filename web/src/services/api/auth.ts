@@ -407,6 +407,7 @@ export function getAuthSettings() {
             emailBindingAvailable: boolean;
             agreementTitle?: string;
             agreementContent?: string;
+            signupBonusMicrocredits?: number;
         }
     >("/auth/settings");
 }

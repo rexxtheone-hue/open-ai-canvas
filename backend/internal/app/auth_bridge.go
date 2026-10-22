@@ -96,6 +96,13 @@ func (h authHost) EnsureSignupBonus(userID string) error {
 	return h.svc.ensureSignupBonus(userID)
 }
 
+func (h authHost) SignupBonusMicrocredits() int64 {
+	if h.svc == nil {
+		return 0
+	}
+	return h.svc.signupBonusMicrocredits()
+}
+
 func (h authHost) RecordActivity(userID string, event string, count int) {
 	if h.svc == nil {
 		return

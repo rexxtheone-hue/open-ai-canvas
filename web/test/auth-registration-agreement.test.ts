@@ -3,19 +3,17 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("注册服务协议", () => {
-    test("确认密码后展示协议入口，默认未同意且保留注册限流", () => {
+    test("协议默认未同意，提交与第三方注册都必须先同意，并保留注册限流", () => {
         const source = readFileSync(resolve(import.meta.dir, "../src/pages/auth/register.tsx"), "utf8");
-        const passwordIndex = source.indexOf('label="确认密码"');
-        const agreementIndex = source.indexOf("Checkbox checked={agreementAccepted}");
+        const agreementIndex = source.indexOf("<Checkbox");
         const submitIndex = source.indexOf('htmlType="submit"');
 
-        expect(passwordIndex).toBeGreaterThanOrEqual(0);
-        expect(agreementIndex).toBeGreaterThan(passwordIndex);
-        expect(submitIndex).toBeGreaterThan(agreementIndex);
+        // 协议勾选放在表单按钮下方，第三方注册与邮箱注册共用同一个勾选。
+        expect(agreementIndex).toBeGreaterThan(submitIndex);
         expect(source).toContain("[agreementAccepted, setAgreementAccepted] = useState(false)");
-        expect(source).toContain("disabled={disabled || registerCountdown > 0 || !agreementAccepted}");
-        expect(source).toContain("if (registering.current || registerCountdown > 0) return;");
-        expect(source).toContain("disabled={!agreementAccepted}");
+        expect(source).toContain("if (registering.current || registerCountdown > 0 || !requireAgreement()) return;");
+        expect(source).toContain("if (!requireAgreement() || sending || resendIn > 0) return;");
+        expect(source).toContain("requireAgreement() && window.location.assign(googleLoginURL(next, true))");
     });
 
     test("普通注册与 Linux.do 注册传递同意状态，登录入口保留原合同", () => {
@@ -23,8 +21,9 @@ describe("注册服务协议", () => {
         const login = readFileSync(resolve(import.meta.dir, "../src/pages/auth/login.tsx"), "utf8");
         const api = readFileSync(resolve(import.meta.dir, "../src/services/api/auth.ts"), "utf8");
 
-        expect(page).toContain("acceptedTerms: agreementAccepted");
-        expect(page).toContain("agreementAccepted ? linuxDOLoginURL(next, true) : undefined");
+        // 只有 requireAgreement() 通过后才会提交，因此提交时固定传 true。
+        expect(page).toContain("acceptedTerms: true");
+        expect(page).toContain("requireAgreement() && window.location.assign(linuxDOLoginURL(next, true))");
         expect(page).toContain("message.warning(`请先同意${agreementTitle}`)");
         expect(login).toContain("linuxDOLoginURL(next)");
         expect(api).toContain("acceptedTerms: boolean");
@@ -52,7 +51,7 @@ describe("注册服务协议", () => {
         expect(page).toContain("读取注册设置失败，暂时无法确认服务协议名称与条款。");
         expect(page).toContain("setSettingsReloadKey((value) => value + 1)");
         // 协议入口只在拿到设置后渲染，读不到配置就不展示协议名。
-        expect(page).toContain("{settings ? (");
+        expect(page).toContain("{settings && !registrationClosed ? (");
     });
 
     test("公开认证设置暴露协议字段，管理接口可回传协议正文", () => {

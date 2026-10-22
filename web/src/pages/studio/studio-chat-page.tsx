@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App, Popover } from "antd";
+import { requireUser } from "@/stores/use-auth-gate-store";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, AudioLines, Check, ChevronDown, Clapperboard, ImageIcon, Loader2, MessageSquarePlus, Paperclip, Pencil, Plus, Sparkles, Trash2, UserRound, X } from "./studio-icons";
 import { useNavigate, useSearchParams } from "react-router";
@@ -250,10 +251,7 @@ export default function StudioChatPage() {
     const send = async (text = draft) => {
         const content = text.trim();
         if (busy || uploading || (!content && !pending.length)) return;
-        if (!user) {
-            navigate(`/login?next=${encodeURIComponent("/studio/agents")}`);
-            return;
-        }
+        if (!requireUser()) return;
         if (!textModel) {
             message.error("后台还没有可用的对话模型");
             return;

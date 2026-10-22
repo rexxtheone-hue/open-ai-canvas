@@ -1,0 +1,48 @@
+/* 登录 / 注册表单在登录页和工作台弹窗里共用的补充样式。 */
+.auth-bonus {
+    border: 1px solid color-mix(in srgb, #8b5cf6 32%, transparent);
+    background: linear-gradient(100deg, color-mix(in srgb, #22d3ee 12%, transparent), color-mix(in srgb, #8b5cf6 14%, transparent) 55%, color-mix(in srgb, #f472d0 12%, transparent));
+    color: var(--foreground);
+}
+
+.auth-bonus svg {
+    color: #a78bfa;
+}
+
+.auth-agreement-row {
+    flex-wrap: wrap;
+    row-gap: 0;
+}
+
+.auth-agreement-row[data-nudge="true"] {
+    border-color: color-mix(in srgb, var(--palette-status-warning) 55%, transparent);
+    background: color-mix(in srgb, var(--palette-status-warning) 8%, transparent);
+    animation: auth-agreement-nudge 360ms ease-in-out;
+}
+
+@keyframes auth-agreement-nudge {
+    25% {
+        transform: translateX(-4px);
+    }
+    75% {
+        transform: translateX(4px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .auth-agreement-row[data-nudge="true"] {
+        animation: none;
+    }
+}
+
+/* 工作台弹窗：表单直接铺在弹窗里，不再叠一层卡片。 */
+.auth-dialog .ant-modal-content {
+    padding: 32px 28px 24px;
+    border-radius: 22px;
+}
+
+.auth-dialog .auth-scene-card {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}

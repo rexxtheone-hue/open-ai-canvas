@@ -11,6 +11,7 @@ import { CreditSymbol } from "@/constant/credits";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { useUserStore } from "@/stores/use-user-store";
+import { useAuthGateStore } from "@/stores/use-auth-gate-store";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { StudioToolThumb } from "./studio-tool-thumb";
@@ -66,6 +67,7 @@ const SIDEBAR_TAB_ORDER = ["video", "image", "world", "character", "audio"] as c
 export function StudioShell({ title, subtitle, children }: { title?: string; subtitle?: string; children: ReactNode }) {
     const { pathname, search } = useLocation();
     const user = useUserStore((state) => state.user);
+    const openAuth = useAuthGateStore((state) => state.openAuth);
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
     const { availableMicrocredits } = useWalletBalance(user?.id, creditsEnabled);
     const balance = availableMicrocredits === null ? "--" : (availableMicrocredits / 1_000_000).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
@@ -251,19 +253,32 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                     </div>
                     <div className="studio-topbar-spacer" />
                     <StudioHelpMenu />
-                    <StudioGiftCenter />
-                    {creditsEnabled ? (
-                        <button type="button" className="studio-credit-pill" aria-label={`打开积分中心，可用 ${balance} 积分`} onClick={() => openWorkspaceWallet()}>
-                            <CreditSymbol />
-                            <strong>{balance}</strong>
-                        </button>
-                    ) : null}
-                    {creditsEnabled ? (
-                        <Link to="/studio/pricing" className="studio-upgrade-button">
-                            升级
-                        </Link>
-                    ) : null}
-                    <WorkspaceAccountMenu studio />
+                    {user ? (
+                        <>
+                            <StudioGiftCenter />
+                            {creditsEnabled ? (
+                                <button type="button" className="studio-credit-pill" aria-label={`打开积分中心，可用 ${balance} 积分`} onClick={() => openWorkspaceWallet()}>
+                                    <CreditSymbol />
+                                    <strong>{balance}</strong>
+                                </button>
+                            ) : null}
+                            {creditsEnabled ? (
+                                <Link to="/studio/pricing" className="studio-upgrade-button">
+                                    升级
+                                </Link>
+                            ) : null}
+                            <WorkspaceAccountMenu studio />
+                        </>
+                    ) : (
+                        <>
+                            <button type="button" className="studio-login-button" onClick={() => openAuth({ mode: "login" })}>
+                                登录
+                            </button>
+                            <button type="button" className="studio-upgrade-button" onClick={() => openAuth({ mode: "register" })}>
+                                免费注册
+                            </button>
+                        </>
+                    )}
                 </header>
                 <div className="studio-content">{children}</div>
             </div>

@@ -2,6 +2,7 @@ import { useLayoutEffect, type ReactNode } from "react";
 import { useLocation } from "react-router";
 import { ConfigProvider } from "antd";
 
+import { AuthDialog } from "@/components/auth/auth-dialog";
 import { AppWorkspaceShell } from "@/components/layout/app-top-nav";
 import { cn } from "@/lib/utils";
 import { isSpatialWorkbenchPath } from "@/lib/workspace-routes";
@@ -67,6 +68,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
             dropdown={productWorkspace ? { classNames: { root: "workspace-quiet-popup" } } : undefined}
             popover={productWorkspace ? { classNames: { root: "workspace-quiet-popup" } } : undefined}
         >
+            <AuthDialog />
             {ownChrome ? (
                 children
             ) : (

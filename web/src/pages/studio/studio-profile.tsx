@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { App, Input, QRCode, Select, Spin } from "antd";
+import { requireUser } from "@/stores/use-auth-gate-store";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal";
@@ -314,10 +315,7 @@ function StudioProfileContent({ handle, guest }: { handle: string; guest: boolea
 
     const toggleFollow = async () => {
         if (!profile) return;
-        if (guest) {
-            navigate(`/login?next=${encodeURIComponent(location.pathname)}`);
-            return;
-        }
+        if (guest && !requireUser()) return;
         setFollowing(true);
         try {
             setProfile(await followStudioProfile(profile.handle, !profile.following));

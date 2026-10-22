@@ -107,6 +107,17 @@ func (s *Service) UpdateCreditPolicy(actor *model.User, policy CreditPolicy) (Cr
 	return policy, nil
 }
 
+func (s *Service) signupBonusMicrocredits() int64 {
+	if enabled, err := s.FeatureEnabled(FeatureCredits); err != nil || !enabled {
+		return 0
+	}
+	policy, err := s.creditPolicy()
+	if err != nil {
+		return 0
+	}
+	return policy.SignupBonusMicrocredits
+}
+
 func (s *Service) ensureSignupBonus(userID string) error {
 	enabled, err := s.FeatureEnabled(FeatureCredits)
 	if err != nil || !enabled {

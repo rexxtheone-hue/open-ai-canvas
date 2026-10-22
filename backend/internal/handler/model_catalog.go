@@ -9,13 +9,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RegisterModelCatalogRoutes 注册统一模型目录路由
+// RegisterModelCatalogRoutes 注册统一模型目录路由。
+// 目录与报价是公开展示信息：访客也能浏览工具、选择模型并看到价格，生成时才需要登录。
 func RegisterModelCatalogRoutes(r *gin.RouterGroup, svc *service.Service) {
 	r.POST("/model-catalog/quote", func(c *gin.Context) {
-		if _, err := currentUser(c, svc); err != nil {
-			failService(c, err)
-			return
-		}
 		var req service.ChannelModelQuoteRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			fail(c, http.StatusBadRequest, errors.New("模型报价请求格式错误"))
@@ -29,10 +26,6 @@ func RegisterModelCatalogRoutes(r *gin.RouterGroup, svc *service.Service) {
 		ok(c, gin.H{"quote": quote})
 	})
 	r.GET("/model-catalog", func(c *gin.Context) {
-		if _, err := currentUser(c, svc); err != nil {
-			failService(c, err)
-			return
-		}
 		catalog, err := svc.ModelCatalog(nil)
 		if err != nil {
 			failService(c, err)
@@ -42,10 +35,6 @@ func RegisterModelCatalogRoutes(r *gin.RouterGroup, svc *service.Service) {
 	})
 
 	r.POST("/model-catalog/available", func(c *gin.Context) {
-		if _, err := currentUser(c, svc); err != nil {
-			failService(c, err)
-			return
-		}
 		var intent service.ModelRequestIntent
 		if err := c.ShouldBindJSON(&intent); err != nil {
 			fail(c, http.StatusBadRequest, errors.New("模型能力请求格式错误"))

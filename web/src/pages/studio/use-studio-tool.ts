@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useGenerationCredits } from "@/hooks/use-generation-credits";
+import { requireUser } from "@/stores/use-auth-gate-store";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
 import { normalizeAudioFormatForConfig, normalizeAudioSpeedValue, normalizeAudioVoiceForConfig } from "@/lib/audio-generation";
 import { normalizeImageParameters } from "@/lib/image-parameters";
@@ -84,6 +85,8 @@ export function studioAttachmentFromMedia(work: StudioWork, media: StudioMedia, 
 
 /** 上传单个素材，返回可直接提交的参考素材；类型不支持时抛出原因。 */
 export async function uploadStudioFile(file: File): Promise<CreationAttachment> {
+    // 访客先弹出注册窗口；抛出的提示由调用方照常显示。
+    if (!requireUser()) throw new Error("注册或登录后即可上传素材");
     let attachment: CreationAttachment;
     if (file.type.startsWith("image/")) attachment = creationAttachmentFromImage(file, await uploadImage(file));
     else if (file.type.startsWith("video/")) attachment = creationAttachmentFromVideo(file, await uploadMediaFile(file, "studio-upload"));
@@ -191,8 +194,9 @@ export function useStudioTool(kind: StudioKind, tool: string, options: { special
     });
     // 图片按数量报价；视频报的是单个任务，乘以任务数。
     const credits = unitCredits !== null && kind === "video" ? unitCredits * batch : unitCredits;
+    // 访客的生成按钮保持可点：点了由 submit 弹出注册窗口，而不是置灰写「请先登录」。
     const baseBlockReason = studioBlockReason(config, state, resolvedModel, {
-        loggedIn: Boolean(user),
+        loggedIn: true,
         creditsEnabled,
         availableCredits: availableMicrocredits === null ? null : availableMicrocredits / 1_000_000,
         cost: credits,
@@ -269,6 +273,8 @@ export function useStudioTool(kind: StudioKind, tool: string, options: { special
     /** promptOverride：自动润色后的提示词，直接用它提交（同时写回输入框由页面负责）。 */
     const submit = useCallback(async (promptOverride?: string) => {
         if (submitLockRef.current) return { created: 0, failed: 0, error: "上一次提交还在进行，请稍候" };
+        // 访客可以先填好参数；点生成时弹出注册窗口，登录后原样再点一次即可。
+        if (!requireUser()) return { created: 0, failed: 0, error: "" };
         if (blockReason || !resolvedModel) return { created: 0, failed: 0, error: blockReason || "后台还没有可用的模型" };
         submitLockRef.current = true;
         setSubmitting(true);

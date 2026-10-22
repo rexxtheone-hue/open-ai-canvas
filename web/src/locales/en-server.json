@@ -3563,6 +3563,7 @@
   "暂不支持该币种的佣金提取，请联系客服": "Commission withdrawal isn't supported for this currency yet. Please contact support",
   "暂存作品不是普通文件": "The staged work is not a regular file",
   "暂存结果已过期且上游没有可重新下载的地址": "The staged result has expired and the upstream has no address to download again",
+  "暂时无法生成用户名，请稍后重试": "Couldn't generate a username. Please try again later.",
   "暂时无法获取用量，计费未完成": "Unable to get usage right now; billing is not complete",
   "暖柿纸境": "Warm persimmon paper",
   "更换凭据时需同时填写 ID 和密钥": "ID and secret must both be provided when replacing credentials",

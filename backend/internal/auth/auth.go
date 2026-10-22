@@ -50,16 +50,17 @@ type LoginRequest struct {
 
 type PublicAuthSettings struct {
 	VerificationPolicy
-	SMSBindingAvailable   bool   `json:"smsBindingAvailable"`
-	EmailBindingAvailable bool   `json:"emailBindingAvailable"`
-	FirstUser             bool   `json:"firstUser"`
-	RegistrationEnabled   bool   `json:"registrationEnabled"`
-	LinuxDOEnabled        bool   `json:"linuxdoEnabled"`
-	GoogleEnabled         bool   `json:"googleEnabled"`
-	EmailEnabled          bool   `json:"emailEnabled"`
-	EmailCodeRequired     bool   `json:"emailCodeRequired"`
-	AgreementTitle        string `json:"agreementTitle,omitempty"`
-	AgreementContent      string `json:"agreementContent,omitempty"`
+	SMSBindingAvailable     bool   `json:"smsBindingAvailable"`
+	EmailBindingAvailable   bool   `json:"emailBindingAvailable"`
+	FirstUser               bool   `json:"firstUser"`
+	RegistrationEnabled     bool   `json:"registrationEnabled"`
+	LinuxDOEnabled          bool   `json:"linuxdoEnabled"`
+	GoogleEnabled           bool   `json:"googleEnabled"`
+	EmailEnabled            bool   `json:"emailEnabled"`
+	EmailCodeRequired       bool   `json:"emailCodeRequired"`
+	AgreementTitle          string `json:"agreementTitle,omitempty"`
+	AgreementContent        string `json:"agreementContent,omitempty"`
+	SignupBonusMicrocredits int64  `json:"signupBonusMicrocredits"`
 }
 
 type AuthSessionResult struct {
@@ -84,7 +85,7 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 	if count == 0 {
 		// 首个管理员同样要看到服务协议，不能因为跳过注册校验就丢失协议字段。
 		agreementTitle, agreementContent := s.RegistrationAgreement()
-		return &PublicAuthSettings{FirstUser: true, RegistrationEnabled: true, LinuxDOEnabled: false, AgreementTitle: agreementTitle, AgreementContent: agreementContent}, nil
+		return &PublicAuthSettings{FirstUser: true, RegistrationEnabled: true, LinuxDOEnabled: false, AgreementTitle: agreementTitle, AgreementContent: agreementContent, SignupBonusMicrocredits: s.host.SignupBonusMicrocredits()}, nil
 	}
 	registrationEnabled, err := s.RegistrationEnabled()
 	if err != nil {
@@ -117,17 +118,18 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 	p.SMSAndEmailRegistration = p.SMSAndEmailRegistration && smsRegister && emailEnabled
 	agreementTitle, agreementContent := s.RegistrationAgreement()
 	return &PublicAuthSettings{
-		VerificationPolicy:    p,
-		SMSBindingAvailable:   smsBind,
-		EmailBindingAvailable: emailEnabled,
-		FirstUser:             false,
-		RegistrationEnabled:   registrationEnabled,
-		LinuxDOEnabled:        s.LinuxDOEnabled(),
-		GoogleEnabled:         s.GoogleEnabled(),
-		EmailEnabled:          emailEnabled,
-		EmailCodeRequired:     p.EmailRegistration || p.SMSAndEmailRegistration,
-		AgreementTitle:        agreementTitle,
-		AgreementContent:      agreementContent,
+		VerificationPolicy:      p,
+		SMSBindingAvailable:     smsBind,
+		EmailBindingAvailable:   emailEnabled,
+		FirstUser:               false,
+		RegistrationEnabled:     registrationEnabled,
+		LinuxDOEnabled:          s.LinuxDOEnabled(),
+		GoogleEnabled:           s.GoogleEnabled(),
+		EmailEnabled:            emailEnabled,
+		EmailCodeRequired:       p.EmailRegistration || p.SMSAndEmailRegistration,
+		AgreementTitle:          agreementTitle,
+		AgreementContent:        agreementContent,
+		SignupBonusMicrocredits: s.host.SignupBonusMicrocredits(),
 	}, nil
 }
 
@@ -137,6 +139,14 @@ func (s *Service) Register(req RegisterRequest) (*AuthSessionResult, error) {
 	}
 	username := NormalizeUsername(req.Username)
 	email := NormalizeEmail(req.Email)
+	if username == "" {
+		// 标准注册表单只收邮箱和密码，用户名由邮箱前缀生成，之后可在个人资料里修改。
+		generated, err := s.availableUsername(email)
+		if err != nil {
+			return nil, err
+		}
+		username = generated
+	}
 	displayName := NormalizeDisplayName(req.DisplayName, username)
 	if err := ValidateUsername(username); err != nil {
 		return nil, err
@@ -439,6 +449,34 @@ func parseSessionCookie(value string) (string, string) {
 
 func NormalizeUsername(value string) string {
 	return strings.TrimSpace(value)
+}
+
+// availableUsername 用邮箱前缀（没有邮箱时用 user）生成一个未被占用的用户名，冲突时追加随机数字。
+func (s *Service) availableUsername(email string) (string, error) {
+	local, _, _ := strings.Cut(email, "@")
+	base := strings.Trim(oauthUsernameSanitizer.ReplaceAllString(local, "_"), "_-")
+	if len(base) < 3 {
+		base = "user"
+	}
+	if len(base) > 24 {
+		base = base[:24]
+	}
+	for attempt := 0; attempt < 8; attempt++ {
+		candidate := base
+		if attempt > 0 || base == "user" {
+			suffix := make([]byte, 3)
+			if _, err := rand.Read(suffix); err != nil {
+				return "", err
+			}
+			candidate = base + "_" + hex.EncodeToString(suffix)
+		}
+		if _, err := s.repo.UserByUsername(candidate); errors.Is(err, gorm.ErrRecordNotFound) {
+			return candidate, nil
+		} else if err != nil {
+			return "", err
+		}
+	}
+	return "", kernel.BadAuthRequest("暂时无法生成用户名，请稍后重试")
 }
 
 func NormalizeEmail(value string) string {

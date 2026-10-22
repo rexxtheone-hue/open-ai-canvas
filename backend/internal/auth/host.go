@@ -23,6 +23,8 @@ type Host interface {
 	SettingsEncryptionKey() ([]byte, error)
 	BrandName() string
 	EnsureSignupBonus(userID string) error
+	// SignupBonusMicrocredits 是新用户注册赠送的积分，注册页用来展示「注册即送」。
+	SignupBonusMicrocredits() int64
 	// AttachReferral 为刚注册的账号记录推广归属；失败不影响注册。
 	AttachReferral(userID, code string)
 	RecordActivity(userID string, event string, count int)
@@ -42,6 +44,7 @@ func (nopHost) DecryptSecret(value string) (string, error) {
 func (nopHost) SettingsEncryptionKey() ([]byte, error) { return nil, nil }
 func (nopHost) BrandName() string                      { return DefaultBrandName }
 func (nopHost) EnsureSignupBonus(string) error         { return nil }
+func (nopHost) SignupBonusMicrocredits() int64         { return 0 }
 func (nopHost) AttachReferral(string, string)          {}
 func (nopHost) RecordActivity(string, string, int)     {}
 func (nopHost) AllowRequest(context.Context, string, int, time.Duration) (bool, error) {

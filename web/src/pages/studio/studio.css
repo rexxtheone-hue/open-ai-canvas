@@ -110,6 +110,8 @@
 .studio-credit-pill strong { font-variant-numeric: tabular-nums; }
 .studio-upgrade-button { display: inline-flex; align-items: center; height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--studio-accent); color: var(--studio-accent-ink); font-weight: 650; font-size: 12.5px; cursor: pointer; text-decoration: none; }
 .studio-upgrade-button:hover { background: var(--studio-accent-strong); }
+.studio-login-button { display: inline-flex; align-items: center; height: 32px; padding: 0 14px; border: 1px solid var(--studio-line-strong); border-radius: 999px; background: transparent; color: var(--studio-fg); font-weight: 600; font-size: 12.5px; cursor: pointer; }
+.studio-login-button:hover { background: var(--studio-hover); }
 
 .studio-content { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 12px 12px 8px; }
 

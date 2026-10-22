@@ -1,5 +1,6 @@
 import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { App } from "antd";
+import { requireUser } from "@/stores/use-auth-gate-store";
 import { Link, useLocation, useNavigate } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal";
@@ -99,7 +100,7 @@ export function StudioPostFeed({
     const [detail, setDetail] = useState<StudioPost | null>(null);
     const [remixing, setRemixing] = useState("");
 
-    const goLogin = () => navigate(`/login?next=${encodeURIComponent(location.pathname + location.search)}`);
+    const goLogin = () => requireUser();
 
     const patchPost = (id: string, patch: Partial<StudioPost>) => {
         setPosts((current) => current.map((post) => (post.id === id ? { ...post, ...patch } : post)));
