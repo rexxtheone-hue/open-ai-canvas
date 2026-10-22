@@ -55,13 +55,14 @@ export function ModelLogo({ icon, size = 18, className }: { icon?: string; size?
     const [Icon, setIcon] = useState<LobeIconComponent | undefined>(() => (icon ? iconRegistry.get(icon) : undefined));
     useEffect(() => {
         let cancelled = false;
-        setIcon(icon ? iconRegistry.get(icon) : undefined);
+        // 图标可能是普通函数组件，必须包一层，否则 setState 会把它当更新函数执行。
+        setIcon(() => (icon ? iconRegistry.get(icon) : undefined));
         if (!icon || !iconLoaders[icon])
             return () => {
                 cancelled = true;
             };
         void loadIcon(icon).then((loaded) => {
-            if (!cancelled) setIcon(loaded);
+            if (!cancelled) setIcon(() => loaded);
         });
         return () => {
             cancelled = true;
