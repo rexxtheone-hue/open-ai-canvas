@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { flushGenerationAssetStorageLocks, insertOrReturnGenerationAsset, withGenerationAssetStorageLock, type GenerationAssetRecord } from "../src/services/generation-asset-repository";
+import { flushGenerationAssetStorageLocks, insertOrReturnGenerationAsset, withGenerationArtifactCommitLock, withGenerationAssetStorageLock, type GenerationAssetRecord } from "../src/services/generation-asset-repository";
 import { generationArtifactStorageKey, loadOrStoreGenerationArtifact } from "../src/services/generation-artifact-sink";
 
 test("generation asset insert waits for persistence and reload returns the same durable row", async () => {
@@ -308,6 +308,40 @@ test("competing browser generation asset writes fail closed before entering stor
             );
         await Promise.all([assert.rejects(compete(), /跨标签存储锁/), assert.rejects(compete(), /跨标签存储锁/)]);
         assert.equal(entered, 0, "neither competing generation write may enter the critical section without a cross-tab lock");
+    } finally {
+        if (originalWindow === undefined) delete (globalThis as { window?: unknown }).window;
+        else Object.defineProperty(globalThis, "window", { configurable: true, value: originalWindow });
+        if (originalDocument === undefined) delete (globalThis as { document?: unknown }).document;
+        else Object.defineProperty(globalThis, "document", { configurable: true, value: originalDocument });
+        if (originalNavigator === undefined) delete (globalThis as { navigator?: unknown }).navigator;
+        else Object.defineProperty(globalThis, "navigator", { configurable: true, value: originalNavigator });
+    }
+});
+
+test("plain-http pages without Web Locks queue generation writes inside the tab instead of failing", async () => {
+    const originalWindow = (globalThis as { window?: unknown }).window;
+    const originalDocument = (globalThis as { document?: unknown }).document;
+    const originalNavigator = (globalThis as { navigator?: unknown }).navigator;
+    Object.defineProperty(globalThis, "window", { configurable: true, value: { isSecureContext: false } });
+    Object.defineProperty(globalThis, "document", { configurable: true, value: {} });
+    Object.defineProperty(globalThis, "navigator", { configurable: true, value: {} });
+    const order: string[] = [];
+
+    try {
+        const write = (name: string) =>
+            withGenerationAssetStorageLock(
+                "account-insecure-context",
+                async () => {
+                    order.push(`${name}:start`);
+                    await new Promise((resolve) => setTimeout(resolve, 5));
+                    order.push(`${name}:end`);
+                },
+                { requireCrossRealmLock: true },
+            );
+        const commit = withGenerationArtifactCommitLock("account-insecure-context", async () => "committed", { requireCrossRealmLock: true });
+        await Promise.all([write("a"), write("b")]);
+        assert.deepEqual(order, ["a:start", "a:end", "b:start", "b:end"], "writes in the same tab must still run one at a time");
+        assert.equal(await commit, "committed");
     } finally {
         if (originalWindow === undefined) delete (globalThis as { window?: unknown }).window;
         else Object.defineProperty(globalThis, "window", { configurable: true, value: originalWindow });

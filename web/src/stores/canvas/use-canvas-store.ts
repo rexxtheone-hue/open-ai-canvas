@@ -14,6 +14,7 @@ import type { PrevisScene } from "@/types/previs";
 import type { TimelineProject } from "@/types/timeline";
 import { useSyncProgressStore, type SyncProjectProgress } from "@/stores/use-sync-progress-store";
 import { recordDiagnosticEvent } from "@/services/diagnostics/client-diagnostics";
+import { insecureContextWithoutWebLocks } from "@/lib/web-locks";
 
 export type CanvasProject = {
     id: string;
@@ -235,7 +236,7 @@ function runWithBrowserCanvasStorageLock<T>(scope: string, operation: () => Prom
     const locks = typeof window !== "undefined" && typeof navigator !== "undefined" ? (navigator.locks as AsyncCanvasStorageLock | undefined) : undefined;
     const lockName = `${CANVAS_STORAGE_LOCK_PREFIX}${scope}`;
     if (locks) return locks.request(lockName, operation);
-    if (options.requireCrossRealmLock && typeof window !== "undefined" && typeof document !== "undefined") {
+    if (options.requireCrossRealmLock && !insecureContextWithoutWebLocks() && typeof window !== "undefined" && typeof document !== "undefined") {
         throw new Error("当前浏览器不支持跨标签存储锁，已停止画布生成持久化");
     }
     return operation();
