@@ -30,6 +30,7 @@ func TestAppearanceRoutesAreRegistered(t *testing.T) {
 		"GET /api/public/appearance/live2d/:id/*file":         false,
 		"GET /api/public/appearance":                          false,
 		"GET /api/public/appearance/assets/:slot":             false,
+		"GET /api/public/manifest.webmanifest":                false,
 		"GET /api/admin/settings/appearance":                  false,
 		"PATCH /api/admin/settings/appearance":                false,
 		"DELETE /api/admin/settings/appearance":               false,
@@ -45,6 +46,19 @@ func TestAppearanceRoutesAreRegistered(t *testing.T) {
 		if !found {
 			t.Errorf("route %s is not registered", route)
 		}
+	}
+}
+
+func TestWebAppManifestFollowsAppearanceLogo(t *testing.T) {
+	builtin := webAppManifest("OmniMuse", "AI 创作", false, "")
+	icons := builtin["icons"].([]gin.H)
+	if builtin["name"] != "OmniMuse" || builtin["display"] != "standalone" || builtin["start_url"] != "/" || len(icons) != 2 || icons[1]["sizes"] != "512x512" {
+		t.Fatalf("builtin manifest = %#v", builtin)
+	}
+	custom := webAppManifest("Acme", "", true, "/api/public/appearance/assets/logo?v=1")
+	customIcons := custom["icons"].([]gin.H)
+	if custom["short_name"] != "Acme" || len(customIcons) != 1 || customIcons[0]["src"] != "/api/public/appearance/assets/logo?v=1" {
+		t.Fatalf("custom manifest = %#v", custom)
 	}
 }
 

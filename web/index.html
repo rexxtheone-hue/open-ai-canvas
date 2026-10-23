@@ -7,6 +7,12 @@
         <!-- 不写内置品牌资源：首屏必须品牌中性，favicon 由 use-appearance-store 解析出外观后写入。
              空 data URL 只是为了不让浏览器去请求 /favicon.ico（那会是一条 404）。 -->
         <link rel="icon" href="data:," />
+        <!-- PWA：清单由后端按外观设置生成；iOS 主屏幕图标沿用运行时写入的 apple-touch-icon，名称取页面标题。 -->
+        <link rel="manifest" href="/api/public/manifest.webmanifest" />
+        <meta name="theme-color" content="#ffffff" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <title>正在加载</title>
         <style>
             /* Fix layer order before production chunks can register utilities ahead of base. */
