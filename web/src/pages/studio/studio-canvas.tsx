@@ -32,7 +32,7 @@ export default function StudioCanvasPage() {
                         </h2>
                         <p>在无限画布上串联多个步骤：分镜、批量出图、图生视频、对比不同版本。作品库和 Studio 共用。</p>
                     </div>
-                    <button type="button" className="studio-generate-button" onClick={() => navigate("/canvas?mode=new")}>
+                    <button type="button" className="studio-generate-button" onClick={() => navigate("/studio/canvas/library?mode=new")}>
                         <Plus aria-hidden />
                         新建画布
                     </button>
@@ -44,7 +44,7 @@ export default function StudioCanvasPage() {
                     </label>
                     <span className="studio-hint">共 {projects.data?.total ?? 0} 个</span>
                     <span style={{ flex: 1 }} />
-                    <Link className="studio-mini-button" to="/canvas?mode=manage">
+                    <Link className="studio-mini-button" to="/studio/canvas/library?mode=manage">
                         管理全部画布
                     </Link>
                 </div>
@@ -60,7 +60,7 @@ export default function StudioCanvasPage() {
                         <Layers aria-hidden />
                         <strong>{query ? "没有找到相关画布" : "还没有画布"}</strong>
                         <span>新建一张画布，或在作品库点「在无限画布中编辑」把作品带进来。</span>
-                        <button type="button" className="studio-mini-button" onClick={() => navigate("/canvas?mode=new")}>
+                        <button type="button" className="studio-mini-button" onClick={() => navigate("/studio/canvas/library?mode=new")}>
                             新建画布
                         </button>
                     </div>

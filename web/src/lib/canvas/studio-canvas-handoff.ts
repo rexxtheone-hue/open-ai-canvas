@@ -12,7 +12,7 @@ export function studioCanvasHandoffPath(payloads: InsertAssetPayload[]) {
     } catch {
         return undefined;
     }
-    return `/canvas?mode=handoff&${STUDIO_HANDOFF_PARAM}=${token}`;
+    return `/studio/canvas/library?mode=handoff&${STUDIO_HANDOFF_PARAM}=${token}`;
 }
 
 export function readStudioCanvasHandoff(token: string): InsertAssetPayload[] {
