@@ -26,7 +26,7 @@ export function WorkspaceAccountCard({ onWallet, onNavigate, studio = false }: {
             {availableMicrocredits === null ? <Button size="small" loading={refreshing} icon={<RefreshCw />} onClick={() => void refresh()}>刷新余额</Button> : <button type="button" onClick={onWallet}>充值 / 兑换<ArrowUpRight /></button>}
         </div> : null}
         <nav className="workspace-account-card-actions" aria-label="账户操作">
-            <Link to="/settings?section=profile" onClick={onNavigate}><Settings /><span>账户与设置</span><ArrowUpRight /></Link>
+            <Link to={studio ? "/studio/settings?section=profile" : "/settings?section=profile"} onClick={onNavigate}><Settings /><span>账户与设置</span><ArrowUpRight /></Link>
             {studio ? <Link to="/studio/profile" onClick={onNavigate}><UserRound /><span>我的主页</span><ArrowUpRight /></Link> : null}
             {studio && creditsEnabled ? <Link to="/studio/pricing" onClick={onNavigate}><Crown /><span>订阅与会员</span><ArrowUpRight /></Link> : null}
             {studio && creditsEnabled ? <button type="button" onClick={() => { onNavigate(); openWorkspaceWallet({ tab: "history" }); }}><History /><span>积分记录</span><ArrowUpRight /></button> : null}
