@@ -312,10 +312,41 @@ func (s *Service) HideStudioWorks(userID string, taskIDs []string) (int, error) 
 	if err != nil {
 		return 0, err
 	}
+	// Studio 的删除是永久删除：先按素材库「彻底删除」移除作品对应的素材和文件，
+	// 成功后再隐藏作品，避免作品不见了、素材却还能在画布资产里还原。
+	if err := s.purgeStudioWorkAssets(userID, owned); err != nil {
+		return 0, err
+	}
 	if err := s.repo.HideStudioTasks(userID, owned); err != nil {
 		return 0, err
 	}
 	return len(owned), nil
+}
+
+// studioWorkMaxOutputs 覆盖一次生成最多的输出数；生成素材的编号由任务和输出序号确定。
+const studioWorkMaxOutputs = 16
+
+func (s *Service) purgeStudioWorkAssets(userID string, taskIDs []string) error {
+	candidates := make([]string, 0, len(taskIDs)*studioWorkMaxOutputs)
+	for _, taskID := range taskIDs {
+		for index := 0; index < studioWorkMaxOutputs; index++ {
+			candidates = append(candidates, generationMediaAssetID(taskID, index))
+		}
+	}
+	if len(candidates) == 0 {
+		return nil
+	}
+	assets, err := s.repo.AssetsForUserIDs(userID, candidates)
+	if err != nil || len(assets) == 0 {
+		return err
+	}
+	ids := make([]string, 0, len(assets))
+	for _, asset := range assets {
+		ids = append(ids, asset.ID)
+	}
+	s.storageMu.Lock()
+	defer s.storageMu.Unlock()
+	return s.deleteUserAssetsWithResources(userID, ids, true)
 }
 
 type StudioPreferenceView struct {

@@ -193,6 +193,32 @@ func TestStudioWorksFiltersSearchFavoritesAndHide(t *testing.T) {
 	}
 }
 
+func TestHideStudioWorksPurgesGenerationAssets(t *testing.T) {
+	svc, repo := newStudioTestService(t)
+	now := time.Now().UTC()
+	createStudioTestTask(t, repo, model.Task{ID: "img", UserID: "u1", WorkbenchKind: model.StudioKindImage, Prompt: "p", CreatedAt: now, UpdatedAt: now})
+	createStudioTestTask(t, repo, model.Task{ID: "keep", UserID: "u1", WorkbenchKind: model.StudioKindImage, Prompt: "p", CreatedAt: now, UpdatedAt: now})
+	for _, asset := range []model.Asset{
+		{ID: generationMediaAssetID("img", 0), UserID: "u1", Kind: "image", Status: model.AssetVersionStatusConfirmed, PayloadJSON: `{}`, CreatedAt: now, UpdatedAt: now},
+		{ID: generationMediaAssetID("img", 1), UserID: "u1", Kind: "image", Status: model.AssetVersionStatusConfirmed, PayloadJSON: `{}`, CreatedAt: now, UpdatedAt: now},
+		{ID: generationMediaAssetID("keep", 0), UserID: "u1", Kind: "image", Status: model.AssetVersionStatusConfirmed, PayloadJSON: `{}`, CreatedAt: now, UpdatedAt: now},
+	} {
+		if err := repo.Create(&asset).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if removed, err := svc.HideStudioWorks("u1", []string{"img"}); err != nil || removed != 1 {
+		t.Fatalf("hide = %d %v", removed, err)
+	}
+	var left []string
+	if err := repo.Model(&model.Asset{}).Where("user_id = ?", "u1").Pluck("id", &left).Error; err != nil {
+		t.Fatal(err)
+	}
+	if len(left) != 1 || left[0] != generationMediaAssetID("keep", 0) {
+		t.Fatalf("assets left = %v, want only the untouched work's asset", left)
+	}
+}
+
 func TestStudioPreferenceRoundTrip(t *testing.T) {
 	svc, _ := newStudioTestService(t)
 	view, err := svc.StudioPreference("u1")

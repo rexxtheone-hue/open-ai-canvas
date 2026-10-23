@@ -15097,5 +15097,8 @@
   "；优先按有效上游用量结算，未返回用量时按视频公式结算": "; settled by valid upstream usage first, or by the video formula when usage is not returned",
   "；其余记录请在列表中核对": "; check the remaining records in the list",
   "；当前协议未配置独立分辨率": "; no separate resolution is configured for the current protocol",
-  "；补充视角：{0}": "; additional viewpoint: {0}"
+  "；补充视角：{0}": "; additional viewpoint: {0}",
+  "永久删除 {0} 个作品？": "Permanently delete {0} creations?",
+  "永久删除这个作品？": "Permanently delete this creation?",
+  "作品和它的图片、视频文件会被彻底删除，画布资产里也不能再还原；用到它的画布节点会失效。已扣的积分和账单记录不受影响。": "The creation and its image and video files will be permanently deleted and can no longer be restored from canvas assets; canvas nodes that use it will break. Credits already charged and billing records are not affected."
 }

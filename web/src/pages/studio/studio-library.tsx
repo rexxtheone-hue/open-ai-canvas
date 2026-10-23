@@ -173,8 +173,8 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
 
     const confirmDelete = (ids: string[]) => {
         modal.confirm({
-            title: ids.length > 1 ? `删除 ${ids.length} 个作品？` : "删除这个作品？",
-            content: "作品会从作品库移除，已扣的积分和账单记录不受影响。",
+            title: ids.length > 1 ? `永久删除 ${ids.length} 个作品？` : "永久删除这个作品？",
+            content: "作品和它的图片、视频文件会被彻底删除，画布资产里也不能再还原；用到它的画布节点会失效。已扣的积分和账单记录不受影响。",
             okText: "删除",
             okButtonProps: { danger: true },
             cancelText: "取消",
