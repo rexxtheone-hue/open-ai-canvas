@@ -9,7 +9,8 @@ import { AppModal } from "@/components/ui/product/app-modal";
 import { CachedResourceImage } from "@/components/cached-resource-image";
 import { CanvasImagePreview } from "@/components/canvas/canvas-image-preview";
 import { generationErrorMessage } from "@/lib/generation-error";
-import { getResourceBlob, playbackVariantUrl, resolveResourceUrl, resourceIdFromStorageKey } from "@/services/api/resources";
+import { playbackVariantUrl, resolveResourceUrl, resourceIdFromStorageKey } from "@/services/api/resources";
+import { downloadBrowserMedia } from "@/services/browser-download";
 import { recoverGenerationTaskMedia, retryGenerationTask } from "@/services/api/task-center";
 import type { StudioKind, StudioLabel, StudioMedia, StudioWork } from "@/services/api/studio";
 import { studioSelectionRange, studioWorkFileName, studioWorkIsActive, studioWorkTitle } from "./studio-library-model";
@@ -54,27 +55,8 @@ export function studioWorkCanvasPayloads(work: StudioWork): InsertAssetPayload[]
 async function downloadStudioMedia(work: StudioWork, index: number) {
     const media = work.media[index];
     if (!media) return;
-    const name = studioWorkFileName(work, index);
-    let href = "";
-    let revoke = false;
-    if (media.storageKey && resourceIdFromStorageKey(media.storageKey)) {
-        const blob = await getResourceBlob(media.storageKey);
-        if (blob) {
-            href = URL.createObjectURL(blob);
-            revoke = true;
-        }
-    }
-    if (!href) href = media.url || "";
-    if (!href) throw new Error("作品文件暂时不可用");
-    const link = document.createElement("a");
-    link.href = href;
-    link.download = name;
-    link.rel = "noopener";
-    if (!revoke) link.target = "_blank";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    if (revoke) window.setTimeout(() => URL.revokeObjectURL(href), 30_000);
+    if (!media.url && !resourceIdFromStorageKey(media.storageKey)) throw new Error("作品文件暂时不可用");
+    await downloadBrowserMedia({ fileName: studioWorkFileName(work, index), storageKey: media.storageKey, url: media.url });
 }
 
 type StudioLibraryProps = {
