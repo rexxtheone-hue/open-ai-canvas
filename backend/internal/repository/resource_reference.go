@@ -425,6 +425,16 @@ func (r *Repository) DeleteAssetAndResources(userID string, assetID string, reso
 }
 
 func (r *Repository) DeleteAssetsAndResources(userID string, assetIDs []string, resourceIDs []string, deletionJobs []model.ResourceDeletionJob, deleteReferencedResources bool) error {
+	return r.deleteAssets(userID, assetIDs, resourceIDs, deletionJobs, deleteReferencedResources, nil)
+}
+
+// DeleteAssetsRetainingResources 删除用户素材记录，但只把它们独占的资源标记为用户已删除：
+// 资源记录、画布历史索引和物理文件都保留，留给管理员彻底删除。
+func (r *Repository) DeleteAssetsRetainingResources(userID string, assetIDs []string, resourceIDs []string, deleteReferencedResources bool, deletedAt time.Time) error {
+	return r.deleteAssets(userID, assetIDs, resourceIDs, nil, deleteReferencedResources, &deletedAt)
+}
+
+func (r *Repository) deleteAssets(userID string, assetIDs []string, resourceIDs []string, deletionJobs []model.ResourceDeletionJob, deleteReferencedResources bool, retainedAt *time.Time) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		var ownedAssets []model.Asset
 		query := tx.Where("user_id = ? AND id IN ?", userID, assetIDs).Order("id")
@@ -437,7 +447,9 @@ func (r *Repository) DeleteAssetsAndResources(userID string, assetIDs []string, 
 		if len(assetIDs) == 0 || len(ownedAssets) != len(assetIDs) {
 			return gorm.ErrRecordNotFound
 		}
-		if deleteReferencedResources {
+		if retainedAt != nil {
+			// 保留文件：画布历史快照仍可恢复，无需清除索引或校验历史引用。
+		} else if deleteReferencedResources {
 			// 彻底删除：移除被删资源的画布历史索引，让删除 worker 可以释放物理对象；
 			// 历史快照正文保留，恢复该版本时由画布断链修复处理失效媒体。
 			if len(resourceIDs) > 0 {
@@ -485,6 +497,9 @@ func (r *Repository) DeleteAssetsAndResources(userID string, assetIDs []string, 
 		}
 		if len(resourceIDs) == 0 {
 			return nil
+		}
+		if retainedAt != nil {
+			return tx.Model(&model.Resource{}).Where("user_id = ? AND id IN ? AND user_deleted_at IS NULL", userID, resourceIDs).Update("user_deleted_at", *retainedAt).Error
 		}
 		if err := tx.Where("resource_id IN ?", resourceIDs).Delete(&model.ArkPrivateAssetBinding{}).Error; err != nil {
 			return err

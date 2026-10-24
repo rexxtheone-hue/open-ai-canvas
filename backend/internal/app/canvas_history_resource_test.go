@@ -89,7 +89,7 @@ func TestArchivedAssetDeletionRemovesCanvasHistoryReference(t *testing.T) {
 	}
 
 	// 回收站素材的删除不受画布历史快照拦截：历史索引被移除、快照正文保留、物理文件进入 Outbox。
-	if err := svc.DeleteUserAsset("user-1", asset.ID); err != nil {
+	if err := svc.deleteUserAssets("user-1", []string{asset.ID}, false, false); err != nil {
 		t.Fatalf("archived asset deletion failed: %v", err)
 	}
 	for _, check := range []struct {

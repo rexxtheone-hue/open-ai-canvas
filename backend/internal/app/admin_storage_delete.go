@@ -239,7 +239,7 @@ func (s *Service) purgeAdminResourceAssets(actor *model.User, resourcesByID map[
 		if len(assetIDs) == 0 {
 			continue
 		}
-		if err := s.deleteUserAssetsWithResources(userID, assetIDs, true); err != nil {
+		if err := s.deleteUserAssetsPermanently(userID, assetIDs); err != nil {
 			return nil, err
 		}
 		event, err := newAdminAuditEvent(actor, "resource.purge_assets", "user", userID, "管理员连同素材彻底删除存储资源", map[string]any{

@@ -48,7 +48,8 @@ func TestPurgeAssetsBatchSharedResourcesAndHistory(t *testing.T) {
 	if err := db.Exec("CREATE TRIGGER fail_batch_resource_delete BEFORE DELETE ON resources BEGIN SELECT RAISE(ABORT, 'forced failure'); END;").Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.PurgeUserAssets("user-1", []string{"first", "second"}); err == nil {
+	// 用户删除只标记资源；这里验证管理员彻底删除的事务与 Outbox 语义。
+	if err := svc.deleteUserAssetsPermanently("user-1", []string{"first", "second"}); err == nil {
 		t.Fatal("expected rollback")
 	}
 	assertCount(&model.Asset{}, 3)
@@ -61,7 +62,7 @@ func TestPurgeAssetsBatchSharedResourcesAndHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := svc.PurgeUserAssets("user-1", []string{"first", " second ", "first"}); err != nil {
+	if err := svc.deleteUserAssetsPermanently("user-1", []string{"first", " second ", "first"}); err != nil {
 		t.Fatal(err)
 	}
 	assertCount(&model.Asset{}, 1)

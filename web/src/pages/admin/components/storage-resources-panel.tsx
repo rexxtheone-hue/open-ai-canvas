@@ -119,7 +119,7 @@ export default function StorageResourcesPanel() {
                 ),
             },
             { title: "类型", dataIndex: "kind", width: 92, render: (value) => kindLabel(value) },
-            { title: "状态", dataIndex: "status", width: 104, render: (value) => <AdminStatusBadge label={statusLabel(value)} tone={statusTone(value)} /> },
+            { title: "状态", dataIndex: "status", width: 104, render: (value, resource) => resource.userDeletedAt ? <AdminStatusBadge label="用户已删除" tone="warning" /> : <AdminStatusBadge label={statusLabel(value)} tone={statusTone(value)} /> },
             { title: "存储", dataIndex: "provider", width: 110, render: (value) => providerLabel(value) },
             { title: "大小", dataIndex: "size", width: 110, render: (value) => <span className="tabular-nums">{formatBytes(value)}</span> },
             { title: "规格", width: 135, render: (_, resource) => resourceDimensions(resource) },
@@ -342,6 +342,7 @@ const statusOptions = [
     { label: "已就绪", value: "ready" },
     { label: "失败", value: "failed" },
     { label: "已删除", value: "deleted" },
+    { label: "用户已删除", value: "user_deleted" },
 ];
 const providerOptions = [
     { label: "全部存储", value: "all" },
@@ -370,7 +371,7 @@ function kindLabel(kind: string) {
     return ({ image: "图片", video: "视频", audio: "音频", file: "文件", live2d: "Live2D" } as Record<string, string>)[kind] || kind || "未知";
 }
 function statusLabel(status: string) {
-    return ({ pending: "待处理", ready: "已就绪", failed: "失败", deleted: "已删除" } as Record<string, string>)[status] || status || "未知";
+    return ({ pending: "待处理", ready: "已就绪", failed: "失败", deleted: "已删除", user_deleted: "用户已删除" } as Record<string, string>)[status] || status || "未知";
 }
 function statusTone(status: string): "neutral" | "success" | "warning" | "error" {
     return status === "ready" ? "success" : status === "pending" ? "warning" : status === "failed" ? "error" : "neutral";

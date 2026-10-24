@@ -275,16 +275,17 @@ func TestDeleteGeneratedAssetTaskReferences(t *testing.T) {
 			if (err != nil) != tc.block {
 				t.Fatalf("DeleteUserAsset() = %v, want blocked=%v", err, tc.block)
 			}
-			wantRemaining, wantJobs := int64(0), int64(1)
+			// 用户删除只移除素材；资源与文件保留并标记为用户已删除，等待管理员删除。
+			wantAssets, wantMarked := int64(0), int64(1)
 			if tc.block {
-				wantRemaining, wantJobs = 1, 0
+				wantAssets, wantMarked = 1, 0
 			}
 			for _, check := range []struct {
 				model any
 				want  int64
 			}{
-				{&model.Asset{}, wantRemaining}, {&model.Resource{}, wantRemaining},
-				{&model.ResourceDeletionJob{}, wantJobs},
+				{&model.Asset{}, wantAssets}, {&model.Resource{}, 1},
+				{&model.ResourceDeletionJob{}, 0},
 				{&model.Task{}, 1}, {&model.TaskLog{}, 1}, {&model.Result{}, 1},
 			} {
 				var count int64
@@ -295,7 +296,19 @@ func TestDeleteGeneratedAssetTaskReferences(t *testing.T) {
 					t.Fatalf("%T count=%d, want %d", check.model, count, check.want)
 				}
 			}
+			assertUserDeletedResources(t, db, wantMarked)
 		})
+	}
+}
+
+func assertUserDeletedResources(t *testing.T, db *gorm.DB, want int64) {
+	t.Helper()
+	var count int64
+	if err := db.Model(&model.Resource{}).Where("user_deleted_at IS NOT NULL").Count(&count).Error; err != nil {
+		t.Fatal(err)
+	}
+	if count != want {
+		t.Fatalf("user-deleted resources = %d, want %d", count, want)
 	}
 }
 
@@ -329,8 +342,8 @@ func TestPurgeConfirmedAssetIgnoresTaskReferences(t *testing.T) {
 		want  int64
 	}{
 		{&model.Asset{}, 0},
-		{&model.Resource{}, 0},
-		{&model.ResourceDeletionJob{}, 1},
+		{&model.Resource{}, 1},
+		{&model.ResourceDeletionJob{}, 0},
 		{&model.Task{}, 1},
 	} {
 		var count int64
@@ -341,6 +354,7 @@ func TestPurgeConfirmedAssetIgnoresTaskReferences(t *testing.T) {
 			t.Fatalf("%T count=%d, want %d", check.model, count, check.want)
 		}
 	}
+	assertUserDeletedResources(t, db, 1)
 }
 
 func TestResourceDeletionWorkerRemovesObjectAndCompletesOutbox(t *testing.T) {
@@ -408,9 +422,10 @@ func TestExpiredArchivedAssetCleanupDeletesReferencedAssetAndUsesDeletionOutbox(
 	if err := db.Model(&model.ResourceDeletionJob{}).Where("resource_id = ?", resource.ID).Count(&jobCount).Error; err != nil {
 		t.Fatal(err)
 	}
-	if assetCount != 0 || resourceCount != 0 || jobCount != 1 {
-		t.Fatalf("referenced archived asset was not force deleted through outbox: asset=%d resource=%d jobs=%d", assetCount, resourceCount, jobCount)
+	if assetCount != 0 || resourceCount != 1 || jobCount != 0 {
+		t.Fatalf("expired archived asset must be removed while its file is retained: asset=%d resource=%d jobs=%d", assetCount, resourceCount, jobCount)
 	}
+	assertUserDeletedResources(t, db, 1)
 }
 
 func TestDetachedResourceCleanupRemovesOrphanAndKeepsAssetBackedResource(t *testing.T) {
@@ -447,8 +462,14 @@ func TestDetachedResourceCleanupRemovesOrphanAndKeepsAssetBackedResource(t *test
 	if err := db.Model(&model.Resource{}).Where("id = ?", backed.ID).Count(&backedCount).Error; err != nil {
 		t.Fatal(err)
 	}
-	if orphanCount != 0 || backedCount != 1 {
+	// 已完成上传的孤儿文件不再自动删除，只标记为用户已删除。
+	if orphanCount != 1 || backedCount != 1 {
 		t.Fatalf("cleanup result: orphan=%d backed=%d", orphanCount, backedCount)
+	}
+	var marked []string
+	db.Model(&model.Resource{}).Where("user_deleted_at IS NOT NULL").Pluck("id", &marked)
+	if len(marked) != 1 || marked[0] != orphan.ID {
+		t.Fatalf("user-deleted resources = %v", marked)
 	}
 }
 
@@ -579,9 +600,9 @@ func TestDetachedResourceCleanupKeepsStudioReferences(t *testing.T) {
 	if err := svc.cleanupDetachedUserResources("admin", resources); err != nil {
 		t.Fatal(err)
 	}
-	var remaining []string
-	db.Model(&model.Resource{}).Order("id").Pluck("id", &remaining)
-	if len(remaining) != len(ids)-1 || slices.Contains(remaining, rid("orphan")) {
-		t.Fatalf("remaining resources = %v", remaining)
+	var marked []string
+	db.Model(&model.Resource{}).Where("user_deleted_at IS NOT NULL").Order("id").Pluck("id", &marked)
+	if len(marked) != 1 || !slices.Contains(marked, rid("orphan")) {
+		t.Fatalf("user-deleted resources = %v", marked)
 	}
 }

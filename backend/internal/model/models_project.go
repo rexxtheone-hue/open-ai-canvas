@@ -58,10 +58,12 @@ type Resource struct {
 	ThumbnailWidth    int    `json:"thumbnailWidth"`
 	ThumbnailHeight   int    `json:"thumbnailHeight"`
 	// UploadKey 是客户端逻辑上传身份的摘要；NULL 表示不参与幂等约束。
-	UploadKey *string   `json:"-" gorm:"size:64;uniqueIndex:idx_resources_user_upload_key,priority:2"`
-	Error     string    `json:"error"`
-	CreatedAt time.Time `json:"createdAt" gorm:"index:idx_resources_user_created,priority:2"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	UploadKey *string `json:"-" gorm:"size:64;uniqueIndex:idx_resources_user_upload_key,priority:2"`
+	Error     string  `json:"error"`
+	// UserDeletedAt 非空表示用户已删除：用户端不再展示，记录与物理文件保留，只有管理员删除才会真正清除。
+	UserDeletedAt *time.Time `json:"userDeletedAt,omitempty" gorm:"index"`
+	CreatedAt     time.Time  `json:"createdAt" gorm:"index:idx_resources_user_created,priority:2"`
+	UpdatedAt     time.Time  `json:"updatedAt"`
 }
 
 // ResourceDeletionJob is the durable handoff between database deletion and

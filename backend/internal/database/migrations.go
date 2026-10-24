@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const CurrentSchemaVersion int64 = 72
+const CurrentSchemaVersion int64 = 73
 
 const baselineSchemaChecksum = "sha256:open-ai-canvas-schema-v1-20260830"
 const schemaMigrationAppliedAtIndexChecksum = "sha256:schema-migrations-applied-at-index-v2-20260830"
@@ -243,6 +243,15 @@ var schemaMigrations = []migration{
 	}},
 	{version: 72, name: "image_token_billing", checksum: "sha256:image-token-billing-v72-20261022", apply: func(tx *gorm.DB) error {
 		return tx.AutoMigrate(&model.ChannelModelPriceTier{}, &model.BillingOrder{}, &model.ApiCallLog{})
+	}},
+	{version: 73, name: "resource_user_deleted", checksum: "sha256:resource-user-deleted-v73-20261024", apply: func(tx *gorm.DB) error {
+		if tx.Migrator().HasColumn(&model.Resource{}, "UserDeletedAt") {
+			return nil
+		}
+		if err := tx.Migrator().AddColumn(&model.Resource{}, "UserDeletedAt"); err != nil {
+			return err
+		}
+		return tx.Migrator().CreateIndex(&model.Resource{}, "UserDeletedAt")
 	}},
 }
 

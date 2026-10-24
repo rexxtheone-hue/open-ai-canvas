@@ -19,6 +19,7 @@ export type AdminStorageResource = {
     fileUrl: string;
     createdAt: string;
     updatedAt: string;
+    userDeletedAt?: string;
 };
 
 export type AdminResourcePage = {

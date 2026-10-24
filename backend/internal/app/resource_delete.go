@@ -20,7 +20,18 @@ func (s *Service) deleteUserAssetWithResources(userID string, assetID string, pu
 	return s.deleteUserAssetsWithResources(userID, []string{assetID}, purge)
 }
 
+// deleteUserAssetsWithResources 是用户发起的删除：素材从用户端消失，独占资源只标记为用户已删除，
+// 记录与物理文件保留，只有管理员删除才会真正清除。
 func (s *Service) deleteUserAssetsWithResources(userID string, ids []string, purge bool) error {
+	return s.deleteUserAssets(userID, ids, purge, true)
+}
+
+// deleteUserAssetsPermanently 由管理员发起，连同独占资源和物理文件一起删除。
+func (s *Service) deleteUserAssetsPermanently(userID string, ids []string) error {
+	return s.deleteUserAssets(userID, ids, true, false)
+}
+
+func (s *Service) deleteUserAssets(userID string, ids []string, purge bool, retainFiles bool) error {
 	if strings.TrimSpace(userID) == "" || len(ids) == 0 || len(ids) > 1000 {
 		return BadAuthRequest("每次删除须提供 1–1000 个素材 ID 和有效用户")
 	}
@@ -169,6 +180,19 @@ func (s *Service) deleteUserAssetsWithResources(userID string, ids []string, pur
 	}
 	if message := resourceOccupiedMessage(usages); message != "" {
 		return BadAuthRequest(message)
+	}
+
+	if retainFiles {
+		if err := s.repo.DeleteAssetsRetainingResources(userID, assetIDs, ownedIDs, deleteReferencedResources, time.Now()); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return NotFound("素材不存在或无权删除")
+			}
+			if errors.Is(err, repository.ErrCanvasHistoryResourceReferenced) {
+				return BadAuthRequest("素材仍被画布历史版本引用，已保留文件")
+			}
+			return fmt.Errorf("素材记录删除失败，请重试：%w", err)
+		}
+		return nil
 	}
 
 	// 所有引用校验必须先完成；仍被其他资源记录共享的物理对象不会进入删除队列。

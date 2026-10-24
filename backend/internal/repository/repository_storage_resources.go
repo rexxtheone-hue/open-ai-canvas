@@ -254,13 +254,21 @@ func (r *Repository) ResetStuckPlaybackTranscodes() error {
 		Updates(map[string]any{"playback_status": "", "playback_error": ""}).Error
 }
 
+// MarkResourcesUserDeleted 把资源标记为用户已删除；记录和物理文件保留，等待管理员删除。
+func (r *Repository) MarkResourcesUserDeleted(resourceIDs []string, deletedAt time.Time) error {
+	if len(resourceIDs) == 0 {
+		return nil
+	}
+	return r.db.Model(&model.Resource{}).Where("id IN ? AND user_deleted_at IS NULL", resourceIDs).Update("user_deleted_at", deletedAt).Error
+}
+
 func (r *Repository) ResourceCleanupCandidates(incompleteBefore time.Time, readyBefore time.Time, limit int) ([]model.Resource, error) {
 	var resources []model.Resource
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
 	err := r.db.Where(
-		"(status IN ? AND updated_at <= ?) OR (status = ? AND created_at <= ?)",
+		"(status IN ? AND updated_at <= ?) OR (status = ? AND created_at <= ? AND user_deleted_at IS NULL)",
 		[]model.ResourceStatus{model.ResourceStatusPending, model.ResourceStatusFailed}, incompleteBefore,
 		model.ResourceStatusReady, readyBefore,
 	).Order("created_at asc, id asc").Limit(limit).Find(&resources).Error

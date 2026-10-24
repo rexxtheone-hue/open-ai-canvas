@@ -95,10 +95,20 @@ func (s *Service) cleanupDetachedUserResources(userID string, candidates []model
 		}
 	}
 	detached := make([]model.Resource, 0, len(candidates))
+	retainedIDs := []string{}
 	for _, resource := range candidates {
-		if _, exists := referenced[resource.ID]; !exists {
-			detached = append(detached, resource)
+		if _, exists := referenced[resource.ID]; exists {
+			continue
 		}
+		// 已上传完成的文件不再自动删除：只标记为用户已删除，由管理员决定是否彻底清除。
+		if resource.Status == model.ResourceStatusReady {
+			retainedIDs = append(retainedIDs, resource.ID)
+			continue
+		}
+		detached = append(detached, resource)
+	}
+	if err := s.repo.MarkResourcesUserDeleted(retainedIDs, time.Now()); err != nil {
+		return err
 	}
 	if len(detached) == 0 {
 		return nil

@@ -6,6 +6,9 @@ import (
 	"yingce/backend/internal/model"
 )
 
+// AdminResourceStatusUserDeleted 是管理端的筛选值：用户已删除、文件仍保留的资源。
+const AdminResourceStatusUserDeleted = "user_deleted"
+
 type AdminResourceFilter struct {
 	Kind      string
 	Status    string
@@ -46,7 +49,9 @@ func (r *Repository) AdminResources(filter AdminResourceFilter) ([]model.Resourc
 	if filter.Kind != "" {
 		query = query.Where("kind = ?", filter.Kind)
 	}
-	if filter.Status != "" {
+	if filter.Status == AdminResourceStatusUserDeleted {
+		query = query.Where("user_deleted_at IS NOT NULL")
+	} else if filter.Status != "" {
 		query = query.Where("status = ?", filter.Status)
 	}
 	if filter.Provider != "" {

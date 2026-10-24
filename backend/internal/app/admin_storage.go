@@ -40,6 +40,7 @@ type AdminStorageResourceView struct {
 	FileURL       string               `json:"fileUrl"`
 	CreatedAt     time.Time            `json:"createdAt"`
 	UpdatedAt     time.Time            `json:"updatedAt"`
+	UserDeletedAt *time.Time           `json:"userDeletedAt,omitempty"`
 }
 
 type AdminResourcePage struct {
@@ -89,6 +90,7 @@ func (s *Service) AdminResourcePage(actor *model.User, query AdminResourceQuery)
 			ObjectKey: resource.ObjectKey, MimeType: resource.MimeType, Size: resource.Size,
 			PhysicalBytes: readyResourceBytes(resource), Width: resource.Width, Height: resource.Height, DurationMs: resource.DurationMs,
 			FileURL: "/api/admin/resources/" + resource.ID + "/file", CreatedAt: resource.CreatedAt, UpdatedAt: resource.UpdatedAt,
+			UserDeletedAt: resource.UserDeletedAt,
 		})
 	}
 	return &AdminResourcePage{Items: items, Total: total, Page: page, Limit: limit}, nil
@@ -160,7 +162,7 @@ func normalizeAdminResourceQuery(query AdminResourceQuery) (repository.AdminReso
 	if filter.Kind != "" && !oneOf(filter.Kind, "image", "video", "audio", "file", "live2d") {
 		return repository.AdminResourceFilter{}, 0, 0, BadAuthRequest("资源类型筛选无效")
 	}
-	if filter.Status != "" && !oneOf(filter.Status, string(model.ResourceStatusPending), string(model.ResourceStatusReady), string(model.ResourceStatusFailed), string(model.ResourceStatusDeleted)) {
+	if filter.Status != "" && !oneOf(filter.Status, string(model.ResourceStatusPending), string(model.ResourceStatusReady), string(model.ResourceStatusFailed), string(model.ResourceStatusDeleted), repository.AdminResourceStatusUserDeleted) {
 		return repository.AdminResourceFilter{}, 0, 0, BadAuthRequest("资源状态筛选无效")
 	}
 	if filter.Provider != "" && !oneOf(filter.Provider, "local", aliyunOSSProvider, tencentCOSProvider, qiniuKodoProvider, s3Provider) {
