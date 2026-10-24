@@ -41,6 +41,35 @@ func (r *Repository) AssetsForUserIDs(userID string, ids []string) ([]model.Asse
 	return assets, err
 }
 
+// AssetIDsForReferenceIDs 把资源引用快照里的「素材」引用 ID（素材、素材版本或素材表现）归并为素材 ID。
+func (r *Repository) AssetIDsForReferenceIDs(userID string, ids []string) ([]string, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var direct, viaVersion, viaRepresentation []string
+	if err := r.db.Model(&model.Asset{}).Where("user_id = ? AND id IN ?", userID, ids).Pluck("id", &direct).Error; err != nil {
+		return nil, err
+	}
+	if err := r.db.Table("asset_versions").Joins("JOIN assets ON assets.id = asset_versions.asset_id").
+		Where("assets.user_id = ? AND asset_versions.id IN ?", userID, ids).Pluck("assets.id", &viaVersion).Error; err != nil {
+		return nil, err
+	}
+	if err := r.db.Table("asset_representations").Joins("JOIN asset_versions ON asset_versions.id = asset_representations.asset_version_id").
+		Joins("JOIN assets ON assets.id = asset_versions.asset_id").
+		Where("assets.user_id = ? AND asset_representations.id IN ?", userID, ids).Pluck("assets.id", &viaRepresentation).Error; err != nil {
+		return nil, err
+	}
+	seen := map[string]struct{}{}
+	result := []string{}
+	for _, id := range append(append(direct, viaVersion...), viaRepresentation...) {
+		if _, exists := seen[id]; !exists {
+			seen[id] = struct{}{}
+			result = append(result, id)
+		}
+	}
+	return result, nil
+}
+
 func (r *Repository) UpsertAsset(asset *model.Asset) error {
 	result := r.db.Model(&model.Asset{}).
 		Where("id = ? AND user_id = ?", asset.ID, asset.UserID).

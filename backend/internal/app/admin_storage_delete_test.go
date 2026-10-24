@@ -47,6 +47,47 @@ func TestDeleteAdminResourcesSupportsPartialSuccessAndBatchedReferences(t *testi
 	assertModelCount(t, db, &model.AdminAuditEvent{}, "action = ? AND target_id = ?", 1, "resource.delete", "resource-free")
 }
 
+func TestDeleteAdminResourcesPurgesAssetOnlyReferences(t *testing.T) {
+	svc, db, _, admin := newAdminStorageDeleteTestService(t)
+	resources := []model.Resource{
+		{ID: "resource-asset", UserID: "user-1", Kind: "image", Status: model.ResourceStatusReady, Provider: "local", ObjectKey: "users/user-1/image/asset.png"},
+		{ID: "resource-canvas", UserID: "user-1", Kind: "image", Status: model.ResourceStatusReady, Provider: "local", ObjectKey: "users/user-1/image/canvas.png"},
+	}
+	if err := db.Create(&resources).Error; err != nil {
+		t.Fatal(err)
+	}
+	assets := []model.Asset{
+		{ID: "asset-1", UserID: "user-1", Kind: "image", Title: "上传图", Status: model.AssetVersionStatusConfirmed, PayloadJSON: `{"storageKey":"resource:resource-asset"}`},
+		{ID: "asset-2", UserID: "user-1", Kind: "image", Title: "画布图", Status: model.AssetVersionStatusConfirmed, PayloadJSON: `{"storageKey":"resource:resource-canvas"}`},
+	}
+	if err := db.Create(&assets).Error; err != nil {
+		t.Fatal(err)
+	}
+	canvas := model.CanvasProject{ID: "canvas-1", UserID: "user-1", Title: "分镜", PayloadJSON: `{"nodes":[{"data":{"storageKey":"resource:resource-canvas"}}]}`}
+	if err := db.Create(&canvas).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	request := AdminResourceDeleteRequest{ResourceIDs: []string{"resource-asset", "resource-canvas"}}
+	result, err := svc.DeleteAdminResources(admin, request)
+	if err != nil || len(result.Deleted) != 0 || len(result.Blocked) != 2 {
+		t.Fatalf("without purge = %#v %v", result, err)
+	}
+	request.PurgeAssets = true
+	result, err = svc.DeleteAdminResources(admin, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Deleted) != 1 || result.Deleted[0] != "resource-asset" || len(result.Blocked) != 1 || result.Blocked[0].ID != "resource-canvas" {
+		t.Fatalf("with purge = %#v", result)
+	}
+	assertModelCount(t, db, &model.Asset{}, "id = ?", 0, "asset-1")
+	assertModelCount(t, db, &model.Asset{}, "id = ?", 1, "asset-2")
+	assertModelCount(t, db, &model.Resource{}, "id = ?", 0, "resource-asset")
+	assertModelCount(t, db, &model.Resource{}, "id = ?", 1, "resource-canvas")
+	assertModelCount(t, db, &model.AdminAuditEvent{}, "action = ?", 1, "resource.purge_assets")
+}
+
 func TestDeleteAdminResourcesBlocksAnnouncementImage(t *testing.T) {
 	svc, db, _, admin := newAdminStorageDeleteTestService(t)
 	resource := model.Resource{ID: "announcement-image", UserID: admin.ID, Kind: "image", Status: model.ResourceStatusReady, Provider: "local", ObjectKey: "announcements/cover.png"}

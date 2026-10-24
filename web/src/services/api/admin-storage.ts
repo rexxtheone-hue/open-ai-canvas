@@ -82,8 +82,8 @@ export async function getAdminStorageStats(signal?: AbortSignal) {
     return result.stats;
 }
 
-export function deleteAdminResources(resourceIds: string[]) {
-    return http.post<AdminResourceDeleteResult>("/admin/resources/delete", { resourceIds });
+export function deleteAdminResources(resourceIds: string[], purgeAssets = false) {
+    return http.post<AdminResourceDeleteResult>("/admin/resources/delete", { resourceIds, purgeAssets });
 }
 
 export function adminResourceFileUrl(id: string, download = false) {

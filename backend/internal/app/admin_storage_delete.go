@@ -13,6 +13,8 @@ const maxAdminResourceDeleteCount = 100
 
 type AdminResourceDeleteRequest struct {
 	ResourceIDs []string `json:"resourceIds"`
+	// PurgeAssets 为 true 时，只被用户素材引用的资源会连同这些素材一起彻底删除。
+	PurgeAssets bool `json:"purgeAssets"`
 }
 
 type AdminResourceReferenceView struct {
@@ -104,9 +106,19 @@ func (s *Service) DeleteAdminResources(actor *model.User, req AdminResourceDelet
 		}
 	}
 
+	purged := map[string]struct{}{}
+	if req.PurgeAssets {
+		if purged, err = s.purgeAdminResourceAssets(actor, resourcesByID, blockedByID); err != nil {
+			return nil, err
+		}
+	}
+
 	deletable := make([]model.Resource, 0, len(resources))
 	deletableIDs := make([]string, 0, len(resources))
 	for _, resourceID := range resourceIDs {
+		if _, done := purged[resourceID]; done {
+			continue
+		}
 		resource, exists := resourcesByID[resourceID]
 		if !exists {
 			continue
@@ -158,6 +170,9 @@ func (s *Service) DeleteAdminResources(actor *model.User, req AdminResourceDelet
 		}
 		audits = append(audits, *event)
 	}
+	if len(deletable) == 0 {
+		return adminResourceDeleteResult(resourceIDs, purged, nil, blockedByID), nil
+	}
 	if err := s.repo.DeleteAdminResources(deletable, deletionJobs, audits); err != nil {
 		if errors.Is(err, repository.ErrAdminResourceDeleteChanged) || errors.Is(err, repository.ErrAdminResourceStillReferenced) || errors.Is(err, repository.ErrCanvasHistoryResourceReferenced) {
 			return nil, BadAuthRequest("资源状态或引用已变化，请刷新后重试")
@@ -168,10 +183,17 @@ func (s *Service) DeleteAdminResources(actor *model.User, req AdminResourceDelet
 		s.runWorkerTask(func() { s.drainResourceDeletionJobs(len(deletionJobs)) })
 	}
 
+	return adminResourceDeleteResult(resourceIDs, purged, deletable, blockedByID), nil
+}
+
+func adminResourceDeleteResult(resourceIDs []string, purged map[string]struct{}, deletable []model.Resource, blockedByID map[string]AdminResourceDeleteBlocked) *AdminResourceDeleteResult {
 	result := &AdminResourceDeleteResult{Deleted: []string{}, Blocked: []AdminResourceDeleteBlocked{}}
-	deletedSet := make(map[string]struct{}, len(deletable))
+	deletedSet := make(map[string]struct{}, len(deletable)+len(purged))
 	for _, resource := range deletable {
 		deletedSet[resource.ID] = struct{}{}
+	}
+	for resourceID := range purged {
+		deletedSet[resourceID] = struct{}{}
 	}
 	for _, resourceID := range resourceIDs {
 		if _, deleted := deletedSet[resourceID]; deleted {
@@ -180,7 +202,61 @@ func (s *Service) DeleteAdminResources(actor *model.User, req AdminResourceDelet
 			result.Blocked = append(result.Blocked, blocked)
 		}
 	}
-	return result, nil
+	return result
+}
+
+// purgeAdminResourceAssets 彻底删除只被用户素材引用的资源及这些素材；仍被画布、作品等引用的资源保持阻塞。
+// 调用方须持有 storageMu。
+func (s *Service) purgeAdminResourceAssets(actor *model.User, resourcesByID map[string]model.Resource, blockedByID map[string]AdminResourceDeleteBlocked) (map[string]struct{}, error) {
+	purged := map[string]struct{}{}
+	referenceIDsByUser := map[string][]string{}
+	resourceIDsByUser := map[string][]string{}
+	for resourceID, blocked := range blockedByID {
+		resource, exists := resourcesByID[resourceID]
+		if !exists || len(blocked.References) == 0 {
+			continue
+		}
+		onlyAssets := true
+		for _, reference := range blocked.References {
+			if reference.Kind != "素材" {
+				onlyAssets = false
+				break
+			}
+		}
+		if !onlyAssets {
+			continue
+		}
+		for _, reference := range blocked.References {
+			referenceIDsByUser[resource.UserID] = append(referenceIDsByUser[resource.UserID], reference.ID)
+		}
+		resourceIDsByUser[resource.UserID] = append(resourceIDsByUser[resource.UserID], resourceID)
+	}
+	for userID, referenceIDs := range referenceIDsByUser {
+		assetIDs, err := s.repo.AssetIDsForReferenceIDs(userID, referenceIDs)
+		if err != nil {
+			return nil, err
+		}
+		if len(assetIDs) == 0 {
+			continue
+		}
+		if err := s.deleteUserAssetsWithResources(userID, assetIDs, true); err != nil {
+			return nil, err
+		}
+		event, err := newAdminAuditEvent(actor, "resource.purge_assets", "user", userID, "管理员连同素材彻底删除存储资源", map[string]any{
+			"assetIds": assetIDs, "resourceIds": resourceIDsByUser[userID],
+		})
+		if err != nil {
+			return nil, err
+		}
+		if err := s.repo.AppendAdminAudit(event); err != nil {
+			return nil, err
+		}
+		for _, resourceID := range resourceIDsByUser[userID] {
+			purged[resourceID] = struct{}{}
+			delete(blockedByID, resourceID)
+		}
+	}
+	return purged, nil
 }
 
 func normalizeAdminResourceDeleteIDs(values []string) ([]string, error) {

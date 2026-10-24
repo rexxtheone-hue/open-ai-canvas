@@ -159,22 +159,36 @@ export default function StorageResourcesPanel() {
         }
     };
 
-    const confirmDelete = (resourceIds: string[]) => {
+    const confirmDelete = (resourceIds: string[], purgeAssets = false) => {
         const uniqueIds = Array.from(new Set(resourceIds));
         modal.confirm({
-            title: uniqueIds.length > 1 ? `删除选中的 ${uniqueIds.length} 个资源？` : "删除这个资源？",
-            content: "系统会先批量检查公告、素材、画布、项目、工作流和镜头产物引用。仍被引用的资源会保留；无引用资源的记录、清理任务和审计事件会在同一事务提交。",
-            okText: uniqueIds.length > 1 ? "检查并删除" : "确认删除",
+            title: purgeAssets ? `连同用户素材永久删除 ${uniqueIds.length} 个资源？` : uniqueIds.length > 1 ? `删除选中的 ${uniqueIds.length} 个资源？` : "删除这个资源？",
+            content: purgeAssets
+                ? "只被用户素材引用的资源会连同这些素材一起永久删除，用户素材库和画布素材里都无法恢复；仍被画布、作品等引用的资源继续保留。"
+                : "系统会先批量检查公告、素材、画布、项目、工作流和镜头产物引用。仍被引用的资源会保留；无引用资源的记录、清理任务和审计事件会在同一事务提交。",
+            okText: purgeAssets ? "永久删除" : uniqueIds.length > 1 ? "检查并删除" : "确认删除",
             cancelText: "取消",
             okButtonProps: { danger: true },
             onOk: async () => {
                 setDeleting(true);
                 try {
-                    const result = await deleteAdminResources(uniqueIds);
+                    const result = await deleteAdminResources(uniqueIds, purgeAssets);
                     setSelectedIds([]);
                     setRefreshKey((value) => value + 1);
                     if (result.deleted.length > 0) message.success(`已删除 ${result.deleted.length} 个资源`);
                     if (result.blocked.length > 0) {
+                        const assetOnlyIds = purgeAssets ? [] : result.blocked.filter((item) => item.references.length > 0 && item.references.every((reference) => reference.kind === /* i18n-ignore */ "素材")).map((item) => item.id);
+                        if (assetOnlyIds.length > 0) {
+                            modal.confirm({
+                                title: result.deleted.length > 0 ? "部分资源未删除" : "资源未删除",
+                                content: <DeleteBlockedSummary blocked={result.blocked} />,
+                                okText: `连同素材永久删除 ${assetOnlyIds.length} 个`,
+                                okButtonProps: { danger: true },
+                                cancelText: "知道了",
+                                onOk: () => confirmDelete(assetOnlyIds, true),
+                            });
+                            return;
+                        }
                         modal.warning({
                             title: result.deleted.length > 0 ? "部分资源未删除" : "资源未删除",
                             content: <DeleteBlockedSummary blocked={result.blocked} />,
