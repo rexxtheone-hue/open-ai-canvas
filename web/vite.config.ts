@@ -41,6 +41,10 @@ export default defineConfig({
         },
     },
     build: {
+        // Vite 8 默认只兼容到 Safari 16.4；iPad / iPhone 上的所有浏览器都是 WebKit，旧系统会因
+        // class static 块、私有字段等语法直接白屏。降到 Safari 14 让构建自动转换这些语法。
+        target: ["es2020", "safari14", "chrome87", "edge88", "firefox78"],
+        cssTarget: ["safari14", "chrome87", "edge88", "firefox78"],
         rolldownOptions: {
             output: {
                 strictExecutionOrder: true,
