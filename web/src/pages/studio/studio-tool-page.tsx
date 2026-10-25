@@ -8,6 +8,7 @@ import { ImageSettingsPanel } from "@/components/image-settings-panel";
 import { VideoSettingsPanel } from "@/components/video-settings-panel";
 import { CreditSymbol } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
+import { selectableModelsByCapability } from "@/stores/use-config-store";
 import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
 import { videoModeMaterialRole, videoModeUsesMaterial } from "@/lib/video-modes";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
@@ -162,6 +163,15 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
         if (fixedRatioSupported) updateImage({ ratio: fixedRatio });
         else if (state.image.ratio === fixedRatio) updateImage({ ratio: studioImageDefaultRatio(config, resolvedModel) });
     }, [config, fixedRatio, fixedRatioSupported, resolvedModel, state.image.ratio, updateImage]);
+    // 固定比例的工具（全景 2:1）一进来就换到支持该比例的模型；用户之后手动换模型不再干预。
+    const ratioModelRef = useRef(false);
+    useEffect(() => {
+        if (!specialtySpec?.outputRatio || !resolvedModel || ratioModelRef.current) return;
+        ratioModelRef.current = true;
+        if (fixedRatioSupported) return;
+        const fallback = selectableModelsByCapability(config, kind).find((model) => studioModelSupportsSpecialty(config, model, specialty) && studioImageRatioSupported(config, model, specialtySpec.outputRatio!));
+        if (fallback) studio.update({ model: fallback });
+    }, [config, fixedRatioSupported, kind, resolvedModel, specialty, specialtySpec, studio]);
     const ratioMismatch = Boolean(fixedRatio && resolvedModel && !fixedRatioSupported);
 
     /** 放进槽位：多素材槽位追加（去重、不超过上限），单素材槽位替换。 */

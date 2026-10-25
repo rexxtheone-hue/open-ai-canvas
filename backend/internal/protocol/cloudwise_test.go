@@ -214,6 +214,10 @@ func TestCloudwiseSeedream5ProMapsRatioToPixelsAndParsesSyncResult(t *testing.T)
 		t.Fatalf("create = %#v", create)
 	}
 	assertJSONEqual(t, body, `{"model":"doubao-seedream-5-0-pro-260628","prompt":"咖啡馆","size":"2848x1600","response_format":"url","watermark":false,"output_format":"png"}`)
+	_, pano := cloudwiseBody(t, "cloudwise-seedream-image", GenerationRequest{Model: "m", Prompt: "全景", AspectRatio: "2:1", Resolution: "2k"})
+	if pano["size"] != "2880x1440" {
+		t.Fatalf("2:1 size = %v", pano["size"])
+	}
 	_, one := cloudwiseBody(t, "cloudwise-seedream-image", GenerationRequest{Model: "m", Prompt: "p", AspectRatio: "9:16", Resolution: "1K", Images: []MediaReference{{URL: "https://x/1.png"}}})
 	assertJSONEqual(t, one, `{"model":"m","prompt":"p","image":"https://x/1.png","size":"736x1312","response_format":"url","watermark":false,"output_format":"png"}`)
 	_, many := cloudwiseBody(t, "cloudwise-seedream-image", GenerationRequest{Model: "m", Prompt: "p", AspectRatio: "1600x900", Images: []MediaReference{{URL: "https://x/1.png"}, {URL: "https://x/2.png"}}})
