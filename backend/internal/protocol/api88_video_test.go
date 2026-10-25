@@ -353,8 +353,23 @@ func TestAPI88VideoVeoReferenceMode(t *testing.T) {
 	if metadata, _ := frame["metadata"].(map[string]any); metadata["firstFrame"] != "https://cdn.example/s.jpg" || metadata["video_mode"] != nil {
 		t.Fatalf("veo first frame must not switch to reference mode: %#v", frame)
 	}
-	if _, err := build(GenerationRequest{Prompt: "x", Duration: 4, Images: []MediaReference{{URL: "https://cdn.example/a.jpg"}}}); err == nil {
-		t.Fatal("veo reference mode must reject durations other than 8 seconds")
+	// 参考图模式固定 8 秒：1–2 张图选了其他时长时不带 video_mode，88API 按首帧/首尾帧处理。
+	short, err := build(GenerationRequest{Prompt: "x", Duration: 4, Images: []MediaReference{{URL: "https://cdn.example/a.jpg"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if images, _ := short["images"].([]any); len(images) != 1 || short["duration"] != 4 {
+		t.Fatalf("veo 4s single image must be sent as a frame image: %#v", short)
+	}
+	if metadata, ok := short["metadata"].(map[string]any); ok && metadata["video_mode"] != nil {
+		t.Fatalf("veo 4s single image must not use reference mode: %#v", short)
+	}
+	three := []MediaReference{{URL: "https://cdn.example/a.jpg"}, {URL: "https://cdn.example/b.jpg"}, {URL: "https://cdn.example/c.jpg"}}
+	if _, err := build(GenerationRequest{Prompt: "x", Duration: 4, Images: three}); err == nil {
+		t.Fatal("veo with 3 reference images must reject durations other than 8 seconds")
+	}
+	if _, err := build(GenerationRequest{Prompt: "x", Duration: 8, Images: three}); err != nil {
+		t.Fatal(err)
 	}
 	if omni, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.88api.ai", Request: GenerationRequest{Model: "gemini-omni-flash-1.1", Prompt: "x", Duration: 4, Images: []MediaReference{{URL: "https://cdn.example/a.jpg"}}}}); err != nil {
 		t.Fatal(err)

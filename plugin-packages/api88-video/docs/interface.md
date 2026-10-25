@@ -76,7 +76,7 @@
 ## Grok 与 Veo 规则
 
 - `grok-imagine-video`、`grok-imagine-video-1.5` 只从顶层 `images` 读图片（最多 1 张，作为首帧），不读 `metadata.firstFrame`，所以首帧也放顶层 `images`，不再写 `metadata.firstFrame`。
-- `veo-3.1`、`veo-3.1-fast` 收到 1–2 张普通图片时默认当首尾帧；有非首尾帧角色的参考图时发送 `metadata.video_mode: "reference"`。参考图模式固定 8 秒，时长不是 8 秒时发送前拒绝。
+- `veo-3.1`、`veo-3.1-fast` 收到 1–2 张普通图片时默认当首尾帧；有非首尾帧角色的参考图时发送 `metadata.video_mode: "reference"`。参考图模式固定 8 秒：1–2 张图且时长不是 8 秒时不发送 `video_mode`，88API 按首帧或首尾帧处理（4/6/8 秒）；3 张参考图且时长不是 8 秒时发送前拒绝。
 
 ## Provider 扩展键
 
@@ -881,28 +881,32 @@
                               }
                             }
                           },
-                          0
+                          2
                         ]
                       }
                     ]
                   }
                 },
                 {
-                  "$not": {
-                    "$ref": "request.duration"
-                  }
-                },
-                {
-                  "$eq": [
+                  "$or": [
                     {
-                      "$ref": "request.duration"
+                      "$not": {
+                        "$ref": "request.duration"
+                      }
                     },
-                    8
+                    {
+                      "$eq": [
+                        {
+                          "$ref": "request.duration"
+                        },
+                        8
+                      ]
+                    }
                   ]
                 }
               ]
             },
-            "message": "Veo 参考图模式固定 8 秒，请把时长改成 8 秒，或改用首帧图生视频。"
+            "message": "Veo 用 3 张参考图时固定 8 秒，请把时长改成 8 秒，或减少到 1–2 张图。"
           }
         ],
         "parameters": [
@@ -1919,6 +1923,60 @@
                               }
                             },
                             0
+                          ]
+                        },
+                        {
+                          "$or": [
+                            {
+                              "$or": [
+                                {
+                                  "$not": {
+                                    "$ref": "request.duration"
+                                  }
+                                },
+                                {
+                                  "$eq": [
+                                    {
+                                      "$ref": "request.duration"
+                                    },
+                                    8
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "$gt": [
+                                {
+                                  "$len": {
+                                    "$filter": {
+                                      "from": {
+                                        "$coalesce": [
+                                          {
+                                            "$ref": "request.images"
+                                          },
+                                          []
+                                        ]
+                                      },
+                                      "as": "media",
+                                      "where": {
+                                        "$not": {
+                                          "$in": [
+                                            {
+                                              "$ref": "media.role"
+                                            },
+                                            [
+                                              "first_frame",
+                                              "last_frame"
+                                            ]
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                2
+                              ]
+                            }
                           ]
                         }
                       ]
