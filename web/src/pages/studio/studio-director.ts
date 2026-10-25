@@ -231,6 +231,7 @@ export function directorSystemPrompt(context: DirectorPromptContext) {
         "```",
         `   - 每个镜头 2 到 ${MAX_SHOT_SECONDS} 秒，所有镜头时长加起来等于目标时长。修改已有镜头时必须带上原来的 id；新镜头不写 id。`,
         "   - characters 只能用角色清单里的名字；visual 不要写角色名以外的人名。",
+        "   - 旁白必须能在这一镜的时长内读完：中文每秒最多 4 个字，英文每秒最多 2.5 个词，超出就精简或加长镜头。",
         "   - memory 记录本项目的决定、限制、待办、待确认问题和备注，每次输出完整内容。",
         ...(boardMode ? [
             `制作方式：分镜板模式。系统把相邻镜头按每段最多 ${DIRECTOR_SEGMENT_MAX_SECONDS} 秒、${DIRECTOR_SEGMENT_MAX_SHOTS} 个镜头分成一段，每段先生成一张分镜板（角色参考 + 编号画面），再按分镜板一次生成整段视频。`,

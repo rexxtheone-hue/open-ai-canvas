@@ -27,6 +27,7 @@
   "- 一次最多 {0} 项。": "- At most {0} items at a time.",
   "- 作者：{0}": "- Author: {0}",
   "- 只返回一个 JSON 对象，不要 Markdown、表格、代码块、注释或任何解释文字。": "- Return only one JSON object, with no Markdown, tables, code blocks, comments or any explanatory text.",
+  "- 旁白必须能在这一镜的时长内读完：中文每秒最多 4 个字，英文每秒最多 2.5 个词，超出就精简或加长镜头。": "- The voiceover must fit within the shot duration: at most 4 Chinese characters or 2.5 English words per second. Trim it or lengthen the shot if it is too long.",
   "- 每个镜头 2 到 5 秒最合适；同一段的镜头放在同一场景、同一批角色，景别要有变化（远景、中景、特写交替）。": "- 2 to 5 seconds per shot works best. Keep shots in one segment in the same location with the same characters, and vary the shot size (alternate wide, medium and close-up).",
   "- 每个镜头 2 到 {0} 秒，所有镜头时长加起来等于目标时长。修改已有镜头时必须带上原来的 id；新镜头不写 id。": "- Each shot is 2 to {0} seconds and all shots add up to the target length. When changing an existing shot you must keep its original id; leave id out for new shots.",
   "- 版本：{0}": "- Version: {0}",

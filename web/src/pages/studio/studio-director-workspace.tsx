@@ -755,7 +755,7 @@ export default function StudioDirectorWorkspace() {
                     </div>
 
                     <div className="studio-timeline" aria-label="时间线">
-                        <TimelineTrack label="画面" icon={<Film aria-hidden />} clips={timeline.timeline.clips.filter((clip) => clip.trackId === "video")} totalMs={totalMs} render={(clip) => `镜头 ${clip.shotNo}`} />
+                        <TimelineTrack label="画面" icon={<Film aria-hidden />} clips={timeline.timeline.clips.filter((clip) => clip.trackId === "video")} totalMs={totalMs} render={(clip) => (clip.id.startsWith("seg-") ? `第 ${segments.find((segment) => segment.shotNumbers[0] === clip.shotNo)?.no ?? 1} 段` : `镜头 ${clip.shotNo}`)} />
                         <div className="studio-timeline-row">
                             <span className="studio-timeline-label"><Music aria-hidden />音乐</span>
                             <div className="studio-timeline-lane">
