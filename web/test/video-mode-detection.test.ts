@@ -13,7 +13,8 @@ const input = (imageCount: number, videoCount = 0, audioCount = 0) => ({ imageCo
 describe("video mode detection", () => {
     test("Seedance-style models", () => {
         expect(detectVideoMode(seedance, input(0))).toBe("text_to_video");
-        expect(detectVideoMode(seedance, input(1))).toBe("image_to_video");
+        expect(detectVideoMode(seedance, input(1))).toBe("reference_to_video");
+        expect(detectVideoMode(undefined, input(1))).toBe("image_to_video");
         expect(detectVideoMode(seedance, input(2))).toBe("reference_to_video");
         expect(detectVideoMode(seedance, input(4))).toBe("reference_to_video");
         expect(detectVideoMode(seedance, input(1, 0, 1))).toBe("reference_to_video");

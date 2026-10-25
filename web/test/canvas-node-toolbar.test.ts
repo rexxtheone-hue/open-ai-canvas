@@ -57,7 +57,7 @@ describe("canvas node toolbar model", () => {
         const groups = new Map(tools.map((tool) => [tool.id, resolveNodeToolbarPlacement(tool, ctx).group]));
 
         expect([...groups].filter(([, group]) => group === "primary").map(([id]) => id)).toEqual(["trimRegenerate", "subtitles"]);
-        expect([...groups].filter(([, group]) => group === "process").map(([id]) => id)).toEqual(["extractFrames", "extractAudio"]);
+        expect([...groups].filter(([, group]) => group === "process").map(([id]) => id)).toEqual(["extractFrames", "extractAudio", "upscaleVideo"]);
         expect(groups.get("download")).toBe("utility");
         expect(groups.get("timeline")).toBe("workspace");
         expect(groups.get("uploadVideo")).toBe("more");

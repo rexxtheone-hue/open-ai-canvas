@@ -1,4 +1,4 @@
-import { AudioLines, Captions, Clapperboard, Download, FolderPlus, Images, Image as ImageIcon, Info, LoaderCircle, Lock, Maximize2, MessageSquare, Minus, Music2, Plus, RefreshCw, Scissors, Settings2, Trash2, Unlock, Upload, UserRound, Video, WandSparkles } from "lucide-react";
+import { AudioLines, Captions, Clapperboard, Download, FolderPlus, Images, Image as ImageIcon, Info, LoaderCircle, Lock, Maximize2, MessageSquare, Minus, Music2, Plus, RefreshCw, Scissors, Settings2, Sparkles, Trash2, Unlock, Upload, UserRound, Video, WandSparkles } from "lucide-react";
 
 import { CONTENT_MODERATION_ERROR_CODE, isContentModerationError } from "@/lib/generation-error";
 import { registerToolbarTools, type ToolContext, type ToolDefinition } from "@/lib/canvas/tool-registry";
@@ -115,6 +115,19 @@ export const nodeHoverToolbarTools: ToolDefinition[] = [
         applicable: (ctx) => hasVideo(ctx) && !simpleMode(ctx),
         disabled: (ctx) => ctx.extractingAudio || ctx.trimmingVideo,
         run: (ctx) => ctx.handlers.onNodeTrimVideoSegments(ctx.node!),
+    },
+    {
+        id: "upscaleVideo",
+        toolbar: "node-hover",
+        category: "node-state",
+        label: "用视频高清模型生成更清晰的版本",
+        displayLabel: "视频高清",
+        icon: <Sparkles className="size-3.5" />,
+        defaultVisible: true,
+        defaultOrder: 46,
+        nodeToolbar: { group: "process", order: 30, section: "AI 处理", description: "新建高清节点，确认模型后生成" },
+        applicable: (ctx) => hasVideo(ctx) && !simpleMode(ctx),
+        run: (ctx) => ctx.handlers.onNodeUpscaleVideo(ctx.node!),
     },
     {
         id: "saveAsset",

@@ -39,7 +39,7 @@ import { quoteModel, type LogicalModelQuote } from "@/services/api/logical-model
 import { ConnectedReferenceShelf, ReferenceToolsPopover, referenceShelfHeading } from "./canvas-node-prompt-references";
 import { PromptModalResizeHandle, PromptResizeHandle, clampExpandedModalSize, clampPromptHeight, estimatePromptContentHeight, promptEditorBounds } from "./canvas-node-prompt-resize";
 import { audioConfigPatch, buildNodeConfig, defaultMode, modeDisplayName, promptPlaceholder, videoConfigPatch } from "./canvas-node-prompt-config";
-import { videoModeLabel, videoModeMaterialRole, videoModeShouldReset, videoModeUsesMaterial, type VideoMode } from "@/lib/video-modes";
+import { isSpecialtyVideoOperation, videoModeLabel, videoModeMaterialRole, videoModeShouldReset, videoModeUnavailableReason, videoModeUsesMaterial, type VideoMode } from "@/lib/video-modes";
 import { CanvasVideoModeMenu } from "@/components/canvas/canvas-video-mode-menu";
 import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
 
@@ -191,6 +191,10 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     const config = buildNodeConfig(globalConfig, node, mode, requirements);
     const videoProfile = mode === "video" ? modelCapabilityConfigFor(config, config.model).video : undefined;
     const effectiveVideoMode: VideoMode = explicitVideoMode || detectVideoMode(videoProfile, requirements.input!);
+    // 视频高清这类专项节点不走生成模式，只能选支持该操作的模型。
+    const specialtyOperation = mode === "video" && isSpecialtyVideoOperation(node.metadata?.videoEditOperation) ? node.metadata.videoEditOperation : undefined;
+    // 模型没勾选任何生成模式时（比如只会做高清），自动判断会退回图生视频，提交到供应商必然失败。
+    const videoModeModelError = !specialtyOperation && videoProfile?.operations.length ? videoModeUnavailableReason(videoProfile, effectiveVideoMode) : undefined;
     useEffect(() => {
         // 换成不支持当前模式的模型时，回到按连线素材自动判断。
         if (explicitVideoMode && videoModeShouldReset(videoProfile, explicitVideoMode, videoModeInput)) onConfigChange(node.id, { videoMode: undefined });
@@ -340,6 +344,10 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     const submit = () => {
         const text = prompt.trim();
         if (!text || isRunning) return false;
+        if (videoModeModelError) {
+            toast.warning(`${videoModeModelError}，请换一个视频模型`);
+            return false;
+        }
         if (creditShortfall > 0) {
             toast.warning(`积分不足，这次需要 ${credits?.toLocaleString("zh-CN", { maximumFractionDigits: 6 })}，还差 ${(Math.ceil(creditShortfall * 100) / 100).toLocaleString("zh-CN", { maximumFractionDigits: 2 })}，请先充值`);
             openWorkspaceWallet();
@@ -493,6 +501,11 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                         value={config.model}
                         onChange={(model) => onConfigChange(node.id, mode === "image" ? { model, ...defaultImageParamsForModel(config, model) } : { model })}
                         capability={mode}
+                        modelFilter={mode === "video" ? (model) => {
+                            const operations = modelCapabilityConfigFor(config, model).video?.operations || [];
+                            if (specialtyOperation) return operations.includes(specialtyOperation);
+                            return !operations.length || !operations.every(isSpecialtyVideoOperation);
+                        } : undefined}
                         requirements={resolvedRequirements}
                         onMissingConfig={() => navigateToSettings({ continueCreation: true })}
                         showSelectedPrice={false}
@@ -502,7 +515,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
                     />
                 </div>
                 <div className="ml-auto flex min-w-0 shrink-0 items-center gap-1">
-                    {mode === "video" ? (
+                    {mode === "video" && !specialtyOperation ? (
                         <CanvasVideoModeMenu
                             profile={videoProfile}
                             input={videoModeInput}

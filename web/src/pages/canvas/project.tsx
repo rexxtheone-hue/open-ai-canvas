@@ -926,6 +926,7 @@ function CanvasViewportPage() {
         splitImageNode,
         openVideoFrameExtractor,
         openVideoSegmentExtractor,
+        createVideoUpscaleNode,
         upscaleImageNode,
         upscaleNodeId,
     } = useCanvasMediaTools({
@@ -3098,6 +3099,7 @@ function CanvasViewportPage() {
                                 onExtractVideoFrames={openVideoFrameExtractor}
                                 onExtractAudioFromVideo={(node) => void extractAudioFromVideo(node)}
                                 onTrimVideoSegments={openVideoSegmentExtractor}
+                                onUpscaleVideo={createVideoUpscaleNode}
                                 onSubtitles={(node) => setSubtitleNodeId(node.id)}
                                 onTimeline={(node) => setTimelineNodeId(node.id)}
                                 extractingVideoFrames={toolbarNode?.id === extractingVideoFramesNodeId}

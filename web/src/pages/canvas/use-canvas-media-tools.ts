@@ -66,7 +66,7 @@ function normalizeMaskEditQuality(quality: string | undefined, size: string | un
     const pixels = Number(match[1]) * Number(match[2]);
     return pixels <= 2_000_000 ? "1k" : pixels <= 4_300_000 ? "2k" : pixels <= 8_294_400 ? "4k" : quality || "auto";
 }
-import { defaultConfig, resolveModelRequestConfig, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+import { defaultConfig, resolveModelRequestConfig, selectableModelsByCapability, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData, type ContextMenuState } from "@/types/canvas";
 import type { StartCanvasUploadStatus } from "./use-canvas-upload";
 
@@ -96,6 +96,7 @@ const NODE_STATUS_LOADING = "loading" as const;
 const NODE_STATUS_SUCCESS = "success" as const;
 const NODE_STATUS_ERROR = "error" as const;
 const NODE_STATUS_IDLE = "idle" as const;
+const VIDEO_UPSCALE_PROMPT = "把视频提升到更高清晰度，增强细节，去除噪点和压缩痕迹，保持画面内容、动作和时长不变。";
 
 export function useCanvasMediaTools({
     projectId,
@@ -355,6 +356,42 @@ export function useCanvasMediaTools({
         setSegmentDialogNodeId(node.id);
         setSegmentDialogMode("video");
     }, [message, setHoveredNodeId, setToolbarNodeId]);
+
+    // 视频高清：在右侧建一个连着原视频的待生成节点，预选支持高清的模型，用户确认后再生成。
+    const createVideoUpscaleNode = useCallback((node: CanvasNodeData) => {
+        if (!node.metadata?.content) {
+            message.warning("视频节点为空，无法做高清");
+            return;
+        }
+        const model = selectableModelsByCapability(effectiveConfig, "video").find((item) => modelCapabilityConfigFor(effectiveConfig, item).video?.operations.includes("video_upscale"));
+        if (!model) {
+            message.warning("后台还没有支持「视频高清」的模型，请管理员在模型能力里开启");
+            return;
+        }
+        const spec = NODE_DEFAULT_SIZE[CanvasNodeType.Video];
+        const targetNode: CanvasNodeData = {
+            id: nanoid(),
+            type: CanvasNodeType.Video,
+            title: `${node.title || "视频"} · 高清`,
+            position: { x: node.position.x + node.width + 96, y: node.position.y + (node.height - spec.height) / 2 },
+            width: spec.width,
+            height: spec.height,
+            metadata: { prompt: VIDEO_UPSCALE_PROMPT, status: NODE_STATUS_IDLE, generationMode: "video", model, videoEditOperation: "video_upscale" },
+        };
+        const nextNodes = [...nodesRef.current, targetNode];
+        const nextConnections = [...connectionsRef.current, { id: nanoid(), fromNodeId: node.id, toNodeId: targetNode.id }];
+        nodesRef.current = nextNodes;
+        connectionsRef.current = nextConnections;
+        setNodes(nextNodes);
+        setConnections(nextConnections);
+        const selection = new Set([targetNode.id]);
+        selectedNodeIdsRef.current = selection;
+        setSelectedNodeIds(selection);
+        setSelectedConnectionId(null);
+        setHoveredNodeId(null);
+        setToolbarNodeId(null);
+        setDialogNodeId(targetNode.id);
+    }, [connectionsRef, effectiveConfig, message, nodesRef, selectedNodeIdsRef, setConnections, setDialogNodeId, setHoveredNodeId, setNodes, setSelectedConnectionId, setSelectedNodeIds, setToolbarNodeId]);
 
     const closeSegmentDialog = useCallback(() => {
         if (segmentRunningRef.current) return;
@@ -1751,6 +1788,7 @@ export function useCanvasMediaTools({
         splitImageNode,
         openVideoFrameExtractor,
         openVideoSegmentExtractor,
+        createVideoUpscaleNode,
         upscaleImageNode,
         upscaleNodeId,
     };

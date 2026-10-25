@@ -429,6 +429,7 @@ function videoOperationLabel(operation: CanvasVideoEditOperation) {
         audio_to_video: "音频生视频",
         compare_versions: "版本对比",
         concat: "拼接成片",
+        video_upscale: "视频高清",
     };
     return labels[operation] || operation;
 }

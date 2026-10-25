@@ -450,7 +450,7 @@ const VIDEO_EDIT_OPERATIONS = ["inpaint", "replace_element", "style_transfer", "
  * - 只有一段视频：全能参考 → 视频编辑 → 视频续写；视频再加其它素材：全能参考
  * - 只有音频：音频生视频 → 全能参考
  * - 图片 + 音频：全能参考 → 图生视频（音频作驱动）
- * - 1 张图：图生视频 → 全能参考
+ * - 1 张图：模型支持全能参考时当参考图，否则图生视频；不知道模型能力时图生视频
  * - 2 张图：模型支持全能参考时当作两张参考图，否则首尾帧
  * - 3 张以上：全能参考 → 图生视频
  */
@@ -462,7 +462,8 @@ export function inferVideoOperation(input: ModelInputSummary, supportedOperation
     if (input.videoCount > 0) return visual === 0 && input.audioCount === 0 && input.videoCount === 1 ? pick("reference_to_video", "inpaint", "extend") : "reference_to_video";
     if (visual === 0) return pick("audio_to_video", "reference_to_video");
     if (input.audioCount > 0) return pick("reference_to_video", "image_to_video");
-    if (visual === 1) return pick("image_to_video", "reference_to_video");
+    // 部分渠道（如 Seedance 2.5）只认参考图、拒绝首帧，所以有全能参考时优先用它。
+    if (visual === 1) return supportedOperations?.length ? pick("reference_to_video", "image_to_video") : "image_to_video";
     return pick("reference_to_video", "image_to_video");
 }
 

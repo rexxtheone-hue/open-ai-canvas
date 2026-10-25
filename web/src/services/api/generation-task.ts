@@ -204,13 +204,15 @@ export async function runBackendGenerationTaskBatch(options: BackendGenerationTa
 
 function generationOperation(options: BackendGenerationTaskOptions) {
     if (options.mode !== "video") return options.mode;
+    // 标了首帧/尾帧就是图生视频（含手动选择），否则与界面一样按模型能力自动判断。
+    if (options.referenceImages?.some((image) => image.role === "first_frame" || image.role === "last_frame")) return "image_to_video";
     return resolveVideoOperation({
         textCount: 0,
         imageCount: options.referenceImages?.length ?? 0,
         videoCount: options.referenceVideos?.length ?? 0,
         audioCount: options.referenceAudios?.length ?? 0,
         characterCount: 0,
-    }, options.metadata?.videoEditOperation as string | undefined);
+    }, options.metadata?.videoEditOperation as string | undefined, undefined, modelCapabilityConfigFor(options.config, options.config.model).video?.operations);
 }
 
 export function isGenerationTaskCancelled(error: unknown, signal?: AbortSignal) {

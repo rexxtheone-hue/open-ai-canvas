@@ -39,7 +39,7 @@ export function priceTiersForCurrentSelection(tiers: ModelPriceTier[], capabilit
     const requested = priceSelectorForRequest(capability, config, requirements);
     const declaredParameters = Boolean(modelCapabilityConfigFor(config, config.model || config.imageModel).image?.parameters);
     // 全能参考、续写、编辑优先匹配各自的专属价格；没有专属价格时按素材归类兜底，与后端一致。
-    const special = capability === "video" ? videoPricingOperation(requestedVideoOperation(requirements)) : undefined;
+    const special = capability === "video" ? videoPricingOperation(requestedVideoOperation(config, requirements)) : undefined;
     if (special) {
         const exclusive = tiers.filter((tier) => priceSelectorForTier(tier, declaredParameters).operation === special);
         const matched = bestMatchingTiers(exclusive, { ...requested, operation: special }, declaredParameters);
@@ -66,9 +66,9 @@ function bestMatchingTiers(tiers: ModelPriceTier[], requested: Record<string, st
     return matched;
 }
 
-function requestedVideoOperation(requirements?: ModelRequirements) {
+function requestedVideoOperation(config: AiConfig, requirements?: ModelRequirements) {
     const input = requirements?.input;
-    if (input) return resolveVideoOperation(input, requirements?.videoOperation, requirements?.videoMode);
+    if (input) return resolveVideoOperation(input, requirements?.videoOperation, requirements?.videoMode, modelCapabilityConfigFor(config, config.model).video?.operations);
     return requirements?.videoMode ? videoModeOperation(requirements.videoMode) : requirements?.videoOperation;
 }
 
@@ -118,7 +118,7 @@ export function modelQuoteRequest(config: AiConfig, value: string, capability?: 
     const input = requirements?.input;
     const intent: ModelRequestIntent = {
         capability,
-        operation: capability === "image" ? imagePriceOperation(requirements) : capability === "video" && input ? resolveVideoOperation(input, requirements?.videoOperation, requirements?.videoMode) : requirements?.videoOperation,
+        operation: capability === "image" ? imagePriceOperation(requirements) : capability === "video" && input ? resolveVideoOperation(input, requirements?.videoOperation, requirements?.videoMode, modelCapabilityConfigFor(config, value).video?.operations) : requirements?.videoOperation,
         inputs: {
             image: (input?.imageCount || 0) + (input?.characterCount || 0),
             video: input?.videoCount || 0,
