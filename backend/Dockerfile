@@ -67,7 +67,8 @@ RUN npm ci --omit=dev --ignore-scripts
 
 FROM node:22.19-alpine
 
-RUN apk add --no-cache ca-certificates tzdata wget \
+# ffmpeg / ffprobe：成片合成、H.265 播放副本和按实际时长结算都依赖它，缺失时合成任务直接失败。
+RUN apk add --no-cache ca-certificates tzdata wget ffmpeg \
     && addgroup -S app \
     && adduser -S app -G app
 
