@@ -167,8 +167,8 @@ function QuickStartForm({ config, runMode, starting, initialCharacterIds = [], b
                 <div key={field.key} className="studio-field">
                     <span>
                         {field.label}
-                        {field.kind === "images" ? <small> ({list.length}/{field.max})</small> : null}
                         {field.optional ? <small> 可选</small> : field.kind === "images" && field.min ? <small> 至少 {field.min} 张</small> : <b aria-hidden> *</b>}
+                        {field.kind === "images" ? <small className="studio-qs-count">{list.length}/{field.max}</small> : null}
                     </span>
                     <div className="studio-qs-uploads">
                         {list.map((item, index) => (
