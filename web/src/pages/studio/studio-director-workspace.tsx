@@ -1171,26 +1171,37 @@ function AskCard({ ask, active, onPick }: { ask: DirectorAsk; active: boolean; o
 function SegmentCard({ segment, versions, busy, selected, onSelect, onGenerate }: { segment: DirectorSegment; versions: ReturnType<typeof directorVersionIndex>; busy: boolean; selected: boolean; onSelect: () => void; onGenerate: (step: "boards" | "videos") => void }) {
     const board = directorActiveWork(segment.anchor, "image", versions);
     const video = directorActiveWork(segment.anchor, "video", versions);
+    const [boardOpen, setBoardOpen] = useState(false);
     const first = segment.shotNumbers[0];
     const last = segment.shotNumbers[segment.shotNumbers.length - 1];
-    const media = directorWorkReady(video) ? <video src={workMediaSrc(video)} muted playsInline preload="metadata" />
-        : directorWorkReady(board) ? <img src={workMediaSrc(board)} alt="" loading="lazy" />
-            : directorWorkActive(board) || directorWorkActive(video) ? <span className="studio-shot-state"><Loader2 className="studio-spin" aria-hidden />生成中</span>
-                : board?.status === "failed" || video?.status === "failed" ? <span className="studio-shot-state is-failed">生成失败</span>
-                    : <span className="studio-shot-state">待生成分镜板</span>;
+    const boardReady = directorWorkReady(board);
+    const videoReady = directorWorkReady(video);
+    // 卡片始终显示分镜板，视频在左侧预览里播放；没有分镜板时才显示状态。
+    const media = boardReady ? <img src={workMediaSrc(board)} alt={`第 ${segment.no} 段分镜板`} loading="lazy" />
+        : directorWorkActive(board) ? <span className="studio-shot-state"><Loader2 className="studio-spin" aria-hidden />生成中</span>
+            : board?.status === "failed" ? <span className="studio-shot-state is-failed">生成失败</span>
+                : <span className="studio-shot-state">待生成分镜板</span>;
     return (
         <article className={`studio-segment${selected ? " is-selected" : ""}`} aria-label={`第 ${segment.no} 段`}>
-            <button type="button" className="studio-segment-media" onClick={onSelect} aria-pressed={selected} aria-label={`预览第 ${segment.no} 段`}>
+            <button type="button" className="studio-segment-media" onClick={() => (boardReady ? setBoardOpen(true) : onSelect())} aria-label={boardReady ? `查看第 ${segment.no} 段分镜板` : `预览第 ${segment.no} 段`}>
                 {media}
                 <b>{segment.no}</b>
                 <em>{segment.seconds}s</em>
+                {videoReady ? <i>视频已完成</i> : directorWorkActive(video) ? <i><Loader2 className="studio-spin" aria-hidden />视频生成中</i> : video?.status === "failed" ? <i className="is-failed">视频生成失败</i> : null}
             </button>
             <footer>
-                <span className="studio-hint">镜头 {first === last ? first : `${first}–${last}`}{directorWorkReady(video) ? " · 视频已完成" : directorWorkReady(board) ? " · 分镜板已完成" : ""}</span>
+                <span className="studio-hint">镜头 {first === last ? first : `${first}–${last}`}</span>
                 <span style={{ flex: 1 }} />
+                {videoReady ? <button type="button" className="studio-mini-button" aria-pressed={selected} onClick={onSelect}><Film aria-hidden />{selected ? "收起视频" : "播放视频"}</button> : null}
                 <button type="button" className="studio-icon-button" title={directorWorkReady(board) ? "重做分镜板" : "生成分镜板"} aria-label={`生成第 ${segment.no} 段分镜板`} disabled={busy} onClick={() => onGenerate("boards")}><LayoutGrid aria-hidden /></button>
                 <button type="button" className="studio-icon-button" title={directorWorkReady(video) ? "重做整段视频" : "按分镜板生成视频"} aria-label={`生成第 ${segment.no} 段视频`} disabled={busy || !directorWorkReady(board)} onClick={() => onGenerate("videos")}><Film aria-hidden /></button>
             </footer>
+            {boardOpen && boardReady ? (
+                <AppModal rootClassName="studio-modal studio-board-modal" open width={1100} title={`第 ${segment.no} 段分镜板 · 镜头 ${first === last ? first : `${first}–${last}`}`} footer={null} onCancel={() => setBoardOpen(false)}>
+                    <img className="studio-board-full" src={workMediaSrc(board)} alt={`第 ${segment.no} 段分镜板`} />
+                    <a className="studio-mini-button" href={workMediaSrc(board)} download={`分镜板-${segment.no}.png`} target="_blank" rel="noreferrer"><Download aria-hidden />下载分镜板</a>
+                </AppModal>
+            ) : null}
         </article>
     );
 }
