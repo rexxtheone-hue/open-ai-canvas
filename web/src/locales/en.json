@@ -834,6 +834,7 @@
   "{0} 文件夹操作": "{0} folder actions",
   "{0} 文件夹，共 {1} 项": "{0} folder, {1} items",
   "{0} 无效，请填写完整地址，例如：https://api.example.com/v1": "{0} is invalid. Enter a full URL, for example: https://api.example.com/v1",
+  "{0} 暂时繁忙，已改用 {1} 回复": "{0} is busy right now, switched to {1} for this reply",
   "{0} 更新": "{0} updated",
   "{0} 条": "{0} items",
   "{0} 条可用": "{0} available",

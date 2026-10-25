@@ -11,6 +11,7 @@ import {
     directorBoardVideoPrompt,
     directorBriefError,
     directorDefaultTextModel,
+    directorFallbackTextModel,
     directorHistory,
     directorMessageParts,
     directorProductionMode,
@@ -267,6 +268,9 @@ describe("分镜板模式", () => {
         expect(directorDefaultTextModel(["m1", "m2", "m3"], label, "m3", "m1")).toBe("m3");
         expect(directorDefaultTextModel(["m1", "m2", "m3"], label, "", "m1")).toBe("m2");
         expect(directorDefaultTextModel(["m1", "m3"], label, "gone", "m3")).toBe("m3");
+        expect(directorFallbackTextModel(["m1", "m2", "m3"], label, "m2")).toBe("m3");
+        expect(directorFallbackTextModel(["m1", "m2", "m3"], label, "m3")).toBe("m2");
+        expect(directorFallbackTextModel(["m1"], label, "m1")).toBe("");
     });
 
     test("分镜板模式的系统提示词说明 boards 指令和选择题格式", () => {

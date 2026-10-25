@@ -43,6 +43,7 @@ import {
     directorBoardTargets,
     directorBoardVideoPrompt,
     directorDefaultTextModel,
+    directorFallbackTextModel,
     directorHistory,
     directorMessageParts,
     directorProductionMode,
@@ -391,18 +392,28 @@ export default function StudioDirectorWorkspace() {
             setMessages(withUser);
             setStreaming("");
             let reply = "";
+            const ask = (model: string) => runBackendGenerationTask({
+                mode: "text",
+                prompt: content,
+                config: { ...config, model, textModel: model, systemPrompt: directorSystemPrompt({ story: current, characters, brand: brand?.prompt, kinds }) } as AiConfig,
+                textHistory: directorHistory(before),
+                metadata: { studioAgent: "director", storyId: current.id },
+                onTextDelta: (delta) => {
+                    reply += delta;
+                    setStreaming(directorVisibleText(reply));
+                },
+            });
             try {
-                const result = await runBackendGenerationTask({
-                    mode: "text",
-                    prompt: content,
-                    config: { ...config, model: textModel, textModel, systemPrompt: directorSystemPrompt({ story: current, characters, brand: brand?.prompt, kinds }) } as AiConfig,
-                    textHistory: directorHistory(before),
-                    metadata: { studioAgent: "director", storyId: current.id },
-                    onTextDelta: (delta) => {
-                        reply += delta;
-                        setStreaming(directorVisibleText(reply));
-                    },
-                });
+                let result;
+                try {
+                    result = await ask(textModel);
+                } catch (cause) {
+                    // 上游限流或繁忙且还没输出内容时，换一个备用模型重试一次。
+                    const fallback = reply ? "" : directorFallbackTextModel(textModels, (model) => modelDisplayName(config, model), textModel);
+                    if (!fallback) throw cause;
+                    message.info(`${modelDisplayName(config, textModel) || textModel} 暂时繁忙，已改用 ${modelDisplayName(config, fallback) || fallback} 回复`);
+                    result = await ask(fallback);
+                }
                 reply = result.text || reply;
             } catch (cause) {
                 setStreaming(null);

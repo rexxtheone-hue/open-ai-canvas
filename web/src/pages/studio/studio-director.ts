@@ -69,6 +69,17 @@ export function directorDefaultTextModel(models: string[], label: (model: string
     return models.includes(configured) ? configured : models[0] || "";
 }
 
+/** 上游限流或繁忙时依次改用的备用导演模型。 */
+const DIRECTOR_FALLBACK_TEXT_MODELS = [/gemini 3\.8 flash/i, /gemini 3\.7 flash/i, /gpt-6 luna/i, /claude sonnet 5(\.5)?$/i];
+
+export function directorFallbackTextModel(models: string[], label: (model: string) => string, current: string) {
+    for (const pattern of DIRECTOR_FALLBACK_TEXT_MODELS) {
+        const hit = models.find((model) => model !== current && pattern.test(label(model) || model));
+        if (hit) return hit;
+    }
+    return "";
+}
+
 export function directorGenre(id: string | undefined) {
     return DIRECTOR_GENRES.find((genre) => genre.id === id) || DIRECTOR_GENRES[DIRECTOR_GENRES.length - 1];
 }
