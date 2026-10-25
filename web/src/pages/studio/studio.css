@@ -856,7 +856,7 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 .studio-segment-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
 .studio-segment { display: flex; flex-direction: column; border-radius: 14px; border: 1px solid var(--studio-line); background: var(--studio-panel-raised); overflow: hidden; }
 .studio-segment.is-selected { border-color: var(--studio-accent); }
-.studio-segment-media, .studio-root .studio-segment-media { position: relative; display: grid; place-items: center; width: 100%; height: auto; aspect-ratio: 16 / 9; padding: 0; border: 0; background: #000; color: var(--studio-muted); cursor: pointer; overflow: hidden; }
+.studio-segment-media, .studio-root .studio-segment-media { position: relative; display: grid; place-items: center; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 0; padding: 0; border: 0; background: #000; color: var(--studio-muted); cursor: pointer; overflow: hidden; }
 .studio-segment-media img, .studio-segment-media video { width: 100%; height: 100%; object-fit: contain; }
 .studio-segment-media > b { position: absolute; top: 6px; left: 6px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: rgba(0, 0, 0, 0.65); color: #fff; font-size: 12px; line-height: 22px; }
 .studio-segment-media > em { position: absolute; right: 6px; bottom: 6px; padding: 0 6px; border-radius: 999px; background: rgba(0, 0, 0, 0.65); color: #fff; font-size: 11px; font-style: normal; }
