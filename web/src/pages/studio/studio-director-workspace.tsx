@@ -61,7 +61,7 @@ import {
 import { studioBlockReason, studioGenerationConfig, studioModelRequirements } from "./studio-generation";
 import { studioMediaSrc } from "./studio-library";
 import { StudioShell } from "./studio-shell";
-import { StudioSelect } from "./studio-select";
+import { groupedTextModelOptions, StudioSelect } from "./studio-select";
 import { uploadStudioFile } from "./use-studio-tool";
 import { notifyStudioWorksChanged } from "./use-studio-works";
 import { useStudioBrandKits, studioBrandContext } from "./use-studio-brand";
@@ -501,7 +501,7 @@ export default function StudioDirectorWorkspace() {
                                 className="studio-chat-model"
                                 ariaLabel="导演模型"
                                 value={textModel}
-                                options={textModels.map((model) => ({ value: model, label: modelDisplayName(config, model) || model }))}
+                                options={groupedTextModelOptions(textModels, (model) => modelDisplayName(config, model))}
                                 empty="无可用模型"
                                 onChange={(value) => {
                                     setTextModelChoice(value);

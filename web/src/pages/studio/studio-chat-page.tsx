@@ -43,7 +43,7 @@ import {
 } from "./studio-chat";
 import { StudioLibrary, studioMediaSrc } from "./studio-library";
 import { StudioShell } from "./studio-shell";
-import { StudioSelect } from "./studio-select";
+import { groupedTextModelOptions, StudioSelect } from "./studio-select";
 import { StudioPanelFooter } from "./studio-workspace";
 import { uploadStudioFile } from "./use-studio-tool";
 import { notifyStudioWorksChanged } from "./use-studio-works";
@@ -508,7 +508,7 @@ export default function StudioChatPage() {
                                 ariaLabel="对话模型"
                                 icon={<Sparkles aria-hidden />}
                                 value={textModel}
-                                options={textModels.map((model) => ({ value: model, label: modelDisplayName(config, model) || model }))}
+                                options={groupedTextModelOptions(textModels, (model) => modelDisplayName(config, model))}
                                 empty="无可用模型"
                                 onChange={(value) => { setTextModelChoice(value); writeLocal(TEXT_MODEL_KEY, value); }}
                                 placement="topRight"
