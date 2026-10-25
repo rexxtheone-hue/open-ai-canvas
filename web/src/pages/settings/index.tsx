@@ -32,6 +32,9 @@ const configSections: Array<{ key: ConfigSectionKey; label: string; description:
     { key: "diagnostics", label: "问题诊断", description: "导出日志协助排查", icon: <Bug className="size-4" /> },
 ];
 
+/** 普通用户只看个人信息和 Agent 记忆；渠道、默认模型、提示词模板、对象存储和诊断只给管理员。 */
+const USER_SECTIONS: ConfigSectionKey[] = ["profile", "agent-memory"];
+
 export function isConfigSection(value: string | null): value is ConfigSectionKey {
     return configSections.some((section) => section.key === value);
 }
@@ -41,12 +44,15 @@ export default function SettingsPage() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const requestedSection = searchParams.get("section");
+    const isAdmin = useUserStore((state) => state.user?.role === "admin");
     const customChannelsEnabled = useUserStore((state) => state.features.customChannelsEnabled);
     const runtimeStatuses = usePluginStore((state) => state.runtimeStatuses);
     const runningHubPluginEnabled = runtimeStatuses[RUNNINGHUB_PLUGIN_ID] === "enabled";
     const requestedSectionEnabled = requestedSection !== "runninghub" || runningHubPluginEnabled;
     const initialSection = isConfigSection(requestedSection) && requestedSectionEnabled ? requestedSection : "profile";
     const [activeTab, setActiveTab] = useState<ConfigSectionKey>(initialSection === "channels" && !customChannelsEnabled ? "models" : initialSection);
+    // 普通用户直接打开管理员专用分类时，回到个人信息。
+    const shownTab: ConfigSectionKey = isAdmin || USER_SECTIONS.includes(activeTab) ? activeTab : "profile";
     const config = useConfigStore((state) => state.config);
     const effectiveConfig = useEffectiveConfig();
     const updateConfig = useConfigStore((state) => state.updateConfig);
@@ -54,7 +60,8 @@ export default function SettingsPage() {
     const userId = useUserStore((state) => state.user?.id);
     const userChannels = config.channels.filter((channel) => channel.scope !== "system");
     const visibleConfigSections = useMemo(() => (customChannelsEnabled ? configSections : configSections.filter((section) => section.key !== "channels"))
-        .filter((section) => section.key !== "runninghub" || runningHubPluginEnabled), [customChannelsEnabled, runningHubPluginEnabled]);
+        .filter((section) => section.key !== "runninghub" || runningHubPluginEnabled)
+        .filter((section) => isAdmin || USER_SECTIONS.includes(section.key)), [customChannelsEnabled, isAdmin, runningHubPluginEnabled]);
 
     const isVisibleConfigSection = (value: string | null): value is ConfigSectionKey => isConfigSection(value) && visibleConfigSections.some((section) => section.key === value);
 
@@ -63,8 +70,8 @@ export default function SettingsPage() {
             setActiveTab(requestedSection);
             return;
         }
-        setActiveTab(requestedSection === "channels" && !customChannelsEnabled ? "models" : "profile");
-    }, [customChannelsEnabled, requestedSection, visibleConfigSections]);
+        setActiveTab(requestedSection === "channels" && !customChannelsEnabled && isAdmin ? "models" : "profile");
+    }, [customChannelsEnabled, isAdmin, requestedSection, visibleConfigSections]);
 
     useEffect(() => {
         if (!userId) return;
@@ -190,7 +197,7 @@ export default function SettingsPage() {
                 <aside className="settings-nav-panel w-full shrink-0 md:w-[200px]">
                     <nav className="thin-scrollbar flex gap-1 overflow-x-auto p-2 md:block md:space-y-1 md:p-2.5" aria-label="配置分类">
                         {visibleConfigSections.map((item) => {
-                            const selected = item.key === activeTab;
+                            const selected = item.key === shownTab;
                             return (
                                 <button
                                     key={item.key}
@@ -211,8 +218,8 @@ export default function SettingsPage() {
                 </aside>
                 <section className="settings-content flex min-h-0 min-w-0 flex-1 flex-col">
                     <div className="app-workspace-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 md:px-6 md:py-5">
-                        <div className={`settings-pane-root ${activeTab === "prompts" ? "h-full w-full" : "mx-auto w-full max-w-none"}`}>
-                            {panes[activeTab]}
+                        <div className={`settings-pane-root ${shownTab === "prompts" ? "h-full w-full" : "mx-auto w-full max-w-none"}`}>
+                            {panes[shownTab]}
                         </div>
                     </div>
                 </section>
