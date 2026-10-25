@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { App, Popover } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowUp, AudioLines, Check, Clapperboard, Download, Film, Image as ImageIcon, Loader2, Music, Pencil, Sparkles, Upload, X } from "./studio-icons";
+import { ArrowLeft, ArrowUp, AudioLines, Check, Clapperboard, Download, Film, Image as ImageIcon, LayoutGrid, Loader2, Music, Pencil, RefreshCw, Sparkles, Type, Upload, X } from "./studio-icons";
 import { Link, useParams, useSearchParams } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal/app-modal";
 import { useGenerationCredits } from "@/hooks/use-generation-credits";
+import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
+import { videoModeUnavailableReason } from "@/lib/video-modes";
 import { runBackendGenerationTask } from "@/services/api/generation-task";
 import { playbackVariantUrl, resourceFileUrl } from "@/services/api/resources";
 import { listStudioWorks, type StudioKind, type StudioWork } from "@/services/api/studio";
@@ -35,7 +37,17 @@ import {
     buildDirectorTimeline,
     DIRECTOR_MEMORY_SECTIONS,
     directorActiveWork,
+    directorAskAnswer,
+    directorAskBlock,
+    directorBoardPrompt,
+    directorBoardTargets,
+    directorBoardVideoPrompt,
+    directorDefaultTextModel,
     directorHistory,
+    directorMessageParts,
+    directorProductionMode,
+    directorSegmentOfShot,
+    directorSegments,
     directorImagePrompt,
     directorMemory,
     directorOrderedShots,
@@ -55,7 +67,10 @@ import {
     type DirectorMusic,
     type DirectorRunAction,
     type DirectorRunMode,
+    type DirectorAsk,
+    type DirectorProductionMode,
     type DirectorRunStep,
+    type DirectorSegment,
     type DirectorShotFields,
 } from "./studio-director";
 import { studioBlockReason, studioGenerationConfig, studioModelRequirements } from "./studio-generation";
@@ -70,7 +85,29 @@ type DirectorMessage = StudioChatMessage<DirectorRunAction>;
 type GenerateStep = Exclude<DirectorRunStep, "render">;
 
 const TEXT_MODEL_KEY = "studio.director.text-model.v1";
-const STEP_KIND: Record<GenerateStep, StudioKind> = { images: "image", videos: "video", voice: "audio" };
+const STEP_KIND: Record<GenerateStep, StudioKind> = { boards: "image", images: "image", videos: "video", voice: "audio" };
+
+const BOARD_IMAGE_MODELS = [/gpt image 2\.5/i, /nano banana/i];
+const BOARD_VIDEO_MODELS = [/^seedance 2\.0$/i, /seedance 2\.5/i, /seedance/i];
+
+/** 分镜板用擅长排版和文字的图片模型；整段视频必须支持全能参考（分镜板作参考图，不是首帧）。 */
+function directorBoardModel(config: AiConfig, kind: "image" | "video") {
+    const options = selectableModelsByCapability(config, kind).filter((model) => kind === "image" || !videoModeUnavailableReason(modelCapabilityConfigFor(config, model).video, "reference_to_video"));
+    for (const pattern of kind === "image" ? BOARD_IMAGE_MODELS : BOARD_VIDEO_MODELS) {
+        const hit = options.find((model) => pattern.test(modelDisplayName(config, model) || model));
+        if (hit) return hit;
+    }
+    return options[0] || "";
+}
+
+type BoardToolRequest = { prompt: string; ratio: string; seconds?: number; attachments?: Parameters<typeof studioAgentToolState>[1]["attachments"]; brand?: Parameters<typeof studioAgentToolState>[1]["brand"] };
+
+function boardToolState(config: AiConfig, kind: "image" | "video", request: BoardToolRequest) {
+    const model = directorBoardModel(config, kind);
+    const result = studioAgentToolState(config, { ...request, kind, model: model || undefined, tool: "director" });
+    if (kind === "video") result.state = { ...result.state, video: { ...result.state.video, mode: "reference_to_video" } };
+    return result;
+}
 
 function errorText(cause: unknown, fallback: string) {
     return cause instanceof Error && cause.message ? cause.message : fallback;
@@ -132,7 +169,7 @@ export default function StudioDirectorWorkspace() {
             return "";
         }
     });
-    const textModel = textModels.includes(textModelChoice) ? textModelChoice : textModels.includes(config.textModel) ? config.textModel : textModels[0] || "";
+    const textModel = directorDefaultTextModel(textModels, (model) => modelDisplayName(config, model), textModelChoice, config.textModel);
 
     const [messages, setMessages] = useState<DirectorMessage[]>([]);
     const [chatLoaded, setChatLoaded] = useState(false);
@@ -143,6 +180,7 @@ export default function StudioDirectorWorkspace() {
     const [selectedShotId, setSelectedShotId] = useState("");
     const [editing, setEditing] = useState<StudioShot | null>(null);
     const [musicOpen, setMusicOpen] = useState(false);
+    const [quoteOpen, setQuoteOpen] = useState(false);
     const [autoRun, setAutoRun] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -176,7 +214,9 @@ export default function StudioDirectorWorkspace() {
 
     const shots = useMemo(() => (story ? directorOrderedShots(story) : []), [story]);
     const versions = useMemo(() => (story ? directorVersionIndex(story) : new Map()), [story]);
-    const timeline = useMemo(() => (story ? buildDirectorTimeline(story, { music: settings.music, subtitles: brief.subtitles !== false }) : null), [brief.subtitles, settings.music, story]);
+    const productionMode: DirectorProductionMode = story ? directorProductionMode(story) : "board";
+    const segments = useMemo(() => (story ? directorSegments(story) : []), [story]);
+    const timeline = useMemo(() => (story ? buildDirectorTimeline(story, { music: settings.music, subtitles: brief.subtitles !== false, mode: directorProductionMode(story) }) : null), [brief.subtitles, settings.music, story]);
 
     const saveStory = async (patch: Partial<StudioStoryInput>) => {
         const current = storyRef.current;
@@ -184,10 +224,60 @@ export default function StudioDirectorWorkspace() {
         setStory(await updateStudioStory(current.id, storyInput(current, patch)));
     };
 
+    /** 分镜板模式：每段提交一张分镜板，或按分镜板提交整段视频，都登记在段落第一个镜头上。 */
+    const generateBoardStep = async (step: "boards" | "videos", numbers?: number[]) => {
+        const current = storyRef.current;
+        if (!current) return { submitted: 0, error: "项目还没加载" };
+        const segments = directorBoardTargets(current, step, numbers);
+        if (!segments.length) return { submitted: 0, error: step === "videos" ? "没有可以生成视频的段落（需要先有分镜板）" : "没有需要生成分镜板的段落" };
+        const style = typeof current.brief?.style === "string" ? current.brief.style : "";
+        const index = directorVersionIndex(current);
+        let submitted = 0;
+        let error = "";
+        let latest = current;
+        for (const segment of segments) {
+            const kind = step === "boards" ? "image" : "video";
+            const board = directorActiveWork(segment.anchor, "image", index);
+            const names = new Set(segment.shots.flatMap((shot) => directorShotFields(shot).characters));
+            const attachments = step === "boards"
+                ? characters.filter((item) => names.has(item.name)).flatMap((item) => studioCharacterAttachments({ ...item, updatedAt: "" })).slice(0, 4)
+                : board?.media[0]
+                    ? [{ id: `board:${segment.anchor.id}`, name: "分镜板", type: board.media[0].mimeType || "image/png", url: studioMediaSrc(board.media[0]), dataUrl: studioMediaSrc(board.media[0]), storageKey: board.media[0].storageKey, previewUrl: studioMediaSrc(board.media[0]), width: board.media[0].width, height: board.media[0].height }]
+                    : [];
+            const prompt = step === "boards" ? directorBoardPrompt(segment, characters, { style, ratio: current.ratio }) : directorBoardVideoPrompt(segment, { style, ratio: current.ratio });
+            const { state, model } = boardToolState(config, kind, { prompt, ratio: step === "boards" ? "16:9" : current.ratio, seconds: segment.seconds, attachments, brand });
+            const reason = studioBlockReason(config, state, model, { loggedIn: Boolean(user), creditsEnabled: false, availableCredits: null, cost: null });
+            if (reason) {
+                error ||= reason;
+                continue;
+            }
+            const result = await submitStudioAgentGeneration(config, state, model, { studioAgent: "director", storyId: current.id, shotId: segment.anchor.id }, { signal: leaveRef.current?.signal, onWaiting: setQueued });
+            if (!result.taskIds.length) {
+                error ||= result.error || "提交失败";
+                continue;
+            }
+            try {
+                latest = await addStudioShotVersion(current.id, segment.anchor.id, kind, result.taskIds[0]);
+                setStory(latest);
+                submitted += 1;
+            } catch (cause) {
+                error ||= errorText(cause, "记录版本失败");
+            }
+        }
+        if (submitted) {
+            notifyStudioWorksChanged();
+            if (latest.status === "planning") await saveStory({ status: "producing" }).catch(() => undefined);
+        }
+        return { submitted, error };
+    };
+
     /** 按镜头逐个提交生成并登记为镜头的新版本。返回提交数量和第一条失败原因。 */
     const generateStep = async (step: GenerateStep, numbers?: number[]) => {
         const current = storyRef.current;
         if (!current) return { submitted: 0, error: "项目还没加载" };
+        // 分镜板模式下导演说「生成画面」就是生成分镜板，「生成视频」是按分镜板生成整段。
+        if (directorProductionMode(current) === "board" && step !== "voice") return generateBoardStep(step === "videos" ? "videos" : "boards", numbers);
+        if (step === "boards") return generateBoardStep("boards", numbers);
         const targets = directorStepTargets(current, step, numbers);
         if (!targets.length) return { submitted: 0, error: step === "videos" ? "没有可以做成视频的镜头（需要先有画面）" : step === "voice" ? "没有需要配音的镜头" : "没有需要生成的镜头" };
         const style = typeof current.brief?.style === "string" ? current.brief.style : "";
@@ -235,7 +325,7 @@ export default function StudioDirectorWorkspace() {
     const renderFinal = async () => {
         const current = storyRef.current;
         if (!current) return { error: "项目还没加载" };
-        const built = buildDirectorTimeline(current, { music: settings.music, subtitles: brief.subtitles !== false });
+        const built = buildDirectorTimeline(current, { music: settings.music, subtitles: brief.subtitles !== false, mode: directorProductionMode(current) });
         if (!built.timeline.clips.some((clip) => clip.trackId === "video")) return { error: "还没有可以合成的镜头画面" };
         if (current.versions.some((version) => directorWorkActive(version.work))) return { error: "还有镜头在生成，完成后再合成" };
         try {
@@ -342,7 +432,7 @@ export default function StudioDirectorWorkspace() {
             }
             const assistant = await appendStudioChatMessage<DirectorRunAction>(current.sessionId, {
                 role: "assistant",
-                content: `${parsed.content}${notes}`.trim() || "（导演没有返回内容）",
+                content: [`${parsed.content}${notes}`.trim() || (parsed.ask ? "" : "（导演没有返回内容）"), parsed.ask ? directorAskBlock(parsed.ask) : ""].filter(Boolean).join("\n\n"),
                 actions: parsed.run ? [parsed.run] : undefined,
             });
             setMessages([...withUser, assistant]);
@@ -375,16 +465,24 @@ export default function StudioDirectorWorkspace() {
     }, [chatLoaded, story, searchParams]);
 
     // 「直接做」：分镜写好后依次生成画面和配音 → 视频 → 合成。每个镜头每一步只自动尝试一次，失败的留给用户处理。
-    const attemptedRef = useRef<Record<GenerateStep, Set<string>>>({ images: new Set(), videos: new Set(), voice: new Set() });
+    const attemptedRef = useRef<Record<GenerateStep, Set<string>>>({ boards: new Set(), images: new Set(), videos: new Set(), voice: new Set() });
     useEffect(() => {
         if (!autoRun || !story || working) return;
         if (storyHasActiveWork(story)) return;
-        const pending = (step: GenerateStep) => directorStepTargets(story, step).filter((shot) => !attemptedRef.current[step].has(shot.id));
+        const board = directorProductionMode(story) === "board";
+        // 分镜板模式按段落推进（段落第一个镜头代表整段），逐镜头模式按镜头推进。
+        const pending = (step: GenerateStep) => {
+            const shotsForStep = board && step !== "voice"
+                ? directorBoardTargets(story, step === "videos" ? "videos" : "boards").map((segment) => segment.anchor)
+                : directorStepTargets(story, step === "boards" ? "images" : step);
+            return shotsForStep.filter((shot) => !attemptedRef.current[step].has(shot.id));
+        };
         const wantVoice = brief.voiceover !== false && kinds.includes("audio");
-        const phases: GenerateStep[] = kinds.includes("image") ? ["images", ...(wantVoice ? (["voice"] as GenerateStep[]) : []), ...(kinds.includes("video") ? (["videos"] as GenerateStep[]) : [])] : [];
+        const visualStep: GenerateStep = board ? "boards" : "images";
+        const phases: GenerateStep[] = kinds.includes("image") ? [visualStep, ...(wantVoice ? (["voice"] as GenerateStep[]) : []), ...(kinds.includes("video") ? (["videos"] as GenerateStep[]) : [])] : [];
         for (const step of phases) {
             const targets = pending(step);
-            if (step === "videos" && pending("images").length) break;
+            if (step === "videos" && pending(visualStep).length) break;
             if (!targets.length) continue;
             targets.forEach((shot) => attemptedRef.current[step].add(shot.id));
             setWorking(step);
@@ -427,7 +525,9 @@ export default function StudioDirectorWorkspace() {
     }
 
     const memory = directorMemory(story.memory);
-    const selectedShot = shots.find((shot) => shot.id === selectedShotId);
+    // 分镜板模式下分镜板和整段视频都在段落第一个镜头上，预览时显示所在段落。
+    const pickedShot = shots.find((shot) => shot.id === selectedShotId);
+    const selectedShot = pickedShot && productionMode === "board" ? directorSegmentOfShot(segments, pickedShot.id)?.anchor || pickedShot : pickedShot;
     const renderReady = story.render?.status === "succeeded" && story.render.resourceId;
     const totalMs = Math.max(1, timeline.timeline.durationMs);
 
@@ -451,9 +551,15 @@ export default function StudioDirectorWorkspace() {
                                 <p>说清楚卖什么、给谁看、想要什么感觉，导演会写分镜给你。</p>
                             </div>
                         ) : null}
-                        {messages.map((item) => (
+                        {messages.map((item, messageIndex) => {
+                            const parts = directorMessageParts(item.content);
+                            const latest = messageIndex === messages.length - 1;
+                            return (
                             <div key={item.id} className={`studio-chat-message is-${item.role}`}>
-                                {item.content ? <div className="studio-chat-bubble">{item.content}</div> : null}
+                                {parts.text ? <div className="studio-chat-bubble">{parts.text}</div> : null}
+                                {parts.ask && item.role === "assistant" ? (
+                                    <AskCard ask={parts.ask} active={latest && !busy && streaming === null} onPick={(option) => void send(directorAskAnswer(parts.ask!, option))} />
+                                ) : null}
                                 {(item.actions || []).map((action) => (
                                     <RunCard
                                         key={action.id}
@@ -475,7 +581,30 @@ export default function StudioDirectorWorkspace() {
                                     />
                                 ))}
                             </div>
-                        ))}
+                            );
+                        })}
+                        {renderReady && streaming === null ? (
+                            <FinalCard
+                                story={story}
+                                subtitles={brief.subtitles !== false}
+                                busy={busy || Boolean(working)}
+                                music={settings.music}
+                                onMusic={(music) => void updateMusic(music)}
+                                onDraft={(text) => {
+                                    setDraft(text);
+                                    inputRef.current?.focus();
+                                }}
+                                onToggleSubtitles={async () => {
+                                    try {
+                                        await saveStory({ brief: { ...story.brief, subtitles: brief.subtitles === false } });
+                                        message.success("已更新字幕设置，重新合成后生效");
+                                    } catch (cause) {
+                                        message.error(errorText(cause, "保存失败"));
+                                    }
+                                }}
+                                onRender={() => void runManual("render")}
+                            />
+                        ) : null}
                         {streaming !== null ? (
                             <div className="studio-chat-message is-assistant">
                                 <div className="studio-chat-bubble">{streaming || <Loader2 className="studio-spin" aria-label="导演正在思考" />}</div>
@@ -523,13 +652,22 @@ export default function StudioDirectorWorkspace() {
 
                 <section className="studio-director-main" aria-label="分镜与成片">
                     <header className="studio-director-bar">
-                        <span className="studio-hint">{story.ratio} · 目标 {story.durationSeconds} 秒 · 当前 {(timeline.timeline.durationMs / 1000).toFixed(1)} 秒 · {shots.length} 个镜头</span>
+                        <span className="studio-hint">{story.ratio} · 目标 {story.durationSeconds} 秒 · 当前 {(timeline.timeline.durationMs / 1000).toFixed(1)} 秒 · {shots.length} 个镜头{productionMode === "board" && segments.length ? ` · ${segments.length} 段` : ""}</span>
+                        <div className="studio-chat-mode" role="group" aria-label="制作方式">
+                            <button type="button" aria-pressed={productionMode === "board"} title="每段先出一张分镜板，再一次生成整段视频，人物和场景更一致" disabled={Boolean(working)} onClick={() => void saveStory({ settings: { ...settings, mode: "board" } })}>分镜板</button>
+                            <button type="button" aria-pressed={productionMode === "shots"} title="每个镜头单独生成画面和视频，方便逐个调整" disabled={Boolean(working)} onClick={() => void saveStory({ settings: { ...settings, mode: "shots" } })}>逐镜头</button>
+                        </div>
                         <span style={{ flex: 1 }} />
                         {queued ? <span className="studio-hint"><Loader2 className="studio-spin" aria-hidden /> 排队中：同时运行的任务已满，完成后自动继续</span> : autoRun ? <span className="studio-hint"><Loader2 className="studio-spin" aria-hidden /> 正在自动制作</span> : null}
-                        <button type="button" className="studio-mini-button" disabled={Boolean(working) || !shots.length} onClick={() => void runManual("images")}><ImageIcon aria-hidden />生成画面</button>
+                        <button type="button" className="studio-mini-button is-primary" disabled={Boolean(working) || autoRun || !shots.length} onClick={() => setQuoteOpen(true)}><Sparkles aria-hidden />一键制作</button>
+                        {productionMode === "board" ? (
+                            <button type="button" className="studio-mini-button" disabled={Boolean(working) || !shots.length} onClick={() => void runManual("boards")}><LayoutGrid aria-hidden />生成分镜板</button>
+                        ) : (
+                            <button type="button" className="studio-mini-button" disabled={Boolean(working) || !shots.length} onClick={() => void runManual("images")}><ImageIcon aria-hidden />生成画面</button>
+                        )}
                         <button type="button" className="studio-mini-button" disabled={Boolean(working) || !shots.length} onClick={() => void runManual("videos")}><Film aria-hidden />生成视频</button>
                         <button type="button" className="studio-mini-button" disabled={Boolean(working) || !shots.length} onClick={() => void runManual("voice")}><AudioLines aria-hidden />生成配音</button>
-                        <button type="button" className="studio-mini-button is-primary" disabled={Boolean(working) || !shots.length} onClick={() => void runManual("render")}>{working === "render" ? <Loader2 className="studio-spin" aria-hidden /> : <Clapperboard aria-hidden />}合成成片</button>
+                        <button type="button" className="studio-mini-button" disabled={Boolean(working) || !shots.length} onClick={() => void runManual("render")}>{working === "render" ? <Loader2 className="studio-spin" aria-hidden /> : <Clapperboard aria-hidden />}合成成片</button>
                         {renderReady ? <a className="studio-mini-button" href={resourceFileUrl(story.render!.resourceId!)} download={`${story.title}.mp4`}><Download aria-hidden />导出</a> : null}
                     </header>
 
@@ -559,6 +697,24 @@ export default function StudioDirectorWorkspace() {
 
                         <div className="studio-storyboard">
                             {!shots.length ? <div className="studio-empty"><Sparkles aria-hidden /><strong>还没有分镜</strong><span>在左边告诉导演你的想法。</span></div> : null}
+                            {productionMode === "board" && segments.length ? (
+                                <section className="studio-scene" aria-label="分镜板段落">
+                                    <header><strong>分镜板</strong><span>每段先出一张分镜板，再按分镜板一次生成整段视频</span></header>
+                                    <div className="studio-segment-grid">
+                                        {segments.map((segment) => (
+                                            <SegmentCard
+                                                key={segment.anchor.id}
+                                                segment={segment}
+                                                versions={versions}
+                                                busy={Boolean(working)}
+                                                selected={Boolean(selectedShotId) && segment.shots.some((shot) => shot.id === selectedShotId)}
+                                                onSelect={() => setSelectedShotId(segment.shots.some((shot) => shot.id === selectedShotId) ? "" : segment.anchor.id)}
+                                                onGenerate={(step) => void runManual(step, [segment.shotNumbers[0]])}
+                                            />
+                                        ))}
+                                    </div>
+                                </section>
+                            ) : null}
                             {story.scenes.map((scene) => {
                                 const sceneShots = shots.filter((shot) => shot.sceneId === scene.id);
                                 if (!sceneShots.length) return null;
@@ -574,6 +730,7 @@ export default function StudioDirectorWorkspace() {
                                                     story={story}
                                                     selected={shot.id === selectedShotId}
                                                     busy={Boolean(working)}
+                                                    segmentNo={productionMode === "board" ? directorSegmentOfShot(segments, shot.id)?.no : undefined}
                                                     onSelect={() => setSelectedShotId(shot.id === selectedShotId ? "" : shot.id)}
                                                     onMention={() => {
                                                         setDraft((value) => `${value}${value && !value.endsWith(" ") ? " " : ""}镜头 ${shots.indexOf(shot) + 1}：`);
@@ -620,6 +777,19 @@ export default function StudioDirectorWorkspace() {
                     </div>
                 </section>
             </div>
+            <ProductionQuote
+                open={quoteOpen}
+                story={story}
+                config={config}
+                mode={productionMode}
+                voiceover={brief.voiceover !== false && kinds.includes("audio")}
+                onClose={() => setQuoteOpen(false)}
+                onConfirm={() => {
+                    setQuoteOpen(false);
+                    attemptedRef.current = { boards: new Set(), images: new Set(), videos: new Set(), voice: new Set() };
+                    setAutoRun(true);
+                }}
+            />
             <ShotEditor
                 shot={editing}
                 characters={characters}
@@ -653,6 +823,8 @@ type ShotCardProps = {
     story: StudioStory;
     selected: boolean;
     busy: boolean;
+    /** 分镜板模式下镜头所在的段落；画面和视频按段落生成，镜头卡只管文字和配音。 */
+    segmentNo?: number;
     onSelect: () => void;
     onMention: () => void;
     onEdit: () => void;
@@ -660,7 +832,7 @@ type ShotCardProps = {
     onActivate: (kind: StudioKind, versionId: string) => void;
 };
 
-function ShotCard({ shot, no, story, selected, busy, onSelect, onMention, onEdit, onGenerate, onActivate }: ShotCardProps) {
+function ShotCard({ shot, no, story, selected, busy, segmentNo, onSelect, onMention, onEdit, onGenerate, onActivate }: ShotCardProps) {
     const fields = directorShotFields(shot);
     const versions = directorVersionIndex(story);
     const voice = directorActiveWork(shot, "audio", versions);
@@ -669,7 +841,7 @@ function ShotCard({ shot, no, story, selected, busy, onSelect, onMention, onEdit
     return (
         <article className={`studio-shot${selected ? " is-selected" : ""}`} aria-label={`镜头 ${no}`}>
             <button type="button" className="studio-shot-media" onClick={onSelect} aria-pressed={selected} aria-label={`预览镜头 ${no}`}>
-                <ShotMedia shot={shot} versions={versions} />
+                {segmentNo ? <span className="studio-shot-state">第 {segmentNo} 段</span> : <ShotMedia shot={shot} versions={versions} />}
                 <b>{no}</b>
                 <em>{shot.durationSeconds}s</em>
             </button>
@@ -681,8 +853,12 @@ function ShotCard({ shot, no, story, selected, busy, onSelect, onMention, onEdit
                 {fields.subtitle ? <small>字幕：{fields.subtitle}</small> : null}
             </div>
             <footer>
-                <button type="button" className="studio-icon-button" title="生成画面" aria-label={`生成镜头 ${no} 画面`} disabled={busy} onClick={() => onGenerate("images")}><ImageIcon aria-hidden /></button>
-                <button type="button" className="studio-icon-button" title="生成视频" aria-label={`生成镜头 ${no} 视频`} disabled={busy} onClick={() => onGenerate("videos")}><Film aria-hidden /></button>
+                {segmentNo ? null : (
+                    <>
+                        <button type="button" className="studio-icon-button" title="生成画面" aria-label={`生成镜头 ${no} 画面`} disabled={busy} onClick={() => onGenerate("images")}><ImageIcon aria-hidden /></button>
+                        <button type="button" className="studio-icon-button" title="生成视频" aria-label={`生成镜头 ${no} 视频`} disabled={busy} onClick={() => onGenerate("videos")}><Film aria-hidden /></button>
+                    </>
+                )}
                 <button type="button" className="studio-icon-button" title="生成配音" aria-label={`生成镜头 ${no} 配音`} disabled={busy || !fields.voiceover} onClick={() => onGenerate("voice")}><AudioLines aria-hidden /></button>
                 <button type="button" className="studio-icon-button" title="编辑镜头" aria-label={`编辑镜头 ${no}`} onClick={onEdit}><Pencil aria-hidden /></button>
                 <button type="button" className="studio-icon-button" title="在对话中引用" aria-label={`在对话中引用镜头 ${no}`} onClick={onMention}>@</button>
@@ -802,7 +978,9 @@ function MusicPicker({ current, onPick }: { current?: DirectorMusic; onPick: (mu
 }
 
 function RunCard({ action, story, config, disabled, onConfirm, onSkip }: { action: DirectorRunAction; story: StudioStory; config: AiConfig; disabled: boolean; onConfirm: () => void; onSkip: () => void }) {
-    const targets = action.step === "render" ? [] : directorStepTargets(story, action.step, action.shots);
+    const boardStep = action.step !== "render" && action.step !== "voice" && (action.step === "boards" || directorProductionMode(story) === "board");
+    const segmentTargets = boardStep ? directorBoardTargets(story, action.step === "videos" ? "videos" : "boards", action.shots) : [];
+    const targets = action.step === "render" ? [] : boardStep ? segmentTargets.map((segment) => segment.anchor) : directorStepTargets(story, action.step === "boards" ? "images" : action.step, action.shots);
     return (
         <article className={`studio-chat-action is-${action.status}`} aria-label={directorStepLabel(action.step)}>
             <header>
@@ -813,7 +991,11 @@ function RunCard({ action, story, config, disabled, onConfirm, onSkip }: { actio
             {action.error ? <p className="studio-block-reason" role="alert">{action.error}</p> : null}
             {action.status === "proposed" ? (
                 <footer>
-                    {action.step === "render" ? <span className="studio-hint">合成不消耗积分</span> : <StepEstimate step={action.step} story={story} config={config} count={targets.length} />}
+                    {action.step === "render"
+                        ? <span className="studio-hint">合成不消耗积分</span>
+                        : boardStep
+                            ? <SegmentEstimate kind={action.step === "videos" ? "video" : "image"} segments={segmentTargets} story={story} config={config} />
+                            : <StepEstimate step={action.step === "boards" ? "images" : action.step} story={story} config={config} count={targets.length} />}
                     <span style={{ flex: 1 }} />
                     <button type="button" className="studio-mini-button" disabled={disabled} onClick={onSkip}>跳过</button>
                     <button type="button" className="studio-mini-button is-primary" disabled={disabled || (action.step !== "render" && !targets.length)} onClick={onConfirm}><Check aria-hidden />执行</button>
@@ -838,4 +1020,199 @@ function StepEstimate({ step, story, config, count }: { step: GenerateStep; stor
     const { credits } = useGenerationCredits({ config: generationConfig, model, mode: kind, count: 1, seconds: state.video.seconds, requirements });
     if (!count) return <span className="studio-hint">没有需要处理的镜头</span>;
     return <span className="studio-hint">{count} 个镜头 · {model ? modelDisplayName(config, model) || model : "无可用模型"}{creditsEnabled && credits !== null ? ` · 约 ${(credits * count).toLocaleString("zh-CN", { maximumFractionDigits: 2 })} 积分` : ""}</span>;
+}
+
+function useUnitCredits(config: AiConfig, kind: StudioKind, ratio: string, seconds: number, board: boolean) {
+    const { state, model } = useMemo(
+        () => (board && kind !== "audio"
+            ? boardToolState(config, kind, { prompt: "示例", ratio: kind === "image" ? "16:9" : ratio, seconds })
+            : studioAgentToolState(config, { kind, prompt: "示例", ratio, seconds, tool: "director" })),
+        [board, config, kind, ratio, seconds],
+    );
+    const requirements = useMemo(() => studioModelRequirements(config, state), [config, state]);
+    const generationConfig = useMemo(() => (model ? studioGenerationConfig(config, state, model) : config), [config, model, state]);
+    const { credits } = useGenerationCredits({ config: generationConfig, model, mode: kind, count: 1, seconds: state.video.seconds, requirements });
+    return { credits, model };
+}
+
+function formatCredits(value: number) {
+    return value.toLocaleString("zh-CN", { maximumFractionDigits: 2 });
+}
+
+type CostLineProps = { id: string; label: string; kind: StudioKind; ratio: string; seconds: number; count: number; board: boolean; config: AiConfig; onValue: (id: string, value: number | null | undefined) => void };
+
+/** 报价单的一行：同一模型、同一时长的若干次生成。 */
+function CostLine({ id, label, kind, ratio, seconds, count, board, config, onValue }: CostLineProps) {
+    const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
+    const { credits, model } = useUnitCredits(config, kind, ratio, seconds, board);
+    const value = credits === null ? null : credits * count;
+    useEffect(() => {
+        onValue(id, value);
+    }, [id, onValue, value]);
+    useEffect(() => () => onValue(id, undefined), [id, onValue]);
+    return (
+        <tr>
+            <td>{label}</td>
+            <td>{model ? modelDisplayName(config, model) || model : "无可用模型"}</td>
+            <td>× {count}</td>
+            <td>{creditsEnabled ? (value === null ? "—" : `${formatCredits(value)} 积分`) : "—"}</td>
+        </tr>
+    );
+}
+
+function groupBySeconds<T>(items: T[], seconds: (item: T) => number): Array<[number, number]> {
+    const groups = new Map<number, number>();
+    for (const item of items) groups.set(seconds(item), (groups.get(seconds(item)) || 0) + 1);
+    return [...groups.entries()].sort((left, right) => left[0] - right[0]);
+}
+
+/** 汇总各行积分；有任何一行还没算出来时合计为 null。undefined 表示该行已移除。 */
+function useCostTotal() {
+    const [values, setValues] = useState<Record<string, number | null>>({});
+    const onValue = useCallback((id: string, value: number | null | undefined) => setValues((current) => {
+        if (value === undefined) {
+            if (!(id in current)) return current;
+            const next = { ...current };
+            delete next[id];
+            return next;
+        }
+        return current[id] === value ? current : { ...current, [id]: value };
+    }), []);
+    const entries = Object.values(values);
+    const total = entries.length && entries.every((value) => value !== null) ? entries.reduce<number>((sum, value) => sum + (value || 0), 0) : null;
+    return { onValue, total };
+}
+
+/** 一步要处理的段落报价：分镜板按张，整段视频按段落时长分组。 */
+function SegmentEstimate({ kind, segments, story, config }: { kind: "image" | "video"; segments: DirectorSegment[]; story: StudioStory; config: AiConfig }) {
+    const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
+    const { onValue, total } = useCostTotal();
+    if (!segments.length) return <span className="studio-hint">没有需要处理的段落</span>;
+    const groups: Array<[number, number]> = kind === "image" ? [[5, segments.length]] : groupBySeconds(segments, (segment) => segment.seconds);
+    return (
+        <span className="studio-hint">
+            {segments.length} 段{kind === "image" ? "分镜板" : "视频"}{creditsEnabled && total !== null ? ` · 约 ${formatCredits(total)} 积分` : ""}
+            <table hidden>
+                <tbody>
+                    {groups.map(([seconds, count]) => <CostLine key={`${kind}-${seconds}`} id={`${kind}-${seconds}`} label="" kind={kind} ratio={story.ratio} seconds={seconds} count={count} board config={config} onValue={onValue} />)}
+                </tbody>
+            </table>
+        </span>
+    );
+}
+
+/** 一键制作前的报价单：按尚未完成的分镜板、视频和配音逐项计算积分，确认后自动跑完并合成。 */
+function ProductionQuote({ open, story, config, mode, voiceover, onClose, onConfirm }: { open: boolean; story: StudioStory; config: AiConfig; mode: DirectorProductionMode; voiceover: boolean; onClose: () => void; onConfirm: () => void }) {
+    if (!open) return null;
+    return <ProductionQuoteBody story={story} config={config} mode={mode} voiceover={voiceover} onClose={onClose} onConfirm={onConfirm} />;
+}
+
+function ProductionQuoteBody({ story, config, mode, voiceover, onClose, onConfirm }: { story: StudioStory; config: AiConfig; mode: DirectorProductionMode; voiceover: boolean; onClose: () => void; onConfirm: () => void }) {
+    const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
+    const { onValue, total } = useCostTotal();
+    const versions = directorVersionIndex(story);
+    const needsVideo = (shot: StudioShot) => {
+        const work = directorActiveWork(shot, "video", versions);
+        return !directorWorkReady(work) && !directorWorkActive(work);
+    };
+    const board = mode === "board";
+    const segments = directorSegments(story);
+    const visualCount = board ? directorBoardTargets(story, "boards").length : directorStepTargets(story, "images").length;
+    const videoGroups = board
+        ? groupBySeconds(segments.filter((segment) => needsVideo(segment.anchor)), (segment) => segment.seconds)
+        : groupBySeconds(directorOrderedShots(story).filter(needsVideo), (shot) => shot.durationSeconds);
+    const voiceCount = voiceover ? directorStepTargets(story, "voice").length : 0;
+    const nothing = !visualCount && !videoGroups.length && !voiceCount;
+    return (
+        <AppModal rootClassName="studio-modal" open title="一键制作 · 积分报价" okText={nothing ? "直接合成" : "确认制作"} cancelText="取消" onCancel={onClose} onOk={onConfirm}>
+            <div className="studio-popup studio-form-stack">
+                <p className="studio-hint">{board ? `分镜板模式：共 ${segments.length} 段。每段先出一张分镜板，再按分镜板一次生成整段视频，最后加上配音、字幕和音乐合成成片。` : "逐镜头模式：每个镜头分别生成画面和视频，最后合成成片。"}</p>
+                {nothing ? <p className="studio-hint">画面、视频和配音都已经生成好了，确认后直接合成成片。</p> : (
+                    <table className="studio-quote-table">
+                        <thead><tr><th>项目</th><th>模型</th><th>数量</th><th>积分</th></tr></thead>
+                        <tbody>
+                            {visualCount ? <CostLine id="visual" label={board ? "分镜板" : "镜头画面"} kind="image" ratio={story.ratio} seconds={5} count={visualCount} board={board} config={config} onValue={onValue} /> : null}
+                            {videoGroups.map(([seconds, count]) => <CostLine key={`video-${seconds}`} id={`video-${seconds}`} label={`${board ? "整段视频" : "镜头视频"} ${seconds} 秒`} kind="video" ratio={story.ratio} seconds={seconds} count={count} board={board} config={config} onValue={onValue} />)}
+                            {voiceCount ? <CostLine id="voice" label="旁白配音" kind="audio" ratio={story.ratio} seconds={5} count={voiceCount} board={false} config={config} onValue={onValue} /> : null}
+                        </tbody>
+                        {creditsEnabled ? <tfoot><tr><td colSpan={3}>合计</td><td>{total === null ? "计算中…" : `约 ${formatCredits(total)} 积分`}</td></tr></tfoot> : null}
+                    </table>
+                )}
+                <p className="studio-hint">合成成片不消耗积分；导演对话按实际用量另计。生成失败的部分会退回积分。</p>
+            </div>
+        </AppModal>
+    );
+}
+
+function AskCard({ ask, active, onPick }: { ask: DirectorAsk; active: boolean; onPick: (option: string) => void }) {
+    return (
+        <article className="studio-ask-card" aria-label={ask.question}>
+            <strong>{ask.question}</strong>
+            <div>
+                {ask.options.map((option, index) => (
+                    <button key={option} type="button" disabled={!active} onClick={() => onPick(option)}><b>{index + 1}</b><span>{option}</span></button>
+                ))}
+            </div>
+        </article>
+    );
+}
+
+function SegmentCard({ segment, versions, busy, selected, onSelect, onGenerate }: { segment: DirectorSegment; versions: ReturnType<typeof directorVersionIndex>; busy: boolean; selected: boolean; onSelect: () => void; onGenerate: (step: "boards" | "videos") => void }) {
+    const board = directorActiveWork(segment.anchor, "image", versions);
+    const video = directorActiveWork(segment.anchor, "video", versions);
+    const first = segment.shotNumbers[0];
+    const last = segment.shotNumbers[segment.shotNumbers.length - 1];
+    const media = directorWorkReady(video) ? <video src={workMediaSrc(video)} muted playsInline preload="metadata" />
+        : directorWorkReady(board) ? <img src={workMediaSrc(board)} alt="" loading="lazy" />
+            : directorWorkActive(board) || directorWorkActive(video) ? <span className="studio-shot-state"><Loader2 className="studio-spin" aria-hidden />生成中</span>
+                : board?.status === "failed" || video?.status === "failed" ? <span className="studio-shot-state is-failed">生成失败</span>
+                    : <span className="studio-shot-state">待生成分镜板</span>;
+    return (
+        <article className={`studio-segment${selected ? " is-selected" : ""}`} aria-label={`第 ${segment.no} 段`}>
+            <button type="button" className="studio-segment-media" onClick={onSelect} aria-pressed={selected} aria-label={`预览第 ${segment.no} 段`}>
+                {media}
+                <b>{segment.no}</b>
+                <em>{segment.seconds}s</em>
+            </button>
+            <footer>
+                <span className="studio-hint">镜头 {first === last ? first : `${first}–${last}`}{directorWorkReady(video) ? " · 视频已完成" : directorWorkReady(board) ? " · 分镜板已完成" : ""}</span>
+                <span style={{ flex: 1 }} />
+                <button type="button" className="studio-icon-button" title={directorWorkReady(board) ? "重做分镜板" : "生成分镜板"} aria-label={`生成第 ${segment.no} 段分镜板`} disabled={busy} onClick={() => onGenerate("boards")}><LayoutGrid aria-hidden /></button>
+                <button type="button" className="studio-icon-button" title={directorWorkReady(video) ? "重做整段视频" : "按分镜板生成视频"} aria-label={`生成第 ${segment.no} 段视频`} disabled={busy || !directorWorkReady(board)} onClick={() => onGenerate("videos")}><Film aria-hidden /></button>
+            </footer>
+        </article>
+    );
+}
+
+type FinalCardProps = {
+    story: StudioStory;
+    subtitles: boolean;
+    busy: boolean;
+    music?: DirectorMusic;
+    onMusic: (music: DirectorMusic | undefined) => void;
+    onDraft: (text: string) => void;
+    onToggleSubtitles: () => void;
+    onRender: () => void;
+};
+
+/** 成片卡：播放、下载，以及常用的下一步（换音乐、重做一段、字幕开关、改时长、重新合成）。 */
+function FinalCard({ story, subtitles, busy, music, onMusic, onDraft, onToggleSubtitles, onRender }: FinalCardProps) {
+    const [musicOpen, setMusicOpen] = useState(false);
+    const resourceId = story.render!.resourceId!;
+    return (
+        <article className="studio-final-card" aria-label="成片">
+            <header><Clapperboard aria-hidden /><strong>{story.title}</strong></header>
+            <video key={resourceId} src={playbackVariantUrl(resourceId)} controls playsInline preload="metadata" />
+            <a className="studio-mini-button is-primary" href={resourceFileUrl(resourceId)} download={`${story.title}.mp4`}><Download aria-hidden />下载成片</a>
+            <div className="studio-final-actions">
+                <Popover open={musicOpen} onOpenChange={setMusicOpen} trigger="click" placement="top" content={<MusicPicker current={music} onPick={(next) => { setMusicOpen(false); onMusic(next); }} />}>
+                    <button type="button" className="studio-chip-button" disabled={busy}><Music aria-hidden />换背景音乐</button>
+                </Popover>
+                <button type="button" className="studio-chip-button" disabled={busy} onClick={() => onDraft("重做第 1 段：")}><RefreshCw aria-hidden />重做某一段</button>
+                <button type="button" className="studio-chip-button" disabled={busy} onClick={onToggleSubtitles}><Type aria-hidden />{subtitles ? "去掉字幕" : "加上字幕"}</button>
+                <button type="button" className="studio-chip-button" disabled={busy} onClick={() => onDraft(`把成片从 ${story.durationSeconds} 秒改成 `)}><Film aria-hidden />调整时长</button>
+                <button type="button" className="studio-chip-button" disabled={busy} onClick={onRender}><Clapperboard aria-hidden />重新合成</button>
+            </div>
+        </article>
+    );
 }

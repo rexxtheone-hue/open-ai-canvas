@@ -853,6 +853,36 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 .studio-shot > footer .studio-icon-button svg { width: 15px; height: 15px; }
 .studio-shot > footer .studio-icon-button:disabled { opacity: 0.4; cursor: not-allowed; }
 .studio-shot > footer .studio-mini-button { margin-left: auto; }
+.studio-segment-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.studio-segment { display: flex; flex-direction: column; border-radius: 14px; border: 1px solid var(--studio-line); background: var(--studio-panel-raised); overflow: hidden; }
+.studio-segment.is-selected { border-color: var(--studio-accent); }
+.studio-segment-media { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 9; padding: 0; border: 0; background: #000; color: var(--studio-muted); cursor: pointer; overflow: hidden; }
+.studio-segment-media img, .studio-segment-media video { width: 100%; height: 100%; object-fit: contain; }
+.studio-segment-media > b { position: absolute; top: 6px; left: 6px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: rgba(0, 0, 0, 0.65); color: #fff; font-size: 12px; line-height: 22px; }
+.studio-segment-media > em { position: absolute; right: 6px; bottom: 6px; padding: 0 6px; border-radius: 999px; background: rgba(0, 0, 0, 0.65); color: #fff; font-size: 11px; font-style: normal; }
+.studio-segment > footer { display: flex; align-items: center; gap: 2px; padding: 4px 6px 6px 10px; }
+.studio-segment > footer .studio-icon-button { width: 28px; height: 28px; }
+.studio-segment > footer .studio-icon-button svg { width: 15px; height: 15px; }
+.studio-segment > footer .studio-icon-button:disabled { opacity: 0.4; cursor: not-allowed; }
+.studio-ask-card { width: 100%; display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; border: 1px solid color-mix(in oklab, var(--studio-accent) 45%, transparent); background: var(--studio-panel); }
+.studio-ask-card > strong { font-size: 13px; color: var(--studio-fg); }
+.studio-ask-card > div { display: flex; flex-direction: column; gap: 6px; }
+.studio-ask-card button { display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--studio-line); background: var(--studio-panel-raised); color: var(--studio-fg); font: inherit; font-size: 12.5px; text-align: left; line-height: 1.45; cursor: pointer; }
+.studio-ask-card button:hover:not(:disabled) { border-color: var(--studio-accent); background: var(--studio-hover); }
+.studio-ask-card button:disabled { opacity: 0.55; cursor: default; }
+.studio-ask-card button b { flex: none; min-width: 20px; height: 20px; border-radius: 6px; background: var(--studio-hover); font-size: 11.5px; line-height: 20px; text-align: center; }
+.studio-final-card { width: 100%; display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 14px; border: 1px solid var(--studio-line-strong); background: var(--studio-panel); }
+.studio-final-card > header { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.studio-final-card > header svg { width: 16px; height: 16px; color: var(--studio-accent); }
+.studio-final-card video { width: 100%; max-height: 360px; border-radius: 10px; background: #000; }
+.studio-final-card > a { justify-content: center; }
+.studio-final-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.studio-final-actions .studio-chip-button:disabled { opacity: 0.45; cursor: not-allowed; }
+.studio-quote-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.studio-quote-table th, .studio-quote-table td { padding: 7px 8px; border-bottom: 1px solid var(--studio-line); text-align: left; color: var(--studio-fg); }
+.studio-quote-table th { color: var(--studio-muted); font-weight: 500; }
+.studio-quote-table td:last-child, .studio-quote-table th:last-child { text-align: right; white-space: nowrap; }
+.studio-quote-table tfoot td { border-bottom: 0; font-weight: 700; }
 .studio-version-list > div { display: flex; flex-direction: column; gap: 2px; }
 .studio-version-list b { padding: 6px 8px 2px; font-size: 12px; color: var(--studio-muted); }
 .studio-timeline { flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px 12px; border-top: 1px solid var(--studio-line); }

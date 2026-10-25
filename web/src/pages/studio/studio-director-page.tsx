@@ -15,6 +15,7 @@ import {
     DIRECTOR_GENRES,
     DIRECTOR_RATIOS,
     directorBriefError,
+    directorDefaultTextModel,
     directorGenre,
     directorKickoffMessage,
     directorStoryTitle,
@@ -65,7 +66,7 @@ export default function StudioDirectorPage() {
             return "";
         }
     });
-    const textModel = textModels.includes(textModelChoice) ? textModelChoice : textModels.includes(config.textModel) ? config.textModel : textModels[0] || "";
+    const textModel = directorDefaultTextModel(textModels, (model) => modelDisplayName(config, model), textModelChoice, config.textModel);
     const chooseTextModel = (value: string) => {
         setTextModelChoice(value);
         try {
@@ -118,7 +119,7 @@ export default function StudioDirectorPage() {
                 ratio: value.ratio,
                 durationSeconds: value.durationSeconds,
                 brief: { ...value, kickoff },
-                settings: { runMode, brandKitId: brand.kit?.id || "" },
+                settings: { runMode, mode: "board", brandKitId: brand.kit?.id || "" },
                 memory: { decisions: [], constraints: [], action_items: [], open_questions: [], resolved: [], context_notes: [] },
             });
             void queryClient.invalidateQueries({ queryKey: ["studio", "stories"] });

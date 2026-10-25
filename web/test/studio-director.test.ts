@@ -4,8 +4,17 @@ import {
     buildDirectorTimeline,
     DEFAULT_DIRECTOR_BRIEF,
     DIRECTOR_MUSIC_VOLUME,
+    directorAskAnswer,
+    directorAskBlock,
+    directorBoardPrompt,
+    directorBoardTargets,
+    directorBoardVideoPrompt,
     directorBriefError,
+    directorDefaultTextModel,
     directorHistory,
+    directorMessageParts,
+    directorProductionMode,
+    directorSegments,
     directorImagePrompt,
     directorKickoffMessage,
     directorOrderedShots,
@@ -188,5 +197,82 @@ describe("品牌选择", () => {
         expect(resolveStudioBrandKit(kits, "")).toBeUndefined();
         expect(resolveStudioBrandKit(kits, "gone")).toBeUndefined();
         expect(resolveStudioBrandKit([], undefined)).toBeUndefined();
+    });
+});
+
+describe("分镜板模式", () => {
+    test("相邻镜头按 15 秒、4 个镜头分段，分镜板和整段视频登记在段落第一个镜头", () => {
+        const value = story([{ id: "a", durationSeconds: 5 }, { id: "b", durationSeconds: 5 }, { id: "c", durationSeconds: 5 }, { id: "d", durationSeconds: 3 }, { id: "e", durationSeconds: 2 }]);
+        const segments = directorSegments(value);
+        expect(segments.map((segment) => segment.shots.map((shot) => shot.id))).toEqual([["a", "b", "c"], ["d", "e"]]);
+        expect(segments.map((segment) => segment.seconds)).toEqual([15, 5]);
+        expect(segments[1].shotNumbers).toEqual([4, 5]);
+        const fourShots = directorSegments(story([1, 2, 3, 4, 5].map((no) => ({ id: `s${no}`, durationSeconds: 2 }))));
+        expect(fourShots.map((segment) => segment.shots.length)).toEqual([4, 1]);
+    });
+
+    test("分镜板只补缺；整段视频需要先有分镜板；点名镜头重做所在段落", () => {
+        const value = story([{ id: "a", durationSeconds: 5, activeImageVersionId: "b1" }, { id: "b", durationSeconds: 5 }, { id: "c", durationSeconds: 10 }], [version("b1", "a", "image", work("board-1", "image"))]);
+        expect(directorBoardTargets(value, "boards").map((segment) => segment.anchor.id)).toEqual(["c"]);
+        expect(directorBoardTargets(value, "videos").map((segment) => segment.anchor.id)).toEqual(["a"]);
+        expect(directorBoardTargets(value, "boards", [2]).map((segment) => segment.anchor.id)).toEqual(["a"]);
+    });
+
+    test("新项目默认分镜板，旧项目已有产物时沿用逐镜头，显式设置优先", () => {
+        expect(directorProductionMode(story([{ id: "a" }]))).toBe("board");
+        const legacy = story([{ id: "a", activeImageVersionId: "v" }], [version("v", "a", "image", work("img", "image"))]);
+        expect(directorProductionMode(legacy)).toBe("shots");
+        expect(directorProductionMode({ ...legacy, settings: { mode: "board" } })).toBe("board");
+    });
+
+    test("分镜板提示词按编号列出镜头和角色；视频提示词要求按编号拍、不画出分镜板", () => {
+        const value = story([{ id: "a", durationSeconds: 3, fields: { visual: "猫在窗台醒来", camera: "中景", characters: ["橘猫"], voiceover: "", subtitle: "" } }, { id: "b", durationSeconds: 4, fields: { visual: "猫喝咖啡", camera: "特写", characters: [], voiceover: "", subtitle: "" } }]);
+        const [segment] = directorSegments(value);
+        const board = directorBoardPrompt(segment, [{ id: "c", name: "橘猫", description: "胖橘猫", imageResourceIds: [] }], { style: "温暖电影感", ratio: "9:16" });
+        expect(board).toContain("exactly 2 numbered storyboard frames");
+        expect(board).toContain("SHOT 01 (3s) — 猫在窗台醒来 Camera: 中景.");
+        expect(board).toContain("橘猫 — 胖橘猫");
+        expect(board).toContain("温暖电影感");
+        const video = directorBoardVideoPrompt(segment, { style: "", ratio: "9:16" });
+        expect(video).toContain("Do NOT show the sheet itself");
+        expect(video).toContain("SHOT 02 (3–7s): 猫喝咖啡");
+    });
+
+    test("分镜板时间线：整段视频覆盖段内镜头，旁白和字幕按镜头起点摆放，缺视频的段落列为缺失", () => {
+        const value = story(
+            [{ id: "a", durationSeconds: 4, activeVideoVersionId: "v1", activeVoiceVersionId: "o2" }, { id: "b", durationSeconds: 4 }, { id: "c", durationSeconds: 10 }],
+            [version("v1", "a", "video", work("seg-1", "video", "succeeded", 8000)), version("o2", "a", "audio", work("voice-1", "audio", "succeeded", 3000))],
+        );
+        const { timeline, missing } = buildDirectorTimeline(value, { mode: "board" });
+        expect(timeline.durationMs).toBe(8000);
+        expect(timeline.clips.filter((clip) => clip.trackId === "video").map((clip) => [clip.startMs, clip.durationMs, clip.volume])).toEqual([[0, 8000, 0.3]]);
+        expect(timeline.clips.filter((clip) => clip.trackId === "subtitle").map((clip) => clip.startMs)).toEqual([0, 4000]);
+        expect(missing).toEqual([3]);
+    });
+
+    test("选择题：解析、保留在消息里、回答格式", () => {
+        const fence = "```";
+        const reply = parseDirectorReply(`先定画幅。\n${fence}studio-ask\n{"question":"选画幅","options":["9:16 竖屏","16:9 横屏","9:16 竖屏"]}\n${fence}`, { characterNames: [], shotCount: 0 });
+        expect(reply.content).toBe("先定画幅。");
+        expect(reply.ask).toEqual({ question: "选画幅", options: ["9:16 竖屏", "16:9 横屏"] });
+        const parts = directorMessageParts(`${reply.content}\n\n${directorAskBlock(reply.ask!)}`);
+        expect(parts).toEqual({ text: "先定画幅。", ask: reply.ask });
+        expect(directorAskAnswer(reply.ask!, "16:9 横屏")).toBe("Q：选画幅\nA：16:9 横屏");
+        expect(parseDirectorReply(`${fence}studio-ask\n{"question":"只有一个","options":["a"]}\n${fence}`, { characterNames: [], shotCount: 0 }).ask).toBeNull();
+        expect(directorVisibleText(`好的\n${fence}studio-ask\n{"question"`)).toBe("好的");
+    });
+
+    test("导演默认模型：用户选过的优先，其次 Gemini 3.8 Flash，再其次后台默认", () => {
+        const label = (model: string) => ({ m1: "GPT-6.1 Sol", m2: "Gemini 3.8 Flash", m3: "Claude Sonnet 5" } as Record<string, string>)[model];
+        expect(directorDefaultTextModel(["m1", "m2", "m3"], label, "m3", "m1")).toBe("m3");
+        expect(directorDefaultTextModel(["m1", "m2", "m3"], label, "", "m1")).toBe("m2");
+        expect(directorDefaultTextModel(["m1", "m3"], label, "gone", "m3")).toBe("m3");
+    });
+
+    test("分镜板模式的系统提示词说明 boards 指令和选择题格式", () => {
+        const prompt = directorSystemPrompt({ story: story([{ id: "a" }]), characters: [], kinds: ["image", "video", "audio"] });
+        expect(prompt).toContain("分镜板模式");
+        expect(prompt).toContain('{"step":"boards"}');
+        expect(prompt).toContain("```studio-ask");
     });
 });

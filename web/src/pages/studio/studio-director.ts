@@ -59,6 +59,16 @@ export const DEFAULT_DIRECTOR_BRIEF: DirectorBrief = {
 
 export type DirectorRunMode = "guide" | "auto";
 
+/** 导演默认模型：用户选过的优先，其次是性价比高的 Gemini Flash，再其次是后台默认对话模型。 */
+export const DIRECTOR_DEFAULT_TEXT_MODEL = /gemini 3\.8 flash/i;
+
+export function directorDefaultTextModel(models: string[], label: (model: string) => string, choice: string, configured: string) {
+    if (choice && models.includes(choice)) return choice;
+    const preferred = models.find((model) => DIRECTOR_DEFAULT_TEXT_MODEL.test(label(model) || model));
+    if (preferred) return preferred;
+    return models.includes(configured) ? configured : models[0] || "";
+}
+
 export function directorGenre(id: string | undefined) {
     return DIRECTOR_GENRES.find((genre) => genre.id === id) || DIRECTOR_GENRES[DIRECTOR_GENRES.length - 1];
 }
@@ -120,7 +130,17 @@ export const DIRECTOR_MEMORY_SECTIONS: Array<{ key: keyof DirectorMemory; label:
     { key: "context_notes", label: "备注" },
 ];
 
-export type DirectorRunStep = "images" | "videos" | "voice" | "render";
+export type DirectorRunStep = "boards" | "images" | "videos" | "voice" | "render";
+
+/** 制作方式：board 每段先出一张分镜板再一次生成整段视频；shots 逐个镜头生成画面和视频。 */
+export type DirectorProductionMode = "board" | "shots";
+
+/** 显式设置优先；旧项目已有逐镜头产物时沿用逐镜头，避免把镜头画面误当成分镜板。 */
+export function directorProductionMode(story: Pick<StudioStory, "settings" | "versions">): DirectorProductionMode {
+    const mode = (story.settings as { mode?: unknown } | undefined)?.mode;
+    if (mode === "board" || mode === "shots") return mode;
+    return story.versions.length ? "shots" : "board";
+}
 
 export type DirectorRunAction = {
     id: string;
@@ -139,6 +159,7 @@ export type DirectorPlan = {
 
 const PLAN_BLOCK = /```studio-plan\s*([\s\S]*?)```/g;
 const RUN_BLOCK = /```studio-run\s*([\s\S]*?)```/g;
+const ASK_BLOCK = /```studio-ask\s*([\s\S]*?)```/g;
 const MAX_SHOT_SECONDS = 15;
 
 function text(value: unknown, max: number) {
@@ -180,7 +201,7 @@ export function directorPlanSnapshot(story: Pick<StudioStory, "scenes" | "shots"
 }
 
 export type DirectorPromptContext = {
-    story: Pick<StudioStory, "title" | "ratio" | "durationSeconds" | "scenes" | "shots" | "brief" | "memory">;
+    story: Pick<StudioStory, "title" | "ratio" | "durationSeconds" | "scenes" | "shots" | "brief" | "memory" | "settings" | "versions">;
     characters: Array<{ name: string; description: string }>;
     brand?: string;
     kinds: StudioKind[];
@@ -191,6 +212,7 @@ export function directorSystemPrompt(context: DirectorPromptContext) {
     const genre = directorGenre(brief.genre);
     const plan = directorPlanSnapshot(context.story);
     const memory = directorMemory(context.story.memory);
+    const boardMode = directorProductionMode(context.story) === "board";
     const capabilities = [
         context.kinds.includes("image") ? "镜头画面（图片）" : "",
         context.kinds.includes("video") ? "镜头视频" : "",
@@ -210,13 +232,24 @@ export function directorSystemPrompt(context: DirectorPromptContext) {
         `   - 每个镜头 2 到 ${MAX_SHOT_SECONDS} 秒，所有镜头时长加起来等于目标时长。修改已有镜头时必须带上原来的 id；新镜头不写 id。`,
         "   - characters 只能用角色清单里的名字；visual 不要写角色名以外的人名。",
         "   - memory 记录本项目的决定、限制、待办、待确认问题和备注，每次输出完整内容。",
+        ...(boardMode ? [
+            `制作方式：分镜板模式。系统把相邻镜头按每段最多 ${DIRECTOR_SEGMENT_MAX_SECONDS} 秒、${DIRECTOR_SEGMENT_MAX_SHOTS} 个镜头分成一段，每段先生成一张分镜板（角色参考 + 编号画面），再按分镜板一次生成整段视频。`,
+            "   - 每个镜头 2 到 5 秒最合适；同一段的镜头放在同一场景、同一批角色，景别要有变化（远景、中景、特写交替）。",
+        ] : []),
         "2. 用户要求生成时，在回复末尾附上执行指令（可以和分镜同时出现，分镜先保存）：",
         "```studio-run",
-        '{"step":"images","shots":[1,2]}',
+        boardMode ? '{"step":"boards"}' : '{"step":"images","shots":[1,2]}',
         "```",
-        "   - step：images（镜头画面）、videos（把画面做成视频，需要先有画面）、voice（旁白配音）、render（合成成片）。",
-        "   - shots 是镜头编号，省略表示全部镜头。一次只写一个指令。",
-        "3. 没有把握的地方先问用户。不要编造链接，不要声称已生成完成；生成由系统执行，进度显示在分镜面板。",
+        boardMode
+            ? "   - step：boards（生成分镜板）、videos（按分镜板生成整段视频，需要先有分镜板）、voice（旁白配音）、render（合成成片）。"
+            : "   - step：images（镜头画面）、videos（把画面做成视频，需要先有画面）、voice（旁白配音）、render（合成成片）。",
+        "   - shots 是镜头编号，省略表示全部镜头。一次只写一个指令。执行前系统会自动显示积分报价，你不用自己估价。",
+        "3. 需要用户在几个选项里选一个时（画幅、风格、时长、方向等），在回复末尾附上选择题，用户点选后会以「Q：… A：…」发回：",
+        "```studio-ask",
+        '{"question":"问题","options":["选项一","选项二"]}',
+        "```",
+        "   - 一次只问一个问题，最多 6 个选项，选项写成用户能直接点的短句。能自己合理决定的就不要问。",
+        "4. 没有把握的地方先问用户。不要编造链接，不要声称已生成完成；生成由系统执行，进度显示在分镜面板。",
         "",
         context.characters.length ? `角色清单：\n${context.characters.map((item) => `- ${item.name}${item.description ? `：${item.description}` : ""}`).join("\n")}` : "角色清单：（无）",
         context.brand ? `\n品牌要求（所有画面和文案都要符合）：\n${context.brand}` : "",
@@ -227,7 +260,7 @@ export function directorSystemPrompt(context: DirectorPromptContext) {
 
 /** 流式输出时隐藏还没写完的代码块。 */
 export function directorVisibleText(value: string) {
-    const starts = [value.indexOf("```studio-plan"), value.indexOf("```studio-run")].filter((index) => index >= 0);
+    const starts = [value.indexOf("```studio-plan"), value.indexOf("```studio-run"), value.indexOf("```studio-ask")].filter((index) => index >= 0);
     return (starts.length ? value.slice(0, Math.min(...starts)) : value).trimEnd();
 }
 
@@ -280,7 +313,7 @@ export function parseDirectorRun(value: unknown, shotCount: number, newId: () =>
     if (!value || typeof value !== "object") return null;
     const source = value as Record<string, unknown>;
     const step = source.step;
-    if (step !== "images" && step !== "videos" && step !== "voice" && step !== "render") return null;
+    if (step !== "boards" && step !== "images" && step !== "videos" && step !== "voice" && step !== "render") return null;
     const action: DirectorRunAction = { id: newId(), step, status: "proposed" };
     if (Array.isArray(source.shots) && step !== "render") {
         const shots = [...new Set(source.shots.map(Number).filter((no) => Number.isInteger(no) && no >= 1 && no <= shotCount))].sort((left, right) => left - right);
@@ -289,15 +322,41 @@ export function parseDirectorRun(value: unknown, shotCount: number, newId: () =>
     return action;
 }
 
-/** 解析导演回复：正文、分镜、执行指令。分镜无效时 planInvalid 为 true，正文照常显示。 */
+export type DirectorAsk = { question: string; options: string[] };
+
+export function parseDirectorAsk(value: unknown): DirectorAsk | null {
+    if (!value || typeof value !== "object") return null;
+    const source = value as Record<string, unknown>;
+    const question = text(source.question, 200);
+    const options = [...new Set(stringList(source.options, 6, 120))];
+    return question && options.length >= 2 ? { question, options } : null;
+}
+
+/** 选择题以代码块形式留在消息正文里，显示时再拆成文字和选项卡。 */
+export function directorAskBlock(ask: DirectorAsk) {
+    return ["```studio-ask", JSON.stringify(ask), "```"].join("\n");
+}
+
+export function directorMessageParts(content: string): { text: string; ask: DirectorAsk | null } {
+    const block = parseJSONBlock(content, ASK_BLOCK);
+    return { text: content.replace(ASK_BLOCK, "").replace(/\n{3,}/g, "\n\n").trim(), ask: block.found ? parseDirectorAsk(block.value) : null };
+}
+
+export function directorAskAnswer(ask: DirectorAsk, option: string) {
+    return `Q：${ask.question}\nA：${option}`;
+}
+
+/** 解析导演回复：正文、分镜、执行指令、选择题。分镜无效时 planInvalid 为 true，正文照常显示。 */
 export function parseDirectorReply(value: string, options: { characterNames: string[]; shotCount: number; newId?: () => string }) {
-    const content = value.replace(PLAN_BLOCK, "").replace(RUN_BLOCK, "").replace(/\n{3,}/g, "\n\n").trim();
+    const content = value.replace(PLAN_BLOCK, "").replace(RUN_BLOCK, "").replace(ASK_BLOCK, "").replace(/\n{3,}/g, "\n\n").trim();
     const planBlock = parseJSONBlock(value, PLAN_BLOCK);
     const plan = planBlock.found ? parseDirectorPlan(planBlock.value, options.characterNames) : null;
     const runBlock = parseJSONBlock(value, RUN_BLOCK);
     const shotCount = plan ? plan.scenes.reduce((sum, scene) => sum + scene.shots.length, 0) : options.shotCount;
     const run = runBlock.found ? parseDirectorRun(runBlock.value, shotCount, options.newId) : null;
-    return { content, plan, planInvalid: planBlock.found && !plan, run };
+    const askBlock = parseJSONBlock(value, ASK_BLOCK);
+    const ask = askBlock.found ? parseDirectorAsk(askBlock.value) : null;
+    return { content, plan, planInvalid: planBlock.found && !plan, run, ask };
 }
 
 // ---------------- 生成 ----------------
@@ -344,7 +403,7 @@ export function directorWorkActive(work: StudioWork | undefined) {
 }
 
 /** 某一步需要处理的镜头：已有可用结果或正在生成的跳过，视频还要求画面已就绪。 */
-export function directorStepTargets(story: Pick<StudioStory, "scenes" | "shots" | "versions">, step: Exclude<DirectorRunStep, "render">, numbers?: number[]) {
+export function directorStepTargets(story: Pick<StudioStory, "scenes" | "shots" | "versions">, step: "images" | "videos" | "voice", numbers?: number[]) {
     const shots = directorOrderedShots(story);
     const versions = directorVersionIndex(story);
     const picked = numbers?.length ? shots.filter((_, index) => numbers.includes(index + 1)) : shots;
@@ -358,6 +417,111 @@ export function directorStepTargets(story: Pick<StudioStory, "scenes" | "shots" 
         if (step === "videos") return directorWorkReady(directorActiveWork(shot, "image", versions));
         if (step === "voice") return Boolean(directorShotFields(shot).voiceover);
         return true;
+    });
+}
+
+// ---------------- 分镜板 ----------------
+
+export const DIRECTOR_SEGMENT_MAX_SECONDS = 15;
+export const DIRECTOR_SEGMENT_MAX_SHOTS = 4;
+
+/** 一段 = 相邻镜头按时长和数量上限合并；分镜板和整段视频都登记在段落第一个镜头（anchor）上。 */
+export type DirectorSegment = {
+    no: number;
+    anchor: StudioShot;
+    shots: StudioShot[];
+    /** 镜头在全片中的编号（1 开始）。 */
+    shotNumbers: number[];
+    seconds: number;
+};
+
+export function directorSegments(story: Pick<StudioStory, "scenes" | "shots">): DirectorSegment[] {
+    const segments: DirectorSegment[] = [];
+    directorOrderedShots(story).forEach((shot, index) => {
+        const last = segments[segments.length - 1];
+        const seconds = Math.max(1, shot.durationSeconds);
+        if (last && last.shots.length < DIRECTOR_SEGMENT_MAX_SHOTS && last.seconds + seconds <= DIRECTOR_SEGMENT_MAX_SECONDS) {
+            last.shots.push(shot);
+            last.shotNumbers.push(index + 1);
+            last.seconds += seconds;
+            return;
+        }
+        segments.push({ no: segments.length + 1, anchor: shot, shots: [shot], shotNumbers: [index + 1], seconds });
+    });
+    return segments;
+}
+
+export function directorSegmentOfShot(segments: DirectorSegment[], shotId: string) {
+    return segments.find((segment) => segment.shots.some((shot) => shot.id === shotId));
+}
+
+function shotLabel(no: number) {
+    return `SHOT ${String(no).padStart(2, "0")}`;
+}
+
+function segmentCast(segment: DirectorSegment, characters: DirectorCharacter[]) {
+    const names = new Set(segment.shots.flatMap((shot) => directorShotFields(shot).characters));
+    return characters.filter((item) => names.has(item.name));
+}
+
+/**
+ * 分镜板提示词：一张 16:9 的制作分镜表，左栏是角色和场景参考、镜头表，右侧是编号画面。
+ * 由程序按固定版式拼出，不额外调用对话模型；画面内容来自导演写好的分镜。
+ */
+export function directorBoardPrompt(segment: DirectorSegment, characters: DirectorCharacter[], options: { style: string; ratio: string }) {
+    const cast = segmentCast(segment, characters);
+    const frames = segment.shots.length;
+    const portrait = options.ratio === "9:16" || options.ratio === "3:4" || options.ratio === "4:5";
+    const columns = frames <= 2 ? frames : portrait ? frames : 2;
+    const rows = Math.ceil(frames / columns);
+    const shotLines = segment.shots.map((shot, index) => {
+        const fields = directorShotFields(shot);
+        return `${shotLabel(index + 1)} (${shot.durationSeconds}s) — ${fields.visual}${fields.camera ? ` Camera: ${fields.camera}.` : ""}${fields.characters.length ? ` Characters: ${fields.characters.join(", ")}.` : ""}`;
+    });
+    return [
+        "A single premium pre-production storyboard sheet on a clean warm-white background, overall canvas 16:9 landscape, elegant editorial layout with crisp sans-serif labels and generous empty gutters.",
+        "LAYOUT: a narrow left column (no wider than 22% of the sheet) holds CHARACTER REFERENCE (each character shown front, three-quarter and side view with identical face, hair and wardrobe), ENVIRONMENT reference of the location, and a small SHOT TABLE (#, action, lens / camera move).",
+        `The large right area holds exactly ${frames} numbered storyboard frame${frames > 1 ? "s" : ""} in a ${columns}-column by ${rows}-row grid. Every frame is an equal ${options.ratio} rectangle with a thin complete border and its caption OUTSIDE below the frame in the form "SHOT 0N · shot size · action". Keep wide empty gutters between frames; frames never touch or overlap.`,
+        "CONTINUITY: every frame shows the same characters with identical faces, hair and wardrobe, in the same location with consistent lighting and color palette, so the sheet reads as one continuous scene.",
+        options.style.trim() ? `VISUAL STYLE: ${options.style.trim()}.` : "VISUAL STYLE: photorealistic cinematic stills, natural motivated light, shallow depth of field.",
+        "FRAMES:",
+        ...shotLines,
+        cast.length ? `CHARACTERS: ${cast.map((item) => `${item.name}${item.description.trim() ? ` — ${item.description.trim()}` : ""}`).join("; ")}.` : "",
+        "No logos or watermarks; text appears only in labels and captions.",
+    ].filter(Boolean).join("\n");
+}
+
+/** 整段视频提示词：把分镜板当参考图，按编号顺序拍成一段剪接好的视频，不能把分镜板本身画出来。 */
+export function directorBoardVideoPrompt(segment: DirectorSegment, options: { style: string; ratio: string }) {
+    let cursor = 0;
+    const timing = segment.shots.map((shot, index) => {
+        const fields = directorShotFields(shot);
+        const start = cursor;
+        cursor += shot.durationSeconds;
+        return `${shotLabel(index + 1)} (${start}–${cursor}s): ${fields.visual}${fields.camera ? ` Camera: ${fields.camera}.` : ""}`;
+    });
+    return [
+        `Image 1 is a storyboard design sheet. Film the characters and the location it shows as ONE edited sequence of only its numbered SHOT frames, in order (${shotLabel(1)} to ${shotLabel(segment.shots.length)}), following each frame for framing, angle, camera move, lighting and mood.`,
+        `Do NOT show the sheet itself, its panels, text, tables, captions or grid. Every shot is a separate full-screen ${options.ratio} live shot with a clean cut between shots, never split-screen. The character reference views are identity guidance only, not extra shots.`,
+        "Keep every character's face, hair and wardrobe identical in every shot, with exactly one instance of each character per shot.",
+        options.style.trim() ? `Style: ${options.style.trim()}.` : "Style: photorealistic cinematic footage, real camera, shallow depth of field.",
+        "Shot timing:",
+        ...timing,
+    ].join("\n");
+}
+
+/** 分镜板模式下某一步要处理的段落：点名镜头时处理它们所在的段落并允许重做，否则只补缺。 */
+export function directorBoardTargets(story: Pick<StudioStory, "scenes" | "shots" | "versions">, step: "boards" | "videos", numbers?: number[]) {
+    const versions = directorVersionIndex(story);
+    const segments = directorSegments(story);
+    const explicit = Boolean(numbers?.length);
+    const picked = explicit ? segments.filter((segment) => segment.shotNumbers.some((no) => numbers!.includes(no))) : segments;
+    return picked.filter((segment) => {
+        const board = directorActiveWork(segment.anchor, "image", versions);
+        const work = step === "boards" ? board : directorActiveWork(segment.anchor, "video", versions);
+        if (directorWorkActive(work)) return false;
+        if (!explicit && directorWorkReady(work)) return false;
+        return step === "videos" ? directorWorkReady(board) : true;
     });
 }
 
@@ -403,14 +567,49 @@ export const DIRECTOR_MUSIC_VOLUME = 0.2;
  * 按分镜生成成片时间线：视频优先，没有视频的镜头用画面图。旁白从镜头开头起，超出镜头的部分裁掉。
  * 有旁白时压低镜头视频原声，背景音乐 0.2 音量铺满全片。missing 列出没有可用画面的镜头编号。
  */
-export function buildDirectorTimeline(story: Pick<StudioStory, "ratio" | "scenes" | "shots" | "versions">, options: { music?: DirectorMusic; subtitles?: boolean } = {}) {
+export function buildDirectorTimeline(story: Pick<StudioStory, "ratio" | "scenes" | "shots" | "versions">, options: { music?: DirectorMusic; subtitles?: boolean; mode?: DirectorProductionMode } = {}) {
     const shots = directorOrderedShots(story);
     const versions = directorVersionIndex(story);
     const clips: DirectorTimelineClip[] = [];
     const missing: number[] = [];
     const longVoice: number[] = [];
     let cursor = 0;
-    shots.forEach((shot, index) => {
+    const shotOverlays = (shot: StudioShot, no: number, startMs: number, duration: number) => {
+        const voice = directorActiveWork(shot, "audio", versions);
+        if (directorWorkReady(voice)) {
+            const voiceMedia = voice!.media[0];
+            const length = voiceMedia.durationMs && voiceMedia.durationMs > 0 ? voiceMedia.durationMs : duration;
+            if (length > duration + 300) longVoice.push(no);
+            const clipped = Math.min(length, duration);
+            clips.push({ id: `vo-${shot.id}`, kind: "audio", trackId: "voiceover", startMs, durationMs: clipped, sourceStartMs: 0, sourceDurationMs: clipped, volume: 1, directMedia: { id: voice!.id, kind: "audio", storageKey: voiceMedia.storageKey! }, shotNo: no });
+        }
+        const subtitle = directorShotFields(shot).subtitle;
+        if (options.subtitles !== false && subtitle) clips.push({ id: `s-${shot.id}`, kind: "subtitle", trackId: "subtitle", startMs, durationMs: duration, sourceStartMs: 0, sourceDurationMs: duration, volume: 1, text: subtitle, shotNo: no });
+        return directorWorkReady(voice);
+    };
+    if (options.mode === "board") {
+        // 一段视频覆盖段内所有镜头；旁白和字幕仍按镜头在段内的起点摆放，视频比计划短时裁掉超出的镜头。
+        for (const segment of directorSegments(story)) {
+            const video = directorActiveWork(segment.anchor, "video", versions);
+            if (!directorWorkReady(video)) {
+                missing.push(...segment.shotNumbers);
+                continue;
+            }
+            const media = video!.media[0];
+            const planned = segment.seconds * 1000;
+            const duration = media.durationMs && media.durationMs > 0 ? Math.min(planned, media.durationMs) : planned;
+            const voiced = segment.shots.some((shot) => directorWorkReady(directorActiveWork(shot, "audio", versions)));
+            clips.push({ id: `seg-${segment.anchor.id}`, kind: "video", trackId: "video", startMs: cursor, durationMs: duration, sourceStartMs: 0, sourceDurationMs: duration, volume: voiced ? 0.3 : 1, directMedia: { id: video!.id, kind: media.kind, storageKey: media.storageKey! }, shotNo: segment.shotNumbers[0] });
+            let offset = 0;
+            segment.shots.forEach((shot, index) => {
+                if (offset >= duration) return;
+                const length = Math.min(shot.durationSeconds * 1000, duration - offset);
+                shotOverlays(shot, segment.shotNumbers[index], cursor + offset, length);
+                offset += shot.durationSeconds * 1000;
+            });
+            cursor += duration;
+        }
+    } else shots.forEach((shot, index) => {
         const no = index + 1;
         const video = directorActiveWork(shot, "video", versions);
         const image = directorActiveWork(shot, "image", versions);
@@ -422,18 +621,9 @@ export function buildDirectorTimeline(story: Pick<StudioStory, "ratio" | "scenes
         const media = visual.media[0];
         const planned = Math.max(1000, shot.durationSeconds * 1000);
         const duration = media.kind === "video" && media.durationMs && media.durationMs > 0 ? Math.min(planned, media.durationMs) : planned;
-        const voice = directorActiveWork(shot, "audio", versions);
-        const voiceReady = directorWorkReady(voice);
-        clips.push({ id: `v-${shot.id}`, kind: media.kind === "video" ? "video" : "image", trackId: "video", startMs: cursor, durationMs: duration, sourceStartMs: 0, sourceDurationMs: duration, volume: voiceReady ? 0.3 : 1, directMedia: { id: visual.id, kind: media.kind, storageKey: media.storageKey! }, shotNo: no });
-        if (voiceReady) {
-            const voiceMedia = voice!.media[0];
-            const length = voiceMedia.durationMs && voiceMedia.durationMs > 0 ? voiceMedia.durationMs : duration;
-            if (length > duration + 300) longVoice.push(no);
-            const clipped = Math.min(length, duration);
-            clips.push({ id: `vo-${shot.id}`, kind: "audio", trackId: "voiceover", startMs: cursor, durationMs: clipped, sourceStartMs: 0, sourceDurationMs: clipped, volume: 1, directMedia: { id: voice!.id, kind: "audio", storageKey: voiceMedia.storageKey! }, shotNo: no });
-        }
-        const subtitle = directorShotFields(shot).subtitle;
-        if (options.subtitles !== false && subtitle) clips.push({ id: `s-${shot.id}`, kind: "subtitle", trackId: "subtitle", startMs: cursor, durationMs: duration, sourceStartMs: 0, sourceDurationMs: duration, volume: 1, text: subtitle, shotNo: no });
+        const clip: DirectorTimelineClip = { id: `v-${shot.id}`, kind: media.kind === "video" ? "video" : "image", trackId: "video", startMs: cursor, durationMs: duration, sourceStartMs: 0, sourceDurationMs: duration, volume: 1, directMedia: { id: visual.id, kind: media.kind, storageKey: media.storageKey! }, shotNo: no };
+        clips.push(clip);
+        if (shotOverlays(shot, no, cursor, duration)) clip.volume = 0.3;
         cursor += duration;
     });
     if (options.music?.storageKey && cursor > 0) {
@@ -457,7 +647,7 @@ export function buildDirectorTimeline(story: Pick<StudioStory, "ratio" | "scenes
     return { timeline, missing, longVoice };
 }
 
-const STEP_LABEL: Record<DirectorRunStep, string> = { images: "生成镜头画面", videos: "生成镜头视频", voice: "生成旁白配音", render: "合成成片" };
+const STEP_LABEL: Record<DirectorRunStep, string> = { boards: "生成分镜板", images: "生成镜头画面", videos: "生成镜头视频", voice: "生成旁白配音", render: "合成成片" };
 
 export function directorStepLabel(step: DirectorRunStep) {
     return STEP_LABEL[step];
