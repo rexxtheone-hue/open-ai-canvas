@@ -3,7 +3,7 @@ import type { StudioScenePlanInput, StudioShot, StudioShotVersion, StudioStory }
 
 /** AI 导演：简报、导演 Agent 的提示词、分镜解析和成片时间线。纯函数，便于测试。 */
 
-export type DirectorGenre = "product-ad" | "ugc" | "real-estate" | "food" | "presenter" | "brand-film" | "short-drama" | "free";
+export type DirectorGenre = "short-film" | "music-video" | "product-ad" | "ugc" | "social" | "real-estate" | "food" | "presenter" | "explainer" | "brand-film" | "short-drama" | "trailer" | "promo" | "free";
 
 export type DirectorGenreDefinition = {
     id: DirectorGenre;
@@ -17,13 +17,19 @@ export type DirectorGenreDefinition = {
 };
 
 export const DIRECTOR_GENRES: DirectorGenreDefinition[] = [
-    { id: "product-ad", label: "产品广告", description: "卖点清晰、节奏快、结尾行动号召", subjectLabel: "产品", subjectPlaceholder: "例如：暖杯 316 不锈钢保温杯", pointsPlaceholder: "为什么值得买：卖点、使用场景、优惠信息", guidance: "前 3 秒抓眼球（痛点或惊艳画面），中段逐个展示卖点和使用场景，结尾给出行动号召。" },
-    { id: "ugc", label: "UGC 口播", description: "真人自拍感，口语化种草", subjectLabel: "产品", subjectPlaceholder: "例如：便携榨汁杯", pointsPlaceholder: "用户痛点、使用感受、想强调的卖点", guidance: "手机自拍视角、自然光、口语化旁白，像真实用户分享。" },
-    { id: "real-estate", label: "房地产", description: "外观、社区、样板间", subjectLabel: "楼盘", subjectPlaceholder: "例如：滨江一号 · 三房两厅", pointsPlaceholder: "位置、户型、配套、价格区间", guidance: "航拍外观开场，依次展示社区配套、样板间空间和采光，结尾给出联系方式。" },
+    { id: "short-film", label: "短片", description: "真实故事，电影质感", subjectLabel: "故事", subjectPlaceholder: "写下你的故事、感受，甚至只是一种情绪", pointsPlaceholder: "补充要求", guidance: "按真人短片来拍，不是广告、预告片或 UGC。用扎实的电影叙事：真实场景、有来由的光线、可信的表演和清楚的戏剧主线，镜头语言按电影短片的语法。" },
+    { id: "music-video", label: "音乐视频", description: "一首歌，跟着节奏剪", subjectLabel: "歌曲", subjectPlaceholder: "歌曲名", pointsPlaceholder: "画面方向", guidance: "按音乐视频来拍：画面跟着歌曲的节奏和情绪走，演出镜头和叙事画面交替，在节拍点上切镜。整片用用户上传的歌曲做背景音乐，不写旁白，voiceover 留空，字幕只放歌词或留空。" },
+    { id: "product-ad", label: "产品广告", description: "卖点清晰、节奏快、结尾行动号召", subjectLabel: "产品", subjectPlaceholder: "例如：暖杯 316 不锈钢保温杯", pointsPlaceholder: "为什么值得买：卖点、使用场景、优惠信息", guidance: "以产品为主角的产品广告。开场用一个有感官冲击的钩子，再依次展示触发动作、材质反应、尺寸对比，最后落到产品主镜头。强调触感细节、表面质感、反光和光线控制，给出清楚的产品证据。" },
+    { id: "ugc", label: "UGC 广告", description: "达人带货，真人种草", subjectLabel: "产品", subjectPlaceholder: "例如：便携榨汁杯", pointsPlaceholder: "用户痛点、使用感受、想强调的卖点", guidance: "达人带货的 UGC 广告，不是精致的代理商广告片。手机拍摄、平台原生画面、一位真实达人、自然光、对着镜头说话、手拿产品展示，要有明确的种草和下单节点。像 TikTok / Reels / Shorts 的达人广告，有真人感，不要拍成电影感品牌片。" },
+    { id: "social", label: "社交内容", description: "你出镜，讲你的故事", subjectLabel: "话题", subjectPlaceholder: "他们在聊什么", pointsPlaceholder: "补充要求", guidance: "自然的 UGC 社交内容，不是广告。一位创作者，手机拍摄，保留自然的不完美，平台原生节奏，轻松真实，像真人会发的日常内容。" },
+    { id: "real-estate", label: "房地产", description: "用房源照片做看房视频", subjectLabel: "楼盘", subjectPlaceholder: "例如：滨江一号 · 三房两厅", pointsPlaceholder: "位置、户型、配套、价格区间", guidance: "这是同一套真实房源的实拍照片，必须保持原样：不能虚构房间、家具、人物或转场，不能改风格或改光线。照片允许时按 外观 → 入口 → 客厅 → 厨房/餐厅 → 卧室 → 浴室 → 户外 的顺序，最后停在最好看的主镜头。每个镜头用 frame 直接引用一张房源照片作为画面，运镜平稳（缓推、缓拉、横移、环绕），画面描述只写镜头运动，不要改变照片内容。不要屏幕文字、字幕、Logo、水印或价格，subtitle 留空。" },
     { id: "food", label: "餐饮探店", description: "门头、环境、上菜、试吃", subjectLabel: "店铺", subjectPlaceholder: "例如：老街牛肉面", pointsPlaceholder: "招牌菜、环境特色、人均价格", guidance: "门头和环境建立氛围，招牌菜特写要有热气和质感，结尾报地址和人均。" },
     { id: "presenter", label: "数字人讲解", description: "讲解员面对镜头 + 要点字卡", subjectLabel: "主题", subjectPlaceholder: "例如：三分钟看懂分期免息", pointsPlaceholder: "要讲的要点，按顺序写", guidance: "讲解员正面中景为主，穿插要点画面，旁白清楚分点。" },
-    { id: "brand-film", label: "品牌片", description: "电影感讲品牌故事", subjectLabel: "品牌", subjectPlaceholder: "例如：暖杯 WarmCup", pointsPlaceholder: "品牌由来、理念、想传达的情绪", guidance: "电影感构图和光影，情绪递进，旁白克制有力量。" },
-    { id: "short-drama", label: "短剧", description: "剧本、角色、分镜到成片", subjectLabel: "故事", subjectPlaceholder: "例如：外卖小哥意外继承百亿家产", pointsPlaceholder: "主要人物、冲突、反转、结局", guidance: "开场即冲突，人物关系清楚，结尾留反转或悬念。台词写进旁白字段。" },
+    { id: "explainer", label: "讲解视频", description: "把复杂的事讲简单", subjectLabel: "主题", subjectPlaceholder: "例如：光合作用怎么运作", pointsPlaceholder: "补充要求", guidance: "讲解 / 知识类视频，不是剧情短片。观点清晰，信息结构分明，旁白配 B-roll、图示和证据镜头，节奏干净易懂，清楚易懂优先于氛围。" },
+    { id: "brand-film", label: "品牌片", description: "说出品牌主张，拍成一支片", subjectLabel: "品牌", subjectPlaceholder: "例如：暖杯 WarmCup", pointsPlaceholder: "品牌由来、理念、想传达的情绪", guidance: "品牌形象片 / 宣言片，不是以产品为主的广告。用情绪、态度、世界观和高级商业质感来带，产品可以少出现或晚出现。先卖品牌的感觉和身份，最后干净地落到品牌。" },
+    { id: "short-drama", label: "微短剧", description: "短、上头、竖屏", subjectLabel: "故事", subjectPlaceholder: "例如：外卖小哥意外继承百亿家产", pointsPlaceholder: "主要人物、冲突、反转、结局", guidance: "竖屏微短剧单集。9:16 手机优先构图，开头几秒就要有强钩子，情绪直接的狗血剧情，对峙式台词、反转，结尾留悬念，像红果短剧、ReelShort 那样的连载短剧。台词写进旁白字段。" },
+    { id: "trailer", label: "电影预告片", description: "把你的点子剪成预告片", subjectLabel: "概念", subjectPlaceholder: "例如：迷途的宇航员收到一个不该存在的信号", pointsPlaceholder: "补充要求", guidance: "电影预告片 / 先导片，不是普通剧情片段。用预告片的剪辑节奏：铺垫 → 升级 → 高潮和字卡，硬切的营销节拍，用片名、上映日期和黑场字卡做停顿。卖的是一个电影世界，不是讲完一个完整故事。" },
+    { id: "promo", label: "宣传视频", description: "给你的网站或产品做一支揭晓片", subjectLabel: "名称", subjectPlaceholder: "网站或产品名称", pointsPlaceholder: "创意方向", guidance: "产品宣传片：先制造期待，最后把产品作为主角揭晓。有 Logo 时必须照原样使用，不能改动或重新设计。" },
     { id: "free", label: "自由创作", description: "完全按你的描述来", subjectLabel: "主题", subjectPlaceholder: "你想做什么视频", pointsPlaceholder: "补充要求", guidance: "" },
 ];
 
@@ -42,7 +48,37 @@ export type DirectorBrief = {
     music: boolean;
     characterIds: string[];
     brandKitId?: string;
+    /** 快速开始表单上传的参考素材：产品图、房源照片、Logo、歌曲等，在分镜里按 label 引用。 */
+    references?: DirectorReference[];
 };
+
+export type DirectorReference = { label: string; kind: "image" | "audio"; name: string; type: string; url: string; storageKey?: string; width?: number; height?: number; durationMs?: number };
+
+/** 简报里的参考素材，丢弃不完整的项。 */
+export function directorReferences(brief: unknown): DirectorReference[] {
+    const list = brief && typeof brief === "object" ? (brief as { references?: unknown }).references : undefined;
+    if (!Array.isArray(list)) return [];
+    const seen = new Set<string>();
+    return list.flatMap((raw): DirectorReference[] => {
+        if (!raw || typeof raw !== "object") return [];
+        const item = raw as Record<string, unknown>;
+        const label = text(item.label, 40);
+        const url = text(item.url, 4000);
+        if (!label || !url || seen.has(label) || (item.kind !== "image" && item.kind !== "audio")) return [];
+        seen.add(label);
+        return [{
+            label,
+            kind: item.kind,
+            name: text(item.name, 200) || label,
+            type: text(item.type, 100),
+            url,
+            ...(typeof item.storageKey === "string" ? { storageKey: item.storageKey } : {}),
+            ...(typeof item.width === "number" ? { width: item.width } : {}),
+            ...(typeof item.height === "number" ? { height: item.height } : {}),
+            ...(typeof item.durationMs === "number" ? { durationMs: item.durationMs } : {}),
+        }];
+    });
+}
 
 export const DEFAULT_DIRECTOR_BRIEF: DirectorBrief = {
     genre: "product-ad",
@@ -84,33 +120,9 @@ export function directorGenre(id: string | undefined) {
     return DIRECTOR_GENRES.find((genre) => genre.id === id) || DIRECTOR_GENRES[DIRECTOR_GENRES.length - 1];
 }
 
-/** 开工前的阻断原因；空字符串表示可以开始。 */
-export function directorBriefError(brief: DirectorBrief) {
-    const genre = directorGenre(brief.genre);
-    if (!brief.subject.trim()) return `请填写${genre.subjectLabel}`;
-    if (Array.from(brief.subject.trim()).length > 200) return `${genre.subjectLabel}太长，最多 200 字`;
-    if (Array.from(brief.points).length > 2000) return "补充要求太长，最多 2000 字";
-    if (!(DIRECTOR_DURATIONS as readonly number[]).includes(brief.durationSeconds)) return "请选择成片时长";
-    if (!(DIRECTOR_RATIOS as readonly string[]).includes(brief.ratio)) return "请选择画面比例";
-    return "";
-}
-
 export function directorStoryTitle(brief: Pick<DirectorBrief, "genre" | "subject">) {
     const subject = brief.subject.trim().replace(/\s+/g, " ");
     return Array.from(subject).slice(0, 30).join("") || directorGenre(brief.genre).label;
-}
-
-/** 简报写成交给导演的第一条消息。 */
-export function directorKickoffMessage(brief: DirectorBrief, characterNames: string[] = []) {
-    const genre = directorGenre(brief.genre);
-    const deliverables = [brief.voiceover ? "旁白配音" : "", brief.subtitles ? "字幕" : "", brief.music ? "背景音乐" : ""].filter(Boolean);
-    return [
-        `${genre.label}：${brief.subject.trim()}`,
-        `时长 ${brief.durationSeconds} 秒 · ${brief.ratio}${brief.style.trim() ? ` · ${brief.style.trim()}` : ""}`,
-        brief.points.trim() ? `要求：${brief.points.trim()}` : "",
-        characterNames.length ? `角色：${characterNames.join("、")}` : "",
-        deliverables.length ? `包含：${deliverables.join("、")}` : "",
-    ].filter(Boolean).join("\n");
 }
 
 // ---------------- 分镜 ----------------
@@ -123,6 +135,10 @@ export type DirectorShotFields = {
     location: string;
     voiceover: string;
     subtitle: string;
+    /** 这一镜要参考的上传素材（产品图、Logo 等），生成关键帧时作为参考图。 */
+    refs: string[];
+    /** 直接作为这一镜画面的上传图片（例如房源实拍照），不再生成关键帧。 */
+    frame: string;
 };
 
 export type DirectorMemory = {
@@ -225,7 +241,7 @@ function stringList(value: unknown, maxItems: number, maxChars: number) {
 
 export function directorShotFields(shot: Pick<StudioShot, "fields">): DirectorShotFields {
     const fields = shot.fields || {};
-    return { visual: text(fields.visual, 2000), camera: text(fields.camera, 200), characters: stringList(fields.characters, 6, 40), location: text(fields.location, 40), voiceover: text(fields.voiceover, 1000), subtitle: text(fields.subtitle, 200) };
+    return { visual: text(fields.visual, 2000), camera: text(fields.camera, 200), characters: stringList(fields.characters, 6, 40), location: text(fields.location, 40), voiceover: text(fields.voiceover, 1000), subtitle: text(fields.subtitle, 200), refs: stringList(fields.refs, 4, 40), frame: text(fields.frame, 40) };
 }
 
 /** 按场景顺序展开的镜头，编号从 1 开始，与导演对话里的「镜头 n」一致。 */
@@ -266,6 +282,7 @@ export function directorSystemPrompt(context: DirectorPromptContext) {
     const memory = directorMemory(context.story.memory);
     const boardMode = directorProductionMode(context.story) === "board";
     const design = directorDesign(context.story.settings);
+    const references = directorReferences(brief);
     const capabilities = [
         context.kinds.includes("image") ? "镜头画面（图片）" : "",
         context.kinds.includes("video") ? "镜头视频" : "",
@@ -310,6 +327,9 @@ export function directorSystemPrompt(context: DirectorPromptContext) {
         "4. 没有把握的地方先问用户。不要编造链接，不要声称已生成完成；生成由系统执行，进度显示在右侧面板。回复里不要自己写「已更新：…」，系统会自动标注。",
         "",
         context.characters.length ? `用户角色库里的角色（已有形象，不需要再生成三视图）：\n${context.characters.map((item) => `- ${item.name}${item.description ? `：${item.description}` : ""}`).join("\n")}` : "用户角色库里的角色：（无）",
+        references.length
+            ? `\n用户上传的参考素材：\n${references.map((item) => `- ${item.label}（${item.kind === "audio" ? "音频" : "图片"}）`).join("\n")}\n镜头里出现某个图片素材（产品、Logo、网站截图等）时，在这个镜头的 shot 里加 "refs":["素材名"]（最多 4 个），生成关键帧时会作为参考图；要直接用一张图片作为这个镜头的画面（例如房源实拍照），加 "frame":"素材名"，这个镜头不再生成关键帧，直接用这张图生成视频。音频素材已作为背景音乐。`
+            : "",
         context.brand ? `\n品牌要求（所有画面和文案都要符合）：\n${context.brand}` : "",
         design.script ? `\n当前剧本：\n${design.script}` : "\n当前剧本：（还没有）",
         `\n当前人物：${design.cast.length ? JSON.stringify(design.cast.map(({ name, description }) => ({ name, description }))) : "（还没有）"}`,
@@ -359,6 +379,8 @@ export function parseDirectorPlan(value: unknown, characterNames: string[]): Dir
                 location: text(shot.location, 40),
                 voiceover: text(shot.voiceover, 1000),
                 subtitle: text(shot.subtitle, 200),
+                refs: stringList(shot.refs, 4, 40),
+                frame: text(shot.frame, 40),
             };
             shots.push({ ...(typeof shot.id === "string" && shot.id.trim() ? { id: shot.id.trim() } : {}), durationSeconds: Number.isFinite(duration) ? Math.min(MAX_SHOT_SECONDS, Math.max(1, Math.round(duration))) : 4, fields });
             shotCount += 1;
@@ -482,15 +504,18 @@ export function directorLocationPrompt(asset: Pick<DirectorDesignAsset, "name" |
 }
 
 /** 关键帧提示词：参考图依次是出镜人物的三视图和场景图，只用来保持人物外形和环境一致。 */
-export function directorKeyframePrompt(fields: DirectorShotFields, options: { style: string; cast: string[]; location: string; ratio: string }) {
+export function directorKeyframePrompt(fields: DirectorShotFields, options: { style: string; cast: string[]; location: string; ratio: string; materials?: string[] }) {
+    const materials = options.materials || [];
+    const offset = options.cast.length + (options.location ? 1 : 0);
     const refs = [
         ...options.cast.map((name, index) => `参考图 ${index + 1} 是「${name}」的三视图`),
         options.location ? `参考图 ${options.cast.length + 1} 是场景「${options.location}」` : "",
+        ...materials.map((label, index) => `参考图 ${offset + index + 1} 是用户提供的「${label}」`),
     ].filter(Boolean);
     return [
         fields.visual,
         fields.camera ? `镜头：${fields.camera}` : "",
-        refs.length ? `${refs.join("，")}。人物的长相、发型、服装必须和三视图完全一致，环境必须和场景图一致；只画这一个镜头的完整画面，不要画成三视图、拼图或分格` : "",
+        refs.length ? `${refs.join("，")}。人物的长相、发型、服装必须和三视图完全一致，环境必须和场景图一致${materials.length ? "，产品、Logo 等用户素材的外观必须和参考图完全一致" : ""}；只画这一个镜头的完整画面，不要画成三视图、拼图或分格` : "",
         `画幅 ${options.ratio}`,
         options.style.trim() ? `风格：${options.style.trim()}` : "",
         "画面中不要出现文字和水印",
@@ -537,9 +562,16 @@ export function directorWorkActive(work: StudioWork | undefined) {
 }
 
 /** 某一步需要处理的镜头：已有可用结果或正在生成的跳过，视频还要求画面已就绪。 */
-export function directorStepTargets(story: Pick<StudioStory, "scenes" | "shots" | "versions">, step: "images" | "videos" | "voice", numbers?: number[]) {
+/** 镜头直接使用的上传图片（frame 指向简报里的图片素材）。 */
+export function directorShotFrame(shot: Pick<StudioShot, "fields">, references: DirectorReference[]) {
+    const frame = directorShotFields(shot).frame;
+    return frame ? references.find((item) => item.kind === "image" && item.label === frame) : undefined;
+}
+
+export function directorStepTargets(story: Pick<StudioStory, "scenes" | "shots" | "versions" | "brief">, step: "images" | "videos" | "voice", numbers?: number[]) {
     const shots = directorOrderedShots(story);
     const versions = directorVersionIndex(story);
+    const references = directorReferences(story.brief);
     const picked = numbers?.length ? shots.filter((_, index) => numbers.includes(index + 1)) : shots;
     const explicit = Boolean(numbers?.length);
     return picked.filter((shot) => {
@@ -548,7 +580,9 @@ export function directorStepTargets(story: Pick<StudioStory, "scenes" | "shots" 
         if (directorWorkActive(work)) return false;
         // 点名重做的镜头即使已有结果也重新生成；全部生成时只补缺。
         if (!explicit && directorWorkReady(work)) return false;
-        if (step === "videos") return directorWorkReady(directorActiveWork(shot, "image", versions));
+        // 用上传图片做画面的镜头不生成关键帧，直接拿图片生成视频。
+        if (step === "images" && directorShotFrame(shot, references)) return false;
+        if (step === "videos") return directorWorkReady(directorActiveWork(shot, "image", versions)) || Boolean(directorShotFrame(shot, references));
         if (step === "voice") return Boolean(directorShotFields(shot).voiceover);
         return true;
     });

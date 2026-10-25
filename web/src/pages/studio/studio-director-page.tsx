@@ -5,33 +5,27 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, ArrowUpLeft, Clapperboard, Plus, Sparkles, Trash2 } from "./studio-icons";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 
-import { AppModal } from "@/components/ui/product/app-modal/app-modal";
 import { createStudioStory, deleteStudioStory, listStudioStories } from "@/services/api/studio-agents";
 import { useUserStore } from "@/stores/use-user-store";
-import { StudioCharacterGrid, useStudioCharacters } from "./studio-character-picker";
 import {
     DEFAULT_DIRECTOR_BRIEF,
     DIRECTOR_DURATIONS,
-    DIRECTOR_GENRES,
     DIRECTOR_RATIOS,
-    directorBriefError,
     directorDefaultTextModel,
-    directorGenre,
-    directorKickoffMessage,
     directorStoryTitle,
     type DirectorBrief,
-    type DirectorGenre,
+    type DirectorMusic,
     type DirectorRunMode,
 } from "./studio-director";
+import { StudioQuickStartModal, type QuickStartSubmit } from "./studio-director-quickstart";
 import { StudioPosterCard } from "./studio-poster-card";
-import { STUDIO_QUICK_STARTS } from "./studio-quickstarts";
+import { STUDIO_FREE_START, STUDIO_QUICK_STARTS, studioQuickStart, type StudioQuickStart } from "./studio-quickstarts";
 import { StudioShell } from "./studio-shell";
 import { groupedTextModelOptions, StudioSelect } from "./studio-select";
 import { modelDisplayName, selectableModelsByCapability, useEffectiveConfig } from "@/stores/use-config-store";
 import { useStudioToolCovers } from "./use-studio-tool-meta";
 import { useStudioBrandChoice } from "./use-studio-brand";
 
-const MAX_CHARACTERS = 3;
 const RUN_MODE_KEY = "studio.director.run-mode.v1";
 // 与导演工作台共用，首页选的模型进入项目后继续沿用。
 const TEXT_MODEL_KEY = "studio.director.text-model.v1";
@@ -75,13 +69,11 @@ export default function StudioDirectorPage() {
             // 浏览器禁用存储时只在本页生效。
         }
     };
-    const [brief, setBrief] = useState<DirectorBrief | null>(null);
+    const [quickStart, setQuickStart] = useState<{ config: StudioQuickStart; characterIds: string[] } | null>(null);
     const [starting, setStarting] = useState(false);
     const covers = useStudioToolCovers();
     const handoffRef = useRef(false);
     const brand = useStudioBrandChoice(true);
-    const charactersQuery = useStudioCharacters();
-    const characters = charactersQuery.data || [];
     const storiesQuery = useQuery({ queryKey: ["studio", "stories"], queryFn: async () => (await listStudioStories()).items, enabled: Boolean(user) });
     const stories = storiesQuery.data || [];
     // 侧栏「导演项目」带 #studio-director-projects 进来时，项目列表加载后滚到那里。
@@ -100,26 +92,26 @@ export default function StudioDirectorPage() {
         }
     };
 
-    // 首页一键成片（?genre=）和角色库「交给 AI 导演」（?character=）直接打开简报表单。
+    // 首页快速开始（?genre=）和角色库「交给 AI 导演」（?character=）直接打开对应表单。
     useEffect(() => {
         const genre = searchParams.get("genre");
         const character = searchParams.get("character");
         if (!genre && !character) return;
-        setBrief({ ...DEFAULT_DIRECTOR_BRIEF, genre: DIRECTOR_GENRES.some((item) => item.id === genre) ? (genre as DirectorGenre) : character ? "free" : "product-ad", characterIds: character ? [character] : [] });
+        setQuickStart({ config: studioQuickStart(genre) || STUDIO_FREE_START, characterIds: character ? [character] : [] });
         setSearchParams({}, { replace: true });
     }, [searchParams, setSearchParams]);
 
-    const start = async (value: DirectorBrief, kickoff: string) => {
+    const start = async (value: DirectorBrief, kickoff: string, options: { title?: string; music?: DirectorMusic } = {}) => {
         if (starting) return;
         if (!requireUser()) return;
         setStarting(true);
         try {
             const story = await createStudioStory({
-                title: directorStoryTitle(value),
+                title: options.title || directorStoryTitle(value),
                 ratio: value.ratio,
                 durationSeconds: value.durationSeconds,
                 brief: { ...value, kickoff },
-                settings: { runMode, mode: "shots", brandKitId: brand.kit?.id || "" },
+                settings: { runMode, mode: "shots", brandKitId: brand.kit?.id || "", ...(options.music ? { music: options.music } : {}) },
                 memory: { decisions: [], constraints: [], action_items: [], open_questions: [], resolved: [], context_notes: [] },
             });
             void queryClient.invalidateQueries({ queryKey: ["studio", "stories"] });
@@ -136,15 +128,8 @@ export default function StudioDirectorPage() {
         void start({ ...DEFAULT_DIRECTOR_BRIEF, genre: "free", subject: Array.from(text).slice(0, 200).join(""), points: "", ratio, durationSeconds: duration }, text);
     };
 
-    const startFromBrief = () => {
-        if (!brief) return;
-        const error = directorBriefError(brief);
-        if (error) {
-            message.warning(error);
-            return;
-        }
-        const names = characters.filter((item) => brief.characterIds.includes(item.id)).map((item) => item.name);
-        void start(brief, directorKickoffMessage(brief, names));
+    const startFromQuickStart = (value: QuickStartSubmit) => {
+        void start(value.brief, value.kickoff, { title: value.title, music: value.music });
     };
 
     const removeStory = (id: string, title: string) => {
@@ -171,8 +156,6 @@ export default function StudioDirectorPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams, user]);
 
-    const genre = brief ? directorGenre(brief.genre) : undefined;
-    const setField = <K extends keyof DirectorBrief>(key: K, value: DirectorBrief[K]) => setBrief((current) => (current ? { ...current, [key]: value } : current));
 
     return (
         <StudioShell title="AI 导演">
@@ -227,11 +210,11 @@ export default function StudioDirectorPage() {
 
                 <section className="studio-section" aria-labelledby="studio-director-quick">
                     <div className="studio-section-head">
-                        <h2 id="studio-director-quick">按行业快速开始</h2>
+                        <h2 id="studio-director-quick">快速开始</h2>
                     </div>
                     <div className="studio-poster-grid">
                         {STUDIO_QUICK_STARTS.map((item) => (
-                            <StudioPosterCard key={item.genre} title={item.label} icon={item.icon} gradient={item.gradient} cover={covers[item.coverId]} badge={item.badge} onClick={() => setBrief({ ...DEFAULT_DIRECTOR_BRIEF, genre: item.genre })} />
+                            <StudioPosterCard key={item.genre} title={item.label} icon={item.icon} gradient={item.gradient} cover={covers[item.coverId]} badge={item.badge} onClick={() => setQuickStart({ config: item, characterIds: [] })} />
                         ))}
                     </div>
                 </section>
@@ -241,7 +224,7 @@ export default function StudioDirectorPage() {
                         <h2 id="studio-director-projects">导演项目</h2>
                     </div>
                     <div className="studio-poster-grid">
-                        <button type="button" className="studio-create-tile" onClick={() => setBrief({ ...DEFAULT_DIRECTOR_BRIEF, genre: "free" })}>
+                        <button type="button" className="studio-create-tile" onClick={() => setQuickStart({ config: STUDIO_FREE_START, characterIds: [] })}>
                             <Plus aria-hidden />
                             <strong>新建项目</strong>
                         </button>
@@ -260,63 +243,15 @@ export default function StudioDirectorPage() {
                 </section>
             </div>
 
-            <AppModal rootClassName="studio-modal" open={Boolean(brief)} width={640} title={genre ? `${genre.label} · 简报` : "简报"} okText={starting ? "正在创建…" : "开始导演"} cancelText="取消" okButtonProps={{ disabled: starting || Boolean(brief && directorBriefError(brief)), icon: <Sparkles aria-hidden /> }} onOk={startFromBrief} onCancel={() => setBrief(null)}>
-                {brief && genre ? (
-                    <div className="studio-popup studio-form-stack">
-                        <div className="studio-chip-list" role="group" aria-label="视频类型">
-                            {DIRECTOR_GENRES.map((item) => <button key={item.id} type="button" aria-pressed={brief.genre === item.id} onClick={() => setField("genre", item.id)}>{item.label}</button>)}
-                        </div>
-                        <label className="studio-field">
-                            <span>{genre.subjectLabel} <b aria-hidden>*</b></span>
-                            <input value={brief.subject} maxLength={200} placeholder={genre.subjectPlaceholder} onChange={(event) => setField("subject", event.target.value)} />
-                        </label>
-                        <label className="studio-field">
-                            <span>补充要求 <small>{Array.from(brief.points).length}/2000</small></span>
-                            <textarea value={brief.points} maxLength={2000} rows={4} placeholder={genre.pointsPlaceholder} onChange={(event) => setField("points", event.target.value)} />
-                        </label>
-                        <label className="studio-field">
-                            <span>风格</span>
-                            <input value={brief.style} maxLength={120} placeholder="例如：干净高级、暖色调、电影感" onChange={(event) => setField("style", event.target.value)} />
-                        </label>
-                        <div className="studio-filter" role="group" aria-label="成片时长">
-                            {DIRECTOR_DURATIONS.map((seconds) => <button key={seconds} type="button" aria-pressed={brief.durationSeconds === seconds} onClick={() => setField("durationSeconds", seconds)}>{seconds} 秒</button>)}
-                        </div>
-                        <div className="studio-filter" role="group" aria-label="画面比例">
-                            {DIRECTOR_RATIOS.map((item) => <button key={item} type="button" aria-pressed={brief.ratio === item} onClick={() => setField("ratio", item)}>{item}</button>)}
-                        </div>
-                        <div className="studio-check-row">
-                            <label><input type="checkbox" checked={brief.voiceover} onChange={(event) => setField("voiceover", event.target.checked)} />旁白配音</label>
-                            <label><input type="checkbox" checked={brief.subtitles} onChange={(event) => setField("subtitles", event.target.checked)} />字幕</label>
-                            <label><input type="checkbox" checked={brief.music} onChange={(event) => setField("music", event.target.checked)} />背景音乐</label>
-                        </div>
-                        <div className="studio-field">
-                            <span>角色（可选，最多 {MAX_CHARACTERS} 个）<Link to="/studio/characters" className="studio-block-link">角色库</Link></span>
-                            {characters.length ? (
-                                <StudioCharacterGrid characters={characters} selected={brief.characterIds} onToggle={(character) => {
-                                    const selected = brief.characterIds.includes(character.id);
-                                    if (!selected && brief.characterIds.length >= MAX_CHARACTERS) {
-                                        message.warning(`最多选 ${MAX_CHARACTERS} 个角色`);
-                                        return;
-                                    }
-                                    setField("characterIds", selected ? brief.characterIds.filter((id) => id !== character.id) : [...brief.characterIds, character.id]);
-                                }} />
-                            ) : <p className="studio-hint">{charactersQuery.isLoading ? "正在读取…" : "角色库还是空的。需要固定形象的人物，可以先去角色库建好。"}</p>}
-                        </div>
-                        <div className="studio-field">
-                            <span>品牌（可选）</span>
-                            <StudioSelect
-                                className="studio-select"
-                                ariaLabel="品牌套件"
-                                value={brand.kit?.id || ""}
-                                options={[{ value: "", label: "不使用品牌" }, ...brand.kits.map((kit) => ({ value: kit.id, label: `${kit.name}${kit.isDefault ? "（默认）" : ""}` }))]}
-                                onChange={brand.setChoice}
-                                placement="bottomLeft"
-                            />
-                        </div>
-                        <p className="studio-hint">{runMode === "auto" ? "直接做：写完分镜后自动生成画面、视频、配音并合成成片。" : "引导我：导演先写分镜给你确认，每一步生成前都会先问你。"}</p>
-                    </div>
-                ) : null}
-            </AppModal>
+            <StudioQuickStartModal
+                config={quickStart?.config || null}
+                initialCharacterIds={quickStart?.characterIds}
+                runMode={runMode}
+                starting={starting}
+                brandKitId={brand.kit?.id}
+                onClose={() => setQuickStart(null)}
+                onSubmit={startFromQuickStart}
+            />
         </StudioShell>
     );
 }

@@ -64,6 +64,9 @@ import {
     directorShotFields,
     directorStepLabel,
     directorStepTargets,
+    directorReferences,
+    directorShotFrame,
+    type DirectorReference,
     directorSystemPrompt,
     directorVersionIndex,
     directorVideoPrompt,
@@ -264,6 +267,11 @@ export default function StudioDirectorWorkspace() {
         return { id: `${kind}:${name}`, name: kind === "cast" ? `${name} 三视图` : `${name} 场景`, type: media.mimeType || "image/png", url: studioMediaSrc(media), dataUrl: studioMediaSrc(media), storageKey: media.storageKey, previewUrl: studioMediaSrc(media), width: media.width, height: media.height };
     };
 
+    /** 快速开始表单上传的图片素材，按名字作为参考图或镜头画面。 */
+    const references = useMemo(() => directorReferences(story?.brief), [story?.brief]);
+    const referenceAttachment = (item: DirectorReference) => ({ id: `ref:${item.label}`, name: item.label, type: item.type || "image/png", url: item.url, dataUrl: item.url, storageKey: item.storageKey, previewUrl: item.url, width: item.width, height: item.height });
+    const materialRefs = (labels: string[]) => labels.map((label) => references.find((item) => item.kind === "image" && item.label === label)).filter((item): item is DirectorReference => Boolean(item));
+
     /** 生成人物三视图和场景图，任务 ID 写回剧本设计。 */
     const generateAssetsStep = async () => {
         const current = storyRef.current;
@@ -324,8 +332,9 @@ export default function StudioDirectorWorkspace() {
             const board = directorActiveWork(segment.anchor, "image", index);
             const names = [...new Set(segment.shots.flatMap((shot) => directorShotFields(shot).characters))];
             const places = [...new Set(segment.shots.map((shot) => directorShotFields(shot).location).filter(Boolean))];
+            const materials = materialRefs([...new Set(segment.shots.flatMap((shot) => directorShotFields(shot).refs))]).map(referenceAttachment);
             const attachments = step === "boards"
-                ? [...names.map((name) => designAttachment("cast", name)), ...places.map((name) => designAttachment("location", name))].filter((item): item is NonNullable<typeof item> => Boolean(item)).slice(0, 6)
+                ? [...names.map((name) => designAttachment("cast", name)), ...places.map((name) => designAttachment("location", name)), ...materials].filter((item): item is NonNullable<typeof item> => Boolean(item)).slice(0, 6)
                 : board?.media[0]
                     ? [{ id: `board:${segment.anchor.id}`, name: "分镜板", type: board.media[0].mimeType || "image/png", url: studioMediaSrc(board.media[0]), dataUrl: studioMediaSrc(board.media[0]), storageKey: board.media[0].storageKey, previewUrl: studioMediaSrc(board.media[0]), width: board.media[0].width, height: board.media[0].height }]
                     : [];
@@ -378,14 +387,19 @@ export default function StudioDirectorWorkspace() {
             // 关键帧参考：出镜人物的三视图（或角色库形象）在前，所在场景的场景图在后，提示词按同样顺序说明。
             const castRefs = fields.characters.map((name) => ({ name, ref: designAttachment("cast", name) })).filter((item) => item.ref).slice(0, 4);
             const locationRef = fields.location ? designAttachment("location", fields.location) : undefined;
+            // 上传的产品图、Logo 等排在人物和场景之后，参考图总数不超过 6 张。
+            const materials = materialRefs(fields.refs).slice(0, Math.max(0, 6 - castRefs.length - (locationRef ? 1 : 0)));
+            const frame = directorShotFrame(shot, references);
             const attachments = step === "images"
-                ? [...castRefs.map((item) => item.ref!), ...(locationRef ? [locationRef] : [])]
-                : step === "videos" && image?.media[0]
+                ? [...castRefs.map((item) => item.ref!), ...(locationRef ? [locationRef] : []), ...materials.map(referenceAttachment)]
+                : step === "videos" && image?.media[0] && directorWorkReady(image)
                     ? [{ id: `shot-image:${shot.id}`, name: `镜头画面`, type: image.media[0].mimeType || "image/png", url: studioMediaSrc(image.media[0]), dataUrl: studioMediaSrc(image.media[0]), storageKey: image.media[0].storageKey, previewUrl: studioMediaSrc(image.media[0]), width: image.media[0].width, height: image.media[0].height }]
-                    : [];
+                    : step === "videos" && frame
+                        ? [referenceAttachment(frame)]
+                        : [];
             const prompt = step === "images"
-                ? castRefs.length || locationRef
-                    ? directorKeyframePrompt(fields, { style, cast: castRefs.map((item) => item.name), location: locationRef ? fields.location : "", ratio: current.ratio })
+                ? castRefs.length || locationRef || materials.length
+                    ? directorKeyframePrompt(fields, { style, cast: castRefs.map((item) => item.name), location: locationRef ? fields.location : "", ratio: current.ratio, materials: materials.map((item) => item.label) })
                     : directorImagePrompt(fields, characters, style)
                 : step === "videos" ? directorVideoPrompt(fields, style) : fields.voiceover;
             const { state, model } = studioAgentToolState(config, { kind, prompt, ratio: current.ratio, seconds: shot.durationSeconds, attachments, brand, tool: "director" });
@@ -796,7 +810,7 @@ export default function StudioDirectorWorkspace() {
                     <div className="studio-director-body">
                         <div className="studio-director-preview">
                             <div className={`studio-director-player is-${story.ratio.replace(":", "x")}`}>
-                                {selectedShot ? <ShotMedia shot={selectedShot} versions={versions} controls /> : renderReady ? (
+                                {selectedShot ? <ShotMedia shot={selectedShot} versions={versions} controls frame={directorShotFrame(selectedShot, references)?.url} /> : renderReady ? (
                                     <video key={story.render!.resourceId} src={playbackVariantUrl(story.render!.resourceId!)} controls playsInline preload="metadata" />
                                 ) : (
                                     <div className="studio-empty">
@@ -931,11 +945,13 @@ export default function StudioDirectorWorkspace() {
     );
 }
 
-function ShotMedia({ shot, versions, controls = false }: { shot: StudioShot; versions: ReturnType<typeof directorVersionIndex>; controls?: boolean }) {
+/** frame 是镜头直接使用的上传图片，还没有生成结果时先显示它。 */
+function ShotMedia({ shot, versions, controls = false, frame }: { shot: StudioShot; versions: ReturnType<typeof directorVersionIndex>; controls?: boolean; frame?: string }) {
     const video = directorActiveWork(shot, "video", versions);
     const image = directorActiveWork(shot, "image", versions);
     if (directorWorkReady(video)) return <video src={workMediaSrc(video)} controls={controls} muted={!controls} playsInline preload="metadata" />;
     if (directorWorkReady(image)) return <img src={workMediaSrc(image)} alt="" loading="lazy" />;
+    if (frame && !directorWorkActive(video)) return <img src={frame} alt="" loading="lazy" />;
     if (directorWorkActive(video) || directorWorkActive(image)) return <span className="studio-shot-state"><Loader2 className="studio-spin" aria-hidden />生成中</span>;
     if (video?.status === "failed" || image?.status === "failed") return <span className="studio-shot-state is-failed">生成失败</span>;
     return <span className="studio-shot-state">待生成</span>;
@@ -965,7 +981,7 @@ function ShotCard({ shot, no, story, selected, busy, segmentNo, onSelect, onMent
     return (
         <article className={`studio-shot${selected ? " is-selected" : ""}`} aria-label={`镜头 ${no}`}>
             <button type="button" className="studio-shot-media" onClick={onSelect} aria-pressed={selected} aria-label={`预览镜头 ${no}`}>
-                {segmentNo ? <span className="studio-shot-state">第 {segmentNo} 段</span> : <ShotMedia shot={shot} versions={versions} />}
+                {segmentNo ? <span className="studio-shot-state">第 {segmentNo} 段</span> : <ShotMedia shot={shot} versions={versions} frame={directorShotFrame(shot, directorReferences(story.brief))?.url} />}
                 <b>{no}</b>
                 <em>{shot.durationSeconds}s</em>
             </button>

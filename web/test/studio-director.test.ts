@@ -9,7 +9,6 @@ import {
     directorBoardPrompt,
     directorBoardTargets,
     directorBoardVideoPrompt,
-    directorBriefError,
     directorDefaultTextModel,
     directorDesignTargets,
     directorFallbackTextModel,
@@ -22,14 +21,16 @@ import {
     directorProductionMode,
     directorSegments,
     directorImagePrompt,
-    directorKickoffMessage,
     directorOrderedShots,
+    directorReferences,
+    directorShotFrame,
     directorStepTargets,
     directorStoryTitle,
     directorSystemPrompt,
     directorVisibleText,
     parseDirectorReply,
 } from "../src/pages/studio/studio-director";
+import { quickStartError, quickStartTitle, STUDIO_QUICK_STARTS, studioQuickStart, type QuickStartValues } from "../src/pages/studio/studio-quickstarts";
 import { resolveStudioBrandKit } from "../src/pages/studio/use-studio-brand";
 import type { StudioBrandKit, StudioWork } from "../src/services/api/studio";
 import type { StudioShot, StudioShotVersion, StudioStory } from "../src/services/api/studio-agents";
@@ -59,22 +60,64 @@ function version(id: string, shotId: string, kind: "image" | "video" | "audio", 
     return { id, shotId, storyId: "story", kind, taskId: attached.id, createdAt: "", work: attached };
 }
 
-describe("AI 导演简报", () => {
-    test("必填与范围检查", () => {
-        expect(directorBriefError({ ...brief, subject: " " })).toBe("请填写产品");
-        expect(directorBriefError({ ...brief, genre: "short-drama", subject: "" })).toBe("请填写故事");
-        expect(directorBriefError({ ...brief, durationSeconds: 20 })).toBe("请选择成片时长");
-        expect(directorBriefError({ ...brief, ratio: "4:3" })).toBe("请选择画面比例");
-        expect(directorBriefError(brief)).toBe("");
+describe("快速开始", () => {
+    const values = (patch: Partial<QuickStartValues> = {}): QuickStartValues => ({ text: {}, refs: {}, cast: {}, durationSeconds: 30, ratio: "9:16", ...patch });
+    const photo = (label: string) => ({ label, kind: "image" as const, name: `${label}.jpg`, type: "image/jpeg", url: `https://x/${label}.jpg`, storageKey: `resource:${label}` });
+
+    test("每种类型都有表单和提交按钮，类型不重复", () => {
+        expect(new Set(STUDIO_QUICK_STARTS.map((item) => item.genre)).size).toBe(STUDIO_QUICK_STARTS.length);
+        for (const item of STUDIO_QUICK_STARTS) {
+            expect(item.fields.length).toBeGreaterThan(0);
+            expect(item.cta).toBeTruthy();
+        }
+        expect(studioQuickStart("free")?.label).toBe("自由创作");
+        expect(studioQuickStart("nope")).toBeUndefined();
     });
 
-    test("开场消息带上类型、时长、角色和交付项；关掉的交付项不出现", () => {
-        const text = directorKickoffMessage(brief, ["小雅"]);
-        expect(text).toContain("产品广告：暖杯保温杯");
-        expect(text).toContain("时长 30 秒 · 9:16 · 干净高级");
-        expect(text).toContain("角色：小雅");
-        expect(text).toContain("包含：旁白配音、字幕、背景音乐");
-        expect(directorKickoffMessage({ ...brief, voiceover: false, subtitles: false, music: false })).not.toContain("包含：");
+    test("必填、最少张数和至少一项", () => {
+        const product = studioQuickStart("product-ad")!;
+        expect(quickStartError(product, values({ text: { productName: "暖杯", whyBuy: "保温" } }))).toBe("请上传产品图片");
+        expect(quickStartError(product, values({ text: { productName: "暖杯", whyBuy: "保温" }, refs: { images: [photo("产品图1")] } }))).toBe("");
+        const estate = studioQuickStart("real-estate")!;
+        expect(quickStartError(estate, values({ refs: { photos: [photo("房源图1"), photo("房源图2")] } }))).toBe("添加房源照片至少 3 张");
+        const promo = studioQuickStart("promo")!;
+        expect(quickStartError(promo, values({ text: { name: "OmniMuse" } }))).toBe("请至少填写网站链接，或上传 Logo、网站素材");
+        expect(quickStartError(promo, values({ text: { link: "https://omnimuse.io" } }))).toBe("");
+    });
+
+    test("提交内容按固定格式写出类型要求，素材按名字引用", () => {
+        const product = studioQuickStart("product-ad")!;
+        const filled = values({ text: { productName: "暖杯保温杯", whyBuy: "保温 12 小时" }, refs: { images: [photo("产品图1"), photo("产品图2")] } });
+        const text = product.buildPrompt(filled);
+        expect(text).toContain("制作一支产品广告");
+        expect(text).toContain("【产品图片】@产品图1、@产品图2");
+        expect(text).toContain("【产品名称】暖杯保温杯");
+        expect(text).toContain("【时长】约 30 秒，画幅 9:16");
+        expect(quickStartTitle(product, filled)).toBe("暖杯保温杯");
+        const drama = studioQuickStart("short-drama")!;
+        const dramaText = drama.buildPrompt(values({ text: { story: "咖啡师发现纸条" }, cast: { characters: { names: ["小雅"], described: "男主：28 岁咖啡师" } } }));
+        expect(dramaText).toContain("- 小雅（角色库已有形象）");
+        expect(dramaText).toContain("- 男主：28 岁咖啡师");
+        expect(dramaText).not.toContain("【剧情风格】");
+    });
+
+    test("参考素材：refs 进关键帧参考，frame 直接作为镜头画面", () => {
+        const references = directorReferences({ references: [photo("房源图1"), { label: "坏的" }, photo("房源图1")] });
+        expect(references.map((item) => item.label)).toEqual(["房源图1"]);
+        const tour = { ...story([{ id: "a", fields: { visual: "缓推客厅", frame: "房源图1" } }, { id: "b" }]), brief: { references } };
+        expect(directorShotFrame(tour.shots[0], references)?.url).toBe("https://x/房源图1.jpg");
+        expect(directorStepTargets(tour, "images").map((shot) => shot.id)).toEqual(["b"]);
+        expect(directorStepTargets(tour, "videos").map((shot) => shot.id)).toEqual(["a"]);
+        const prompt = directorKeyframePrompt({ visual: "产品特写", camera: "", characters: [], location: "", voiceover: "", subtitle: "", refs: ["产品图1"], frame: "" }, { style: "", cast: [], location: "", ratio: "9:16", materials: ["产品图1"] });
+        expect(prompt).toContain("参考图 1 是用户提供的「产品图1」");
+        expect(prompt).toContain("用户素材的外观必须和参考图完全一致");
+    });
+
+    test("导演提示词列出上传素材和用法", () => {
+        const prompt = directorSystemPrompt({ story: { ...story([]), brief: { genre: "real-estate", references: [photo("房源图1")] } }, characters: [], kinds: ["image", "video"] });
+        expect(prompt).toContain("- 房源图1（图片）");
+        expect(prompt).toContain('"frame":"素材名"');
+        expect(prompt).toContain("类型写法：这是同一套真实房源的实拍照片");
         expect(directorStoryTitle({ genre: "product-ad", subject: "" })).toBe("产品广告");
     });
 });
