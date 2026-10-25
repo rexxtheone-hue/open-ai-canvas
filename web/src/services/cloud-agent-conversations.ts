@@ -32,7 +32,6 @@ export type CloudAgentConversation = {
     model?: string;
     permissionMode: AgentPermissionMode;
     skillIds?: string[];
-    expertId?: string;
     createdAt: string;
     updatedAt: string;
 };
