@@ -118,6 +118,7 @@ export type CreateAgentRunInput = {
     channelId?: string;
     channelModelKey?: string;
     skillIds?: string[];
+    expertId?: string;
     focusNodeIds?: string[];
     permissionMode?: AgentPermissionMode;
     contextScope?: string[];

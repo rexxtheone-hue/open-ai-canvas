@@ -155,6 +155,7 @@
   "4. variants 最多给出两个明显不同但仍忠于原意的版本，没有必要时返回空数组。": "4. variants gives at most two clearly different versions that remain faithful to the original intent; return an empty array when not needed.",
   "4. 没有把握的地方先问用户。不要编造链接，不要声称已生成完成；生成由系统执行，进度显示在分镜面板。": "4. Ask the user when unsure. Don't invent links or claim something is generated; the system runs generation and shows progress in the storyboard panel.",
   "4. 没有把握的地方先问用户。不要编造链接，不要声称已生成完成；生成由系统执行，进度显示在右侧面板。": "4. Ask the user when unsure. Don't make up links and don't claim generation is done; the system runs generation and shows progress in the right panel.",
+  "4. 没有把握的地方先问用户。不要编造链接，不要声称已生成完成；生成由系统执行，进度显示在右侧面板。回复里不要自己写「已更新：…」，系统会自动标注。": "4. Ask the user when unsure. Don't make up links and don't claim generation is done; the system runs generation and shows progress in the right panel. Don't write \"Updated: …\" yourself; the system adds it automatically.",
   "40mm 准标准，构图平衡": "40mm near-standard, balanced composition",
   "45° 俯拍": "45° high angle",
   "4倍": "4x",

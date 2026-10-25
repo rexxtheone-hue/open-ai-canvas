@@ -98,6 +98,17 @@ export type SkillPreset = {
     upgrade: string;
 };
 
+/** 专家：固定技能组 + 服务端编进 system prompt 的工作方法（GET /skills/experts）。 */
+export type SkillExpert = {
+    expertId: string;
+    name: string;
+    scene: string;
+    tagline: string;
+    persona: string;
+    skillIds: string[];
+    cases: string[];
+};
+
 export type SkillList = {
     skills: Skill[];
     totalCount: number;
@@ -207,6 +218,10 @@ export function getSkill(id: string) {
 /** 场景预设目录：公开只读，与 /skills 同级的市场元数据，无需用户上下文。 */
 export function listSkillPresets() {
     return http.get<{ presets: SkillPreset[] }>("/skills/presets");
+}
+
+export function listSkillExperts() {
+    return http.get<{ experts: SkillExpert[] }>("/skills/experts");
 }
 
 export function listAddedSkills() {

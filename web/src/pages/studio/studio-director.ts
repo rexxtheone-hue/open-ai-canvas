@@ -307,7 +307,7 @@ export function directorSystemPrompt(context: DirectorPromptContext) {
         '{"question":"问题","options":["选项一","选项二"]}',
         "```",
         "   - 一次只问一个问题，最多 6 个选项，选项写成用户能直接点的短句。能自己合理决定的就不要问。",
-        "4. 没有把握的地方先问用户。不要编造链接，不要声称已生成完成；生成由系统执行，进度显示在右侧面板。",
+        "4. 没有把握的地方先问用户。不要编造链接，不要声称已生成完成；生成由系统执行，进度显示在右侧面板。回复里不要自己写「已更新：…」，系统会自动标注。",
         "",
         context.characters.length ? `用户角色库里的角色（已有形象，不需要再生成三视图）：\n${context.characters.map((item) => `- ${item.name}${item.description ? `：${item.description}` : ""}`).join("\n")}` : "用户角色库里的角色：（无）",
         context.brand ? `\n品牌要求（所有画面和文案都要符合）：\n${context.brand}` : "",
@@ -781,7 +781,7 @@ export function buildDirectorTimeline(story: Pick<StudioStory, "ratio" | "scenes
     return { timeline, missing, longVoice };
 }
 
-const STEP_LABEL: Record<DirectorRunStep, string> = { assets: "生成人物三视图和场景图", boards: "生成分镜板", images: "生成镜头画面", videos: "生成镜头视频", voice: "生成旁白配音", render: "合成成片" };
+const STEP_LABEL: Record<DirectorRunStep, string> = { assets: "生成人物三视图和场景图", boards: "生成分镜板", images: "生成关键帧", videos: "生成镜头视频", voice: "生成旁白配音", render: "合成成片" };
 
 export function directorStepLabel(step: DirectorRunStep) {
     return STEP_LABEL[step];

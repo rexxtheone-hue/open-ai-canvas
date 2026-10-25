@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowUp, AudioLines, Check, Clapperboard, Download, Film, Image as ImageIcon, LayoutGrid, Loader2, Music, Pencil, RefreshCw, Sparkles, Type, Upload, X } from "./studio-icons";
 import { Link, useParams, useSearchParams } from "react-router";
 
+import { AIMessageMarkdown } from "@/components/ai/ai-message-markdown";
 import { AppModal } from "@/components/ui/product/app-modal/app-modal";
 import { useGenerationCredits } from "@/hooks/use-generation-credits";
 import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
@@ -517,6 +518,10 @@ export default function StudioDirectorWorkspace() {
             if (parsed.plan) {
                 try {
                     // 剧本阶段只有剧本、人物和场景，分镜为空时保留现有分镜。
+                    const before = directorDesign(current.settings);
+                    const shotKey = (shots: Array<{ durationSeconds: number; fields?: Record<string, unknown> }>) => JSON.stringify(shots.map((shot) => [shot.durationSeconds, shot.fields?.visual, shot.fields?.camera, shot.fields?.voiceover, shot.fields?.location]));
+                    const shotsChanged = shotKey(parsed.plan.scenes.flatMap((scene) => scene.shots)) !== shotKey(directorOrderedShots(current));
+                    const assetKey = (items: Array<{ name: string; description: string }> = []) => JSON.stringify(items.map((item) => [item.name, item.description]));
                     let updated = parsed.plan.scenes.length ? await replaceStudioStoryPlan(current.id, parsed.plan.scenes) : current;
                     const nextDesign = parsed.plan.design ? mergeDirectorDesign(directorDesign(updated.settings), parsed.plan.design) : undefined;
                     if (parsed.plan.title || parsed.plan.memory || nextDesign) {
@@ -531,10 +536,10 @@ export default function StudioDirectorWorkspace() {
                     const count = parsed.plan.scenes.reduce((sum, scene) => sum + scene.shots.length, 0);
                     const total = parsed.plan.scenes.reduce((sum, scene) => sum + scene.shots.reduce((inner, shot) => inner + shot.durationSeconds, 0), 0);
                     const parts = [
-                        parsed.plan.design?.script ? "剧本" : "",
-                        parsed.plan.design?.cast?.length ? `${parsed.plan.design.cast.length} 个人物` : "",
-                        parsed.plan.design?.locations?.length ? `${parsed.plan.design.locations.length} 个场景` : "",
-                        count ? `分镜 ${count} 个镜头，共 ${total} 秒` : "",
+                        parsed.plan.design?.script && parsed.plan.design.script !== before.script ? "剧本" : "",
+                        parsed.plan.design?.cast?.length && assetKey(parsed.plan.design.cast) !== assetKey(before.cast) ? `${parsed.plan.design.cast.length} 个人物` : "",
+                        parsed.plan.design?.locations?.length && assetKey(parsed.plan.design.locations) !== assetKey(before.locations) ? `${parsed.plan.design.locations.length} 个场景` : "",
+                        count && shotsChanged ? `分镜 ${count} 个镜头，共 ${total} 秒` : "",
                     ].filter(Boolean);
                     notes = parts.length ? `\n\n已更新：${parts.join("、")}。` : "";
                 } catch (cause) {
@@ -672,7 +677,7 @@ export default function StudioDirectorWorkspace() {
                             const latest = messageIndex === messages.length - 1;
                             return (
                             <div key={item.id} className={`studio-chat-message is-${item.role}`}>
-                                {parts.text ? <div className="studio-chat-bubble">{parts.text}</div> : null}
+                                {parts.text ? (item.role === "assistant" ? <div className="studio-chat-bubble is-markdown"><AIMessageMarkdown>{parts.text}</AIMessageMarkdown></div> : <div className="studio-chat-bubble">{parts.text}</div>) : null}
                                 {parts.ask && item.role === "assistant" ? (
                                     <AskCard ask={parts.ask} active={latest && !busy && streaming === null} onPick={(option) => void send(directorAskAnswer(parts.ask!, option))} />
                                 ) : null}

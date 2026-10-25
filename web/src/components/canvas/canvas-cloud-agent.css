@@ -912,7 +912,8 @@
         opacity 160ms ease;
 }
 
-.agent-scene-capsule[data-scene="frequent"] {
+.agent-scene-capsule[data-scene="frequent"],
+.agent-scene-capsule[data-scene="experts"] {
     --scene-color: var(--palette-node-skill);
 }
 .agent-scene-capsule[data-scene="drama"] {
@@ -945,6 +946,24 @@
     overflow: hidden;
     text-overflow: ellipsis;
     font-weight: 600;
+}
+
+.agent-expert-chip {
+    cursor: default;
+}
+
+.agent-expert-chip-clear {
+    display: inline-flex;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--agent-caption);
+    cursor: pointer;
+}
+
+.agent-expert-chip-clear:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
 }
 
 .agent-scene-capsule-meta {

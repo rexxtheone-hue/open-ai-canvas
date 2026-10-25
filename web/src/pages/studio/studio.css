@@ -760,6 +760,9 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 .studio-chat-bubble { max-width: 92%; padding: 10px 13px; border-radius: 16px; background: var(--studio-panel-raised); border: 1px solid var(--studio-line); font-size: 13.5px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
 .studio-chat-message.is-user .studio-chat-bubble { background: var(--studio-hover); border-color: var(--studio-line-strong); border-bottom-right-radius: 6px; }
 .studio-chat-message.is-assistant .studio-chat-bubble { border-bottom-left-radius: 6px; }
+.studio-chat-bubble.is-markdown { white-space: normal; }
+.studio-chat-bubble.is-markdown p, .studio-chat-bubble.is-markdown ul, .studio-chat-bubble.is-markdown ol { margin: 0 0 8px; }
+.studio-chat-bubble.is-markdown > :last-child > :last-child { margin-bottom: 0; }
 .studio-chat-attachments { display: flex; flex-wrap: wrap; gap: 6px; }
 .studio-chat-attachments.is-pending { padding: 0 2px 6px; }
 .studio-chat-thumb { position: relative; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 10px; overflow: hidden; border: 1px solid var(--studio-line); background: var(--studio-panel-raised); color: var(--studio-muted); font-size: 11px; }

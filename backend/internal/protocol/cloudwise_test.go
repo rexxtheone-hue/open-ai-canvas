@@ -75,6 +75,11 @@ func TestCloudwiseSeedanceUsesArkBodyOnCloudwisePaths(t *testing.T) {
 		`{"id":"t1"}`, `{"id":"t1","status":"running"}`,
 		`{"id":"t1","status":"succeeded","content":{"video_url":"https://download.cloudwise.ai/arts/1"}}`,
 		`{"id":"t1","status":"failed","error":{"message":"blocked"}}`, "video")
+	_, firstFrame := cloudwiseBody(t, "cloudwise-seedance", GenerationRequest{Model: "dreamina-seedance-2-5-260628", Prompt: "推门", AspectRatio: "9:16", Resolution: "720p", Duration: 4,
+		Images: []MediaReference{{URL: "https://x/f.jpg", Role: "first_frame"}}})
+	if firstFrame["ratio"] != "adaptive" {
+		t.Fatalf("first frame ratio = %v", firstFrame["ratio"])
+	}
 }
 
 func TestCloudwiseKlingOmniVideoAndImage(t *testing.T) {
