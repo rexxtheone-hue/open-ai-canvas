@@ -154,7 +154,7 @@ const SERVER_TEXT_FIELDS = new Set(["msg", "message", "error", "errorMessage", "
 
 // 展示类字段只做整句精确匹配，避免把用户自己写的名称、描述按模式改写。
 const SERVER_TEXT_SUFFIX = /(Reason|Message|Error|Hint|Note)$/;
-const SERVER_LABEL_FIELDS = new Set(["label", "name", "title", "description", "skillName", "category", "endpoint", "displayName", "placeholder", "tooltip", "hint", "summary", "categoryLabel", "tagLabel", "groupLabel", "sourceLabel"]);
+const SERVER_LABEL_FIELDS = new Set(["label", "name", "title", "description", "skillName", "tagline", "category", "endpoint", "displayName", "placeholder", "tooltip", "hint", "summary", "categoryLabel", "tagLabel", "groupLabel", "sourceLabel"]);
 
 function translateExactServerText(text: string): string {
     if (!HAN.test(text)) return text;

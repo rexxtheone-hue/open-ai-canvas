@@ -34,6 +34,7 @@ type (
 	SkillPackageBundle                    = skills.SkillPackageBundle
 	SkillFileSearchResult                 = skills.SkillFileSearchResult
 	SkillPreset                           = skills.SkillPreset
+	SkillExpertCatalog                    = skills.SkillExpertCatalog
 )
 
 func (s *Service) skillDomain() *skills.Service {
@@ -75,6 +76,11 @@ func (s *Service) SkillPresets() ([]SkillPreset, error) {
 	return s.skillDomain().SkillPresets()
 }
 
+// SkillExperts 返回专家目录（只读；与场景预设同源发布）。
+func (s *Service) SkillExperts() (SkillExpertCatalog, error) {
+	return s.skillDomain().SkillExperts()
+}
+
 func (s *Service) SkillDetail(userID string, id string) (*SkillItem, error) {
 	return s.skillDomain().SkillDetail(userID, id)
 }
@@ -113,6 +119,9 @@ func (s *Service) EnsureBuiltinSkills() error {
 	}
 	// 在同步文件包之后校验预设，确保预设只引用当前启用的稳定技能 ID。
 	if _, err := s.SkillPresets(); err != nil {
+		return err
+	}
+	if _, err := s.SkillExperts(); err != nil {
 		return err
 	}
 	return nil

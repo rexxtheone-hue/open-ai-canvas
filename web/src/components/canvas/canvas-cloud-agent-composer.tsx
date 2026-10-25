@@ -2,8 +2,8 @@
 //
 // 运行中输入框保持可用（产品约定，勿收紧）：发送走插话，停止由 running 驱动，两者互不排斥。
 
-import type { Skill, SkillPreset } from "@/services/api/skills";
-import { ArrowLeft, ArrowUp, AtSign, Bookmark, Clapperboard, ImagePlus, Layers3, LoaderCircle, Palette, Shapes, Share2, ShoppingBag, Sparkles, Square, X } from "lucide-react";
+import type { Skill, SkillExpert, SkillPreset } from "@/services/api/skills";
+import { ArrowLeft, ArrowUp, AtSign, Bookmark, Clapperboard, ImagePlus, Layers3, LoaderCircle, Palette, Shapes, Share2, ShoppingBag, Sparkles, Square, UserRound, X } from "lucide-react";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { type ClipboardEvent as ReactClipboardEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
@@ -36,10 +36,12 @@ export type AgentSceneBucket = {
     label: string;
     presets: SkillPreset[];
     skills: Skill[];
+    experts?: SkillExpert[];
 };
 
-/** 场景分类：与 presets.json 的 scene 字段、技能的 tag 字段共用同一套 key。 */
+/** 场景分类：与 presets.json 的 scene 字段、技能的 tag 字段共用同一套 key；experts 桶只放专家。 */
 export const AGENT_SCENE_DEFS: Array<{ key: string; label: string; icon: typeof Sparkles }> = [
+    { key: "experts", label: "专家", icon: UserRound },
     { key: "frequent", label: "我的常用", icon: Bookmark },
     { key: "drama", label: "短剧故事", icon: Clapperboard },
     { key: "ecommerce", label: "广告电商", icon: ShoppingBag },
@@ -55,6 +57,7 @@ export function AgentSceneCapsules({
     disabled = false,
     onPick,
     onPickSkill,
+    onPickExpert,
 }: {
     buckets: AgentSceneBucket[];
     installedIds: Set<string>;
@@ -62,6 +65,7 @@ export function AgentSceneCapsules({
     disabled?: boolean;
     onPick: (preset: SkillPreset) => void;
     onPickSkill: (skill: Skill) => void;
+    onPickExpert?: (expert: SkillExpert) => void;
 }) {
     // 始终只占一排：默认显示场景分类，点某个场景后在同一排内就地切换内容。
     const [activeKey, setActiveKey] = useState<string | null>(null);
@@ -70,7 +74,8 @@ export function AgentSceneCapsules({
         onMouseDown: (event: { stopPropagation(): void }) => event.stopPropagation(),
         onPointerDown: (event: { stopPropagation(): void }) => event.stopPropagation(),
     };
-    const visible = buckets.filter((bucket) => bucket.presets.length + bucket.skills.length > 0);
+    const bucketSize = (bucket: AgentSceneBucket) => bucket.presets.length + bucket.skills.length + (bucket.experts?.length || 0);
+    const visible = buckets.filter((bucket) => bucketSize(bucket) > 0);
     const active = activeKey ? visible.find((bucket) => bucket.key === activeKey) || null : null;
     if (!visible.length) return null;
     return (
@@ -97,6 +102,25 @@ export function AgentSceneCapsules({
                             <ArrowLeft aria-hidden="true" />
                             <span>全部场景</span>
                         </button>
+                        {(active.experts || []).map((expert) => (
+                            <button
+                                key={expert.expertId}
+                                type="button"
+                                disabled={disabled}
+                                title={expert.tagline}
+                                className={capsuleClass}
+                                data-scene={expert.scene}
+                                {...stop}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onPickExpert?.(expert);
+                                }}
+                            >
+                                <UserRound aria-hidden="true" />
+                                <span className="agent-scene-capsule-label">{expert.name}</span>
+                                <span className="agent-scene-capsule-meta">{`${expert.skillIds.length} 技能`}</span>
+                            </button>
+                        ))}
                         {active.presets.map((preset) => {
                             const missing = preset.skillIds.filter((id) => !installedIds.has(id)).length;
                             return (
@@ -144,7 +168,7 @@ export function AgentSceneCapsules({
                     </>
                 ) : (
                     visible.map((bucket) => {
-                        const count = bucket.presets.length + bucket.skills.length;
+                        const count = bucketSize(bucket);
                         const Icon = AGENT_SCENE_DEFS.find((definition) => definition.key === bucket.key)?.icon || Shapes;
                         return (
                             <button

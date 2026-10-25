@@ -1,6 +1,8 @@
 package app
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -27,6 +29,28 @@ type cloudAgentPolicySnapshot struct {
 	CompilerVersion      string `json:"compilerVersion"`
 	ProfileRevision      string `json:"profileRevision,omitempty"`
 	ProfileHash          string `json:"profileHash,omitempty"`
+	ExpertID             string `json:"expertId,omitempty"`
+	ExpertHash           string `json:"expertHash,omitempty"`
+}
+
+// appendCloudAgentExpert 把专家工作方法接在已编译策略之后。专家段落随 expertId 固定，
+// 仍属于可缓存的 system 前缀；技能本身照旧由 skillIds 挂载，这里不重复注入技能正文。
+func (s *Service) appendCloudAgentExpert(system string, policy *cloudAgentPolicySnapshot, expertID string) (string, error) {
+	if expertID == "" {
+		return system, nil
+	}
+	catalog, err := s.SkillExperts()
+	if err != nil {
+		return "", err
+	}
+	_, text, ok := catalog.Instruction(expertID)
+	if !ok {
+		return "", BadAuthRequest("专家不存在或已下线")
+	}
+	sum := sha256.Sum256([]byte(text))
+	policy.ExpertID = expertID
+	policy.ExpertHash = hex.EncodeToString(sum[:])
+	return system + "\n\n" + text, nil
 }
 
 type cloudAgentProfileSnapshot struct {

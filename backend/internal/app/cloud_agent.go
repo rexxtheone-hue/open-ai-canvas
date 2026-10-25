@@ -33,6 +33,7 @@ type CloudAgentRequest struct {
 	ChannelModelKey string   `json:"channelModelKey,omitempty"`
 	PermissionMode  string   `json:"permissionMode"`
 	SkillIDs        []string `json:"skillIds,omitempty"`
+	ExpertID        string   `json:"expertId,omitempty"`
 	ContextScope    []string `json:"contextScope"`
 	FocusNodeIDs    []string `json:"focusNodeIds,omitempty"`
 	Budget          struct {
@@ -197,6 +198,12 @@ func validateCloudAgentRequest(req *CloudAgentRequest) error {
 		}
 		req.SkillIDs[i] = id
 		seen[id] = true
+	}
+	req.ExpertID = strings.TrimSpace(req.ExpertID)
+	if req.ExpertID != "" {
+		if err := validateCloudAgentID(req.ExpertID, "专家 ID", 80); err != nil {
+			return BadAuthRequest("专家 ID 无效")
+		}
 	}
 	if req.PermissionMode == "read_only" && (req.Budget.MaxGenerationTasks != 0 || req.Budget.MaxVideoSeconds != 0) {
 		return BadAuthRequest("只读模式不能设置生成预算")
@@ -481,6 +488,9 @@ func (s *Service) CreateCloudAgentRun(userID string, req CloudAgentRequest, pare
 	}
 	system, policy, err := compileCloudAgentPolicies(req, appearance.Canvas.AgentName, skillSnapshots, "", profile, creativeAnchor)
 	if err != nil {
+		return nil, err
+	}
+	if system, err = s.appendCloudAgentExpert(system, &policy, req.ExpertID); err != nil {
 		return nil, err
 	}
 	state := cloudAgentState{Version: 1, Request: req, ParentID: parentID, Fingerprint: fingerprint, CreativeAnchor: creativeAnchor, Plan: inheritedPlan, ConfirmationRounds: inheritedConfirmationRounds, ConfirmationFingerprints: inheritedConfirmationFingerprints, Skills: skillSnapshots, Profile: profile, Policy: policy}

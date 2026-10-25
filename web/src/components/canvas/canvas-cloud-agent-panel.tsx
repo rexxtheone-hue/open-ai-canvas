@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Button } from "antd";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { MoveDiagonal2 } from "lucide-react";
+import { MoveDiagonal2, UserRound, X } from "lucide-react";
 import { saveAs } from "file-saver";
 import { buildAgentDebugExport } from "@/lib/canvas/agent-debug-export";
 import { agentPlanVisible, latestAgentPlanItems, latestAgentPlanTerminal, pendingAgentQuestion } from "@/lib/canvas/cloud-agent-plan";
@@ -32,7 +32,7 @@ import { agentApprovalMatchesSettings, agentApprovalTargetGenerating } from "@/l
 import { appendAgentPromptPrefill } from "@/lib/canvas/agent-prompt-prefill";
 import type { CanvasNodeData } from "@/types/canvas";
 import type { AgentMediaSettings } from "@/services/api/agent";
-import { addSkill, listAddedSkills, listSkillLibraryCategories, listSkills, listSkillPresets, type Skill, type SkillCategory, type SkillLibraryCategory, type SkillPreset } from "@/services/api/skills";
+import { addSkill, listAddedSkills, listSkillExperts, listSkillLibraryCategories, listSkills, listSkillPresets, type Skill, type SkillCategory, type SkillExpert, type SkillLibraryCategory, type SkillPreset } from "@/services/api/skills";
 import {
     clearCloudAgentPendingSubmission,
     cloudAgentConversationTitle,
@@ -105,6 +105,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
     const profileRequestRef = useRef(0);
     const [skills, setSkills] = useState<Skill[]>([]);
     const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
+    const [selectedExpertId, setSelectedExpertId] = useState("");
     const [marketSkills, setMarketSkills] = useState<Skill[]>([]);
     const [skillSearch, setSkillSearch] = useState("");
     const [debouncedSkillSearch, setDebouncedSkillSearch] = useState("");
@@ -141,6 +142,8 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
     const planVisible = agentPlanVisible(planItems);
     const pendingQuestion = useMemo(() => pendingAgentQuestion(messages), [messages]);
     const [scenePresets, setScenePresets] = useState<SkillPreset[]>([]);
+    const [experts, setExperts] = useState<SkillExpert[]>([]);
+    const activeExpert = useMemo(() => experts.find((expert) => expert.expertId === selectedExpertId), [experts, selectedExpertId]);
     const [presetApplyingId, setPresetApplyingId] = useState("");
     const presetApplyingRef = useRef<string | null>(null);
     // 连接器条默认展示，关闭后本次会话内不再显示。
@@ -185,12 +188,20 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
         presetApplyingRef.current = null;
         setPresetApplyingId("");
         setScenePresets([]);
+        setExperts([]);
         listSkillPresets()
             .then((result) => {
                 if (active) setScenePresets(result.presets || []);
             })
             .catch(() => {
                 if (active) setScenePresets([]);
+            });
+        listSkillExperts()
+            .then((result) => {
+                if (active) setExperts(result.experts || []);
+            })
+            .catch(() => {
+                if (active) setExperts([]);
             });
         return () => {
             active = false;
@@ -227,13 +238,15 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
         return AGENT_SCENE_DEFS.map((definition) => ({
             key: definition.key,
             label: definition.label,
-            presets: definition.key === "frequent" ? [] : scenePresets.filter((preset) => preset.scene === definition.key),
-            skills: definition.key === "frequent" ? frequent.slice(0, 8) : pool.filter((skill) => sceneOf(skill) === definition.key),
+            presets: definition.key === "frequent" || definition.key === "experts" ? [] : scenePresets.filter((preset) => preset.scene === definition.key),
+            skills: definition.key === "experts" ? [] : definition.key === "frequent" ? frequent.slice(0, 8) : pool.filter((skill) => sceneOf(skill) === definition.key),
+            experts: definition.key === "experts" ? experts : [],
         }));
-    }, [installedSkills, createdSkills, scenePresets]);
+    }, [installedSkills, createdSkills, scenePresets, experts]);
 
+    // 预设与专家共用挂载流程：专家额外设定 expertId，普通预设清空它，避免旧专家口吻残留。
     const applyScenePreset = useCallback(
-        async (preset: SkillPreset) => {
+        async (preset: Pick<SkillPreset, "presetId" | "name" | "skillIds" | "rationale">, expertId = "") => {
             if (running || busy || presetApplyingRef.current || !historyHydrated || !pendingHydrated) return;
             const scope = conversationScope;
             const account = getActiveUserScope();
@@ -256,11 +269,14 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                 }
                 setSkills(refreshed.skills);
                 setSelectedSkillIds(preset.skillIds);
+                setSelectedExpertId(expertId);
                 setMessages((current) =>
                     appendUniqueMessage(current, {
                         id: `preset-${preset.presetId}-${Date.now()}`,
                         role: "system",
-                        text: `已按「${preset.name}」挂上 ${preset.skillIds.length} 个技能${missing.length ? `（新装 ${missing.length} 个）` : ""}。${preset.rationale}`,
+                        text: expertId
+                            ? `已切换为「${preset.name}」，挂上 ${preset.skillIds.length} 个技能${missing.length ? `（新装 ${missing.length} 个）` : ""}。${preset.rationale}`
+                            : `已按「${preset.name}」挂上 ${preset.skillIds.length} 个技能${missing.length ? `（新装 ${missing.length} 个）` : ""}。${preset.rationale}`,
                     }),
                 );
             } catch (cause) {
@@ -478,6 +494,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
         setRun(null);
         setMessages([]);
         setSelectedSkillIds([]);
+        setSelectedExpertId("");
         setApproval(null);
         setApprovalSubmitting(false);
         approvalRequestRef.current = null;
@@ -506,6 +523,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                     setRun(current.run);
                     setPermissionMode(current.permissionMode);
                     setSelectedSkillIds(initialSkillIds);
+                    setSelectedExpertId(current.expertId || "");
                     if (current.model) setModel(current.model);
                     const pending = await loadCloudAgentPendingSubmission(canvasId, current.id);
                     if (!active) return;
@@ -552,9 +570,9 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
         if (!messages.length && !run) {
             setConversations((current) => {
                 const existing = current.find((conversation) => conversation.id === activeConversationId);
-                if (!existing || existing.skillIds?.join("\0") === selectedSkillIds.join("\0")) return current;
+                if (!existing || (existing.skillIds?.join("\0") === selectedSkillIds.join("\0") && (existing.expertId || "") === selectedExpertId)) return current;
                 const now = new Date().toISOString();
-                return current.map((conversation) => conversation.id === activeConversationId ? { ...conversation, skillIds: selectedSkillIds, updatedAt: now } : conversation);
+                return current.map((conversation) => conversation.id === activeConversationId ? { ...conversation, skillIds: selectedSkillIds, expertId: selectedExpertId || undefined, updatedAt: now } : conversation);
             });
             return;
         }
@@ -569,12 +587,13 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                 model: selectedModel || undefined,
                 permissionMode,
                 skillIds: selectedSkillIds,
+                expertId: selectedExpertId || undefined,
                 createdAt: existing?.createdAt || now,
                 updatedAt: now,
             };
             return [next, ...current.filter((conversation) => conversation.id !== activeConversationId)];
         });
-    }, [activeConversationId, historyHydrated, messages, permissionMode, run, selectedModel, selectedSkillIds]);
+    }, [activeConversationId, historyHydrated, messages, permissionMode, run, selectedModel, selectedSkillIds, selectedExpertId]);
 
     useEffect(() => {
         if (!historyHydrated) return;
@@ -688,6 +707,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                     model: modelOptionName(effectiveModel) || undefined,
                     ...(logicalModelId ? { logicalModelId } : requestConfig.channelId ? { channelId: requestConfig.channelId, channelModelKey: modelOptionName(effectiveModel) || undefined } : {}),
                     skillIds: [...new Set([...selectedSkillIds, ...resolveSkillMentions(value, installedSkills).map((skill) => skill.skillId)])],
+                    ...(selectedExpertId ? { expertId: selectedExpertId } : {}),
                     focusNodeIds: selectedNodeIds.length <= 8 ? selectedNodeIds : [],
                     permissionMode,
                     contextScope,
@@ -726,6 +746,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                     model: request.model || effectiveModel || undefined,
                     permissionMode,
                     skillIds: selectedSkillIds,
+                    expertId: selectedExpertId || undefined,
                     createdAt: existing?.createdAt || now,
                     updatedAt: now,
                 },
@@ -890,6 +911,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                 model: selectedModel || undefined,
                 permissionMode,
                 skillIds: inheritedSkillIds,
+                expertId: selectedExpertId || undefined,
                 createdAt: now,
                 updatedAt: now,
             },
@@ -912,6 +934,7 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
         setMessages(conversation.messages);
         setPermissionMode(conversation.permissionMode);
         setSelectedSkillIds(conversation.skillIds || []);
+        setSelectedExpertId(conversation.expertId || "");
         setApproval(null);
         setPrompt("");
         if (conversation.model) setModel(conversation.model);
@@ -1094,7 +1117,27 @@ export function CanvasCloudAgentPanel({ canvasId, domainProjectId, nodeCount, se
                                             disabled={busy || running || !pendingHydrated || Boolean(presetApplyingId)}
                                             onPick={(preset) => void applyScenePreset(preset)}
                                             onPickSkill={(skill) => void applySingleSkill(skill)}
+                                            onPickExpert={(expert) => void applyScenePreset({ presetId: expert.expertId, name: expert.name, skillIds: expert.skillIds, rationale: expert.tagline }, expert.expertId)}
                                         />
+                                    ) : null}
+                                    {activeExpert ? (
+                                        <div className="mx-3 mb-2 flex min-w-0">
+                                            <span className="agent-scene-capsule agent-expert-chip" data-scene="experts" title={activeExpert.tagline} style={{ color: theme.node.text }}>
+                                                <UserRound aria-hidden="true" />
+                                                <span className="agent-scene-capsule-label">{activeExpert.name}</span>
+                                                <span className="agent-scene-capsule-meta">专家模式</span>
+                                                <button
+                                                    type="button"
+                                                    className="agent-expert-chip-clear"
+                                                    aria-label="退出专家模式"
+                                                    title="退出专家模式（已挂技能保留）"
+                                                    disabled={busy || running}
+                                                    onClick={() => setSelectedExpertId("")}
+                                                >
+                                                    <X aria-hidden="true" />
+                                                </button>
+                                            </span>
+                                        </div>
                                     ) : null}
                                     {pendingQuestion ? <AgentQuestionBar question={pendingQuestion} theme={theme} disabled={approvalSubmitting || connectionStatus !== "connected"} onAnswer={(label) => void submit(label)} /> : null}
                                     <AgentChatComposer

@@ -185,6 +185,15 @@ paths:
         "200":
           description: 标准信封 data 为 presets 数组；预设只引用公开且启用的种子技能
         "500": {$ref: "#/components/responses/Error"}
+  /skills/experts:
+    get:
+      tags: [canvas]
+      security: []
+      summary: 获取公开专家目录
+      responses:
+        "200":
+          description: 标准信封 data 为 experts 数组；每个专家含 expertId、name、scene、tagline、persona、skillIds、cases
+        "500": {$ref: "#/components/responses/Error"}
   /skills:
     get:
       tags: [skills]
@@ -1870,6 +1879,9 @@ components:
           maxItems: 8
           items:
             type: string
+        expertId:
+          type: string
+          description: GET /skills/experts 中的专家 ID；服务端把专家工作方法编进本轮 system prompt
         contextScope:
           type: array
           maxItems: 1

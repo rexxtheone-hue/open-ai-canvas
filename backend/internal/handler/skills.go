@@ -158,6 +158,15 @@ func RegisterSkillRoutes(r *gin.RouterGroup, svc *service.Service) {
 		ok(c, gin.H{"presets": presets})
 	})
 
+	r.GET("/skills/experts", func(c *gin.Context) {
+		catalog, err := svc.SkillExperts()
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, gin.H{"experts": catalog.Experts})
+	})
+
 	r.GET("/skills/added", func(c *gin.Context) {
 		user, err := currentUser(c, svc)
 		if err != nil {
