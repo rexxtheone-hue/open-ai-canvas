@@ -432,6 +432,7 @@ export default function StudioChatPage() {
                         {loadingChat ? <div className="studio-empty"><Loader2 className="studio-spin" aria-hidden /></div> : null}
                         {!loadingChat && !messages.length && streaming === null ? (
                             <div className="studio-chat-welcome">
+                                <span className="studio-chat-orb" aria-hidden><img src="/brand/omnimuse-mark.png" alt="" /></span>
                                 <h2>说出想法，马上做出来</h2>
                                 <p>描述你要的图片、视频或配音，可以附上参考素材。</p>
                                 <div className="studio-suggestions">

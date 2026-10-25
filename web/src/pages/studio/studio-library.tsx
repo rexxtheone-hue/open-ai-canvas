@@ -5,9 +5,7 @@ import { Link, useNavigate } from "react-router";
 import type { InsertAssetPayload } from "@/components/canvas/asset-picker-modal";
 import { studioCanvasHandoffPath } from "@/lib/canvas/studio-canvas-handoff";
 
-import { AppModal } from "@/components/ui/product/app-modal";
 import { CachedResourceImage } from "@/components/cached-resource-image";
-import { CanvasImagePreview } from "@/components/canvas/canvas-image-preview";
 import { generationErrorMessage } from "@/lib/generation-error";
 import { playbackVariantUrl, resolveResourceUrl, resourceIdFromStorageKey } from "@/services/api/resources";
 import { downloadBrowserMedia } from "@/services/browser-download";
@@ -15,6 +13,7 @@ import { recoverGenerationTaskMedia, retryGenerationTask } from "@/services/api/
 import type { StudioKind, StudioLabel, StudioMedia, StudioWork } from "@/services/api/studio";
 import { studioSelectionRange, studioWorkFileName, studioWorkIsActive, studioWorkTitle } from "./studio-library-model";
 import { notifyStudioWorksChanged, useStudioWorks, type StudioWorksFilter } from "./use-studio-works";
+import { StudioLightbox } from "./studio-lightbox";
 import { StudioPublishModal } from "./studio-publish-modal";
 import { StudioSaveCharacterModal } from "./studio-save-character";
 import { StudioFolderSection, StudioLabelDot, StudioLabelFilter, StudioLabelWorks, StudioMoveToFolder, useStudioOrganize } from "./studio-organize";
@@ -431,12 +430,11 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                     </button>
                 </div>
             ) : null}
-            {preview?.media.kind === "image" ? <CanvasImagePreview src={preview.media.url} storageKey={preview.media.storageKey} alt={studioWorkTitle(preview.work)} onClose={() => setPreview(null)} /> : null}
+            {preview && (preview.media.kind === "image" || preview.media.kind === "video") ? (
+                <StudioLightbox work={preview.work} media={preview.media} mediaSrc={studioMediaSrc} onDownload={(index) => void run(preview.work.id, () => downloadStudioMedia(preview.work, index))} onClose={() => setPreview(null)} />
+            ) : null}
             <StudioPublishModal work={publishTarget} onClose={() => setPublishTarget(null)} />
             <StudioSaveCharacterModal work={characterTarget} onClose={() => setCharacterTarget(null)} />
-            <AppModal flush open={preview?.media.kind === "video"} title={null} footer={null} centered destroyOnHidden width="min(1160px, calc(100vw - 32px))" onCancel={() => setPreview(null)}>
-                {preview?.media.kind === "video" ? <video controls autoPlay style={{ width: "100%", maxHeight: "80vh", display: "block", background: "#000" }} src={studioMediaSrc(preview.media)} /> : null}
-            </AppModal>
         </section>
     );
 }
