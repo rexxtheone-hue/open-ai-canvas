@@ -1140,7 +1140,7 @@ function RunCard({ action, story, config, disabled, assetCount, onConfirm, onSki
                         ? <span className="studio-hint">合成不消耗积分</span>
                         : boardStep
                             ? <SegmentEstimate kind={action.step === "videos" ? "video" : "image"} segments={segmentTargets} story={story} config={config} />
-                            : <StepEstimate step={action.step === "boards" ? "images" : action.step} story={story} config={config} count={targets.length} />}
+                            : <StepEstimate step={action.step === "boards" ? "images" : action.step} story={story} config={config} shots={targets} />}
                     <span style={{ flex: 1 }} />
                     <button type="button" className="studio-mini-button" disabled={disabled} onClick={onSkip}>跳过</button>
                     <button type="button" className="studio-mini-button is-primary" disabled={disabled || (action.step !== "render" && !targets.length)} onClick={onConfirm}><Check aria-hidden />执行</button>
@@ -1163,21 +1163,24 @@ function AssetEstimate({ count, story, config }: { count: number; story: StudioS
     );
 }
 
-/** 估算一步的积分：取一个代表镜头的报价乘以镜头数，视频按最常见的镜头时长估。 */
-function StepEstimate({ step, story, config, count }: { step: GenerateStep; story: StudioStory; config: AiConfig; count: number }) {
+/** 估算一步的积分：视频按镜头时长分组逐组报价，图片和配音按张数。 */
+function StepEstimate({ step, story, config, shots }: { step: GenerateStep; story: StudioStory; config: AiConfig; shots: StudioShot[] }) {
     const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
     const kind = STEP_KIND[step];
-    const seconds = useMemo(() => {
-        const counts = new Map<number, number>();
-        for (const shot of story.shots) counts.set(shot.durationSeconds, (counts.get(shot.durationSeconds) || 0) + 1);
-        return [...counts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] || 5;
-    }, [story.shots]);
-    const { state, model } = useMemo(() => studioAgentToolState(config, { kind, prompt: "示例", ratio: story.ratio, seconds, tool: "director" }), [config, kind, seconds, story.ratio]);
-    const requirements = useMemo(() => studioModelRequirements(config, state), [config, state]);
-    const generationConfig = useMemo(() => (model ? studioGenerationConfig(config, state, model) : config), [config, model, state]);
-    const { credits } = useGenerationCredits({ config: generationConfig, model, mode: kind, count: 1, seconds: state.video.seconds, requirements });
-    if (!count) return <span className="studio-hint">没有需要处理的镜头</span>;
-    return <span className="studio-hint">{count} 个镜头 · {model ? modelDisplayName(config, model) || model : "无可用模型"}{creditsEnabled && credits !== null ? ` · 约 ${(credits * count).toLocaleString("zh-CN", { maximumFractionDigits: 2 })} 积分` : ""}</span>;
+    const { onValue, total } = useCostTotal();
+    const { model } = useUnitCredits(config, kind, story.ratio, 5, false);
+    if (!shots.length) return <span className="studio-hint">没有需要处理的镜头</span>;
+    const groups: Array<[number, number]> = kind === "video" ? groupBySeconds(shots, (shot) => shot.durationSeconds) : [[5, shots.length]];
+    return (
+        <span className="studio-hint">
+            {shots.length} 个镜头 · {model ? modelDisplayName(config, model) || model : "无可用模型"}{creditsEnabled && total !== null ? ` · 约 ${formatCredits(total)} 积分` : ""}
+            <table hidden>
+                <tbody>
+                    {groups.map(([seconds, count]) => <CostLine key={`${kind}-${seconds}`} id={`${kind}-${seconds}`} label="" kind={kind} ratio={story.ratio} seconds={seconds} count={count} board={false} config={config} onValue={onValue} />)}
+                </tbody>
+            </table>
+        </span>
+    );
 }
 
 function useUnitCredits(config: AiConfig, kind: StudioKind, ratio: string, seconds: number, board: boolean) {
