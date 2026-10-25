@@ -119,6 +119,8 @@ export type DirectorShotFields = {
     visual: string;
     camera: string;
     characters: string[];
+    /** 镜头所在场景，对应剧本 locations 的名字。 */
+    location: string;
     voiceover: string;
     subtitle: string;
 };
@@ -141,7 +143,44 @@ export const DIRECTOR_MEMORY_SECTIONS: Array<{ key: keyof DirectorMemory; label:
     { key: "context_notes", label: "备注" },
 ];
 
-export type DirectorRunStep = "boards" | "images" | "videos" | "voice" | "render";
+export type DirectorRunStep = "assets" | "boards" | "images" | "videos" | "voice" | "render";
+
+/** 剧本阶段的产出：剧本正文、主要人物和主要场景。人物三视图、场景图的生成任务记在 taskId 上。 */
+export type DirectorDesignAsset = { name: string; description: string; taskId?: string };
+export type DirectorDesign = { script: string; cast: DirectorDesignAsset[]; locations: DirectorDesignAsset[] };
+
+function designAssets(value: unknown, maxItems: number): DirectorDesignAsset[] {
+    if (!Array.isArray(value)) return [];
+    const seen = new Set<string>();
+    const result: DirectorDesignAsset[] = [];
+    for (const raw of value) {
+        if (!raw || typeof raw !== "object") continue;
+        const item = raw as Record<string, unknown>;
+        const name = text(item.name, 40);
+        if (!name || seen.has(name)) continue;
+        seen.add(name);
+        const taskId = text(item.taskId, 80);
+        result.push({ name, description: text(item.description, 600), ...(taskId ? { taskId } : {}) });
+        if (result.length >= maxItems) break;
+    }
+    return result;
+}
+
+export function directorDesign(settings: unknown): DirectorDesign {
+    const design = ((settings as { design?: unknown } | undefined)?.design || {}) as Record<string, unknown>;
+    return { script: text(design.script, 12000), cast: designAssets(design.cast, 8), locations: designAssets(design.locations, 8) };
+}
+
+/** 导演改写人物或场景时，外形描述没变的沿用已生成的图，变了的需要重新生成。 */
+export function mergeDirectorDesign(current: DirectorDesign, next: Partial<DirectorDesign>): DirectorDesign {
+    const keep = (previous: DirectorDesignAsset[], incoming?: DirectorDesignAsset[]) => (incoming
+        ? incoming.map((item) => {
+            const old = previous.find((entry) => entry.name === item.name);
+            return old?.taskId && old.description === item.description ? { ...item, taskId: old.taskId } : { name: item.name, description: item.description };
+        })
+        : previous);
+    return { script: next.script ?? current.script, cast: keep(current.cast, next.cast), locations: keep(current.locations, next.locations) };
+}
 
 /** 制作方式：board 每段先出一张分镜板再一次生成整段视频；shots 逐个镜头生成画面和视频。 */
 export type DirectorProductionMode = "board" | "shots";
@@ -150,7 +189,7 @@ export type DirectorProductionMode = "board" | "shots";
 export function directorProductionMode(story: Pick<StudioStory, "settings" | "versions">): DirectorProductionMode {
     const mode = (story.settings as { mode?: unknown } | undefined)?.mode;
     if (mode === "board" || mode === "shots") return mode;
-    return story.versions.length ? "shots" : "board";
+    return "shots";
 }
 
 export type DirectorRunAction = {
@@ -165,6 +204,8 @@ export type DirectorRunAction = {
 export type DirectorPlan = {
     title?: string;
     memory?: Partial<DirectorMemory>;
+    /** 剧本阶段可以只给剧本、人物和场景，scenes 为空表示分镜还没写。 */
+    design?: Partial<DirectorDesign>;
     scenes: StudioScenePlanInput[];
 };
 
@@ -184,7 +225,7 @@ function stringList(value: unknown, maxItems: number, maxChars: number) {
 
 export function directorShotFields(shot: Pick<StudioShot, "fields">): DirectorShotFields {
     const fields = shot.fields || {};
-    return { visual: text(fields.visual, 2000), camera: text(fields.camera, 200), characters: stringList(fields.characters, 6, 40), voiceover: text(fields.voiceover, 1000), subtitle: text(fields.subtitle, 200) };
+    return { visual: text(fields.visual, 2000), camera: text(fields.camera, 200), characters: stringList(fields.characters, 6, 40), location: text(fields.location, 40), voiceover: text(fields.voiceover, 1000), subtitle: text(fields.subtitle, 200) };
 }
 
 /** 按场景顺序展开的镜头，编号从 1 开始，与导演对话里的「镜头 n」一致。 */
@@ -224,6 +265,7 @@ export function directorSystemPrompt(context: DirectorPromptContext) {
     const plan = directorPlanSnapshot(context.story);
     const memory = directorMemory(context.story.memory);
     const boardMode = directorProductionMode(context.story) === "board";
+    const design = directorDesign(context.story.settings);
     const capabilities = [
         context.kinds.includes("image") ? "镜头画面（图片）" : "",
         context.kinds.includes("video") ? "镜头视频" : "",
@@ -235,36 +277,43 @@ export function directorSystemPrompt(context: DirectorPromptContext) {
         genre.guidance ? `类型写法：${genre.guidance}` : "",
         `系统可以生成：${capabilities}，最后合成为一条带背景音乐、旁白和字幕的视频。`,
         "",
-        "工作方式：",
-        "1. 先写分镜。需要新建或修改分镜时，在回复末尾附上完整分镜（不是增量），格式：",
+        "制作流程，按顺序推进；每一步完成后用选择题请用户确认，再进入下一步：",
+        "第一步 剧本：用户给的通常只是一个概念。先把概念发展成完整剧本：故事梗概、主要人物、主要场景、按场次写清情节和台词或旁白，时长要和目标时长相符。写进 studio-plan 的 script 字段，同时列出 cast（主要人物：年龄、长相、发型、服装要写具体）和 locations（主要场景：环境、时间、光线要写具体）。这一步 scenes 留空。",
+        "第二步 分镜：剧本确认后，按剧本拆成分镜写进 scenes。每个镜头的 characters 用 cast 或角色清单里的名字，location 用 locations 里的名字。",
+        `第三步 人物三视图和场景图：分镜确认后输出 {"step":"assets"}，系统为每个人物生成三视图（正面全身、背面全身、面部特写），为每个场景生成场景图，之后所有画面都以它们为参考。`,
+        boardMode
+            ? `第四步 分镜板：输出 {"step":"boards"}。系统把相邻镜头按每段最多 ${DIRECTOR_SEGMENT_MAX_SECONDS} 秒、${DIRECTOR_SEGMENT_MAX_SHOTS} 个镜头分成一段，每段以三视图和场景图为参考生成一张分镜板。每个镜头 2 到 5 秒最合适，同一段的镜头放在同一场景，景别要有变化。`
+            : `第四步 关键帧：输出 {"step":"images"}。系统为每个镜头生成一张关键帧，以出镜人物的三视图和所在场景的场景图为参考，保证人物和场景前后一致。`,
+        boardMode
+            ? `第五步 视频：分镜板确认后输出 {"step":"videos"}，系统按分镜板一次生成整段视频；再输出 {"step":"voice"} 生成配音、{"step":"render"} 合成成片。`
+            : `第五步 视频：关键帧确认后输出 {"step":"videos"}，系统把每张关键帧做成视频；再输出 {"step":"voice"} 生成配音、{"step":"render"} 合成成片。`,
+        "",
+        "输出格式：",
+        "1. 剧本或分镜有新增或修改时，在回复末尾附上完整内容（不是增量）：",
         "```studio-plan",
-        '{"title":"项目名","memory":{"decisions":[],"constraints":[],"action_items":[],"open_questions":[],"resolved":[],"context_notes":[]},"scenes":[{"id":"保留原 ID","title":"场景名","description":"场景说明","shots":[{"id":"保留原 ID","duration":4,"visual":"画面内容，写清主体、动作、环境、光线、风格","camera":"景别与运镜","characters":["角色名"],"voiceover":"这一镜的旁白或台词","subtitle":"屏幕字幕"}]}]}',
+        '{"title":"项目名","script":"完整剧本","cast":[{"name":"人物名","description":"外形描述"}],"locations":[{"name":"场景名","description":"环境描述"}],"memory":{"decisions":[],"constraints":[],"action_items":[],"open_questions":[],"resolved":[],"context_notes":[]},"scenes":[{"id":"保留原 ID","title":"场次名","description":"场次说明","shots":[{"id":"保留原 ID","duration":4,"visual":"画面内容，写清主体、动作、环境、光线、风格","camera":"景别与运镜","characters":["人物名"],"location":"场景名","voiceover":"这一镜的旁白或台词","subtitle":"屏幕字幕"}]}]}',
         "```",
         `   - 每个镜头 2 到 ${MAX_SHOT_SECONDS} 秒，所有镜头时长加起来等于目标时长。修改已有镜头时必须带上原来的 id；新镜头不写 id。`,
-        "   - characters 只能用角色清单里的名字；visual 不要写角色名以外的人名。",
+        "   - 人物和场景名字前后保持一致；改了人物或场景的外形描述，系统会重新生成它的三视图或场景图。",
         "   - 旁白必须能在这一镜的时长内读完：中文每秒最多 4 个字，英文每秒最多 2.5 个词，超出就精简或加长镜头。",
         "   - memory 记录本项目的决定、限制、待办、待确认问题和备注，每次输出完整内容。",
-        ...(boardMode ? [
-            `制作方式：分镜板模式。系统把相邻镜头按每段最多 ${DIRECTOR_SEGMENT_MAX_SECONDS} 秒、${DIRECTOR_SEGMENT_MAX_SHOTS} 个镜头分成一段，每段先生成一张分镜板（角色参考 + 编号画面），再按分镜板一次生成整段视频。`,
-            "   - 每个镜头 2 到 5 秒最合适；同一段的镜头放在同一场景、同一批角色，景别要有变化（远景、中景、特写交替）。",
-        ] : []),
-        "2. 用户要求生成时，在回复末尾附上执行指令（可以和分镜同时出现，分镜先保存）：",
+        "2. 要执行生成时，在回复末尾附上执行指令，一次只写一个：",
         "```studio-run",
-        boardMode ? '{"step":"boards"}' : '{"step":"images","shots":[1,2]}',
+        '{"step":"assets"}',
         "```",
-        boardMode
-            ? "   - step：boards（生成分镜板）、videos（按分镜板生成整段视频，需要先有分镜板）、voice（旁白配音）、render（合成成片）。"
-            : "   - step：images（镜头画面）、videos（把画面做成视频，需要先有画面）、voice（旁白配音）、render（合成成片）。",
-        "   - shots 是镜头编号，省略表示全部镜头。一次只写一个指令。执行前系统会自动显示积分报价，你不用自己估价。",
-        "3. 需要用户在几个选项里选一个时（画幅、风格、时长、方向等），在回复末尾附上选择题，用户点选后会以「Q：… A：…」发回：",
+        "   - step：assets（人物三视图和场景图）、" + (boardMode ? "boards（分镜板）" : "images（关键帧）") + "、videos（视频）、voice（旁白配音）、render（合成成片）。shots 是镜头编号，省略表示全部镜头。执行前系统会自动显示积分报价，你不用自己估价。",
+        "3. 需要用户在几个选项里选一个时（确认剧本、画幅、风格、方向等），在回复末尾附上选择题，用户点选后会以「Q：… A：…」发回：",
         "```studio-ask",
         '{"question":"问题","options":["选项一","选项二"]}',
         "```",
         "   - 一次只问一个问题，最多 6 个选项，选项写成用户能直接点的短句。能自己合理决定的就不要问。",
-        "4. 没有把握的地方先问用户。不要编造链接，不要声称已生成完成；生成由系统执行，进度显示在分镜面板。",
+        "4. 没有把握的地方先问用户。不要编造链接，不要声称已生成完成；生成由系统执行，进度显示在右侧面板。",
         "",
-        context.characters.length ? `角色清单：\n${context.characters.map((item) => `- ${item.name}${item.description ? `：${item.description}` : ""}`).join("\n")}` : "角色清单：（无）",
+        context.characters.length ? `用户角色库里的角色（已有形象，不需要再生成三视图）：\n${context.characters.map((item) => `- ${item.name}${item.description ? `：${item.description}` : ""}`).join("\n")}` : "用户角色库里的角色：（无）",
         context.brand ? `\n品牌要求（所有画面和文案都要符合）：\n${context.brand}` : "",
+        design.script ? `\n当前剧本：\n${design.script}` : "\n当前剧本：（还没有）",
+        `\n当前人物：${design.cast.length ? JSON.stringify(design.cast.map(({ name, description }) => ({ name, description }))) : "（还没有）"}`,
+        `\n当前场景：${design.locations.length ? JSON.stringify(design.locations.map(({ name, description }) => ({ name, description }))) : "（还没有）"}`,
         `\n当前分镜：${plan.length ? JSON.stringify(plan) : "（还没有）"}`,
         `\n项目记忆：${JSON.stringify(memory)}`,
     ].filter((line) => line !== undefined).join("\n");
@@ -290,11 +339,10 @@ function parseJSONBlock(value: string, pattern: RegExp) {
 export function parseDirectorPlan(value: unknown, characterNames: string[]): DirectorPlan | null {
     if (!value || typeof value !== "object") return null;
     const source = value as Record<string, unknown>;
-    if (!Array.isArray(source.scenes)) return null;
-    const known = new Set(characterNames);
+    const known = new Set([...characterNames, ...designAssets(source.cast, 8).map((item) => item.name)]);
     const scenes: StudioScenePlanInput[] = [];
     let shotCount = 0;
-    for (const rawScene of source.scenes) {
+    for (const rawScene of Array.isArray(source.scenes) ? source.scenes : []) {
         if (!rawScene || typeof rawScene !== "object") continue;
         const scene = rawScene as Record<string, unknown>;
         const shots: StudioScenePlanInput["shots"] = [];
@@ -308,6 +356,7 @@ export function parseDirectorPlan(value: unknown, characterNames: string[]): Dir
                 visual,
                 camera: text(shot.camera, 200),
                 characters: stringList(shot.characters, 6, 40).filter((name) => known.has(name)),
+                location: text(shot.location, 40),
                 voiceover: text(shot.voiceover, 1000),
                 subtitle: text(shot.subtitle, 200),
             };
@@ -317,17 +366,22 @@ export function parseDirectorPlan(value: unknown, characterNames: string[]): Dir
         if (!shots.length) continue;
         scenes.push({ ...(typeof scene.id === "string" && scene.id.trim() ? { id: scene.id.trim() } : {}), title: text(scene.title, 80) || `场景 ${scenes.length + 1}`, description: text(scene.description, 2000), shots });
     }
-    if (!scenes.length) return null;
-    return { title: text(source.title, 60) || undefined, memory: source.memory ? directorMemory(source.memory) : undefined, scenes };
+    const design: Partial<DirectorDesign> = {};
+    if (typeof source.script === "string" && source.script.trim()) design.script = text(source.script, 12000);
+    if (Array.isArray(source.cast)) design.cast = designAssets(source.cast, 8);
+    if (Array.isArray(source.locations)) design.locations = designAssets(source.locations, 8);
+    const hasDesign = Object.keys(design).length > 0;
+    if (!scenes.length && !hasDesign) return null;
+    return { title: text(source.title, 60) || undefined, memory: source.memory ? directorMemory(source.memory) : undefined, ...(hasDesign ? { design } : {}), scenes };
 }
 
 export function parseDirectorRun(value: unknown, shotCount: number, newId: () => string = () => crypto.randomUUID()): DirectorRunAction | null {
     if (!value || typeof value !== "object") return null;
     const source = value as Record<string, unknown>;
     const step = source.step;
-    if (step !== "boards" && step !== "images" && step !== "videos" && step !== "voice" && step !== "render") return null;
+    if (step !== "assets" && step !== "boards" && step !== "images" && step !== "videos" && step !== "voice" && step !== "render") return null;
     const action: DirectorRunAction = { id: newId(), step, status: "proposed" };
-    if (Array.isArray(source.shots) && step !== "render") {
+    if (Array.isArray(source.shots) && step !== "render" && step !== "assets") {
         const shots = [...new Set(source.shots.map(Number).filter((no) => Number.isInteger(no) && no >= 1 && no <= shotCount))].sort((left, right) => left - right);
         if (shots.length) action.shots = shots;
     }
@@ -389,6 +443,74 @@ export function directorImagePrompt(fields: DirectorShotFields, characters: Dire
         style.trim() ? `风格：${style.trim()}` : "",
         "画面中不要出现文字和水印",
     ].filter(Boolean).join("。");
+}
+
+// ---------------- 人物三视图、场景图、关键帧 ----------------
+
+const TURNAROUND_LAYOUT = [
+    "arranged as three vertical panels side by side, separated by thin black dividers, on a plain neutral grey studio background:",
+    "- LEFT PANEL: FULL-BODY front view, standing straight, the entire outfit visible head to toe (top, jacket, pants, shoes, belt, accessories all clearly shown).",
+    "- MIDDLE PANEL: FULL-BODY back view, same standing pose, showing how the outfit looks from behind.",
+    "- RIGHT PANEL: a CLOSE-UP portrait of the face and shoulders (3/4 angle), large in frame, so every facial detail is crystal clear — eyes, skin, hair, expression.",
+    "All three must be the EXACT same person — identical face, hairstyle, hair colour, features, body, and the same complete outfit. Only the angle and framing differ.",
+    "Lighting: soft even studio lighting, neutral grey seamless background, professional fashion-lookbook / character-sheet look.",
+    "Realism (very important): skin must show real pores, fine lines, natural texture and imperfections — no smoothing, no plastic look, no 3D-render feel; natural skin tone affected by ambient light; it must look like a real person photographed in a studio, not a retouched fake human.",
+];
+
+/** 人物三视图：有参考照片时按照片里的人生成，只有文字时按外形描述生成；版式和写实要求一致。 */
+export function directorTurnaroundPrompt(asset: Pick<DirectorDesignAsset, "name" | "description">, options: { hasPhoto: boolean; style: string }) {
+    const opening = options.hasPhoto
+        ? "Based on the person image, generate a character reference sheet of the EXACT same person,"
+        : `Generate a character reference sheet of one person matching this description — ${asset.name}: ${asset.description || "an ordinary adult"} —`;
+    return [
+        `${opening} ${TURNAROUND_LAYOUT[0]}`,
+        ...TURNAROUND_LAYOUT.slice(1),
+        options.hasPhoto && asset.description ? `Character notes: ${asset.name} — ${asset.description}.` : "",
+        options.style.trim() ? `Overall look of the production: ${options.style.trim()}.` : "",
+        "No text, labels or watermarks.",
+    ].filter(Boolean).join("\n");
+}
+
+/** 场景图：不带人物的环境参考，后续关键帧以它保持场景一致。 */
+export function directorLocationPrompt(asset: Pick<DirectorDesignAsset, "name" | "description">, options: { style: string }) {
+    return [
+        `Environment reference image of the location "${asset.name}": ${asset.description}.`,
+        "Wide establishing view of the empty location, no people, showing the layout, key props, materials, time of day and lighting clearly so it can be reused as a set reference.",
+        options.style.trim() ? `Style: ${options.style.trim()}.` : "Style: photorealistic cinematic still, natural motivated light, real materials and textures.",
+        "No text, labels or watermarks.",
+    ].join("\n");
+}
+
+/** 关键帧提示词：参考图依次是出镜人物的三视图和场景图，只用来保持人物外形和环境一致。 */
+export function directorKeyframePrompt(fields: DirectorShotFields, options: { style: string; cast: string[]; location: string; ratio: string }) {
+    const refs = [
+        ...options.cast.map((name, index) => `参考图 ${index + 1} 是「${name}」的三视图`),
+        options.location ? `参考图 ${options.cast.length + 1} 是场景「${options.location}」` : "",
+    ].filter(Boolean);
+    return [
+        fields.visual,
+        fields.camera ? `镜头：${fields.camera}` : "",
+        refs.length ? `${refs.join("，")}。人物的长相、发型、服装必须和三视图完全一致，环境必须和场景图一致；只画这一个镜头的完整画面，不要画成三视图、拼图或分格` : "",
+        `画幅 ${options.ratio}`,
+        options.style.trim() ? `风格：${options.style.trim()}` : "",
+        "画面中不要出现文字和水印",
+    ].filter(Boolean).join("。");
+}
+
+export type DirectorDesignTarget = { kind: "cast" | "location"; asset: DirectorDesignAsset };
+
+/** 需要生成三视图或场景图的人物和场景：已有角色库形象的人物跳过，已生成或正在生成的跳过。 */
+export function directorDesignTargets(design: DirectorDesign, works: Map<string, StudioWork>, libraryNames: string[]): DirectorDesignTarget[] {
+    const pending = (asset: DirectorDesignAsset) => {
+        const work = asset.taskId ? works.get(asset.taskId) : undefined;
+        if (!asset.taskId) return true;
+        if (!work) return false;
+        return work.status === "failed" || work.status === "cancelled";
+    };
+    return [
+        ...design.cast.filter((asset) => !libraryNames.includes(asset.name) && pending(asset)).map((asset) => ({ kind: "cast" as const, asset })),
+        ...design.locations.filter(pending).map((asset) => ({ kind: "location" as const, asset })),
+    ];
 }
 
 export function directorVideoPrompt(fields: DirectorShotFields, style: string) {
@@ -659,7 +781,7 @@ export function buildDirectorTimeline(story: Pick<StudioStory, "ratio" | "scenes
     return { timeline, missing, longVoice };
 }
 
-const STEP_LABEL: Record<DirectorRunStep, string> = { boards: "生成分镜板", images: "生成镜头画面", videos: "生成镜头视频", voice: "生成旁白配音", render: "合成成片" };
+const STEP_LABEL: Record<DirectorRunStep, string> = { assets: "生成人物三视图和场景图", boards: "生成分镜板", images: "生成镜头画面", videos: "生成镜头视频", voice: "生成旁白配音", render: "合成成片" };
 
 export function directorStepLabel(step: DirectorRunStep) {
     return STEP_LABEL[step];

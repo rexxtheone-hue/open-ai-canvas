@@ -119,7 +119,7 @@ export default function StudioDirectorPage() {
                 ratio: value.ratio,
                 durationSeconds: value.durationSeconds,
                 brief: { ...value, kickoff },
-                settings: { runMode, mode: "board", brandKitId: brand.kit?.id || "" },
+                settings: { runMode, mode: "shots", brandKitId: brand.kit?.id || "" },
                 memory: { decisions: [], constraints: [], action_items: [], open_questions: [], resolved: [], context_notes: [] },
             });
             void queryClient.invalidateQueries({ queryKey: ["studio", "stories"] });

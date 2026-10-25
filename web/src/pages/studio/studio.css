@@ -853,6 +853,21 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 .studio-shot > footer .studio-icon-button svg { width: 15px; height: 15px; }
 .studio-shot > footer .studio-icon-button:disabled { opacity: 0.4; cursor: not-allowed; }
 .studio-shot > footer .studio-mini-button { margin-left: auto; }
+.studio-design > header { flex-wrap: wrap; }
+.studio-design h4 { margin: 4px 0 0; color: var(--studio-muted); font-size: 12px; font-weight: 600; }
+.studio-design-script { border: 1px solid var(--studio-line); border-radius: 12px; background: var(--studio-panel-raised); }
+.studio-design-script > summary { padding: 9px 12px; color: var(--studio-fg); font-size: 13px; font-weight: 600; cursor: pointer; }
+.studio-design-script > div { max-height: 320px; overflow-y: auto; padding: 0 12px 12px; color: var(--studio-soft); font-size: 12.5px; line-height: 1.7; white-space: pre-wrap; }
+.studio-design-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.studio-design-card { display: flex; flex-direction: column; border-radius: 14px; border: 1px solid var(--studio-line); background: var(--studio-panel-raised); overflow: hidden; }
+.studio-design-media, .studio-root .studio-design-media { display: grid; place-items: center; width: 100%; height: auto; aspect-ratio: 16 / 9; padding: 0; border: 0; border-radius: 0; background: #000; color: var(--studio-muted); cursor: zoom-in; overflow: hidden; }
+.studio-design-media:disabled { cursor: default; }
+.studio-design-media img { width: 100%; height: 100%; object-fit: contain; border-radius: 0; }
+.studio-design-body { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px 10px; font-size: 12px; }
+.studio-design-body strong { display: flex; align-items: center; gap: 6px; color: var(--studio-fg); font-size: 13px; }
+.studio-design-body strong small { padding: 0 6px; border-radius: 999px; background: var(--studio-accent-soft); color: var(--studio-fg); font-size: 10.5px; font-weight: 500; }
+.studio-design-body p { margin: 0; color: var(--studio-muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.studio-design-card > footer { padding: 0 10px 10px; }
 .studio-segment-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
 .studio-segment { display: flex; flex-direction: column; border-radius: 14px; border: 1px solid var(--studio-line); background: var(--studio-panel-raised); overflow: hidden; }
 .studio-segment.is-selected { border-color: var(--studio-accent); }

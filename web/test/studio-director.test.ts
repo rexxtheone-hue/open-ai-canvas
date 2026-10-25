@@ -11,7 +11,12 @@ import {
     directorBoardVideoPrompt,
     directorBriefError,
     directorDefaultTextModel,
+    directorDesignTargets,
     directorFallbackTextModel,
+    directorKeyframePrompt,
+    directorLocationPrompt,
+    directorTurnaroundPrompt,
+    mergeDirectorDesign,
     directorHistory,
     directorMessageParts,
     directorProductionMode,
@@ -219,11 +224,9 @@ describe("分镜板模式", () => {
         expect(directorBoardTargets(value, "boards", [2]).map((segment) => segment.anchor.id)).toEqual(["a"]);
     });
 
-    test("新项目默认分镜板，旧项目已有产物时沿用逐镜头，显式设置优先", () => {
-        expect(directorProductionMode(story([{ id: "a" }]))).toBe("board");
-        const legacy = story([{ id: "a", activeImageVersionId: "v" }], [version("v", "a", "image", work("img", "image"))]);
-        expect(directorProductionMode(legacy)).toBe("shots");
-        expect(directorProductionMode({ ...legacy, settings: { mode: "board" } })).toBe("board");
+    test("默认标准流程，显式设置优先", () => {
+        expect(directorProductionMode(story([{ id: "a" }]))).toBe("shots");
+        expect(directorProductionMode({ ...story([{ id: "a" }]), settings: { mode: "board" } })).toBe("board");
     });
 
     test("分镜板提示词按编号列出镜头和角色；视频提示词要求按编号拍、不画出分镜板", () => {
@@ -273,10 +276,58 @@ describe("分镜板模式", () => {
         expect(directorFallbackTextModel(["m1"], label, "m1")).toBe("");
     });
 
-    test("分镜板模式的系统提示词说明 boards 指令和选择题格式", () => {
-        const prompt = directorSystemPrompt({ story: story([{ id: "a" }]), characters: [], kinds: ["image", "video", "audio"] });
-        expect(prompt).toContain("分镜板模式");
-        expect(prompt).toContain('{"step":"boards"}');
-        expect(prompt).toContain("```studio-ask");
+    test("系统提示词：先把概念写成剧本，再分镜、三视图和场景图、关键帧或分镜板、视频", () => {
+        const standard = directorSystemPrompt({ story: story([{ id: "a" }]), characters: [], kinds: ["image", "video", "audio"] });
+        expect(standard).toContain("先把概念发展成完整剧本");
+        expect(standard).toContain('{"step":"assets"}');
+        expect(standard).toContain("关键帧");
+        expect(standard).toContain("```studio-ask");
+        const board = directorSystemPrompt({ story: { ...story([{ id: "a" }]), settings: { mode: "board", design: { script: "第一场：咖啡店清晨", cast: [{ name: "阿明", description: "25 岁咖啡师" }] } } }, characters: [], kinds: ["image", "video", "audio"] });
+        expect(board).toContain('{"step":"boards"}');
+        expect(board).toContain("第一场：咖啡店清晨");
+        expect(board).toContain("阿明");
+    });
+});
+
+describe("剧本与美术", () => {
+    const fence = "```";
+    test("剧本阶段只有剧本、人物、场景也能解析，人物名可用于镜头", () => {
+        const scriptOnly = parseDirectorReply(`剧本写好了
+${fence}studio-plan
+{"script":"第一场 晨光咖啡开门","cast":[{"name":"阿明","description":"25 岁男咖啡师"},{"name":"阿明","description":"重复"}],"locations":[{"name":"吧台","description":"木质吧台，清晨"}]}
+${fence}`, { characterNames: [], shotCount: 0 });
+        expect(scriptOnly.plan?.scenes).toEqual([]);
+        expect(scriptOnly.plan?.design).toEqual({ script: "第一场 晨光咖啡开门", cast: [{ name: "阿明", description: "25 岁男咖啡师" }], locations: [{ name: "吧台", description: "木质吧台，清晨" }] });
+        const withShots = parseDirectorReply(`${fence}studio-plan
+{"cast":[{"name":"阿明","description":"咖啡师"}],"scenes":[{"title":"开门","shots":[{"duration":3,"visual":"拉花","characters":["阿明","路人"],"location":"吧台"}]}]}
+${fence}`, { characterNames: [], shotCount: 0 });
+        expect(withShots.plan?.scenes[0].shots[0].fields).toMatchObject({ characters: ["阿明"], location: "吧台" });
+    });
+
+    test("合并剧本设计：外形描述没变的沿用已生成的图，变了的重新生成，没给的保留原样", () => {
+        const current = { script: "旧剧本", cast: [{ name: "阿明", description: "咖啡师", taskId: "t1" }, { name: "小雅", description: "长发", taskId: "t2" }], locations: [{ name: "吧台", description: "木质", taskId: "t3" }] };
+        const merged = mergeDirectorDesign(current, { cast: [{ name: "阿明", description: "咖啡师" }, { name: "小雅", description: "短发" }] });
+        expect(merged.cast).toEqual([{ name: "阿明", description: "咖啡师", taskId: "t1" }, { name: "小雅", description: "短发" }]);
+        expect(merged.locations).toEqual(current.locations);
+        expect(merged.script).toBe("旧剧本");
+    });
+
+    test("需要生成的三视图和场景图：角色库已有的跳过，失败的重做，生成中或已完成的跳过", () => {
+        const design = { script: "", cast: [{ name: "阿明", description: "", taskId: "done" }, { name: "小雅", description: "" }, { name: "库角色", description: "" }], locations: [{ name: "吧台", description: "", taskId: "failed" }, { name: "门口", description: "", taskId: "running" }] };
+        const works = new Map([["done", work("done", "image")], ["failed", work("failed", "image", "failed")], ["running", work("running", "image", "running")]]);
+        expect(directorDesignTargets(design, works, ["库角色"]).map((item) => `${item.kind}:${item.asset.name}`)).toEqual(["cast:小雅", "location:吧台"]);
+    });
+
+    test("三视图提示词：有照片按照片里的人，只有描述按描述；关键帧提示词说明参考图顺序", () => {
+        const fromPhoto = directorTurnaroundPrompt({ name: "阿明", description: "咖啡师" }, { hasPhoto: true, style: "" });
+        expect(fromPhoto).toStartWith("Based on the person image, generate a character reference sheet of the EXACT same person,");
+        expect(fromPhoto).toContain("MIDDLE PANEL: FULL-BODY back view");
+        const fromText = directorTurnaroundPrompt({ name: "小雅", description: "长发女生" }, { hasPhoto: false, style: "温暖" });
+        expect(fromText).toContain("matching this description — 小雅: 长发女生");
+        expect(fromText).toContain("Realism (very important)");
+        const keyframe = directorKeyframePrompt({ visual: "递咖啡", camera: "中景", characters: ["阿明", "小雅"], location: "吧台", voiceover: "", subtitle: "" }, { style: "", cast: ["阿明", "小雅"], location: "吧台", ratio: "9:16" });
+        expect(keyframe).toContain("参考图 1 是「阿明」的三视图");
+        expect(keyframe).toContain("参考图 3 是场景「吧台」");
+        expect(directorLocationPrompt({ name: "吧台", description: "木质吧台" }, { style: "" })).toContain("no people");
     });
 });
