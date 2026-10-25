@@ -57,7 +57,9 @@
 .studio-side-collapse, .studio-icon-button { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--studio-soft); cursor: pointer; }
 .studio-side-collapse:hover, .studio-icon-button:hover { background: var(--studio-hover); color: var(--studio-fg); }
 .studio-side-collapse svg, .studio-icon-button svg { width: 18px; height: 18px; }
-.studio-side-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.studio-side-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+/* 侧栏内容超出时滚动，不压缩项目高度（否则「首页」会被压扁） */
+.studio-side-scroll > * { flex-shrink: 0; }
 .studio-side-link { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border-radius: 10px; color: var(--studio-fg); font-size: 13px; font-weight: 500; text-decoration: none; }
 .studio-side-link svg { width: 16px; height: 16px; color: var(--studio-soft); flex: 0 0 auto; }
 .studio-side-link:hover { background: var(--studio-hover); }
