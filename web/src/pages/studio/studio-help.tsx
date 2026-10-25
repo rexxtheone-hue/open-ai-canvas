@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { App, Input, Popover } from "antd";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, CircleHelp, FileText, Gift, Headset, MessageSquareWarning, Sparkles } from "./studio-icons";
+import { BookOpen, CircleHelp, FileText, Gift, Headset, MessageSquareWarning } from "./studio-icons";
 import { Link, useLocation } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal/app-modal";
-import { AppChangelogButton } from "@/components/layout/app-changelog-modal";
 import { announcementImageUrl, getAnnouncementFeed } from "@/services/api/announcements";
 import { submitStudioFeedback, type StudioFeedbackCategory } from "@/services/api/studio-agents";
 import { StudioSelect } from "./studio-select";
@@ -70,7 +69,6 @@ export function StudioHelpMenu() {
                 arrow={false}
                 content={(
                     <div className="studio-popup studio-menu" role="menu" aria-label="帮助">
-                        <AppChangelogButton className="studio-menu-item" showLabel label="更新动态" icon={<Sparkles aria-hidden />} />
                         <Link to="/studio/help" className="studio-menu-item" role="menuitem" onClick={close}><BookOpen aria-hidden />帮助中心</Link>
                         <button type="button" className="studio-menu-item" role="menuitem" onClick={() => { close(); setFeedbackOpen(true); }}><MessageSquareWarning aria-hidden />反馈</button>
                         <Link to="/studio/help#support" className="studio-menu-item" role="menuitem" onClick={close}><Headset aria-hidden />联系客服</Link>
