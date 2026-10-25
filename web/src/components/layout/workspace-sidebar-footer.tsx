@@ -4,7 +4,6 @@ import { ChevronRight, LogIn, LogOut, Moon, ShieldCheck, Sun } from "lucide-reac
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 
-import { AppChangelogButton } from "@/components/layout/app-changelog-modal";
 import { IdentityProviderBadge } from "@/components/layout/identity-provider-badge";
 import { UserAvatar } from "@/components/layout/user-avatar";
 import { SystemAnnouncementCenter } from "@/components/layout/system-announcement-center";
@@ -84,11 +83,7 @@ export function WorkspaceSidebarFooter({ expandedClassName, collapsedClassName, 
                                 </nav>
                             ) : null}
 
-                            <div className="border-y border-border/65 py-2">
-                                <AppChangelogButton className="flex h-8 w-full items-center gap-2 rounded px-2 text-[var(--fs-label)] text-foreground/58 hover:bg-surface-hover hover:text-foreground [&_svg]:size-3.5" showLabel showVersion versionClassName="ml-auto text-[var(--fs-micro)] tabular-nums text-foreground/32" />
-                            </div>
-
-                            <div className="flex h-10 items-center px-2">
+                            <div className="flex h-10 items-center border-t border-border/65 px-2">
                                 {theme === "dark" ? <Moon className="size-3.5 text-foreground/45" /> : <Sun className="size-3.5 text-foreground/45" />}
                                 <span className="ml-2 flex-1 text-xs text-foreground/65">深色模式</span>
                                 <Switch size="sm" checked={theme === "dark"} onChange={(checked) => setTheme(checked ? "dark" : "light")} aria-label="深色模式" />
