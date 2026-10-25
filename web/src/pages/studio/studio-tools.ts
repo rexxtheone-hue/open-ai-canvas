@@ -1,5 +1,5 @@
 import type { LucideIcon } from "./studio-icons";
-import { AudioFill, AudioLines, Camera, CharacterFill, Clapperboard, Copy, Earth, Expand, FastForward, Film, Flame, Globe, Grid3x3, Image as ImageIcon, ImageFill, ImagePlay, Languages, Layers, Lightbulb, ListVideo, MicVocal, MonitorUp, MountainSnow, Music, Orbit, Palette, PenLine, PersonStanding, Replace, Rotate3d, ScanFace, Speaker, SunMedium, Type, UserPen, UserPlus, UserRound, VideoFill, Volume2, Wallpaper, WorldFill, ZoomIn } from "./studio-icons";
+import { AudioFill, AudioLines, Camera, CharacterFill, Clapperboard, Copy, Earth, Expand, FastForward, Film, Flame, Globe, Grid3x3, Image as ImageIcon, ImageFill, ImagePlay, Layers, Lightbulb, ListVideo, MicVocal, MonitorUp, MountainSnow, Music, Palette, PenLine, PersonStanding, Replace, Rotate3d, ScanFace, Speaker, SunMedium, Type, UserPen, UserPlus, UserRound, VideoFill, Volume2, Wallpaper, WorldFill, ZoomIn } from "./studio-icons";
 
 import type { VideoMode } from "@/lib/video-modes";
 import type { StudioKind } from "@/services/api/studio";
@@ -45,11 +45,9 @@ export const STUDIO_TOOLS: StudioToolDefinition[] = [
     { id: "replace-character", label: "换角色", description: "把视频里的人换成你的角色", icon: Replace, path: "/studio/tools/replace-character", tabs: ["video", "character"], kind: "video", specialty: true, badge: "NEW", gradient: ["#e65c00", "#f9d423"] },
     { id: "restyle-video", label: "视频换风格", description: "动画、油画、乐高等风格一键转换", icon: Palette, path: "/studio/tools/restyle-video", tabs: ["video"], kind: "video", specialty: true, gradient: ["#ec008c", "#fc6767"] },
     { id: "extend-video", label: "延长视频", description: "从结尾自然往下续拍", icon: FastForward, path: "/studio/tools/extend-video", tabs: ["video"], kind: "video", specialty: true, gradient: ["#1fa2ff", "#12d8fa"] },
-    { id: "camera-motion", label: "运镜重拍", description: "内容不变，换一种镜头运动", icon: Orbit, path: "/studio/tools/camera-motion", tabs: ["video"], kind: "video", specialty: true, gradient: ["#4568dc", "#b06ab3"] },
     { id: "motion-sync", label: "动作同步", description: "让角色模仿参考视频里的动作", icon: PersonStanding, path: "/studio/tools/motion-sync", tabs: ["video", "character"], kind: "video", specialty: true, gradient: ["#00c6ff", "#0072ff"] },
     { id: "lip-sync", label: "对口型", description: "让人像或人物视频按声音说话", icon: MicVocal, path: "/studio/tools/lip-sync", tabs: ["video", "character"], kind: "video", specialty: true, gradient: ["#ee0979", "#ff6a00"] },
     { id: "video-upscale", label: "视频高清", description: "把视频提升到更高清晰度", icon: MonitorUp, path: "/studio/tools/video-upscale", tabs: ["video"], kind: "video", specialty: true, gradient: ["#8e2de2", "#4a00e0"] },
-    { id: "video-dubbing", label: "视频配音翻译", description: "把视频对白翻译成其他语言并重新配音", icon: Languages, path: "/studio/tools/video-dubbing", tabs: ["video", "audio"], kind: "video", badge: "NEW", specialty: true, gradient: ["#f7971e", "#ffd200"] },
     { id: "video-background", label: "视频换背景", description: "人物不变，替换视频背景", icon: Wallpaper, path: "/studio/tools/video-background", tabs: ["video"], kind: "video", specialty: true, gradient: ["#0cebeb", "#29ffc6"] },
     { id: "video-relight", label: "视频重新打光", description: "给视频换一种光线氛围", icon: Lightbulb, path: "/studio/tools/video-relight", tabs: ["video"], kind: "video", specialty: true, gradient: ["#f2994a", "#f2c94c"] },
     { id: "vfx", label: "视频特效", description: "火焰、传送门等特效加进视频", icon: Flame, path: "/studio/tools/vfx", tabs: ["video"], kind: "video", specialty: true, gradient: ["#ff512f", "#dd2476"] },
