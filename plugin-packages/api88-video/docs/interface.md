@@ -73,6 +73,11 @@
 - `veo-3.1` 续写每次新增 7 秒。
 - 编辑保持原视频比例。
 
+## Grok 与 Veo 规则
+
+- `grok-imagine-video`、`grok-imagine-video-1.5` 只从顶层 `images` 读图片（最多 1 张，作为首帧），不读 `metadata.firstFrame`，所以首帧也放顶层 `images`，不再写 `metadata.firstFrame`。
+- `veo-3.1`、`veo-3.1-fast` 收到 1–2 张普通图片时默认当首尾帧；有非首尾帧角色的参考图时发送 `metadata.video_mode: "reference"`。参考图模式固定 8 秒，时长不是 8 秒时发送前拒绝。
+
 ## Provider 扩展键
 
 - `providerOptions.api88-video.negative_prompt`、`seed`。
@@ -817,6 +822,87 @@
               ]
             },
             "message": "可灵 Kling 只支持 720P、1080P、2K、4K 分辨率。"
+          },
+          {
+            "assert": {
+              "$or": [
+                {
+                  "$not": {
+                    "$and": [
+                      {
+                        "$eq": [
+                          {
+                            "$first": {
+                              "$split": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$ref": "request.model"
+                                      },
+                                      ""
+                                    ]
+                                  }
+                                },
+                                "-"
+                              ]
+                            }
+                          },
+                          "veo"
+                        ]
+                      },
+                      {
+                        "$gt": [
+                          {
+                            "$len": {
+                              "$filter": {
+                                "from": {
+                                  "$coalesce": [
+                                    {
+                                      "$ref": "request.images"
+                                    },
+                                    []
+                                  ]
+                                },
+                                "as": "media",
+                                "where": {
+                                  "$not": {
+                                    "$in": [
+                                      {
+                                        "$ref": "media.role"
+                                      },
+                                      [
+                                        "first_frame",
+                                        "last_frame"
+                                      ]
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          0
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "$not": {
+                    "$ref": "request.duration"
+                  }
+                },
+                {
+                  "$eq": [
+                    {
+                      "$ref": "request.duration"
+                    },
+                    8
+                  ]
+                }
+              ]
+            },
+            "message": "Veo 参考图模式固定 8 秒，请把时长改成 8 秒，或改用首帧图生视频。"
           }
         ],
         "parameters": [
@@ -1774,6 +1860,71 @@
                         ]
                       }
                     }
+                  }
+                },
+                "video_mode": {
+                  "$if": {
+                    "condition": {
+                      "$and": [
+                        {
+                          "$eq": [
+                            {
+                              "$first": {
+                                "$split": [
+                                  {
+                                    "$lower": {
+                                      "$coalesce": [
+                                        {
+                                          "$ref": "request.model"
+                                        },
+                                        ""
+                                      ]
+                                    }
+                                  },
+                                  "-"
+                                ]
+                              }
+                            },
+                            "veo"
+                          ]
+                        },
+                        {
+                          "$gt": [
+                            {
+                              "$len": {
+                                "$filter": {
+                                  "from": {
+                                    "$coalesce": [
+                                      {
+                                        "$ref": "request.images"
+                                      },
+                                      []
+                                    ]
+                                  },
+                                  "as": "media",
+                                  "where": {
+                                    "$not": {
+                                      "$in": [
+                                        {
+                                          "$ref": "media.role"
+                                        },
+                                        [
+                                          "first_frame",
+                                          "last_frame"
+                                        ]
+                                      ]
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            0
+                          ]
+                        }
+                      ]
+                    },
+                    "then": "reference",
+                    "else": null
                   }
                 }
               }

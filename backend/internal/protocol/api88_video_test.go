@@ -329,6 +329,40 @@ func TestAPI88VideoGrokSendsStartImageAsTopLevelImage(t *testing.T) {
 	}
 }
 
+func TestAPI88VideoVeoReferenceMode(t *testing.T) {
+	adapter := loadAPI88VideoAdapter(t)
+	build := func(request GenerationRequest) (map[string]any, error) {
+		request.Model = "veo-3.1"
+		create, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.88api.ai", Request: request})
+		if err != nil {
+			return nil, err
+		}
+		return create.Body.(map[string]any), nil
+	}
+	reference, err := build(GenerationRequest{Prompt: "x", Duration: 8, Images: []MediaReference{{URL: "https://cdn.example/a.jpg", Role: "reference_image"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if metadata, _ := reference["metadata"].(map[string]any); metadata["video_mode"] != "reference" {
+		t.Fatalf("veo reference images need metadata.video_mode=reference: %#v", reference)
+	}
+	frame, err := build(GenerationRequest{Prompt: "x", Duration: 4, Images: []MediaReference{{URL: "https://cdn.example/s.jpg", Role: "first_frame"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if metadata, _ := frame["metadata"].(map[string]any); metadata["firstFrame"] != "https://cdn.example/s.jpg" || metadata["video_mode"] != nil {
+		t.Fatalf("veo first frame must not switch to reference mode: %#v", frame)
+	}
+	if _, err := build(GenerationRequest{Prompt: "x", Duration: 4, Images: []MediaReference{{URL: "https://cdn.example/a.jpg"}}}); err == nil {
+		t.Fatal("veo reference mode must reject durations other than 8 seconds")
+	}
+	if omni, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.88api.ai", Request: GenerationRequest{Model: "gemini-omni-flash-1.1", Prompt: "x", Duration: 4, Images: []MediaReference{{URL: "https://cdn.example/a.jpg"}}}}); err != nil {
+		t.Fatal(err)
+	} else if metadata, _ := omni.Body.(map[string]any)["metadata"].(map[string]any); metadata["video_mode"] != nil {
+		t.Fatalf("video_mode is Veo only: %#v", omni.Body)
+	}
+}
+
 func TestAPI88VideoKling(t *testing.T) {
 	adapter := loadAPI88VideoAdapter(t)
 	build := func(request GenerationRequest) (map[string]any, error) {
