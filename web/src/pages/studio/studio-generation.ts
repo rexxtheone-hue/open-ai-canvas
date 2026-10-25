@@ -5,7 +5,7 @@ import { imageParameterAccepts, imageParameterRequest } from "@/lib/image-parame
 import { modelCapabilityConfigFor, normalizeImageValue, videoDurationAllowed, type VideoCapabilityConfig } from "@/lib/model-capabilities";
 import { detectVideoMode, inferVideoOperation, modelGroupReferenceLimits, modelPromptLengthError, resolveCompatibleModel, resolveModelVideoBooleanOptions, type ModelReferenceLimits, type ModelRequirements } from "@/lib/model-selection";
 import { applyVideoModeImageRoles, isSpecialtyVideoOperation, pickVideoModeMaterials, videoModeInputError, videoModeOperation, videoModeUsedInput, type VideoMode } from "@/lib/video-modes";
-import { resolveModelRequestConfig, selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
+import { modelOptionName, resolveModelRequestConfig, selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
 import type { StudioKind } from "@/services/api/studio";
 
 /** Studio 生成工具的全部可编辑状态。模型值沿用渠道编码（channelId::model）。 */
@@ -319,6 +319,39 @@ export function studioEffectiveVideoMode(state: StudioToolState, profile?: Video
     return detectVideoMode(profile, attachmentCounts(state.attachments));
 }
 
+const COMMON_RATIOS = ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9"];
+
+function ratioValue(ratio: string) {
+    const [width, height] = ratio.split(":").map(Number);
+    return width > 0 && height > 0 ? width / height : 0;
+}
+
+/**
+ * 首帧图片比例和所选画幅不一致时的提醒：首帧必须完整用上原图，Veo 会补黑边，Grok 会改用图片比例。
+ * 88API 的 Veo 在 1–2 张图且不是 8 秒时也按首帧处理（参考图模式固定 8 秒），所以一并提醒。
+ */
+export function studioFrameRatioNotice(config: AiConfig, state: StudioToolState, model: string): { imageRatio: string; selectedRatio: string; suggestedRatio?: string } | undefined {
+    if (state.kind !== "video" || state.specialty || !model) return undefined;
+    const target = ratioValue(state.video.ratio);
+    if (!target) return undefined;
+    const profile = modelCapabilityConfigFor(config, model).video;
+    const images = splitCreationAttachments(state.attachments).referenceImages;
+    const mode = studioEffectiveVideoMode(state, profile);
+    const veoFrameFallback = resolveModelRequestConfig(config, model).interfaceType === "api88-video" && /veo/i.test(modelOptionName(model)) && images.length <= 2 && state.video.seconds !== "8";
+    if (mode !== "image_to_video" && mode !== "first_last_frame" && !(mode === "reference_to_video" && veoFrameFallback)) return undefined;
+    const first = images[0];
+    if (!first?.width || !first.height) return undefined;
+    const actual = first.width / first.height;
+    if (Math.abs(actual / target - 1) < 0.03) return undefined;
+    const nearest = COMMON_RATIOS.find((ratio) => Math.abs(actual / ratioValue(ratio) - 1) < 0.03);
+    const supported = profile?.ratios || [];
+    return {
+        imageRatio: nearest || `${first.width}×${first.height}`,
+        selectedRatio: state.video.ratio,
+        suggestedRatio: nearest && supported.includes(nearest) ? nearest : undefined,
+    };
+}
+
 export type StudioBlockContext = {
     loggedIn: boolean;
     creditsEnabled: boolean;
@@ -399,8 +432,7 @@ export function studioSubmission(config: AiConfig, state: StudioToolState, model
         return { mode: "video", prompt: finalPrompt, config: generationConfig, count: videoCount, referenceImages, referenceVideos, referenceAudios, metadata };
     }
     if (state.kind === "image") {
-        const maxOutputs = modelCapabilityConfigFor(config, model).image!.maxOutputs;
-        const count = Math.max(1, Math.min(maxOutputs || 1, Math.floor(state.count) || 1));
+        const count = Math.max(1, Math.min(studioMaxCount(config, "image", model), Math.floor(state.count) || 1));
         return { mode: "image", prompt: finalPrompt, config: generationConfig, count, referenceImages: split.referenceImages, referenceVideos: [], referenceAudios: [], metadata };
     }
     const prompt = audioGenerationPrompt(generationConfig, state.specialty ? finalPrompt : state.prompt.trim(), split.referenceAudios.length, split.referenceImages.length);
@@ -408,8 +440,15 @@ export function studioSubmission(config: AiConfig, state: StudioToolState, model
 }
 
 /** 生成按钮上的数量上限：图片按模型最多出图数；视频最多 8 个（每个一个任务）；配音固定 1。 */
+/** 一次请求固定返回的图片张数：88API Midjourney 每次 4 张，其余模型按数量逐张生成。 */
+export function studioImagesPerRequest(config: AiConfig, model: string) {
+    return model && resolveModelRequestConfig(config, model).interfaceType === "api88-midjourney" ? 4 : 1;
+}
+
+/** 数量即任务数；每次返回多张的模型可以提交多次（界面按张数显示为 4 的倍数）。 */
 export function studioMaxCount(config: AiConfig, kind: StudioKind, model: string) {
     if (!model || kind === "audio") return 1;
     if (kind === "video") return 8;
+    if (studioImagesPerRequest(config, model) > 1) return 4;
     return Math.max(1, Math.min(8, modelCapabilityConfigFor(config, model).image!.maxOutputs || 1));
 }

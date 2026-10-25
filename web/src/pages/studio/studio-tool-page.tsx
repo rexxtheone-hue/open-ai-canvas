@@ -29,7 +29,7 @@ import { studioAttachmentFromMedia, uploadStudioFile, useStudioTool } from "./us
 import { StudioPanelFooter, StudioPanelTabs, StudioToolSwitcher } from "./studio-workspace";
 import { StudioToolThumb } from "./studio-tool-thumb";
 import { StudioModelCard, StudioModelPanel } from "./studio-model-panel";
-import { studioImageDefaultRatio, studioImageRatioSupported, studioModelSupportsSpecialty } from "./studio-generation";
+import { studioFrameRatioNotice, studioImagesPerRequest, studioImageDefaultRatio, studioImageRatioSupported, studioModelSupportsSpecialty } from "./studio-generation";
 import { useStudioToolCovers } from "./use-studio-tool-meta";
 import { buildSpecialtyState, defaultSpecialtyOptions, orderedSlotAttachments, ratioOfChoice, restoreSpecialtyOptions, slotAccepts, slotItems, studioSpecialtySpec, type StudioSlot, type StudioSlotValues } from "./studio-specialty";
 import { STUDIO_ATTACH_KEY, STUDIO_REUSE_KEY } from "./studio-agent";
@@ -312,6 +312,15 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     const variantCount = specialty?.variants?.length || 0;
     const showCount = !variantCount && (kind === "image" || (kind === "video" && (!specialtySpec || Boolean(specialtySpec.count))));
 
+    const imagesPerRequest = kind === "image" && resolvedModel ? studioImagesPerRequest(config, resolvedModel) : 1;
+    const frameRatioNotice = resolvedModel ? studioFrameRatioNotice(config, state, resolvedModel) : undefined;
+    const frameRatioHint = frameRatioNotice ? (
+        <p className="studio-hint is-warn">
+            图片比例约 {frameRatioNotice.imageRatio}，和所选画幅 {frameRatioNotice.selectedRatio} 不同。图片当首帧时不会被裁切，有的模型会在两侧补黑边，有的会改用图片比例输出。
+            {frameRatioNotice.suggestedRatio ? <button type="button" className="studio-block-link" onClick={() => studio.updateVideo({ ratio: frameRatioNotice.suggestedRatio })}>改用 {frameRatioNotice.suggestedRatio}</button> : null}
+        </p>
+    ) : null;
+
     const handleFiles = async (files: FileList | null) => {
         if (!files?.length) return;
         const { failures, reason } = await studio.uploadFiles(Array.from(files));
@@ -529,6 +538,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                     })}
                                     <button type="button" className="studio-icon-button studio-frame-swap" aria-label="交换首尾帧" title="交换首尾帧" disabled={frameImages.length < 2} onClick={studio.swapFirstImages}><ArrowLeftRight aria-hidden /></button>
                                 </div>
+                                {frameRatioHint}
                             </div>
                         ) : !isTextOnly && totalReferenceLimit > 0 ? (
                             <div className="studio-block">
@@ -550,6 +560,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                 {kind === "video" && state.video.mode === "image_to_video" && attachmentCounts.imageCount > 0 ? (
                                     <p className="studio-hint">当前：第一张图作为首帧。<button type="button" className="studio-block-link" onClick={() => setVideoMode(undefined)}>改为参考图</button></p>
                                 ) : null}
+                                {frameRatioHint}
                             </div>
                         ) : null}
 
@@ -684,7 +695,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                             {showCount ? (
                                 <div className="studio-stepper" role="group" aria-label="生成数量">
                                     <button type="button" aria-label="减少数量" disabled={state.count <= 1} onClick={() => studio.update({ count: Math.max(1, state.count - 1) })}>−</button>
-                                    <span>{Math.min(state.count, maxCount)} / {maxCount}</span>
+                                    <span>{Math.min(state.count, maxCount) * imagesPerRequest} / {maxCount * imagesPerRequest}</span>
                                     <button type="button" aria-label="增加数量" disabled={state.count >= maxCount} onClick={() => studio.update({ count: Math.min(maxCount, state.count + 1) })}>+</button>
                                 </div>
                             ) : null}

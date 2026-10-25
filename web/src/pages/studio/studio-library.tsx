@@ -156,7 +156,7 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
     const confirmDelete = (ids: string[]) => {
         modal.confirm({
             title: ids.length > 1 ? `永久删除 ${ids.length} 个作品？` : "永久删除这个作品？",
-            content: "作品和它的图片、视频文件会被彻底删除，画布资产里也不能再还原；用到它的画布节点会失效。已扣的积分和账单记录不受影响。",
+            content: `作品和它的图片、视频文件会被彻底删除，画布资产里也不能再还原；用到它的画布节点会失效。${works.some((work) => ids.includes(work.id) && studioWorkCardIndexes(work).length > 1) ? "同一次生成的多张图会一起删除。" : ""}已扣的积分和账单记录不受影响。`,
             okText: "删除",
             okButtonProps: { danger: true },
             cancelText: "取消",
@@ -337,17 +337,18 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                 ) : (
                     <>
                         <div className="studio-grid" style={{ ["--studio-card-min" as string]: `${cardSize}px` }}>
-                            {works.map((work) => (
+                            {works.flatMap((work) => studioWorkCardIndexes(work).map((mediaIndex) => (
                                 <StudioWorkCard
-                                    key={work.id}
+                                    key={`${work.id}:${mediaIndex}`}
                                     work={work}
+                                    mediaIndex={mediaIndex}
                                     selected={selected.has(work.id)}
                                     busy={busyId === work.id}
                                     onSelect={(shift) => toggleSelect(work, shift)}
                                     onPreview={(media) => setPreview({ work, media })}
                                     onFavorite={() => void toggleFavorite(work).catch((cause) => message.error(generationErrorMessage(cause)))}
-                                    onDownload={() => void run(work.id, () => downloadStudioMedia(work, 0))}
-                                    onUseAsReference={onUseAsReference && work.media[0] ? () => onUseAsReference(work, work.media[0]) : undefined}
+                                    onDownload={() => void run(work.id, () => downloadStudioMedia(work, mediaIndex))}
+                                    onUseAsReference={onUseAsReference && work.media[mediaIndex] ? () => onUseAsReference(work, work.media[mediaIndex]) : undefined}
                                     onReuseSettings={onReuseSettings && work.source !== "canvas" ? () => onReuseSettings(work) : undefined}
                                     onRetry={() =>
                                         void run(
@@ -366,7 +367,7 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
                                     onSaveCharacter={work.status === "succeeded" && work.media[0]?.kind === "image" && resourceIdFromStorageKey(work.media[0].storageKey) ? () => setCharacterTarget(work) : undefined}
                                     onOpenCanvas={work.status === "succeeded" && work.media.length ? () => openInCanvas(work) : undefined}
                                 />
-                            ))}
+                            )))}
                         </div>
                         {hasMore ? (
                             <div className="studio-load-more">
@@ -440,8 +441,17 @@ export function StudioLibrary({ kind, onUseAsReference, onReuseSettings, onAddTo
     );
 }
 
+/** 一次生成多张图（例如 Midjourney 每次 4 张）时，每张图各占一张卡片；删除、收藏、选择仍按整次生成。 */
+function studioWorkCardIndexes(work: StudioWork) {
+    return work.kind === "image" && work.media.length > 1 ? work.media.map((_, index) => index) : [0];
+}
+
+// 上游没返回图片这类技术性错误只显示「生成失败」，原文留在悬停提示里。
+const TECHNICAL_ERROR_PATTERN = /声明式协议|媒体地址|provider|protocol/i;
+
 type StudioWorkCardProps = {
     work: StudioWork;
+    mediaIndex?: number;
     selected: boolean;
     busy: boolean;
     onSelect: (shift: boolean) => void;
@@ -458,8 +468,9 @@ type StudioWorkCardProps = {
     labels?: StudioLabel[];
 };
 
-function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite, onDownload, onUseAsReference, onReuseSettings, onRetry, onDelete, onPublish, onSaveCharacter, onOpenCanvas, labels = [] }: StudioWorkCardProps) {
-    const media = work.media[0];
+function StudioWorkCard({ work, mediaIndex = 0, selected, busy, onSelect, onPreview, onFavorite, onDownload, onUseAsReference, onReuseSettings, onRetry, onDelete, onPublish, onSaveCharacter, onOpenCanvas, labels = [] }: StudioWorkCardProps) {
+    const media = work.media[mediaIndex];
+    const split = studioWorkCardIndexes(work).length > 1;
     const active = studioWorkIsActive(work);
     const failed = work.status === "failed" || work.status === "cancelled";
     return (
@@ -475,8 +486,8 @@ function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite,
                 </div>
             ) : null}
             {failed ? (
-                <div className="studio-work-state is-failed" role="alert">
-                    <p>{work.status === "cancelled" ? "已取消" : work.error || "生成失败"}</p>
+                <div className="studio-work-state is-failed" role="alert" title={work.error || undefined}>
+                    <p>{work.status === "cancelled" ? "已取消" : !work.error || TECHNICAL_ERROR_PATTERN.test(work.error) ? "生成失败" : work.error}</p>
                     <button type="button" className="studio-mini-button" disabled={busy} onClick={onRetry}>
                         {work.canRecoverMedia ? "重试保存" : "重试"}
                     </button>
@@ -489,7 +500,7 @@ function StudioWorkCard({ work, selected, busy, onSelect, onPreview, onFavorite,
             ) : null}
             <span className="studio-work-kind">
                 {KIND_LABELS[work.kind]}
-                {work.media.length > 1 ? ` ×${work.media.length}` : ""}
+                {split ? ` ${mediaIndex + 1}/${work.media.length}` : work.media.length > 1 ? ` ×${work.media.length}` : ""}
             </span>
             {work.source === "canvas" ? (
                 <span className="studio-work-source" title="在无限画布里生成">
