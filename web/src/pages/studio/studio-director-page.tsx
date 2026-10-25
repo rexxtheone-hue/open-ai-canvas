@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { App } from "antd";
 import { requireUser } from "@/stores/use-auth-gate-store";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -25,12 +25,15 @@ import {
 import { StudioPosterCard } from "./studio-poster-card";
 import { STUDIO_QUICK_STARTS } from "./studio-quickstarts";
 import { StudioShell } from "./studio-shell";
-import { StudioSelect } from "./studio-select";
+import { groupedTextModelOptions, StudioSelect } from "./studio-select";
+import { modelDisplayName, selectableModelsByCapability, useEffectiveConfig } from "@/stores/use-config-store";
 import { useStudioToolCovers } from "./use-studio-tool-meta";
 import { useStudioBrandChoice } from "./use-studio-brand";
 
 const MAX_CHARACTERS = 3;
 const RUN_MODE_KEY = "studio.director.run-mode.v1";
+// 与导演工作台共用，首页选的模型进入项目后继续沿用。
+const TEXT_MODEL_KEY = "studio.director.text-model.v1";
 const EXAMPLES = ["做一支咖啡店开业宣传片", "做一个外卖小哥逆袭的短剧", "做一条楼盘样板间展示视频"];
 const STATUS_LABEL: Record<string, string> = { planning: "写分镜中", producing: "生成中", rendering: "合成中", done: "已完成" };
 
@@ -53,6 +56,24 @@ export default function StudioDirectorPage() {
     const [ratio, setRatio] = useState<string>("9:16");
     const [duration, setDuration] = useState<number>(30);
     const [runMode, setRunModeState] = useState<DirectorRunMode>(readRunMode);
+    const config = useEffectiveConfig();
+    const textModels = useMemo(() => selectableModelsByCapability(config, "text"), [config]);
+    const [textModelChoice, setTextModelChoice] = useState(() => {
+        try {
+            return window.localStorage.getItem(TEXT_MODEL_KEY) || "";
+        } catch {
+            return "";
+        }
+    });
+    const textModel = textModels.includes(textModelChoice) ? textModelChoice : textModels.includes(config.textModel) ? config.textModel : textModels[0] || "";
+    const chooseTextModel = (value: string) => {
+        setTextModelChoice(value);
+        try {
+            window.localStorage.setItem(TEXT_MODEL_KEY, value);
+        } catch {
+            // 浏览器禁用存储时只在本页生效。
+        }
+    };
     const [brief, setBrief] = useState<DirectorBrief | null>(null);
     const [starting, setStarting] = useState(false);
     const covers = useStudioToolCovers();
@@ -175,6 +196,16 @@ export default function StudioDirectorPage() {
                             <StudioSelect ariaLabel="画面比例" value={ratio} options={DIRECTOR_RATIOS.map((item) => ({ value: item, label: item }))} onChange={setRatio} placement="bottomLeft" />
                             <StudioSelect ariaLabel="成片时长" value={String(duration)} options={DIRECTOR_DURATIONS.map((item) => ({ value: String(item), label: `${item} 秒` }))} onChange={(value) => setDuration(Number(value))} placement="bottomLeft" />
                             <span style={{ flex: 1 }} />
+                            <StudioSelect
+                                className="studio-pill-select is-small"
+                                ariaLabel="导演模型"
+                                icon={<Sparkles aria-hidden />}
+                                value={textModel}
+                                options={groupedTextModelOptions(textModels, (model) => modelDisplayName(config, model))}
+                                empty="无可用模型"
+                                onChange={chooseTextModel}
+                                placement="bottomRight"
+                            />
                             <StudioSelect
                                 ariaLabel="执行方式"
                                 value={runMode}
