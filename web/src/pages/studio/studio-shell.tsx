@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
-import { ChatFill, ChevronDown, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, Layers, LayoutTemplate, Megaphone, MessageSquareText, Palette, PanelLeft, Pin, UserPen, UserRound, Users, Wand2 } from "./studio-icons";
+import { ChatFill, ChevronDown, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, Layers, LayoutTemplate, Library, Megaphone, MessageSquareText, Palette, PanelLeft, Pin, UserPen, UserRound, Users, Wand2 } from "./studio-icons";
 
 import "@fontsource-variable/space-grotesk/index.css";
 
@@ -135,6 +135,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                             { to: "/studio/agents", label: "智能体", icon: MessageSquareText, active: pathname.startsWith("/studio/agents") || pathname.startsWith("/studio/director") },
                             { to: "/studio/video", label: "工具", icon: Wand2, active: Boolean(activeTab) },
                             { to: "/studio/canvas", label: "无限画布", icon: Layers, active: pathname.startsWith("/studio/canvas") },
+                            { to: "/studio/skills", label: "Skill 库", icon: Library, active: pathname.startsWith("/studio/skills") },
                             { to: "/studio/media", label: "素材", icon: FolderOpen, active: ["/studio/media", "/studio/characters", "/studio/brand"].some((path) => pathname.startsWith(path)) },
                             { to: "/studio/inspire", label: "灵感", icon: Compass, active: pathname.startsWith("/studio/inspire") || pathname.startsWith("/studio/pricing") },
                         ].map((item) => (

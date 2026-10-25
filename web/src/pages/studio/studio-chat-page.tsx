@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App, Popover } from "antd";
 import { requireUser } from "@/stores/use-auth-gate-store";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, AudioLines, Check, ChevronDown, Clapperboard, ImageIcon, Loader2, MessageSquarePlus, Paperclip, Pencil, Plus, Sparkles, Trash2, UserRound, X } from "./studio-icons";
+import { ArrowUp, AudioLines, BookOpen, Check, ChevronDown, Clapperboard, ImageIcon, Library, Loader2, MessageSquarePlus, Paperclip, Pencil, Plus, Sparkles, Trash2, UserRound, X } from "./studio-icons";
+import { useSkillRuntimeCatalog } from "@/components/skills/skill-runtime-picker";
+import { SKILL_RUNTIME_PROFILES, skillRuntime, skillRuntimeMetadata } from "@/services/skill-runtime";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { useGenerationCredits } from "@/hooks/use-generation-credits";
@@ -52,6 +54,9 @@ type ChatMessage = StudioChatMessage<StudioChatAction, StudioChatAttachment>;
 
 const RUN_MODE_KEY = "studio.chat.run-mode.v1";
 const TEXT_MODEL_KEY = "studio.chat.text-model.v1";
+// 每个对话记住选过的 Skill；还没建对话时先记在 new 下，建好后转存到对话 ID。
+const skillsKey = (sessionId: string) => `studio.chat.skills.v1:${sessionId || "new"}`;
+const MAX_CHAT_SKILLS = SKILL_RUNTIME_PROFILES.creation.maxSkills;
 const SUGGESTIONS = [
     { icon: ImageIcon, label: "做一张新品海报", text: "做一张咖啡新品海报，暖色调，留出标题位置" },
     { icon: Clapperboard, label: "产品图做成视频", text: "把这张产品图做成 5 秒的旋转展示视频" },
@@ -102,6 +107,23 @@ export default function StudioChatPage() {
     const [textModelChoice, setTextModelChoice] = useState(() => readLocal(TEXT_MODEL_KEY));
     const textModel = textModels.includes(textModelChoice) ? textModelChoice : textModels.includes(config.textModel) ? config.textModel : textModels[0] || "";
     const kinds = useMemo(() => (["image", "video", "audio"] as StudioKind[]).filter((kind) => selectableModelsByCapability(config, kind).length > 0), [config]);
+    const { skills: librarySkills, loading: skillsLoading } = useSkillRuntimeCatalog();
+    const [skillIds, setSkillIdsState] = useState<string[]>([]);
+    const [skillMenuOpen, setSkillMenuOpen] = useState(false);
+    const selectedSkills = useMemo(() => skillIds.flatMap((id) => librarySkills.filter((skill) => skill.skillId === id)), [librarySkills, skillIds]);
+    useEffect(() => {
+        const stored = readLocal(skillsKey(sessionId));
+        setSkillIdsState(stored ? stored.split(",").filter(Boolean) : []);
+    }, [sessionId]);
+    const setSkillIds = (next: string[]) => {
+        setSkillIdsState(next);
+        writeLocal(skillsKey(sessionId), next.join(","));
+    };
+    const toggleSkill = (id: string) => {
+        if (skillIds.includes(id)) setSkillIds(skillIds.filter((item) => item !== id));
+        else if (skillIds.length >= MAX_CHAT_SKILLS) message.warning(`一次最多使用 ${MAX_CHAT_SKILLS} 个 Skill`);
+        else setSkillIds([...skillIds, id]);
+    };
     const [sessionsOpen, setSessionsOpen] = useState(false);
     const [characterOpen, setCharacterOpen] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
@@ -264,6 +286,7 @@ export default function StudioChatPage() {
                 const created = await createStudioChat();
                 key = created.id;
                 loadedRef.current = key;
+                writeLocal(skillsKey(key), skillIds.join(","));
                 setParams({ c: key }, { replace: true });
             }
             const userMessage = await appendStudioChatMessage<StudioChatAction, StudioChatAttachment>(key, { role: "user", content, attachments: attachments.length ? attachments : undefined });
@@ -280,12 +303,14 @@ export default function StudioChatPage() {
             setStreaming("");
             let reply = "";
             try {
+                // 选中的 Skill 内容附在本轮提示词前面；历史里只存用户原话，所以每轮都重新附上。
+                const prepared = selectedSkills.length ? await skillRuntime.prepare({ profile: "creation", prompt, skills: librarySkills, selectedSkillIds: selectedSkills.map((skill) => skill.skillId) }) : undefined;
                 const result = await runBackendGenerationTask({
                     mode: "text",
-                    prompt,
+                    prompt: prepared?.prompt || prompt,
                     config: { ...config, model: textModel, textModel, systemPrompt: studioChatSystemPrompt({ kinds, assets: snapshot }) } as AiConfig,
                     textHistory: studioChatHistory(before),
-                    metadata: { studioAgent: "chat" },
+                    metadata: { studioAgent: "chat", ...(prepared ? skillRuntimeMetadata(prepared.provenance) : {}) },
                     onTextDelta: (delta) => {
                         reply += delta;
                         setStreaming(studioChatVisibleText(reply));
@@ -457,12 +482,32 @@ export default function StudioChatPage() {
                                 {uploading ? <span className="studio-chat-thumb"><Loader2 className="studio-spin" aria-label="上传中" /></span> : null}
                             </div>
                         ) : null}
+                        {selectedSkills.length ? (
+                            <div className="studio-chat-skills" aria-label="本对话使用的 Skill">
+                                {selectedSkills.map((skill) => (
+                                    <span key={skill.skillId} className="studio-chat-skill" title={skill.description}>
+                                        <BookOpen aria-hidden />
+                                        {skill.skillName}
+                                        <button type="button" aria-label={`移除 Skill ${skill.skillName}`} onClick={() => toggleSkill(skill.skillId)}><X aria-hidden /></button>
+                                    </span>
+                                ))}
+                            </div>
+                        ) : null}
                         <textarea
                             ref={inputRef}
                             value={draft}
-                            placeholder="说出你的想法，AI 帮你做出来"
+                            placeholder="说出你的想法，AI 帮你做出来；输入 / 选择 Skill"
                             aria-label="对话内容"
-                            onChange={(event) => setDraft(event.target.value)}
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                // 在开头或空格后输入 / 打开 Skill 列表，斜杠本身不留在输入框里。
+                                if (value.length === draft.length + 1 && /(^|\s)\/$/.test(value)) {
+                                    setDraft(value.slice(0, -1));
+                                    setSkillMenuOpen(true);
+                                    return;
+                                }
+                                setDraft(value);
+                            }}
                             onPaste={(event) => {
                                 const files = [...event.clipboardData.files].filter((file) => /^(image|video|audio)\//.test(file.type));
                                 if (files.length) {
@@ -485,6 +530,29 @@ export default function StudioChatPage() {
                                 </div>
                             )}>
                                 <button type="button" className="studio-icon-button" aria-label="添加素材" title="添加素材"><Plus aria-hidden /></button>
+                            </Popover>
+                            <Popover trigger="click" placement="topLeft" arrow={false} open={skillMenuOpen} onOpenChange={setSkillMenuOpen} content={(
+                                <div className="studio-popup studio-chat-menu studio-skill-menu">
+                                    <div className="studio-skill-menu-title">我的 Skill 库<em>{skillIds.length}/{MAX_CHAT_SKILLS}</em></div>
+                                    {skillsLoading ? <p className="studio-hint"><Loader2 className="studio-spin" aria-hidden />正在读取 Skill 库</p> : null}
+                                    {!skillsLoading && !librarySkills.length ? <p className="studio-hint">Skill 库还是空的，先去添加几个常用的 Skill。</p> : null}
+                                    {librarySkills.map((skill) => {
+                                        const checked = skillIds.includes(skill.skillId);
+                                        return (
+                                            <button key={skill.skillId} type="button" className="studio-list-item" aria-pressed={checked} title={skill.description} onClick={() => toggleSkill(skill.skillId)}>
+                                                <BookOpen aria-hidden />
+                                                <span className="studio-skill-name">{skill.skillName}</span>
+                                                {checked ? <Check aria-hidden /> : null}
+                                            </button>
+                                        );
+                                    })}
+                                    <button type="button" className="studio-list-item studio-skill-more" onClick={() => { setSkillMenuOpen(false); navigate("/studio/skills"); }}><Library aria-hidden />去 Skill 库添加更多</button>
+                                </div>
+                            )}>
+                                <button type="button" className={`studio-pill-select is-small studio-skill-trigger${skillIds.length ? " is-active" : ""}`} aria-label="选择 Skill" title="选择本对话使用的 Skill">
+                                    <BookOpen aria-hidden />
+                                    <span>{skillIds.length ? `Skill ${skillIds.length}` : "Skill"}</span>
+                                </button>
                             </Popover>
                             <input ref={fileRef} type="file" hidden multiple accept="image/*,video/*,audio/*" onChange={(event) => {
                                 const files = [...(event.target.files || [])];

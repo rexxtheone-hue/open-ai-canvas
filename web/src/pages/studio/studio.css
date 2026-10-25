@@ -1149,6 +1149,21 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 .studio-pill-select.is-small select { max-width: 150px; text-overflow: ellipsis; }
 .studio-chat-composer .studio-send-button { width: 36px; height: 36px; }
 
+/* 对话 Skill：已选标签、触发按钮、选择菜单 */
+.studio-chat-skills { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 2px; }
+.studio-chat-skill { display: inline-flex; align-items: center; gap: 5px; max-width: 220px; height: 26px; padding: 0 4px 0 9px; border-radius: 999px; background: var(--studio-accent-soft); color: var(--studio-fg); font-size: 12px; font-weight: 600; }
+.studio-chat-skill svg { flex: 0 0 auto; width: 13px; height: 13px; color: var(--studio-accent); }
+.studio-chat-skill > button { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--studio-muted); cursor: pointer; }
+.studio-chat-skill > button:hover { background: var(--studio-hover); color: var(--studio-fg); }
+.studio-skill-trigger.is-active, .studio-skill-trigger.is-active svg { color: var(--studio-accent); }
+.studio-skill-menu-title { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px 4px; color: var(--studio-muted); font-size: 12px; font-weight: 650; }
+.studio-skill-menu-title em { font-style: normal; font-weight: 600; }
+.studio-skill-menu .studio-list-item svg { flex: 0 0 auto; width: 15px; height: 15px; color: var(--studio-soft); }
+.studio-skill-menu .studio-list-item[aria-pressed="true"] { background: var(--studio-accent-soft); }
+.studio-skill-menu .studio-list-item[aria-pressed="true"] svg { color: var(--studio-accent); }
+.studio-skill-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.studio-skill-more { margin-top: 4px; border-top: 1px solid var(--studio-line); border-radius: 0; color: var(--studio-muted); }
+
 /* 角色库：竖版形象卡 */
 .studio-character-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
 .studio-create-tile.is-portrait { aspect-ratio: auto; min-height: 100%; padding: 24px 16px; }

@@ -71,6 +71,7 @@ const StudioPartnerPage = lazy(() => import("@/pages/studio/studio-partner"));
 const StudioCanvasPage = lazy(() => import("@/pages/studio/studio-canvas"));
 const StudioSettingsPage = lazy(() => import("@/pages/studio/studio-settings"));
 const StudioCanvasLibraryPage = lazy(() => import("@/pages/studio/studio-canvas-library"));
+const StudioSkillsPage = lazy(() => import("@/pages/studio/studio-skills"));
 const StudioPortraitsPage = lazy(() => import("@/pages/studio/studio-portraits"));
 const PortraitVerifiedPage = lazy(() => import("@/pages/studio/studio-portraits").then((module) => ({ default: module.PortraitVerifiedPage })));
 const AdminPartnersPage = lazy(() => import("@/pages/admin/partners/partners-page"));
@@ -172,6 +173,7 @@ export const router = createBrowserRouter([
             { path: "/studio/partner", element: <RequireAuth>{deferred(<StudioPartnerPage />)}</RequireAuth> },
             { path: "/studio/canvas", element: <RequireAuth>{deferred(<StudioCanvasPage />)}</RequireAuth> },
             { path: "/studio/canvas/library", element: <RequireAuth>{deferred(<StudioCanvasLibraryPage />)}</RequireAuth> },
+            { path: "/studio/skills", element: <RequireAuth>{deferred(<StudioSkillsPage />)}</RequireAuth> },
             { path: "/studio/settings", element: <RequireAuth>{deferred(<StudioSettingsPage />)}</RequireAuth> },
             { path: "/studio/portraits", element: <RequireAuth>{deferred(<StudioPortraitsPage />)}</RequireAuth> },
             { path: "/studio/help", element: <RequireAuth>{deferred(<StudioHelpPage />)}</RequireAuth> },
