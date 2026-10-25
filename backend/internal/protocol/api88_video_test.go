@@ -308,6 +308,27 @@ func TestAPI88VideoMiniMaxH3(t *testing.T) {
 	}
 }
 
+func TestAPI88VideoGrokSendsStartImageAsTopLevelImage(t *testing.T) {
+	adapter := loadAPI88VideoAdapter(t)
+	create, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.88api.ai", Request: GenerationRequest{
+		Model: "grok-imagine-video-1.5", Prompt: "sing", Duration: 2, AspectRatio: "16:9", Resolution: "720p",
+		Images: []MediaReference{{URL: "https://cdn.example/singer.jpg", Role: "first_frame"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := create.Body.(map[string]any)
+	images, _ := body["images"].([]any)
+	if len(images) != 1 || images[0] != "https://cdn.example/singer.jpg" {
+		t.Fatalf("grok start image must be in top-level images: %#v", body)
+	}
+	if metadata, ok := body["metadata"].(map[string]any); ok {
+		if _, exists := metadata["firstFrame"]; exists {
+			t.Fatalf("grok must not duplicate the start image into metadata.firstFrame: %#v", metadata)
+		}
+	}
+}
+
 func TestAPI88VideoKling(t *testing.T) {
 	adapter := loadAPI88VideoAdapter(t)
 	build := func(request GenerationRequest) (map[string]any, error) {

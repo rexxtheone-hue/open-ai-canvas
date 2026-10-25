@@ -1287,69 +1287,31 @@
               "$omitEmpty": {
                 "$if": {
                   "condition": {
-                    "$or": [
+                    "$eq": [
                       {
-                        "$eq": [
-                          {
-                            "$first": {
-                              "$split": [
-                                {
-                                  "$lower": {
-                                    "$coalesce": [
-                                      {
-                                        "$ref": "request.model"
-                                      },
-                                      ""
-                                    ]
-                                  }
-                                },
-                                "-"
-                              ]
-                            }
-                          },
-                          "minimax"
-                        ]
+                        "$first": {
+                          "$split": [
+                            {
+                              "$lower": {
+                                "$coalesce": [
+                                  {
+                                    "$ref": "request.model"
+                                  },
+                                  ""
+                                ]
+                              }
+                            },
+                            "-"
+                          ]
+                        }
                       },
-                      {
-                        "$eq": [
-                          {
-                            "$lower": {
-                              "$coalesce": [
-                                {
-                                  "$ref": "request.model"
-                                },
-                                ""
-                              ]
-                            }
-                          },
-                          "minimax_h3"
-                        ]
-                      }
+                      "grok"
                     ]
                   },
-                  "then": null,
-                  "else": {
+                  "then": {
                     "$map": {
                       "from": {
-                        "$filter": {
-                          "from": {
-                            "$ref": "request.images"
-                          },
-                          "as": "media",
-                          "where": {
-                            "$not": {
-                              "$in": [
-                                {
-                                  "$ref": "media.role"
-                                },
-                                [
-                                  "first_frame",
-                                  "last_frame"
-                                ]
-                              ]
-                            }
-                          }
-                        }
+                        "$ref": "request.images"
                       },
                       "as": "media",
                       "in": {
@@ -1361,6 +1323,88 @@
                             "$ref": "media.dataUrl"
                           }
                         ]
+                      }
+                    }
+                  },
+                  "else": {
+                    "$if": {
+                      "condition": {
+                        "$or": [
+                          {
+                            "$eq": [
+                              {
+                                "$first": {
+                                  "$split": [
+                                    {
+                                      "$lower": {
+                                        "$coalesce": [
+                                          {
+                                            "$ref": "request.model"
+                                          },
+                                          ""
+                                        ]
+                                      }
+                                    },
+                                    "-"
+                                  ]
+                                }
+                              },
+                              "minimax"
+                            ]
+                          },
+                          {
+                            "$eq": [
+                              {
+                                "$lower": {
+                                  "$coalesce": [
+                                    {
+                                      "$ref": "request.model"
+                                    },
+                                    ""
+                                  ]
+                                }
+                              },
+                              "minimax_h3"
+                            ]
+                          }
+                        ]
+                      },
+                      "then": null,
+                      "else": {
+                        "$map": {
+                          "from": {
+                            "$filter": {
+                              "from": {
+                                "$ref": "request.images"
+                              },
+                              "as": "media",
+                              "where": {
+                                "$not": {
+                                  "$in": [
+                                    {
+                                      "$ref": "media.role"
+                                    },
+                                    [
+                                      "first_frame",
+                                      "last_frame"
+                                    ]
+                                  ]
+                                }
+                              }
+                            }
+                          },
+                          "as": "media",
+                          "in": {
+                            "$coalesce": [
+                              {
+                                "$ref": "media.url"
+                              },
+                              {
+                                "$ref": "media.dataUrl"
+                              }
+                            ]
+                          }
+                        }
                       }
                     }
                   }
@@ -1451,35 +1495,62 @@
             "metadata": {
               "$omitEmpty": {
                 "firstFrame": {
-                  "$omitEmpty": {
-                    "$first": {
-                      "$map": {
-                        "from": {
-                          "$filter": {
+                  "$if": {
+                    "condition": {
+                      "$eq": [
+                        {
+                          "$first": {
+                            "$split": [
+                              {
+                                "$lower": {
+                                  "$coalesce": [
+                                    {
+                                      "$ref": "request.model"
+                                    },
+                                    ""
+                                  ]
+                                }
+                              },
+                              "-"
+                            ]
+                          }
+                        },
+                        "grok"
+                      ]
+                    },
+                    "then": null,
+                    "else": {
+                      "$omitEmpty": {
+                        "$first": {
+                          "$map": {
                             "from": {
-                              "$ref": "request.images"
+                              "$filter": {
+                                "from": {
+                                  "$ref": "request.images"
+                                },
+                                "as": "media",
+                                "where": {
+                                  "$eq": [
+                                    {
+                                      "$ref": "media.role"
+                                    },
+                                    "first_frame"
+                                  ]
+                                }
+                              }
                             },
                             "as": "media",
-                            "where": {
-                              "$eq": [
+                            "in": {
+                              "$coalesce": [
                                 {
-                                  "$ref": "media.role"
+                                  "$ref": "media.url"
                                 },
-                                "first_frame"
+                                {
+                                  "$ref": "media.dataUrl"
+                                }
                               ]
                             }
                           }
-                        },
-                        "as": "media",
-                        "in": {
-                          "$coalesce": [
-                            {
-                              "$ref": "media.url"
-                            },
-                            {
-                              "$ref": "media.dataUrl"
-                            }
-                          ]
                         }
                       }
                     }
