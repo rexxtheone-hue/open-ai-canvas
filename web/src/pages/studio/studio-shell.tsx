@@ -133,6 +133,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                         {[
                             { to: "/studio", label: "首页", icon: Home, active: isActive(pathname, search, "/studio") },
                             { to: "/studio/agents", label: "智能体", icon: MessageSquareText, active: pathname.startsWith("/studio/agents") || pathname.startsWith("/studio/director") },
+                            { to: "/studio/marketer", label: "Marketer", icon: Megaphone, active: pathname.startsWith("/studio/marketer") },
                             { to: "/studio/video", label: "工具", icon: Wand2, active: Boolean(activeTab) },
                             { to: "/studio/canvas", label: "无限画布", icon: Layers, active: pathname.startsWith("/studio/canvas") },
                             { to: "/studio/skills", label: "Skill 库", icon: Library, active: pathname.startsWith("/studio/skills") },
@@ -174,6 +175,15 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                                     <span>
                                         <b>导演模式</b>
                                         <small>从方案到成片</small>
+                                    </span>
+                                </Link>
+                                <Link to="/studio/marketer" className="studio-side-card" aria-current={pathname.startsWith("/studio/marketer") ? "page" : undefined}>
+                                    <span className="studio-side-card-icon">
+                                        <Megaphone aria-hidden />
+                                    </span>
+                                    <span>
+                                        <b>AI Marketer</b>
+                                        <small>营销专家帮你调研、出方案、做素材</small>
                                     </span>
                                 </Link>
                             </div>,

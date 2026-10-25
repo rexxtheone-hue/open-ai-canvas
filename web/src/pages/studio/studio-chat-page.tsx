@@ -44,6 +44,8 @@ import {
     type StudioRunMode,
 } from "./studio-chat";
 import { StudioLibrary, studioMediaSrc } from "./studio-library";
+import { pickExpertSkills, studioExpertPrompt } from "./studio-marketer";
+import { listSkillExperts } from "@/services/api/skills";
 import { StudioShell } from "./studio-shell";
 import { groupedTextModelOptions, StudioSelect } from "./studio-select";
 import { StudioPanelFooter } from "./studio-workspace";
@@ -56,6 +58,8 @@ const RUN_MODE_KEY = "studio.chat.run-mode.v1";
 const TEXT_MODEL_KEY = "studio.chat.text-model.v1";
 // 每个对话记住选过的 Skill；还没建对话时先记在 new 下，建好后转存到对话 ID。
 const skillsKey = (sessionId: string) => `studio.chat.skills.v1:${sessionId || "new"}`;
+// 专家（AI Marketer 带入）同样按对话记住：专家工作方法进系统提示，专家技能在未手选 Skill 时按需挑选。
+const expertKey = (sessionId: string) => `studio.chat.expert.v1:${sessionId || "new"}`;
 const MAX_CHAT_SKILLS = SKILL_RUNTIME_PROFILES.creation.maxSkills;
 const SUGGESTIONS = [
     { icon: ImageIcon, label: "做一张新品海报", text: "做一张咖啡新品海报，暖色调，留出标题位置" },
@@ -119,6 +123,21 @@ export default function StudioChatPage() {
         setSkillIdsState(next);
         writeLocal(skillsKey(sessionId), next.join(","));
     };
+    const expertsQuery = useQuery({ queryKey: ["skills", "experts"], queryFn: listSkillExperts, staleTime: 10 * 60 * 1000 });
+    const [expertId, setExpertIdState] = useState("");
+    // send 可能在同一次渲染里紧跟 setExpertId 调用（首页带入），用 ref 读到最新值。
+    const expertIdRef = useRef("");
+    useEffect(() => {
+        const stored = readLocal(expertKey(sessionId));
+        expertIdRef.current = stored;
+        setExpertIdState(stored);
+    }, [sessionId]);
+    const setExpertId = (next: string, key = sessionId) => {
+        expertIdRef.current = next;
+        setExpertIdState(next);
+        writeLocal(expertKey(key), next);
+    };
+    const activeExpert = expertsQuery.data?.experts.find((expert) => expert.expertId === expertId);
     const toggleSkill = (id: string) => {
         if (skillIds.includes(id)) setSkillIds(skillIds.filter((item) => item !== id));
         else if (skillIds.length >= MAX_CHAT_SKILLS) message.warning(`一次最多使用 ${MAX_CHAT_SKILLS} 个 Skill`);
@@ -287,6 +306,9 @@ export default function StudioChatPage() {
                 key = created.id;
                 loadedRef.current = key;
                 writeLocal(skillsKey(key), skillIds.join(","));
+                writeLocal(expertKey(key), expertIdRef.current);
+                // 专家只跟着这段对话走，下次新对话回到普通模式。
+                writeLocal(expertKey(""), "");
                 setParams({ c: key }, { replace: true });
             }
             const userMessage = await appendStudioChatMessage<StudioChatAction, StudioChatAttachment>(key, { role: "user", content, attachments: attachments.length ? attachments : undefined });
@@ -304,13 +326,17 @@ export default function StudioChatPage() {
             let reply = "";
             try {
                 // 选中的 Skill 内容附在本轮提示词前面；历史里只存用户原话，所以每轮都重新附上。
-                const prepared = selectedSkills.length ? await skillRuntime.prepare({ profile: "creation", prompt, skills: librarySkills, selectedSkillIds: selectedSkills.map((skill) => skill.skillId) }) : undefined;
+                // 没有手选 Skill 时，用专家技能组里与本轮最相关的几个。
+                const expert = expertsQuery.data?.experts.find((item) => item.expertId === expertIdRef.current);
+                const turnSkills = selectedSkills.length ? selectedSkills : expert ? pickExpertSkills(librarySkills, expert.skillIds, prompt, MAX_CHAT_SKILLS) : [];
+                const prepared = turnSkills.length ? await skillRuntime.prepare({ profile: "creation", prompt, skills: librarySkills, selectedSkillIds: turnSkills.map((skill) => skill.skillId) }) : undefined;
+                const systemPrompt = [studioChatSystemPrompt({ kinds, assets: snapshot }), expert ? studioExpertPrompt(expert) : ""].filter(Boolean).join("\n\n");
                 const result = await runBackendGenerationTask({
                     mode: "text",
                     prompt: prepared?.prompt || prompt,
-                    config: { ...config, model: textModel, textModel, systemPrompt: studioChatSystemPrompt({ kinds, assets: snapshot }) } as AiConfig,
+                    config: { ...config, model: textModel, textModel, systemPrompt } as AiConfig,
                     textHistory: studioChatHistory(before),
-                    metadata: { studioAgent: "chat", ...(prepared ? skillRuntimeMetadata(prepared.provenance) : {}) },
+                    metadata: { studioAgent: "chat", ...(expert ? { expertId: expert.expertId } : {}), ...(prepared ? skillRuntimeMetadata(prepared.provenance) : {}) },
                     onTextDelta: (delta) => {
                         reply += delta;
                         setStreaming(studioChatVisibleText(reply));
@@ -351,13 +377,17 @@ export default function StudioChatPage() {
 
     useEffect(() => {
         const text = params.get("q")?.trim();
+        const expert = params.get("expert")?.trim() || "";
         if (!text || handoffRef.current || !user) return;
+        // 带专家进来时等专家目录就绪，保证第一轮就用上专家工作方法。
+        if (expert && expertsQuery.isPending) return;
         handoffRef.current = true;
+        if (expert) setExpertId(expert, "");
         setParams({}, { replace: true });
         void send(text);
         // send 只在首次带入时触发一次。
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [params, user]);
+    }, [params, user, expertsQuery.isPending]);
 
     const newChat = () => {
         setSessionsOpen(false);
@@ -436,7 +466,7 @@ export default function StudioChatPage() {
                                 <h2>说出想法，马上做出来</h2>
                                 <p>描述你要的图片、视频或配音，可以附上参考素材。</p>
                                 <div className="studio-suggestions">
-                                    {SUGGESTIONS.map((item) => <button key={item.label} type="button" onClick={() => { setDraft(item.text); inputRef.current?.focus(); }}><item.icon aria-hidden />{item.label}</button>)}
+                                    {(activeExpert ? activeExpert.cases.map((text) => ({ icon: Sparkles, label: text, text })) : SUGGESTIONS).map((item) => <button key={item.label} type="button" onClick={() => { setDraft(item.text); inputRef.current?.focus(); }}><item.icon aria-hidden />{item.label}</button>)}
                                 </div>
                             </div>
                         ) : null}
@@ -481,6 +511,15 @@ export default function StudioChatPage() {
                                     </span>
                                 ))}
                                 {uploading ? <span className="studio-chat-thumb"><Loader2 className="studio-spin" aria-label="上传中" /></span> : null}
+                            </div>
+                        ) : null}
+                        {activeExpert ? (
+                            <div className="studio-chat-skills" aria-label="本对话的专家">
+                                <span className="studio-chat-skill" title={`专家模式：${activeExpert.tagline}${selectedSkills.length ? "" : "；未手选 Skill 时自动使用专家技能"}`}>
+                                    <UserRound aria-hidden />
+                                    {activeExpert.name}
+                                    <button type="button" aria-label="退出专家模式" onClick={() => setExpertId("")}><X aria-hidden /></button>
+                                </span>
                             </div>
                         ) : null}
                         {selectedSkills.length ? (
