@@ -15,6 +15,18 @@ import { onStudioUploadsChanged, studioAttachmentFromMedia, uploadStudioFile } f
 export type StudioPickerKind = "character" | StudioKind;
 type Source = "creations" | "uploads" | "favorites";
 
+// 记住上次看的分页：刷新后仍回到「上传」，刚上传的素材不会像是不见了。
+const PICKER_SOURCE_KEY = "studio.picker.source.v1";
+
+function readPickerSource(): Source {
+    try {
+        const value = window.localStorage.getItem(PICKER_SOURCE_KEY);
+        return value === "uploads" || value === "favorites" ? value : "creations";
+    } catch {
+        return "creations";
+    }
+}
+
 const KIND_META: Record<StudioPickerKind, { label: string; icon: typeof ImageIcon; empty: string; upload: string; accept: string }> = {
     character: { label: "角色库", icon: UserRound, empty: "角色库还是空的，先去建一个角色。", upload: "", accept: "" },
     image: { label: "图片", icon: ImageIcon, empty: "还没有生成的图片，先去生成一些吧。", upload: "上传图片", accept: "image/png,image/jpeg,image/webp" },
@@ -55,7 +67,15 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
     const { message } = App.useApp();
     const queryClient = useQueryClient();
     const [kind, setKind] = useState<StudioPickerKind>(initialKind && kinds.includes(initialKind) ? initialKind : kinds[0]);
-    const [source, setSource] = useState<Source>("creations");
+    const [source, setSourceState] = useState<Source>(readPickerSource);
+    const setSource = (next: Source) => {
+        setSourceState(next);
+        try {
+            window.localStorage.setItem(PICKER_SOURCE_KEY, next);
+        } catch {
+            // 浏览器禁用存储时只在本次打开生效。
+        }
+    };
     const [selected, setSelected] = useState<CreationAttachment[]>([]);
     const [uploading, setUploading] = useState(0);
     const fileRef = useRef<HTMLInputElement>(null);
@@ -151,7 +171,7 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
                     {kinds.map((item) => {
                         const Icon = KIND_META[item].icon;
                         return (
-                            <button key={item} type="button" role="tab" aria-selected={kind === item} onClick={() => { setKind(item); setSource("creations"); }}>
+                            <button key={item} type="button" role="tab" aria-selected={kind === item} onClick={() => setKind(item)}>
                                 <Icon aria-hidden />
                                 <span>{KIND_META[item].label}</span>
                             </button>
