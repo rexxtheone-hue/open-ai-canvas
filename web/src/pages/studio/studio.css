@@ -1214,6 +1214,12 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 .studio-picker-label { position: absolute; inset: auto 0 0 0; padding: 18px 8px 6px; background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.8)); color: #fff; font-size: 12.5px; font-weight: 600; text-align: left; }
 .studio-picker-check { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 999px; background: var(--studio-accent); color: var(--studio-accent-ink); }
 .studio-picker-check svg { width: 14px; height: 14px; }
+.studio-picker-cell { position: relative; display: grid; }
+.studio-picker-delete { position: absolute; top: 6px; left: 6px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 999px; background: rgba(0, 0, 0, 0.65); color: #fff; cursor: pointer; opacity: 0; transition: opacity 0.15s; }
+.studio-picker-delete svg { width: 14px; height: 14px; }
+.studio-picker-cell:hover .studio-picker-delete, .studio-picker-delete:focus-visible { opacity: 1; }
+.studio-picker-delete:hover { background: #d9363e; }
+@media (hover: none) { .studio-picker-delete { opacity: 1; } }
 .studio-picker-empty { margin: 40px 0; color: var(--studio-muted); font-size: 13px; text-align: center; display: grid; place-items: center; }
 .studio-picker-foot { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--studio-line); font-size: 13px; color: var(--studio-soft); }
 

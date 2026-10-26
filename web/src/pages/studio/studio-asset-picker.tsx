@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { App } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AudioLines, Check, Clapperboard, Image as ImageIcon, Loader2, Upload, UserRound, X } from "./studio-icons";
+import { AudioLines, Check, Clapperboard, Image as ImageIcon, Loader2, Trash2, Upload, UserRound, X } from "./studio-icons";
 
 import type { CreationAttachment } from "@/pages/create/creation-assets";
 import { resolveResourceUrl } from "@/services/api/resources";
 import { listStudioWorks, type StudioKind, type StudioWork } from "@/services/api/studio";
-import { listStudioUploads, type StudioUpload } from "@/services/api/studio-agents";
+import { deleteStudioUpload, listStudioUploads, type StudioUpload } from "@/services/api/studio-agents";
 import { useStudioAssets } from "./studio-character-picker";
 import { studioCharacterAttachments, studioCharacterCover } from "./studio-characters";
 import { studioMediaSrc } from "./studio-library";
@@ -64,7 +64,7 @@ type PickerProps = {
 
 /** 「添加参考」面板：覆盖在作品库上，从作品、上传、收藏或角色库里挑素材，也可以直接上传。 */
 export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "添加参考", notice, onPick, onClose }: PickerProps) {
-    const { message } = App.useApp();
+    const { message, modal } = App.useApp();
     const queryClient = useQueryClient();
     const [kind, setKind] = useState<StudioPickerKind>(initialKind && kinds.includes(initialKind) ? initialKind : kinds[0]);
     const [source, setSourceState] = useState<Source>(readPickerSource);
@@ -109,7 +109,8 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
         }
         if (source === "uploads") {
             // 上传里也有 AI Canvas「资产」的素材（两个产品共用素材库），名字后标出来源。
-            return (uploadsQuery.data || []).map((item) => ({ key: `u:${item.id}`, label: item.source === "canvas" ? `${item.name || "Canvas 资产"} · Canvas` : item.name, preview: resolveResourceUrl(`resource:${item.resourceId}`, ""), previewKind: item.kind, attachment: uploadAttachment(item) }));
+            // Canvas 资产要到 Canvas 里删，这里只能删 Studio 自己的上传。
+            return (uploadsQuery.data || []).map((item) => ({ uploadId: item.source === "canvas" ? undefined : item.id, key: `u:${item.id}`, label: item.source === "canvas" ? `${item.name || "Canvas 资产"} · Canvas` : item.name, preview: resolveResourceUrl(`resource:${item.resourceId}`, ""), previewKind: item.kind, attachment: uploadAttachment(item) }));
         }
         return (worksQuery.data || []).map((work: StudioWork) => ({ key: `w:${work.id}`, label: work.prompt, preview: studioMediaSrc(work.media[0]), previewKind: work.media[0].kind, attachment: studioAttachmentFromMedia(work, work.media[0]) }));
     }, [charactersQuery.data, kind, source, uploadsQuery.data, worksQuery.data]);
@@ -157,6 +158,25 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
         setSource("uploads");
     };
 
+    const removeUpload = (uploadId: string, label: string, attachment: CreationAttachment) => {
+        modal.confirm({
+            title: "删除这个上传的素材？",
+            content: `「${label || "未命名素材"}」会从素材库移除，已经用它生成的作品不受影响。`,
+            okText: "删除",
+            cancelText: "取消",
+            okButtonProps: { danger: true },
+            onOk: async () => {
+                try {
+                    await deleteStudioUpload(uploadId);
+                    setSelected((current) => current.filter((item) => item.id !== attachment.id));
+                    await queryClient.invalidateQueries({ queryKey: ["studio", "uploads"] });
+                } catch (cause) {
+                    message.error(cause instanceof Error ? cause.message : "删除失败");
+                }
+            },
+        });
+    };
+
     const meta = KIND_META[kind];
 
     return (
@@ -195,12 +215,16 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
                     {items.map((item) => {
                         const isSelected = selected.some((entry) => entry.id === item.attachment?.id);
                         if (!item.attachment) return null;
+                        const uploadId = "uploadId" in item && typeof item.uploadId === "string" ? item.uploadId : undefined;
                         return (
-                            <button key={item.key} type="button" className="studio-picker-item" aria-pressed={isSelected} title={item.label} onClick={() => toggle(item.attachment!)}>
-                                {item.previewKind === "video" ? <video src={item.preview} muted playsInline preload="metadata" /> : item.previewKind === "audio" ? <span className="studio-picker-audio"><AudioLines aria-hidden />{item.label.slice(0, 30)}</span> : <img src={item.preview} alt="" loading="lazy" />}
-                                {kind === "character" ? <span className="studio-picker-label">{item.label}</span> : null}
-                                {isSelected ? <span className="studio-picker-check"><Check aria-hidden /></span> : null}
-                            </button>
+                            <div key={item.key} className="studio-picker-cell">
+                                <button type="button" className="studio-picker-item" aria-pressed={isSelected} title={item.label} onClick={() => toggle(item.attachment!)}>
+                                    {item.previewKind === "video" ? <video src={item.preview} muted playsInline preload="metadata" /> : item.previewKind === "audio" ? <span className="studio-picker-audio"><AudioLines aria-hidden />{item.label.slice(0, 30)}</span> : <img src={item.preview} alt="" loading="lazy" />}
+                                    {kind === "character" ? <span className="studio-picker-label">{item.label}</span> : null}
+                                    {isSelected ? <span className="studio-picker-check"><Check aria-hidden /></span> : null}
+                                </button>
+                                {uploadId ? <button type="button" className="studio-picker-delete" aria-label={`删除 ${item.label || "素材"}`} title="删除" onClick={() => removeUpload(uploadId, String(item.label || ""), item.attachment!)}><Trash2 aria-hidden /></button> : null}
+                            </div>
                         );
                     })}
                 </div>
