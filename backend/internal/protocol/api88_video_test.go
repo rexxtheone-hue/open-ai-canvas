@@ -409,4 +409,10 @@ func TestAPI88VideoKling(t *testing.T) {
 			t.Fatalf("case %d must be rejected", index)
 		}
 	}
+	for model, allowed := range map[string]bool{"kling-4.0": true, "kling-4.0-omni": true, "kling-3.0-omni": false} {
+		_, err := adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.88api.ai", Request: GenerationRequest{Model: model, Prompt: "x", AspectRatio: "21:9"}})
+		if (err == nil) != allowed {
+			t.Fatalf("%s 21:9 allowed = %v, err = %v", model, allowed, err)
+		}
+	}
 }

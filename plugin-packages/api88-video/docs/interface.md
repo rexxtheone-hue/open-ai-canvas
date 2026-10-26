@@ -99,7 +99,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "api88-video",
   "name": "88API 统一视频",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "author": "Rexx",
   "description": "88API 统一视频协议插件（POST /v1/videos，异步轮询），适配 SD2.5、SD2.0 云厂商版、MiniMax H3、可灵 Kling 与 Gemini Omni、Veo，支持视频续写与视频编辑。",
   "permissions": [
@@ -720,53 +720,127 @@
                   }
                 },
                 {
-                  "$in": [
+                  "$or": [
                     {
-                      "$if": {
-                        "condition": {
-                          "$in": [
-                            {
-                              "$lower": {
-                                "$coalesce": [
-                                  {
-                                    "$ref": "request.aspectRatio"
-                                  },
-                                  ""
+                      "$in": [
+                        {
+                          "$if": {
+                            "condition": {
+                              "$in": [
+                                {
+                                  "$lower": {
+                                    "$coalesce": [
+                                      {
+                                        "$ref": "request.aspectRatio"
+                                      },
+                                      ""
+                                    ]
+                                  }
+                                },
+                                [
+                                  "",
+                                  "auto",
+                                  "adaptive",
+                                  "自适应",
+                                  "智能"
                                 ]
+                              ]
+                            },
+                            "then": {
+                              "$coalesce": [
+                                {
+                                  "$ref": "request.providerOptions.api88-video.ratio"
+                                },
+                                "16:9"
+                              ]
+                            },
+                            "else": {
+                              "$ref": "request.aspectRatio"
+                            }
+                          }
+                        },
+                        [
+                          "16:9",
+                          "9:16",
+                          "1:1"
+                        ]
+                      ]
+                    },
+                    {
+                      "$and": [
+                        {
+                          "$eq": [
+                            {
+                              "$at": [
+                                {
+                                  "$split": [
+                                    {
+                                      "$lower": {
+                                        "$coalesce": [
+                                          {
+                                            "$ref": "request.model"
+                                          },
+                                          ""
+                                        ]
+                                      }
+                                    },
+                                    "-"
+                                  ]
+                                },
+                                1
+                              ]
+                            },
+                            "4.0"
+                          ]
+                        },
+                        {
+                          "$eq": [
+                            {
+                              "$if": {
+                                "condition": {
+                                  "$in": [
+                                    {
+                                      "$lower": {
+                                        "$coalesce": [
+                                          {
+                                            "$ref": "request.aspectRatio"
+                                          },
+                                          ""
+                                        ]
+                                      }
+                                    },
+                                    [
+                                      "",
+                                      "auto",
+                                      "adaptive",
+                                      "自适应",
+                                      "智能"
+                                    ]
+                                  ]
+                                },
+                                "then": {
+                                  "$coalesce": [
+                                    {
+                                      "$ref": "request.providerOptions.api88-video.ratio"
+                                    },
+                                    "16:9"
+                                  ]
+                                },
+                                "else": {
+                                  "$ref": "request.aspectRatio"
+                                }
                               }
                             },
-                            [
-                              "",
-                              "auto",
-                              "adaptive",
-                              "自适应",
-                              "智能"
-                            ]
+                            "21:9"
                           ]
-                        },
-                        "then": {
-                          "$coalesce": [
-                            {
-                              "$ref": "request.providerOptions.api88-video.ratio"
-                            },
-                            "16:9"
-                          ]
-                        },
-                        "else": {
-                          "$ref": "request.aspectRatio"
                         }
-                      }
-                    },
-                    [
-                      "16:9",
-                      "9:16",
-                      "1:1"
-                    ]
+                      ]
+                    }
                   ]
                 }
               ]
             },
-            "message": "可灵 Kling 只支持 16:9、9:16、1:1 比例。"
+            "message": "可灵 Kling 只支持 16:9、9:16、1:1 比例（Kling 4.0 另支持 21:9）。"
           },
           {
             "assert": {
