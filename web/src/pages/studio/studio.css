@@ -1219,6 +1219,9 @@ strong.studio-chat-title { cursor: default; overflow: hidden; text-overflow: ell
 .studio-picker-delete svg { width: 14px; height: 14px; }
 .studio-picker-cell:hover .studio-picker-delete, .studio-picker-delete:focus-visible { opacity: 1; }
 .studio-picker-delete:hover { background: #d9363e; }
+.studio-picker-play { position: absolute; right: 8px; bottom: 8px; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 999px; background: var(--studio-accent); color: var(--studio-accent-ink); cursor: pointer; }
+.studio-picker-play svg { width: 15px; height: 15px; }
+.studio-picker-play:hover { filter: brightness(1.1); }
 @media (hover: none) { .studio-picker-delete { opacity: 1; } }
 .studio-picker-empty { margin: 40px 0; color: var(--studio-muted); font-size: 13px; text-align: center; display: grid; place-items: center; }
 .studio-picker-foot { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--studio-line); font-size: 13px; color: var(--studio-soft); }

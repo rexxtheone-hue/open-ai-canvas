@@ -103,8 +103,15 @@ func TestStudioAndCanvasShareOneLibrary(t *testing.T) {
 	if strings.Join(sources, ",") != upload.ID+":studio,asset:canvas-asset:canvas" {
 		t.Fatalf("shared uploads = %v", sources)
 	}
-	if err := svc.DeleteStudioUpload("u1", "asset:canvas-asset"); err == nil {
-		t.Fatal("canvas assets are deleted from Canvas, not Studio")
+	// 共用素材库：在 Studio 也能删掉 Canvas 资产，删完两边都不再出现。
+	if err := svc.DeleteStudioUpload("u1", "asset:canvas-asset"); err != nil {
+		t.Fatalf("canvas assets must be deletable from Studio uploads: %v", err)
+	}
+	if _, err := svc.repo.AssetForUser("u1", "canvas-asset"); err == nil {
+		t.Fatal("the canvas asset must be gone after deleting it in Studio")
+	}
+	if err := svc.DeleteStudioUpload("u1", "asset:"); err == nil {
+		t.Fatal("an empty asset id must be rejected")
 	}
 	if err := svc.DeleteStudioUpload("u1", upload.ID); err != nil {
 		t.Fatal(err)

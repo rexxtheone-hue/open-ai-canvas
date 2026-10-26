@@ -542,8 +542,12 @@ func (s *Service) StudioUploads(userID, kind string) ([]StudioUploadView, error)
 
 func (s *Service) DeleteStudioUpload(userID, id string) error {
 	id = strings.TrimSpace(id)
-	if strings.HasPrefix(id, "asset:") {
-		return BadAuthRequest("这是 AI Canvas 的资产，请到 Canvas 的「资产」里删除")
+	// 共用素材库里的 Canvas 资产：按用户删除处理，资产从两边消失，文件留底给管理员。
+	if assetID, isAsset := strings.CutPrefix(id, "asset:"); isAsset {
+		if strings.TrimSpace(assetID) == "" {
+			return NotFound("素材不存在")
+		}
+		return s.deleteUserAssetWithResources(userID, assetID, true)
 	}
 	deleted, err := s.repo.DeleteStudioUpload(userID, id)
 	if err != nil {

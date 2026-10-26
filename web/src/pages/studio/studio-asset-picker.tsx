@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { App } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AudioLines, Check, Clapperboard, Image as ImageIcon, Loader2, Trash2, Upload, UserRound, X } from "./studio-icons";
+import { AudioLines, Check, Clapperboard, Image as ImageIcon, Loader2, Pause, Play, Trash2, Upload, UserRound, X } from "./studio-icons";
 
 import type { CreationAttachment } from "@/pages/create/creation-assets";
 import { resolveResourceUrl } from "@/services/api/resources";
@@ -109,8 +109,8 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
         }
         if (source === "uploads") {
             // 上传里也有 AI Canvas「资产」的素材（两个产品共用素材库），名字后标出来源。
-            // Canvas 资产要到 Canvas 里删，这里只能删 Studio 自己的上传。
-            return (uploadsQuery.data || []).map((item) => ({ uploadId: item.source === "canvas" ? undefined : item.id, key: `u:${item.id}`, label: item.source === "canvas" ? `${item.name || "Canvas 资产"} · Canvas` : item.name, preview: resolveResourceUrl(`resource:${item.resourceId}`, ""), previewKind: item.kind, attachment: uploadAttachment(item) }));
+            // Studio 上传和 Canvas 资产共用一个素材库，两种都可以在这里删除。
+            return (uploadsQuery.data || []).map((item) => ({ uploadId: item.id, key: `u:${item.id}`, label: item.source === "canvas" ? `${item.name || "Canvas 资产"} · Canvas` : item.name, preview: resolveResourceUrl(`resource:${item.resourceId}`, ""), previewKind: item.kind, attachment: uploadAttachment(item) }));
         }
         return (worksQuery.data || []).map((work: StudioWork) => ({ key: `w:${work.id}`, label: work.prompt, preview: studioMediaSrc(work.media[0]), previewKind: work.media[0].kind, attachment: studioAttachmentFromMedia(work, work.media[0]) }));
     }, [charactersQuery.data, kind, source, uploadsQuery.data, worksQuery.data]);
@@ -177,6 +177,34 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
         });
     };
 
+    // 音频素材点播放键试听，同一时间只播一个；面板关闭时停止。
+    const playerRef = useRef<HTMLAudioElement | null>(null);
+    const [playing, setPlaying] = useState("");
+    useEffect(() => () => playerRef.current?.pause(), []);
+    useEffect(() => {
+        if (!open) {
+            playerRef.current?.pause();
+            setPlaying("");
+        }
+    }, [open]);
+    const togglePlay = (key: string, src: string) => {
+        const current = playerRef.current;
+        if (playing === key && current) {
+            current.pause();
+            setPlaying("");
+            return;
+        }
+        current?.pause();
+        const player = new Audio(src);
+        player.onended = () => setPlaying((value) => (value === key ? "" : value));
+        playerRef.current = player;
+        setPlaying(key);
+        void player.play().catch(() => {
+            setPlaying("");
+            message.error("这段音频无法播放");
+        });
+    };
+
     const meta = KIND_META[kind];
 
     return (
@@ -223,6 +251,7 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
                                     {kind === "character" ? <span className="studio-picker-label">{item.label}</span> : null}
                                     {isSelected ? <span className="studio-picker-check"><Check aria-hidden /></span> : null}
                                 </button>
+                                {item.previewKind === "audio" && item.preview ? <button type="button" className="studio-picker-play" aria-label={playing === item.key ? "暂停" : "试听"} title={playing === item.key ? "暂停" : "试听"} onClick={() => togglePlay(item.key, item.preview!)}>{playing === item.key ? <Pause aria-hidden /> : <Play aria-hidden />}</button> : null}
                                 {uploadId ? <button type="button" className="studio-picker-delete" aria-label={`删除 ${item.label || "素材"}`} title="删除" onClick={() => removeUpload(uploadId, String(item.label || ""), item.attachment!)}><Trash2 aria-hidden /></button> : null}
                             </div>
                         );
