@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AudioLines, Check, Clapperboard, Image as ImageIcon, Loader2, Pause, Play, Trash2, Upload, UserRound, X } from "./studio-icons";
 
 import type { CreationAttachment } from "@/pages/create/creation-assets";
-import { resolveResourceUrl } from "@/services/api/resources";
+import { resolveResourceUrl, resourceIdFromStorageKey } from "@/services/api/resources";
 import { listStudioWorks, type StudioKind, type StudioWork } from "@/services/api/studio";
 import { deleteStudioUpload, listStudioUploads, type StudioUpload } from "@/services/api/studio-agents";
 import { useStudioAssets } from "./studio-character-picker";
@@ -148,8 +148,16 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
     if (!open) return null;
 
     const finish = (list: CreationAttachment[]) => {
-        if (!list.length) return;
-        onPick(list.slice(0, max));
+        // 同一个文件只加入一次（刚上传的和「上传」列表里的是同一份）。
+        const seen = new Set<string>();
+        const unique = list.filter((item) => {
+            const key = ("storageKey" in item && item.storageKey) || item.id;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+        if (!unique.length) return;
+        onPick(unique.slice(0, max));
         onClose();
     };
 
@@ -173,7 +181,10 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
         const done: CreationAttachment[] = [];
         for (const file of files) {
             try {
-                done.push(await uploadStudioFile(file));
+                const uploaded = await uploadStudioFile(file);
+                // 用「上传」列表里同一份素材的 ID，列表里才会显示为已勾选，不会被重复选中。
+                const resourceId = resourceIdFromStorageKey("storageKey" in uploaded ? uploaded.storageKey : undefined);
+                done.push(resourceId ? { ...uploaded, id: `upload:${resourceId}` } : uploaded);
             } catch (cause) {
                 message.error(`${file.name}：${cause instanceof Error ? cause.message : "上传失败"}`);
             } finally {
@@ -182,7 +193,7 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
         }
         if (!done.length) return;
         if (max <= 1) finish(done.slice(0, 1));
-        else setSelected((current) => [...current, ...done].slice(0, max));
+        else setSelected((current) => [...current, ...done.filter((item) => !current.some((entry) => entry.id === item.id))].slice(0, max));
         setSource("uploads");
     };
 

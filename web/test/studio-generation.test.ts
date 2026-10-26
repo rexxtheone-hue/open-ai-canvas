@@ -91,6 +91,10 @@ describe("AI Studio 生成规则", () => {
         const again = admitStudioAttachments(result.accepted, [attachment("a", "image/png")], limits);
         expect(again.accepted).toHaveLength(2);
         expect(again.rejected).toHaveLength(0);
+        // 同一个文件换了 ID 从另一个入口加进来，也不会重复。
+        const uploaded = { ...attachment("upload:a.png:resource:r1", "image/png"), storageKey: "resource:r1" } as CreationAttachment;
+        const listed = { ...attachment("upload:r1", "image/png"), storageKey: "resource:r1" } as CreationAttachment;
+        expect(admitStudioAttachments([], [uploaded, listed], limits).accepted).toHaveLength(1);
     });
 
     test("T3 换模型后超出上限的素材不发送但保留", () => {

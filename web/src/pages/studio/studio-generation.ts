@@ -245,7 +245,9 @@ export function admitStudioAttachments(current: CreationAttachment[], incoming: 
     const rejected: CreationAttachment[] = [];
     let reason: string | undefined;
     for (const attachment of incoming) {
-        if (accepted.some((item) => item.id === attachment.id)) continue;
+        // 同一个文件（同一个 storageKey）只算一次，不管它是从哪个入口加进来的。
+        const storageKey = "storageKey" in attachment ? attachment.storageKey : undefined;
+        if (accepted.some((item) => item.id === attachment.id || (storageKey && "storageKey" in item && item.storageKey === storageKey))) continue;
         const kind = creationAttachmentKind(attachment);
         const counts = attachmentCounts(accepted);
         const limit = kind === "image" ? limits.maxImages : kind === "video" ? limits.maxVideos : kind === "audio" ? limits.maxAudios : 0;
