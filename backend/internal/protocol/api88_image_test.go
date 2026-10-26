@@ -9,6 +9,55 @@ import (
 
 func loadAPI88MidjourneyAdapter(t *testing.T) Adapter {
 	t.Helper()
+	return loadAPI88ImageAdapter(t, "api88-midjourney")
+}
+
+func TestAPI88GrokImageRequests(t *testing.T) {
+	adapter := loadAPI88ImageAdapter(t, "api88-grok-image")
+	build := func(request GenerationRequest) (RequestSpec, error) {
+		request.Model = "grok-imagine-image-2.0"
+		return adapter.BuildCreate(context.Background(), RequestContext{BaseURL: "https://api.88api.ai", Request: request})
+	}
+	text, err := build(GenerationRequest{Prompt: " poster ", AspectRatio: "16:9", Resolution: "2K", ImageCount: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := text.Body.(map[string]any)
+	if text.Path != "/v1/images/generations" || !text.OriginPath || body["prompt"] != "poster" || body["aspect_ratio"] != "16:9" || body["resolution"] != "2k" || body["n"] != float64(1) && body["n"] != 1 {
+		t.Fatalf("text-to-image = %#v %#v", text, body)
+	}
+	if _, exists := body["size"]; exists {
+		t.Fatalf("grok must use aspect_ratio, not size: %#v", body)
+	}
+	if _, exists := body["images"]; exists {
+		t.Fatalf("text-to-image must not send images: %#v", body)
+	}
+	edit, err := build(GenerationRequest{Prompt: "swap the background", AspectRatio: "auto", Images: []MediaReference{{URL: "https://cdn.example/a.jpg"}, {URL: "https://cdn.example/b.jpg"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	editBody := edit.Body.(map[string]any)
+	images, _ := editBody["images"].([]any)
+	if edit.Path != "/v1/images/edits" || len(images) != 2 || images[0] != "https://cdn.example/a.jpg" {
+		t.Fatalf("edit = %#v %#v", edit, editBody)
+	}
+	if _, exists := editBody["aspect_ratio"]; exists {
+		t.Fatalf("auto ratio must be omitted so edits follow the first image: %#v", editBody)
+	}
+	four := []MediaReference{{URL: "https://a/1.jpg"}, {URL: "https://a/2.jpg"}, {URL: "https://a/3.jpg"}, {URL: "https://a/4.jpg"}}
+	for name, request := range map[string]GenerationRequest{"4 images": {Prompt: "x", Images: four}, "4k": {Prompt: "x", Resolution: "4k"}, "empty prompt": {Prompt: " "}} {
+		if _, err := build(request); err == nil {
+			t.Fatalf("%s must be rejected", name)
+		}
+	}
+	parsed, err := adapter.ParseCreate(context.Background(), []byte(`{"created":1,"data":[{"b64_json":"QUJD","mime_type":"image/jpeg"}]}`))
+	if err != nil || parsed.Result == nil || len(parsed.Result.Images) != 1 || parsed.Result.Images[0].DataURL != "data:image/jpeg;base64,QUJD" {
+		t.Fatalf("parsed = %#v, err = %v", parsed, err)
+	}
+}
+
+func loadAPI88ImageAdapter(t *testing.T, providerID string) Adapter {
+	t.Helper()
 	data, err := os.ReadFile(filepath.Join("..", "..", "..", "plugin-packages", "api88-image.yingce-plugin"))
 	if err != nil {
 		t.Fatal(err)
@@ -22,11 +71,11 @@ func loadAPI88MidjourneyAdapter(t *testing.T) Adapter {
 		t.Fatal(err)
 	}
 	for _, adapter := range adapters {
-		if adapter.Metadata().ID == "api88-midjourney" {
+		if adapter.Metadata().ID == providerID {
 			return adapter
 		}
 	}
-	t.Fatal("api88-midjourney provider adapter not found")
+	t.Fatalf("%s provider adapter not found", providerID)
 	return nil
 }
 
