@@ -21,7 +21,9 @@ func withProviderSubmissionKey(ctx context.Context, attempt *model.RouteAttempt)
 }
 
 func (s *Service) createDirectTaskAttempt(task *model.Task) (*model.RouteAttempt, error) {
-	if task.Attempts > 1 && task.ProviderRequestID == "" {
+	// 只对没有重试轮次的旧任务保守处理；用户点「重试」会开新的 RouteRun，
+	// 本轮还没有任何提交记录，可以安全地重新提交。
+	if task.Attempts > 1 && task.RouteRun <= 1 && task.ProviderRequestID == "" {
 		return nil, routeDispatchUncertainError{"旧任务已尝试执行但缺少提交记录，为避免重复扣费已停止自动重发"}
 	}
 	id, err := s.repo.NextPrefixedID("ATTEMPT")
