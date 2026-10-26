@@ -444,8 +444,9 @@ function studioWorkCardIndexes(work: StudioWork) {
     return work.kind === "image" && work.media.length > 1 ? work.media.map((_, index) => index) : [0];
 }
 
-// 上游没返回图片这类技术性错误只显示「生成失败」，原文留在悬停提示里。
-const TECHNICAL_ERROR_PATTERN = /声明式协议|媒体地址|provider|protocol/i;
+// 鉴权、渠道、上游、网络这类客户处理不了的技术性错误只显示「生成失败」，原文留在悬停提示里；
+// 时长、素材数量等客户能自己改的提示照常显示。英文界面里错误已被翻译，所以中英文关键词都要匹配。
+const TECHNICAL_ERROR_PATTERN = /声明式协议|媒体地址|鉴权|密钥|API ?Key|令牌|渠道|上游|协议|接口|HTTP|状态码|超时|连接|网络|服务器|内部错误|配置|provider|protocol|upstream|channel|endpoint|authenticat|token|status code|timed? ?out|network|connection|server|internal|configur|media URL/i;
 
 type StudioWorkCardProps = {
     work: StudioWork;
