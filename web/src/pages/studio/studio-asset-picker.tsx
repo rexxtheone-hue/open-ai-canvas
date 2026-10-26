@@ -16,7 +16,7 @@ export type StudioPickerKind = "character" | StudioKind;
 type Source = "creations" | "uploads" | "favorites";
 
 const KIND_META: Record<StudioPickerKind, { label: string; icon: typeof ImageIcon; empty: string; upload: string; accept: string }> = {
-    character: { label: "角色与世界", icon: UserRound, empty: "角色库还是空的，先去建一个角色。", upload: "", accept: "" },
+    character: { label: "角色库", icon: UserRound, empty: "角色库还是空的，先去建一个角色。", upload: "", accept: "" },
     image: { label: "图片", icon: ImageIcon, empty: "还没有生成的图片，先去生成一些吧。", upload: "上传图片", accept: "image/png,image/jpeg,image/webp" },
     video: { label: "视频", icon: Clapperboard, empty: "还没有生成的视频，先去生成一些吧。", upload: "上传视频", accept: "video/mp4,video/quicktime,video/webm" },
     audio: { label: "音频", icon: AudioLines, empty: "还没有生成的音频，先去生成一些吧。", upload: "上传音频", accept: "audio/mpeg,audio/wav,audio/x-wav,audio/mp4" },

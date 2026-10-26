@@ -161,7 +161,7 @@ export const router = createBrowserRouter([
             { path: "/studio/tools", element: <RequireAuth>{deferred(<StudioToolsPage />)}</RequireAuth> },
             { path: "/studio/tools/:toolId", element: <RequireAuth>{deferred(<StudioSpecialtyToolRoute />)}</RequireAuth> },
             ...(["video", "image", "audio", "character"] as const).map((tab) => ({ path: `/studio/${tab}`, element: <RequireAuth>{deferred(<StudioToolsBrowser />)}</RequireAuth> })),
-            { path: "/studio/world", element: <Navigate to="/studio/characters?tab=world" replace /> },
+            { path: "/studio/world", element: <Navigate to="/studio/characters" replace /> },
             { path: "/studio/media", element: <RequireAuth>{deferred(<StudioMediaPage />)}</RequireAuth> },
             { path: "/studio/director", element: <RequireAuth>{deferred(<StudioDirectorPage />)}</RequireAuth> },
             { path: "/studio/director/:storyId", element: <RequireAuth>{deferred(<StudioDirectorWorkspace />)}</RequireAuth> },

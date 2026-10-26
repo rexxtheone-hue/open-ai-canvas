@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { App } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { Box, Clapperboard, Globe, Image as ImageIcon, Loader2, Mountain, Palette, Pencil, Plus, Search, Sparkles, Trash2, UserRound, X } from "./studio-icons";
+import { Box, Clapperboard, Image as ImageIcon, Loader2, Mountain, Palette, Pencil, Plus, Search, Sparkles, Trash2, UserRound, X } from "./studio-icons";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { AppModal } from "@/components/ui/product/app-modal/app-modal";
@@ -12,13 +12,12 @@ import { STUDIO_ATTACH_KEY } from "./studio-agent";
 import { useStudioAssets } from "./studio-character-picker";
 import { studioCharacterAttachments, studioCharacterCover, studioCharacterImageUrl } from "./studio-characters";
 import { StudioShell } from "./studio-shell";
-import { StudioCreateWorldModal, StudioWorldGrid } from "./studio-worlds";
 
 const MAX_IMAGES = 8;
 
 type Draft = { id?: string; kind: StudioAssetKind; name: string; description: string; imageResourceIds: string[] };
 
-type Tab = "all" | StudioAssetKind | "world";
+type Tab = "all" | StudioAssetKind;
 
 /** 每种资产的说明：标题、新建按钮、提示和带进工具时的提示词开头。 */
 const KIND_META: Record<StudioAssetKind, { label: string; create: string; hint: string; namePlaceholder: string; descLabel: string; descPlaceholder: string; prompt: (name: string) => string; icon: typeof UserRound }> = {
@@ -34,18 +33,17 @@ function assetKind(item: StudioCharacter): StudioAssetKind {
     return item.kind || "character";
 }
 
-/** AI Studio 的「角色与世界」资产库：角色、世界、物体、背景、风格，只属于 Studio。 */
+/** AI Studio 的角色库：角色、物体、背景、风格，只属于 Studio。 */
 export default function StudioCharactersPage() {
     const { message, modal } = App.useApp();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [params, setParams] = useSearchParams();
-    const [tab, setTab] = useState<Tab>(() => (["character", "object", "background", "style", "world"].includes(params.get("tab") || "") ? (params.get("tab") as Tab) : "all"));
+    const [tab, setTab] = useState<Tab>(() => (["character", "object", "background", "style"].includes(params.get("tab") || "") ? (params.get("tab") as Tab) : "all"));
     const [keyword, setKeyword] = useState("");
     const [draft, setDraft] = useState<Draft | null>(null);
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(0);
-    const [worldOpen, setWorldOpen] = useState(false);
     const assetsQuery = useStudioAssets();
     const assets = useMemo(() => {
         const query = keyword.trim().toLowerCase();
@@ -177,12 +175,12 @@ export default function StudioCharactersPage() {
     const draftMeta = draft ? KIND_META[draft.kind] : KIND_META.character;
 
     return (
-        <StudioShell title="角色与世界">
+        <StudioShell title="角色库">
             <div className="studio-home studio-page">
                 <div className="studio-section-head">
                     <div>
-                        <h2>角色与世界</h2>
-                        <p>把角色、世界、物体、背景和风格存起来，之后生成图片和视频都能保持一致。</p>
+                        <h2>角色库</h2>
+                        <p>把角色、物体、背景和风格存起来，之后生成图片和视频都能保持一致。</p>
                     </div>
                     <div className="studio-head-actions">
                         <label className="studio-search">
@@ -194,7 +192,6 @@ export default function StudioCharactersPage() {
                 <div className="studio-picker-sources studio-doc-tabs" role="tablist" aria-label="资产类型">
                     <button type="button" role="tab" aria-selected={tab === "all"} onClick={() => changeTab("all")}>全部</button>
                     <button type="button" role="tab" aria-selected={tab === "character"} onClick={() => changeTab("character")}>角色</button>
-                    <button type="button" role="tab" aria-selected={tab === "world"} onClick={() => changeTab("world")}>世界</button>
                     <button type="button" role="tab" aria-selected={tab === "object"} onClick={() => changeTab("object")}>物体</button>
                     <button type="button" role="tab" aria-selected={tab === "background"} onClick={() => changeTab("background")}>背景</button>
                     <button type="button" role="tab" aria-selected={tab === "style"} onClick={() => changeTab("style")}>风格</button>
@@ -205,24 +202,16 @@ export default function StudioCharactersPage() {
 
                 {tab === "all" ? (
                     <>
-                        {[...KINDS.slice(0, 1), "world" as const, ...KINDS.slice(1)].map((kind) => (
+                        {KINDS.map((kind) => (
                             <section key={kind} className="studio-asset-section">
                                 <div className="studio-asset-section-head">
-                                    <strong>{kind === "world" ? "世界" : KIND_META[kind].label}</strong>
+                                    <strong>{KIND_META[kind].label}</strong>
                                     <button type="button" className="studio-block-link" onClick={() => changeTab(kind)}>查看全部</button>
                                 </div>
-                                {kind === "world" ? <StudioWorldGrid onCreate={() => setWorldOpen(true)} /> : renderCards(kind, 7)}
+                                {renderCards(kind, 7)}
                             </section>
                         ))}
                     </>
-                ) : tab === "world" ? (
-                    <section className="studio-asset-section">
-                        <div className="studio-asset-section-head">
-                            <strong>世界</strong>
-                            <button type="button" className="studio-mini-button is-primary" onClick={() => setWorldOpen(true)}><Globe aria-hidden />创建世界</button>
-                        </div>
-                        <StudioWorldGrid onCreate={() => setWorldOpen(true)} />
-                    </section>
                 ) : (
                     <>
                         {keyword.trim() && !assets.some((item) => assetKind(item) === tab) ? <div className="studio-empty"><strong>没有找到相关内容</strong><span>换个关键词试试。</span></div> : null}
@@ -230,7 +219,6 @@ export default function StudioCharactersPage() {
                     </>
                 )}
             </div>
-            {worldOpen ? <StudioCreateWorldModal open onClose={() => setWorldOpen(false)} /> : null}
             <AppModal rootClassName="studio-modal" open={Boolean(draft)} title={draft?.id ? `编辑${draftMeta.label}` : draftMeta.create} okText={saving ? "保存中…" : "保存"} cancelText="取消" okButtonProps={{ disabled: saving || uploading > 0 }} onOk={() => void save()} onCancel={() => setDraft(null)}>
                 {draft ? (
                     <div className="studio-popup studio-form-stack">

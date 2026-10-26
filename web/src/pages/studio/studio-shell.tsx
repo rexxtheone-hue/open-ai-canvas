@@ -206,7 +206,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                             <div className="studio-side-links">
                                 {link("/studio/canvas", "无限画布", Layers)}
                                 {link("/studio/director#studio-director-projects", "导演项目", Clapperboard)}
-                                {link("/studio/characters", "角色与世界", UserRound)}
+                                {link("/studio/characters", "角色库", UserRound)}
                                 {link("/studio/skills", "Skill 库", Library)}
                                 {link("/studio/brand", "品牌套件", Palette)}
                                 {link("/studio/media", "媒体", FolderOpen)}
