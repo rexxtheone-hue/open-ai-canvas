@@ -23,7 +23,10 @@ describe("AI Studio 工具分类", () => {
     test("分类清单与生成工具对应", () => {
         expect(studioToolsInTab(STUDIO_TOOLS, "video").map((tool) => tool.id)).toContain("lip-sync");
         expect(studioToolsInTab(STUDIO_TOOLS, "character").map((tool) => tool.id)).toEqual(["create-character", "character-image", "character-video", "cast-in-scene", "replace-character", "motion-sync", "lip-sync", "multi-view", "face-swap"]);
-        expect(studioToolsInTab(STUDIO_TOOLS, "world").map((tool) => tool.id)).toEqual(["create-pano", "world-cam", "cast-in-scene"]);
+        // 「世界」分类已移除：全景世界归入图像，世界漫游镜头归入视频。
+        expect(studioToolsInTab(STUDIO_TOOLS, "world")).toEqual([]);
+        expect(studioToolsInTab(STUDIO_TOOLS, "image").map((tool) => tool.id)).toContain("create-pano");
+        expect(studioToolsInTab(STUDIO_TOOLS, "video").map((tool) => tool.id)).toContain("world-cam");
         expect(studioToolsInTab(STUDIO_TOOLS, "audio").map((tool) => tool.id)).toEqual(["create-audio", "create-music", "create-sound-effect", "voice-clone", "add-sound-effect"]);
         expect(studioToolForKind("video")?.id).toBe("create-video");
         expect(studioToolForKind("image")?.id).toBe("create-image");

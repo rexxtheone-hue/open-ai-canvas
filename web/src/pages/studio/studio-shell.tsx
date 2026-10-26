@@ -61,8 +61,8 @@ export function useStudioActiveTab() {
 }
 
 /** Studio 外框：可收起的分组侧栏、带面包屑的顶栏和内容区。 */
-/** 侧栏「工具」的排列和 OpenArt 一致：视频、图像、世界、角色、音频。 */
-const SIDEBAR_TAB_ORDER = ["video", "image", "world", "character", "audio"] as const;
+/** 侧栏「工具」的排列：视频、图像、角色、音频。 */
+const SIDEBAR_TAB_ORDER = ["video", "image", "character", "audio"] as const;
 
 export function StudioShell({ title, subtitle, children }: { title?: string; subtitle?: string; children: ReactNode }) {
     const { pathname, search } = useLocation();

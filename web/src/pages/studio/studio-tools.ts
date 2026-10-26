@@ -1,5 +1,5 @@
 import type { LucideIcon } from "./studio-icons";
-import { AudioFill, AudioLines, Camera, CharacterFill, Clapperboard, Copy, Earth, Expand, FastForward, Film, Flame, Globe, Grid3x3, Image as ImageIcon, ImageFill, ImagePlay, Layers, Lightbulb, ListVideo, MicVocal, MonitorUp, MountainSnow, Music, Palette, PenLine, PersonStanding, Replace, Rotate3d, ScanFace, Speaker, SunMedium, Type, UserPen, UserPlus, UserRound, VideoFill, Volume2, Wallpaper, WorldFill, ZoomIn } from "./studio-icons";
+import { AudioFill, AudioLines, Camera, CharacterFill, Clapperboard, Copy, Earth, Expand, FastForward, Film, Flame, Globe, Grid3x3, Image as ImageIcon, ImageFill, ImagePlay, Layers, Lightbulb, ListVideo, MicVocal, MonitorUp, MountainSnow, Music, Palette, PenLine, PersonStanding, Replace, Rotate3d, ScanFace, Speaker, SunMedium, Type, UserPen, UserPlus, UserRound, VideoFill, Volume2, Wallpaper, ZoomIn } from "./studio-icons";
 
 import type { VideoMode } from "@/lib/video-modes";
 import type { StudioKind } from "@/services/api/studio";
@@ -12,7 +12,6 @@ export const STUDIO_TOOL_TABS: Array<{ id: StudioToolTab; label: string; listTit
     { id: "image", label: "图像", listTitle: "图像工具", path: "/studio/image", icon: ImageFill },
     { id: "audio", label: "音频", listTitle: "音频工具", path: "/studio/audio", icon: AudioFill },
     { id: "character", label: "角色", listTitle: "角色工具", path: "/studio/character", icon: CharacterFill },
-    { id: "world", label: "世界", listTitle: "世界工具", path: "/studio/world", icon: WorldFill },
 ];
 
 export type StudioToolDefinition = {
@@ -73,10 +72,10 @@ export const STUDIO_TOOLS: StudioToolDefinition[] = [
     { id: "create-character", label: "创建角色", description: "描述或搭建一个原创角色，生成后存进角色库", icon: UserPlus, path: "/studio/tools/create-character", tabs: ["character"], kind: "image", specialty: true, gradient: ["#ee9ca7", "#ffdde1"] },
     { id: "character-image", label: "角色图片", description: "让你的角色出现在新画面里", icon: UserPen, path: "/studio/tools/character-image", tabs: ["character"], kind: "image", specialty: true, gradient: ["#f857a6", "#ff5858"] },
     { id: "character-video", label: "角色视频", description: "让你的角色动起来", icon: Film, path: "/studio/tools/character-video", tabs: ["character"], kind: "video", specialty: true, gradient: ["#6a3093", "#a044ff"] },
-    { id: "cast-in-scene", label: "角色入景", description: "把角色放进任意场景", icon: MountainSnow, path: "/studio/tools/cast-in-scene", tabs: ["character", "world"], kind: "image", specialty: true, gradient: ["#2c3e50", "#4ca1af"] },
+    { id: "cast-in-scene", label: "角色入景", description: "把角色放进任意场景", icon: MountainSnow, path: "/studio/tools/cast-in-scene", tabs: ["character"], kind: "image", specialty: true, gradient: ["#2c3e50", "#4ca1af"] },
     // 世界
-    { id: "create-pano", label: "全景世界", description: "生成 360° 全景场景", icon: Globe, path: "/studio/tools/create-pano", tabs: ["world"], kind: "image", specialty: true, badge: "NEW", gradient: ["#0f2027", "#2c5364"] },
-    { id: "world-cam", label: "世界漫游镜头", description: "在全景或场景图里拍一段运镜", icon: Camera, path: "/studio/tools/world-cam", tabs: ["world"], kind: "video", specialty: true, gradient: ["#373b44", "#4286f4"] },
+    { id: "create-pano", label: "全景世界", description: "生成 360° 全景场景", icon: Globe, path: "/studio/tools/create-pano", tabs: ["image"], kind: "image", specialty: true, badge: "NEW", gradient: ["#0f2027", "#2c5364"] },
+    { id: "world-cam", label: "世界漫游镜头", description: "在全景或场景图里拍一段运镜", icon: Camera, path: "/studio/tools/world-cam", tabs: ["video"], kind: "video", specialty: true, gradient: ["#373b44", "#4286f4"] },
 ];
 
 export function studioToolById(id: string) {
