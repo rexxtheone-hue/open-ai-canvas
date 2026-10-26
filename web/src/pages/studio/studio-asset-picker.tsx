@@ -117,6 +117,34 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
 
     const loading = kind === "character" ? charactersQuery.isLoading : source === "uploads" ? uploadsQuery.isLoading : worksQuery.isLoading;
 
+    // 音频素材点播放键试听，同一时间只播一个；面板关闭时停止。
+    const playerRef = useRef<HTMLAudioElement | null>(null);
+    const [playing, setPlaying] = useState("");
+    useEffect(() => () => playerRef.current?.pause(), []);
+    useEffect(() => {
+        if (!open) {
+            playerRef.current?.pause();
+            setPlaying("");
+        }
+    }, [open]);
+    const togglePlay = (key: string, src: string) => {
+        const current = playerRef.current;
+        if (playing === key && current) {
+            current.pause();
+            setPlaying("");
+            return;
+        }
+        current?.pause();
+        const player = new Audio(src);
+        player.onended = () => setPlaying((value) => (value === key ? "" : value));
+        playerRef.current = player;
+        setPlaying(key);
+        void player.play().catch(() => {
+            setPlaying("");
+            message.error("这段音频无法播放");
+        });
+    };
+
     if (!open) return null;
 
     const finish = (list: CreationAttachment[]) => {
@@ -174,34 +202,6 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
                     message.error(cause instanceof Error ? cause.message : "删除失败");
                 }
             },
-        });
-    };
-
-    // 音频素材点播放键试听，同一时间只播一个；面板关闭时停止。
-    const playerRef = useRef<HTMLAudioElement | null>(null);
-    const [playing, setPlaying] = useState("");
-    useEffect(() => () => playerRef.current?.pause(), []);
-    useEffect(() => {
-        if (!open) {
-            playerRef.current?.pause();
-            setPlaying("");
-        }
-    }, [open]);
-    const togglePlay = (key: string, src: string) => {
-        const current = playerRef.current;
-        if (playing === key && current) {
-            current.pause();
-            setPlaying("");
-            return;
-        }
-        current?.pause();
-        const player = new Audio(src);
-        player.onended = () => setPlaying((value) => (value === key ? "" : value));
-        playerRef.current = player;
-        setPlaying(key);
-        void player.play().catch(() => {
-            setPlaying("");
-            message.error("这段音频无法播放");
         });
     };
 
