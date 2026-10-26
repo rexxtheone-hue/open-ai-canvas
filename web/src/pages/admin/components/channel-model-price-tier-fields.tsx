@@ -128,6 +128,17 @@ export function PriceTierFields({
                                         />
                                     </Form.Item>
                                 ) : null}
+                                {isVideo ? (
+                                    <Form.Item className="mb-0" name={[index, "videoGenerateAudio"]} label="生成音频" initialValue="*">
+                                        <Select
+                                            options={[
+                                                { label: "有没有都可以", value: "*" },
+                                                { label: "有声", value: "true" },
+                                                { label: "无声", value: "false" },
+                                            ]}
+                                        />
+                                    </Form.Item>
+                                ) : null}
                                 {isImage && image?.parameters
                                     ? image.parameters
                                           .filter((field) => field.enabled !== false && field.pricing)

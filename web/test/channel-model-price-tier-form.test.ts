@@ -80,13 +80,13 @@ describe("channel model price tier defaults", () => {
 
         expect(priceTierToForm(base).matchMode).toBe("default");
         expect(priceTierToForm({ ...base, selector: { quality: "2k" } }).matchMode).toBe("advanced");
-        expect(priceTierToForm({ ...base, selector: { videoGenerateAudio: "false" } })).toMatchObject({ matchMode: "default", videoGenerateAudio: "false" });
+        expect(priceTierToForm({ ...base, selector: { videoGenerateAudio: "false" } })).toMatchObject({ matchMode: "advanced", videoGenerateAudio: "false" });
     });
 
-    test("keeps video matching limited to operation and resolution", () => {
+    test("keeps video matching to operation, resolution, reference video and audio", () => {
         for (const videoGenerateAudio of ["true", "false"]) {
             const tier = { ...defaultPriceTier("advanced"), operation: "image_to_video", resolution: "1080p", videoSeconds: 10, videoGenerateAudio, imageCount: 2 };
-            expect(skuSelectorFromForm("video", tier)).toEqual({ operation: "image_to_video", vquality: "1080p" });
+            expect(skuSelectorFromForm("video", tier)).toEqual({ operation: "image_to_video", vquality: "1080p", videoGenerateAudio });
             expect(priceTierVideoSecondsFromForm("video", tier)).toBe(0);
             expect(skuSelectorFromForm("image", { ...defaultPriceTier("advanced"), videoSeconds: 10, videoGenerateAudio, imageCount: 2 })).toEqual({});
         }
@@ -111,4 +111,11 @@ test("price tier surcharge and reference-video condition round-trip", () => {
     expect(image.surcharge).toEqual({ freeImages: 5, imagePriceMicrocredits: 4_000_000, videoSecondPriceMicrocredits: 0 });
     const text = priceTierPayloadFromForm("text", { ...tier, matchMode: "default" }, "txt");
     expect(text.surcharge).toEqual({ freeImages: 0, imagePriceMicrocredits: 0, videoSecondPriceMicrocredits: 0 });
+});
+
+test("video audio condition survives editing so voiced and silent tiers stay distinct", () => {
+    const stored = { selector: { vquality: "720p", videoGenerateAudio: "true" }, resolution: "720p", billingMode: "per_second", unitPriceMicrocredits: 94_500_000 } as unknown as ChannelModelPriceTier;
+    const form = priceTierToForm(stored, "video");
+    expect(form.matchMode).toBe("advanced");
+    expect(skuSelectorFromForm("video", form)).toEqual({ vquality: "720p", videoGenerateAudio: "true" });
 });

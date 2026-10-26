@@ -95,7 +95,7 @@ export function priceTierToForm(tier: ChannelModelPriceTier, image?: ImageCapabi
         selector.imageResolution = legacyResolution;
         delete selector.quality;
     }
-    const candidates = image?.parameters ? Object.values(selector) : [selector.operation, selector.imageResolution, selector.quality, selector.resolution, selector.size, selector.videoInput];
+    const candidates = image?.parameters ? Object.values(selector) : [selector.operation, selector.imageResolution, selector.quality, selector.resolution, selector.size, selector.videoInput, selector.videoGenerateAudio];
     const hasSpecificMatch = candidates.some((value) => value && value !== "*") || (tier.resolution && tier.resolution !== "*");
     return {
         matchMode: hasSpecificMatch ? "advanced" : "default",
@@ -176,6 +176,7 @@ export function skuSelectorFromForm(capability: ModelCapabilityChoice, tier: Pri
     if (capability === "video") {
         if (tier.resolution && tier.resolution !== "*") selector.vquality = tier.resolution;
         if (tier.videoInput === "true" || tier.videoInput === "false") selector.videoInput = tier.videoInput;
+        if (tier.videoGenerateAudio === "true" || tier.videoGenerateAudio === "false") selector.videoGenerateAudio = tier.videoGenerateAudio;
     }
     if (capability === "image") {
         if (capabilityConfig?.image?.parameters) {
