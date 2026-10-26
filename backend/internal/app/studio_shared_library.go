@@ -132,6 +132,9 @@ func (s *Service) canvasMediaAssetUploads(userID, kind string) ([]StudioUploadVi
 		if err != nil {
 			return nil, err
 		}
+		if resource.UserDeletedAt != nil {
+			continue
+		}
 		view := studioUploadView(model.StudioUpload{ID: "asset:" + asset.ID, ResourceID: resource.ID, Kind: asset.Kind, Name: asset.Title, CreatedAt: asset.CreatedAt}, resource)
 		view.Source = "canvas"
 		views = append(views, view)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"yingce/backend/internal/model"
 )
@@ -294,6 +295,12 @@ func TestStudioUploadsRegistry(t *testing.T) {
 	if len(all) != 1 {
 		t.Fatalf("uploads whose resource was deleted must be hidden: %+v", all)
 	}
+	// 用户删除只做标记、文件留底；素材库里同样不能再出现。
+	db.Model(&model.Resource{}).Where("id = ?", "vid").Update("user_deleted_at", time.Now())
+	if hidden, _ := svc.StudioUploads("user-a", ""); len(hidden) != 0 {
+		t.Fatalf("user-deleted uploads must be hidden: %+v", hidden)
+	}
+	db.Model(&model.Resource{}).Where("id = ?", "vid").Update("user_deleted_at", nil)
 	if err := svc.DeleteStudioUpload("user-b", videos[0].ID); err == nil {
 		t.Fatal("other users must not delete the upload")
 	}

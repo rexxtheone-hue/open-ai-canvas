@@ -525,6 +525,10 @@ func (s *Service) StudioUploads(userID, kind string) ([]StudioUploadView, error)
 		if err != nil {
 			return nil, err
 		}
+		// 用户删除过的素材只在后台留底，素材库里不再出现。
+		if resource.UserDeletedAt != nil {
+			continue
+		}
 		views = append(views, studioUploadView(item, resource))
 	}
 	canvas, err := s.canvasMediaAssetUploads(userID, kind)
