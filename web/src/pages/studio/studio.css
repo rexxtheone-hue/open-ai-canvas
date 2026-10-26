@@ -1709,6 +1709,14 @@ button.studio-pill-select { border: 0; background: transparent; }
 .studio-select-menu::-webkit-scrollbar-track { background: transparent; }
 .studio-select-menu::-webkit-scrollbar-thumb { border-radius: 999px; background: var(--studio-line-strong); }
 .studio-select-menu::-webkit-scrollbar-thumb:hover { background: var(--studio-muted); }
+
+/* 全 Studio 统一细滚动条（含挂在 body 下的弹出菜单和弹窗），不用浏览器默认的白色粗滚动条 */
+.studio-root, .studio-root *, .studio-popup, .studio-popup *, .studio-modal, .studio-modal *, .studio-select-popup * { scrollbar-width: thin; scrollbar-color: rgba(214, 225, 255, 0.18) transparent; }
+.studio-root ::-webkit-scrollbar, .studio-popup::-webkit-scrollbar, .studio-popup ::-webkit-scrollbar, .studio-modal ::-webkit-scrollbar { width: 6px; height: 6px; }
+.studio-root ::-webkit-scrollbar-track, .studio-popup::-webkit-scrollbar-track, .studio-popup ::-webkit-scrollbar-track, .studio-modal ::-webkit-scrollbar-track { background: transparent; }
+.studio-root ::-webkit-scrollbar-button, .studio-popup::-webkit-scrollbar-button, .studio-popup ::-webkit-scrollbar-button, .studio-modal ::-webkit-scrollbar-button { display: none; }
+.studio-root ::-webkit-scrollbar-thumb, .studio-popup::-webkit-scrollbar-thumb, .studio-popup ::-webkit-scrollbar-thumb, .studio-modal ::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(214, 225, 255, 0.18); }
+.studio-root ::-webkit-scrollbar-thumb:hover, .studio-popup::-webkit-scrollbar-thumb:hover, .studio-popup ::-webkit-scrollbar-thumb:hover, .studio-modal ::-webkit-scrollbar-thumb:hover { background: rgba(214, 225, 255, 0.32); }
 .studio-select-group { padding: 10px 10px 4px; color: var(--studio-muted); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
 .studio-select-group:first-child { padding-top: 4px; }
 .studio-select-menu button { height: auto; min-height: 34px; padding: 7px 10px; color: var(--studio-fg); }
