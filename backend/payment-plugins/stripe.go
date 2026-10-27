@@ -463,7 +463,7 @@ func verifyStripeSignature(header string, body []byte, secret string, now time.T
 	return errors.New("Stripe 通知签名无效")
 }
 
-func (p *StripeProvider) VerifyNotification(_ context.Context, config Config, headers http.Header, rawBody []byte) (Notification, error) {
+func (p *StripeProvider) VerifyNotification(ctx context.Context, config Config, headers http.Header, rawBody []byte) (Notification, error) {
 	if err := p.ValidateConfig(config); err != nil {
 		return Notification{}, err
 	}
@@ -480,7 +480,7 @@ func (p *StripeProvider) VerifyNotification(_ context.Context, config Config, he
 	case strings.HasPrefix(event.Type, "checkout.session."):
 		result, err = stripeSessionEventResult(event)
 	case event.Type == "invoice.paid":
-		result, err = stripeInvoiceEventResult(event)
+		result, err = p.stripeInvoiceEventResult(ctx, config, event)
 	case event.Type == "customer.subscription.updated" || event.Type == "customer.subscription.deleted":
 		result, err = stripeSubscriptionEventResult(event)
 	default:
@@ -553,12 +553,20 @@ func (invoice stripeInvoice) merchantOrderNo() string {
 	return strings.TrimSpace(firstNonEmpty(invoice.SubscriptionDetails.Metadata["merchant_order_no"], invoice.Parent.SubscriptionDetails.Metadata["merchant_order_no"]))
 }
 
-func stripeInvoiceEventResult(event stripeEvent) (Result, error) {
+func (p *StripeProvider) stripeInvoiceEventResult(ctx context.Context, config Config, event stripeEvent) (Result, error) {
 	var invoice stripeInvoice
 	if err := json.Unmarshal(event.Data.Object, &invoice); err != nil || invoice.ID == "" {
 		return Result{}, errors.New("Stripe 通知内容无效")
 	}
 	merchantOrderNo := invoice.merchantOrderNo()
+	if merchantOrderNo == "" && strings.HasPrefix(invoice.subscriptionID(), "sub_") {
+		// 较旧 API 版本的账单不带订阅 metadata，回查订阅取商户订单号。
+		var subscription stripeSubscription
+		if err := p.call(ctx, config, http.MethodGet, "/v1/subscriptions/"+url.PathEscape(invoice.subscriptionID()), nil, "", &subscription); err != nil {
+			return Result{}, err
+		}
+		merchantOrderNo = strings.TrimSpace(subscription.Metadata["merchant_order_no"])
+	}
 	if merchantOrderNo == "" || invoice.subscriptionID() == "" {
 		return Result{}, errors.New("Stripe 账单通知缺少订阅订单号")
 	}

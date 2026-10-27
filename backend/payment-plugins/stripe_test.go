@@ -218,6 +218,11 @@ func TestStripeSubscriptionCheckoutAndEvents(t *testing.T) {
 	if err != nil || !note.Renewal || note.SubscriptionID != "sub_1" {
 		t.Fatalf("newer invoice shape must be understood %+v %v", note, err)
 	}
+	bare := `{"id":"evt_b","type":"invoice.paid","created":1800000000,"data":{"object":{"id":"in_4","status":"paid","amount_paid":199900,"currency":"myr","billing_reason":"subscription_cycle","subscription":"sub_1"}}}`
+	note, err = provider.VerifyNotification(context.Background(), stripeTestConfig(), headers(bare), []byte(bare))
+	if err != nil || note.MerchantOrderNo != "m1" || !note.Renewal || path != "/v1/subscriptions/sub_1" {
+		t.Fatalf("invoice without metadata must look up the subscription %+v %v", note, err)
+	}
 	deleted := `{"id":"evt_d","type":"customer.subscription.deleted","created":1800000000,"data":{"object":{"id":"sub_1","status":"canceled","metadata":{"merchant_order_no":"m1"}}}}`
 	note, err = provider.VerifyNotification(context.Background(), stripeTestConfig(), headers(deleted), []byte(deleted))
 	if err != nil || note.Paid || note.SubscriptionStatus != SubscriptionEnded {
