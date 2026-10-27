@@ -202,3 +202,24 @@ func TestCreditLotsUsePlanFirstAndExpire(t *testing.T) {
 		t.Fatalf("expired pack must be removed, got %d", account.AvailableMicrocredits)
 	}
 }
+
+func TestUpdateTopupProductKeepsPlanAndValidityFields(t *testing.T) {
+	_, db := newStudioTestService(t)
+	repo := repository.New(db)
+	product := model.TopupProduct{ID: "pack", Name: "加购", AmountFen: 5000, Currency: "MYR", CreditsMicrocredits: 1, Enabled: true, SaleStrategy: model.TopupSaleStrategyUnlimited}
+	if err := db.Create(&product).Error; err != nil {
+		t.Fatal(err)
+	}
+	err := repo.UpdateTopupProduct("pack", func(existing *model.TopupProduct) (*model.TopupProduct, error) {
+		updated := *existing
+		updated.MembersOnly, updated.CreditValidMonths, updated.PlanID, updated.PlanMonths = true, 12, "plan", 1
+		return &updated, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved, _ := repo.TopupProduct("pack")
+	if !saved.MembersOnly || saved.CreditValidMonths != 12 || saved.PlanID != "plan" || saved.PlanMonths != 1 {
+		t.Fatalf("update dropped fields %+v", saved)
+	}
+}
