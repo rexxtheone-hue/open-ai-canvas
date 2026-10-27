@@ -25,6 +25,10 @@ export type TopupProduct = {
     creditsMicrocredits: number;
     /** 绑定的会员套餐，购买后同时开通。 */
     planId?: string;
+    /** 大于 0 时按月发放会员积分：1 = 月付，12 = 年付。 */
+    planMonths?: number;
+    /** 只有会员可以购买。 */
+    membersOnly?: boolean;
     enabled: boolean;
     sortOrder: number;
     saleStrategy: TopupSaleStrategy;
@@ -134,6 +138,10 @@ export function listAdminTopupProducts() {
 
 export type TopupProductInput = Pick<TopupProduct, "name" | "amountFen" | "creditsMicrocredits" | "enabled" | "sortOrder" | "saleStrategy"> & {
     description?: string;
+    currency?: string;
+    planId?: string;
+    planMonths?: number;
+    membersOnly?: boolean;
     periodDays?: number;
     periodPurchaseLimit?: number;
     stockTotal?: number;

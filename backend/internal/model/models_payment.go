@@ -51,7 +51,11 @@ type TopupProduct struct {
 	Currency            string `json:"currency" gorm:"size:8;default:CNY"`
 	CreditsMicrocredits int64  `json:"creditsMicrocredits"`
 	// PlanID 非空时购买后同时开通对应会员套餐。
-	PlanID              string            `json:"planId,omitempty" gorm:"size:36;index"`
+	PlanID string `json:"planId,omitempty" gorm:"size:36;index"`
+	// PlanMonths 大于 0 时按月发放会员积分（1 = 月付，12 = 年付），商品积分不再使用。
+	PlanMonths int `json:"planMonths,omitempty"`
+	// MembersOnly 的商品只有会员有效期内才能购买。
+	MembersOnly         bool              `json:"membersOnly,omitempty"`
 	Enabled             bool              `json:"enabled" gorm:"index"`
 	SortOrder           int               `json:"sortOrder" gorm:"index"`
 	SaleStrategy        TopupSaleStrategy `json:"saleStrategy" gorm:"size:24;index"`
@@ -103,6 +107,7 @@ type PaymentOrder struct {
 	// 下单时固定的会员套餐快照，入账时在同一事务里开通。
 	PlanID              string             `json:"planId,omitempty" gorm:"size:36"`
 	PlanDurationDays    int                `json:"planDurationDays,omitempty"`
+	PlanMonths          int                `json:"planMonths,omitempty"`
 	CreditsMicrocredits int64              `json:"creditsMicrocredits"`
 	Status              PaymentOrderStatus `json:"status" gorm:"size:24;index;index:idx_payment_order_status_expiry,priority:1"`
 	ProviderTradeNo     *string            `json:"providerTradeNo,omitempty" gorm:"size:96;uniqueIndex:idx_payment_provider_trade,priority:2"`

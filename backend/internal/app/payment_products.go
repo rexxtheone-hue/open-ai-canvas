@@ -21,7 +21,40 @@ func (s *Service) TopupProducts(actor *model.User) ([]model.TopupProduct, error)
 	if err != nil {
 		return nil, err
 	}
-	return decorateTopupProducts(products, time.Now()), nil
+	now := time.Now()
+	products = s.withPlanMonthlyCredits(decorateTopupProducts(products, now))
+	_, activePlan, err := s.activeStudioPlan(actor.ID, now)
+	if err != nil {
+		return nil, err
+	}
+	if activePlan == nil {
+		for index := range products {
+			if products[index].MembersOnly && products[index].CanPurchase {
+				products[index].CanPurchase, products[index].SaleStatus = false, "members_only"
+			}
+		}
+	}
+	return products, nil
+}
+
+// withPlanMonthlyCredits 把按月发放的会员商品的展示积分换成套餐的每月积分。
+func (s *Service) withPlanMonthlyCredits(products []model.TopupProduct) []model.TopupProduct {
+	plans := map[string]*model.StudioPlan{}
+	for index := range products {
+		product := &products[index]
+		if product.PlanMonths <= 0 || product.PlanID == "" {
+			continue
+		}
+		plan, cached := plans[product.PlanID]
+		if !cached {
+			plan, _ = s.repo.StudioPlan(product.PlanID)
+			plans[product.PlanID] = plan
+		}
+		if plan != nil {
+			product.CreditsMicrocredits = plan.MonthlyCreditsMicrocredits
+		}
+	}
+	return products
 }
 
 func (s *Service) AdminTopupProducts(actor *model.User) ([]model.TopupProduct, error) {
@@ -125,7 +158,14 @@ func topupProductFromRequest(id, actorID string, request TopupProductRequest, st
 	if request.AmountFen <= 0 || request.AmountFen > 100_000_000 {
 		return nil, BadAuthRequest("充值金额必须为 1 分至 100 万元")
 	}
-	if request.CreditsMicrocredits <= 0 || request.CreditsMicrocredits > maxTopupCreditsMicrocredits {
+	planID := strings.TrimSpace(request.PlanID)
+	if request.PlanMonths < 0 || request.PlanMonths > 36 || (request.PlanMonths > 0 && planID == "") {
+		return nil, BadAuthRequest("按月发放积分的商品必须绑定会员套餐，月数为 1 到 36")
+	}
+	if request.PlanMonths > 0 {
+		// 按月发放的会员商品，积分以套餐的每月积分为准。
+		request.CreditsMicrocredits = 0
+	} else if request.CreditsMicrocredits <= 0 || request.CreditsMicrocredits > maxTopupCreditsMicrocredits {
 		return nil, BadAuthRequest("充值积分必须为 0.000001 至 10 亿积分")
 	}
 	currency := normalizedTopupCurrency(request.Currency)
@@ -161,7 +201,7 @@ func topupProductFromRequest(id, actorID string, request TopupProductRequest, st
 	return &model.TopupProduct{
 		ID: id, Name: name, Description: truncateRunes(strings.TrimSpace(request.Description), 500),
 		AmountFen: request.AmountFen, Currency: currency, CreditsMicrocredits: request.CreditsMicrocredits,
-		PlanID: strings.TrimSpace(request.PlanID),
+		PlanID: planID, PlanMonths: request.PlanMonths, MembersOnly: request.MembersOnly,
 		Enabled: request.Enabled, SortOrder: request.SortOrder, SaleStrategy: strategy,
 		PeriodDays: request.PeriodDays, PeriodPurchaseLimit: request.PeriodPurchaseLimit,
 		StockTotal: request.StockTotal, StockRemaining: stockRemaining,

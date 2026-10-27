@@ -356,7 +356,11 @@ func (r *Repository) CompletePaymentOrder(providerID, merchantOrderNo string, ev
 		}).Error; err != nil {
 			return err
 		}
-		if order.PlanID != "" && order.PlanDurationDays > 0 {
+		if order.PlanID != "" && order.PlanMonths > 0 {
+			if err := applyPlanPurchaseTx(tx, order.UserID, order.PlanID, order.PlanMonths, order.CreditsMicrocredits, order.CreditsMicrocredits, account.AvailableMicrocredits, now); err != nil {
+				return err
+			}
+		} else if order.PlanID != "" && order.PlanDurationDays > 0 {
 			if err := extendMembershipTx(tx, order.UserID, order.PlanID, order.PlanDurationDays, now); err != nil {
 				return err
 			}

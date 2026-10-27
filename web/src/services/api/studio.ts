@@ -335,6 +335,8 @@ export type StudioPlan = {
     description: string;
     badge: string;
     durationDays: number;
+    /** 每月发放的会员积分，当月有效。 */
+    monthlyCreditsMicrocredits: number;
     activeTaskLimit: number;
     commercialLicense: boolean;
     enabled: boolean;
@@ -347,6 +349,10 @@ export type StudioMembership = {
     active: boolean;
     plan?: StudioPlan;
     expiresAt?: string;
+    /** 本月会员积分的到期时间，到期时没用完的会员积分清零并发放下个月积分。 */
+    periodEndsAt?: string;
+    monthlyCreditsMicrocredits?: number;
+    grantsRemaining?: number;
     activeTaskLimit: number;
     commercialLicense: boolean;
 };

@@ -63,17 +63,19 @@ type StudioBrandKit struct {
 
 // StudioPlan 是会员套餐：通过绑定了套餐的充值商品购买，按天数生效。
 type StudioPlan struct {
-	ID                string    `json:"id" gorm:"primaryKey;size:36"`
-	Name              string    `json:"name" gorm:"size:80"`
-	Description       string    `json:"description" gorm:"size:500"`
-	Badge             string    `json:"badge" gorm:"size:24"`
-	DurationDays      int       `json:"durationDays"`
-	ActiveTaskLimit   int       `json:"activeTaskLimit"`
-	CommercialLicense bool      `json:"commercialLicense"`
-	Enabled           bool      `json:"enabled" gorm:"index"`
-	SortOrder         int       `json:"sortOrder"`
-	CreatedAt         time.Time `json:"createdAt"`
-	UpdatedAt         time.Time `json:"updatedAt"`
+	ID           string `json:"id" gorm:"primaryKey;size:36"`
+	Name         string `json:"name" gorm:"size:80"`
+	Description  string `json:"description" gorm:"size:500"`
+	Badge        string `json:"badge" gorm:"size:24"`
+	DurationDays int    `json:"durationDays"`
+	// MonthlyCreditsMicrocredits 是每个月发放的会员积分，只在当月有效；月付、年付商品都按月发放。
+	MonthlyCreditsMicrocredits int64     `json:"monthlyCreditsMicrocredits"`
+	ActiveTaskLimit            int       `json:"activeTaskLimit"`
+	CommercialLicense          bool      `json:"commercialLicense"`
+	Enabled                    bool      `json:"enabled" gorm:"index"`
+	SortOrder                  int       `json:"sortOrder"`
+	CreatedAt                  time.Time `json:"createdAt"`
+	UpdatedAt                  time.Time `json:"updatedAt"`
 }
 
 // UserMembership 记录用户当前会员套餐和到期时间；过期后自动回到普通用户权益。
@@ -82,7 +84,13 @@ type UserMembership struct {
 	PlanID    string    `json:"planId" gorm:"size:36;index"`
 	StartedAt time.Time `json:"startedAt"`
 	ExpiresAt time.Time `json:"expiresAt" gorm:"index"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	// 按月发放的会员积分：当前周期发放了多少、周期起止，以及之后还要发几个月。
+	MonthlyCreditsMicrocredits int64      `json:"monthlyCreditsMicrocredits"`
+	PeriodCreditsMicrocredits  int64      `json:"periodCreditsMicrocredits"`
+	PeriodStartedAt            *time.Time `json:"periodStartedAt,omitempty"`
+	PeriodEndsAt               *time.Time `json:"periodEndsAt,omitempty" gorm:"index"`
+	GrantsRemaining            int        `json:"grantsRemaining"`
+	UpdatedAt                  time.Time  `json:"updatedAt"`
 }
 
 const (

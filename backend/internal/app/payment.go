@@ -70,6 +70,8 @@ type TopupProductRequest struct {
 	SaleEndAt           *time.Time              `json:"saleEndAt"`
 	Currency            string                  `json:"currency"`
 	PlanID              string                  `json:"planId"`
+	PlanMonths          int                     `json:"planMonths"`
+	MembersOnly         bool                    `json:"membersOnly"`
 }
 
 type CreatePaymentOrderRequest struct {
@@ -174,7 +176,7 @@ func (s *Service) CreatePaymentOrder(ctx context.Context, actor *model.User, req
 	if providerCurrency := paymentProviderCurrency(values); providerCurrency != productCurrency {
 		return nil, BadAuthRequest(fmt.Sprintf("该支付渠道只支持 %s 结算，不能购买 %s 商品", providerCurrency, productCurrency))
 	}
-	planID, planDays := "", 0
+	planID, planDays, planMonths, credits := "", 0, 0, product.CreditsMicrocredits
 	if product.PlanID != "" {
 		plan, err := s.repo.StudioPlan(product.PlanID)
 		if err != nil {
@@ -184,6 +186,21 @@ func (s *Service) CreatePaymentOrder(ctx context.Context, actor *model.User, req
 			return nil, BadAuthRequest("这个会员套餐已下架")
 		}
 		planID, planDays = plan.ID, plan.DurationDays
+		if product.PlanMonths > 0 {
+			if plan.MonthlyCreditsMicrocredits <= 0 {
+				return nil, BadAuthRequest("这个会员套餐还没有设置每月积分")
+			}
+			planDays, planMonths, credits = 0, product.PlanMonths, plan.MonthlyCreditsMicrocredits
+		}
+	}
+	if product.MembersOnly {
+		_, activePlan, err := s.activeStudioPlan(actor.ID, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		if activePlan == nil {
+			return nil, Forbidden("充值包只开放给会员，请先开通会员")
+		}
 	}
 	activeCount, err := s.repo.ActivePaymentOrderCount(actor.ID)
 	if err != nil {
@@ -197,8 +214,8 @@ func (s *Service) CreatePaymentOrder(ctx context.Context, actor *model.User, req
 		ID: newID(), UserID: actor.ID, IdempotencyKey: idempotencyKey, MerchantOrderNo: newID(),
 		ProductID: product.ID, ProductName: product.Name, ProviderID: provider.Descriptor().ID,
 		PluginID: provider.Descriptor().PluginID, PluginVersion: provider.Descriptor().PluginVersion, ProviderConfigID: config.ID, ProviderConfigVersion: config.Version,
-		AmountFen: product.AmountFen, Currency: productCurrency, CreditsMicrocredits: product.CreditsMicrocredits,
-		PlanID: planID, PlanDurationDays: planDays,
+		AmountFen: product.AmountFen, Currency: productCurrency, CreditsMicrocredits: credits,
+		PlanID: planID, PlanDurationDays: planDays, PlanMonths: planMonths,
 		Status: model.PaymentOrderCreated, CheckoutMode: provider.Descriptor().CheckoutMode,
 		ExpiresAt: now.Add(time.Duration(config.CloseAfterMinutes) * time.Minute),
 	}

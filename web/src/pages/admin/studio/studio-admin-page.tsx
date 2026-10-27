@@ -9,7 +9,7 @@ import { AdminPageFrame } from "../components/admin-shell";
 import { StudioToolCoversPanel } from "./studio-tool-covers";
 import { StudioFeedbackPanel, StudioSiteContentPanel } from "./studio-help-admin";
 
-const EMPTY_PLAN: StudioPlanInput = { name: "", description: "", badge: "", durationDays: 30, activeTaskLimit: 10, commercialLicense: true, enabled: true, sortOrder: 0 };
+const EMPTY_PLAN: StudioPlanInput = { name: "", description: "", badge: "", durationDays: 30, monthlyCreditsMicrocredits: 0, activeTaskLimit: 10, commercialLicense: true, enabled: true, sortOrder: 0 };
 
 /** AI Studio 运营：会员套餐（售价在「支付充值」的商品里绑定）和灵感社区审核。 */
 export default function StudioAdminPage() {
@@ -40,7 +40,8 @@ export default function StudioAdminPage() {
 
     const openPlan = (plan: StudioPlan | "new") => {
         form.resetFields();
-        form.setFieldsValue(plan === "new" ? { ...EMPTY_PLAN, sortOrder: plans.length * 10 } : plan);
+        const values = plan === "new" ? { ...EMPTY_PLAN, sortOrder: plans.length * 10 } : plan;
+        form.setFieldsValue({ ...values, monthlyCreditsMicrocredits: (values.monthlyCreditsMicrocredits || 0) / 1_000_000 });
         setEditing(plan);
     };
 
@@ -49,7 +50,7 @@ export default function StudioAdminPage() {
         const values = await form.validateFields();
         setSaving(true);
         try {
-            await saveAdminStudioPlan(editing === "new" ? undefined : editing.id, { ...EMPTY_PLAN, ...values, badge: values.badge || "", description: values.description || "" });
+            await saveAdminStudioPlan(editing === "new" ? undefined : editing.id, { ...EMPTY_PLAN, ...values, monthlyCreditsMicrocredits: Math.round((values.monthlyCreditsMicrocredits || 0) * 1_000_000), badge: values.badge || "", description: values.description || "" });
             message.success("套餐已保存");
             setEditing(null);
             await refresh();
@@ -71,6 +72,7 @@ export default function StudioAdminPage() {
 
     const planColumns: ColumnsType<StudioPlan> = [
         { title: "套餐", dataIndex: "name", render: (_, plan) => <div><div className="font-medium">{plan.name}{plan.badge ? <Tag className="ml-2">{plan.badge}</Tag> : null}</div><div className="text-xs text-foreground/45">{plan.description || "无说明"}</div></div> },
+        { title: "每月积分", dataIndex: "monthlyCreditsMicrocredits", width: 110, render: (value) => (value > 0 ? (value / 1_000_000).toLocaleString() : "不按月发") },
         { title: "时长", dataIndex: "durationDays", width: 100, render: (value) => `${value} 天` },
         { title: "并发任务", dataIndex: "activeTaskLimit", width: 110, render: (value) => (value > 0 ? `${value} 个` : "沿用默认") },
         { title: "商用授权", dataIndex: "commercialLicense", width: 100, render: (value) => (value ? "含" : "不含") },
@@ -128,6 +130,7 @@ export default function StudioAdminPage() {
                     <Form.Item name="name" label="套餐名称" rules={[{ required: true, max: 40 }]}><Input placeholder="例如：Pro 会员" /></Form.Item>
                     <Form.Item name="badge" label="角标" rules={[{ max: 12 }]}><Input placeholder="例如：推荐" /></Form.Item>
                     <Form.Item name="description" label="说明" rules={[{ max: 500 }]}><Input.TextArea rows={3} /></Form.Item>
+                    <Form.Item name="monthlyCreditsMicrocredits" label="每月积分" extra="按月发放、当月有效，没用完的月底清零。商品设置了「按月发放」时生效；填 0 表示不按月发。" rules={[{ type: "number", min: 0 }]}><InputNumber min={0} precision={0} className="w-full" /></Form.Item>
                     <div className="grid grid-cols-2 gap-3">
                         <Form.Item name="durationDays" label="有效期（天）" rules={[{ required: true }, { type: "number", min: 1, max: 3660 }]}><InputNumber min={1} max={3660} precision={0} className="w-full" /></Form.Item>
                         <Form.Item name="activeTaskLimit" label="同时生成任务数" extra="0 表示沿用全站默认；只会提高不会降低。" rules={[{ required: true }, { type: "number", min: 0, max: 1000 }]}><InputNumber min={0} max={1000} precision={0} className="w-full" /></Form.Item>

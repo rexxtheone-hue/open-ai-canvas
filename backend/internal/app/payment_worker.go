@@ -44,6 +44,19 @@ func (s *Service) startPaymentWorker(ctx context.Context) {
 		}
 	})
 	s.runWorkerLoop(func(ctx context.Context) {
+		s.rollPlanCreditPeriods()
+		planTicker := time.NewTicker(5 * time.Minute)
+		defer planTicker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-planTicker.C:
+				s.rollPlanCreditPeriods()
+			}
+		}
+	})
+	s.runWorkerLoop(func(ctx context.Context) {
 		s.maybeRunDailyPaymentReconciliation(ctx)
 		reconciliationTicker := time.NewTicker(30 * time.Minute)
 		defer reconciliationTicker.Stop()
@@ -102,6 +115,21 @@ func (s *Service) queryPendingPaymentOrders(ctx context.Context) {
 		cancel()
 		if err != nil {
 			log.Printf("payment order compensation query failed: order=%s error_type=%T", orders[index].ID, err)
+		}
+	}
+}
+
+// rollPlanCreditPeriods 清零到期的会员积分，并给还有剩余月份的会员发放下个月积分。
+func (s *Service) rollPlanCreditPeriods() {
+	now := time.Now()
+	userIDs, err := s.repo.DuePlanCreditPeriods(now, 100)
+	if err != nil {
+		log.Printf("plan credit period query failed: %v", err)
+		return
+	}
+	for _, userID := range userIDs {
+		if err := s.repo.RollPlanCreditPeriod(userID, now); err != nil {
+			log.Printf("plan credit period roll failed: user=%s error=%v", userID, err)
 		}
 	}
 }

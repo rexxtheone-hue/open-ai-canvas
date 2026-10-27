@@ -9,14 +9,15 @@ import (
 )
 
 type StudioPlanInput struct {
-	Name              string `json:"name"`
-	Description       string `json:"description"`
-	Badge             string `json:"badge"`
-	DurationDays      int    `json:"durationDays"`
-	ActiveTaskLimit   int    `json:"activeTaskLimit"`
-	CommercialLicense bool   `json:"commercialLicense"`
-	Enabled           bool   `json:"enabled"`
-	SortOrder         int    `json:"sortOrder"`
+	Name                       string `json:"name"`
+	Description                string `json:"description"`
+	Badge                      string `json:"badge"`
+	DurationDays               int    `json:"durationDays"`
+	MonthlyCreditsMicrocredits int64  `json:"monthlyCreditsMicrocredits"`
+	ActiveTaskLimit            int    `json:"activeTaskLimit"`
+	CommercialLicense          bool   `json:"commercialLicense"`
+	Enabled                    bool   `json:"enabled"`
+	SortOrder                  int    `json:"sortOrder"`
 }
 
 // StudioPlanOffer 是用户看到的套餐：套餐权益加上可购买的商品（不同币种、时长各一个商品）。
@@ -26,11 +27,15 @@ type StudioPlanOffer struct {
 }
 
 type StudioMembershipView struct {
-	Active            bool              `json:"active"`
-	Plan              *model.StudioPlan `json:"plan,omitempty"`
-	ExpiresAt         *time.Time        `json:"expiresAt,omitempty"`
-	ActiveTaskLimit   int               `json:"activeTaskLimit"`
-	CommercialLicense bool              `json:"commercialLicense"`
+	Active    bool              `json:"active"`
+	Plan      *model.StudioPlan `json:"plan,omitempty"`
+	ExpiresAt *time.Time        `json:"expiresAt,omitempty"`
+	// 当前会员积分周期：到期时没用完的会员积分清零，并发放下个月积分。
+	PeriodEndsAt               *time.Time `json:"periodEndsAt,omitempty"`
+	MonthlyCreditsMicrocredits int64      `json:"monthlyCreditsMicrocredits,omitempty"`
+	GrantsRemaining            int        `json:"grantsRemaining,omitempty"`
+	ActiveTaskLimit            int        `json:"activeTaskLimit"`
+	CommercialLicense          bool       `json:"commercialLicense"`
 }
 
 func studioPlanFromInput(id string, input StudioPlanInput) (model.StudioPlan, error) {
@@ -44,12 +49,15 @@ func studioPlanFromInput(id string, input StudioPlanInput) (model.StudioPlan, er
 	if input.DurationDays < 1 || input.DurationDays > 3660 {
 		return model.StudioPlan{}, BadAuthRequest("套餐时长必须为 1 到 3660 天")
 	}
+	if input.MonthlyCreditsMicrocredits < 0 || input.MonthlyCreditsMicrocredits > maxTopupCreditsMicrocredits {
+		return model.StudioPlan{}, BadAuthRequest("每月积分超出范围")
+	}
 	if input.ActiveTaskLimit < 0 || input.ActiveTaskLimit > 1000 {
 		return model.StudioPlan{}, BadAuthRequest("并发任务上限必须为 0 到 1000")
 	}
 	return model.StudioPlan{
 		ID: id, Name: name, Description: strings.TrimSpace(input.Description), Badge: strings.TrimSpace(input.Badge),
-		DurationDays: input.DurationDays, ActiveTaskLimit: input.ActiveTaskLimit, CommercialLicense: input.CommercialLicense,
+		DurationDays: input.DurationDays, MonthlyCreditsMicrocredits: input.MonthlyCreditsMicrocredits, ActiveTaskLimit: input.ActiveTaskLimit, CommercialLicense: input.CommercialLicense,
 		Enabled: input.Enabled, SortOrder: input.SortOrder,
 	}, nil
 }
@@ -104,7 +112,7 @@ func (s *Service) StudioPlanOffers() ([]StudioPlanOffer, error) {
 		if err != nil {
 			return nil, err
 		}
-		products = decorateTopupProducts(products, now)
+		products = s.withPlanMonthlyCredits(decorateTopupProducts(products, now))
 		if len(products) == 0 {
 			continue
 		}
@@ -144,6 +152,7 @@ func (s *Service) StudioMembership(userID string) (StudioMembershipView, error) 
 		return view, nil
 	}
 	view.Active, view.Plan, view.CommercialLicense = true, plan, plan.CommercialLicense
+	view.PeriodEndsAt, view.MonthlyCreditsMicrocredits, view.GrantsRemaining = membership.PeriodEndsAt, membership.MonthlyCreditsMicrocredits, membership.GrantsRemaining
 	view.ActiveTaskLimit = effectiveActiveTaskLimit(policy.Task.ActiveTaskLimit, plan)
 	return view, nil
 }

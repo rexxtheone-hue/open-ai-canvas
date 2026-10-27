@@ -340,7 +340,9 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
                                             {visibleProducts.length ? null : <p className="workspace-wallet-empty-products">这个支付方式暂时没有可购买的商品。</p>}
                                             {visibleProducts.map((product) => {
                                                 const unavailableLabel =
-                                                    product.saleStatus === "upcoming"
+                                                    product.saleStatus === "members_only"
+                                                        ? "会员专属，开通会员后可购买"
+                                                        : product.saleStatus === "upcoming"
                                                         ? `发售时间：${product.saleStartAt ? new Date(product.saleStartAt).toLocaleString("zh-CN", { hour12: false }) : "待定"}`
                                                         : product.saleStatus === "ended"
                                                           ? "已结束"
@@ -361,10 +363,11 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
                                                         onClick={() => setSelectedProductId(product.id)}
                                                     >
                                                         <span>{product.name}</span>
-                                                        <strong>{formatCredits(product.creditsMicrocredits, 6)} 积分</strong>
+                                                        <strong>{product.planMonths ? `每月 ${formatCredits(product.creditsMicrocredits, 0)} 积分` : `${formatCredits(product.creditsMicrocredits, 6)} 积分`}</strong>
                                                         <small>
                                                             {formatMoney(product.amountFen, productCurrency(product))} · {unavailableLabel}
-                                                            {product.planId ? " · 含会员" : ""}
+                                                            {product.planId ? (product.planMonths && product.planMonths > 1 ? ` · 会员 ${product.planMonths} 个月，积分按月发放` : " · 含会员") : ""}
+                                                            {product.membersOnly && product.saleStatus !== "members_only" ? " · 会员加购，不会月底清零" : ""}
                                                             {product.description ? ` · ${product.description}` : ""}
                                                         </small>
                                                         {selectedProductId === product.id ? <Check /> : null}

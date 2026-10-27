@@ -55,6 +55,8 @@ type ProductFormValues = {
     amountYuan: number;
     currency: string;
     planId?: string;
+    planMonths?: number;
+    membersOnly?: boolean;
     credits: number;
     enabled: boolean;
     sortOrder: number;
@@ -276,6 +278,8 @@ export default function AdminPaymentsPage() {
                       amountYuan: product.amountFen / 100,
                       currency: product.currency || "CNY",
                       planId: product.planId || undefined,
+                      planMonths: product.planMonths || 0,
+                      membersOnly: Boolean(product.membersOnly),
                       credits: product.creditsMicrocredits / 1_000_000,
                       enabled: product.enabled,
                       sortOrder: product.sortOrder,
@@ -286,7 +290,7 @@ export default function AdminPaymentsPage() {
                       saleStartAt: product.saleStartAt ? dayjs(product.saleStartAt) : undefined,
                       saleEndAt: product.saleEndAt ? dayjs(product.saleEndAt) : undefined,
                   }
-                : { enabled: true, sortOrder: products.length * 10, amountYuan: 10, currency: "CNY", credits: 10, saleStrategy: "unlimited" },
+                : { enabled: true, sortOrder: products.length * 10, amountYuan: 10, currency: "CNY", credits: 10, planMonths: 0, membersOnly: false, saleStrategy: "unlimited" },
         );
         setProductDrawer(product || null);
     };
@@ -300,6 +304,8 @@ export default function AdminPaymentsPage() {
             amountFen: Math.round(values.amountYuan * 100),
             currency: values.currency || "CNY",
             planId: values.planId || "",
+            planMonths: values.planId ? values.planMonths || 0 : 0,
+            membersOnly: Boolean(values.membersOnly),
             creditsMicrocredits: Math.round(values.credits * 1_000_000),
             enabled: values.enabled,
             sortOrder: values.sortOrder || 0,
@@ -459,8 +465,8 @@ export default function AdminPaymentsPage() {
                 </div>
             ),
         },
-        { title: "售价", dataIndex: "amountFen", width: 130, align: "right", render: (value, product) => <span className="font-medium tabular-nums">{formatMoney(value, product.currency)}{product.planId ? <span className="ml-1 text-xs text-foreground/45">含会员</span> : null}</span> },
-        { title: "到账积分", dataIndex: "creditsMicrocredits", width: 150, align: "right", render: (value) => <span className="tabular-nums">{formatCredits(value)}</span> },
+        { title: "售价", dataIndex: "amountFen", width: 130, align: "right", render: (value, product) => <span className="font-medium tabular-nums">{formatMoney(value, product.currency)}{product.planId ? <span className="ml-1 text-xs text-foreground/45">含会员</span> : null}{product.membersOnly ? <span className="ml-1 text-xs text-foreground/45">仅会员</span> : null}</span> },
+        { title: "到账积分", dataIndex: "creditsMicrocredits", width: 150, align: "right", render: (value, product) => <span className="tabular-nums">{product.planMonths ? (product.planMonths === 1 ? "按月发 1 个月" : `按月发 ${product.planMonths} 个月`) : formatCredits(value)}</span> },
         { title: "排序", dataIndex: "sortOrder", width: 90, align: "center" },
         {
             title: "上架策略",
@@ -1003,6 +1009,12 @@ export default function AdminPaymentsPage() {
                             ]}
                         >
                             <InputNumber min={0.000001} max={1_000_000_000} precision={6} className="w-full" />
+                        </Form.Item>
+                        <Form.Item name="planMonths" label="会员积分发放" extra="按月发放时，到账积分以套餐的「每月积分」为准，上面的到账积分不生效。">
+                            <Select aria-label="会员积分发放" options={[{ value: 0, label: "不按月（一次到账）" }, { value: 1, label: "月付：发 1 个月" }, { value: 12, label: "年付：按月发 12 个月" }]} />
+                        </Form.Item>
+                        <Form.Item name="membersOnly" label="仅会员可买" valuePropName="checked" extra="用于会员加购的充值包。">
+                            <Switch />
                         </Form.Item>
                     </div>
                     <Form.Item name="saleStrategy" label="上架策略" rules={[{ required: true }]}>
