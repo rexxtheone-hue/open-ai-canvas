@@ -5,7 +5,7 @@ import { Check, Crown } from "./studio-icons";
 import { formatCredits } from "@/constant/credits";
 import { formatMoney } from "@/lib/money";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
-import { listTopupProducts, type TopupProduct } from "@/services/api/payments";
+import type { TopupProduct } from "@/services/api/payments";
 import { getStudioMembership, listStudioPlans, setStudioAutoRenew, type StudioPlanOffer } from "@/services/api/studio";
 import { useUserStore } from "@/stores/use-user-store";
 import { StudioShell } from "./studio-shell";
@@ -39,7 +39,6 @@ export default function StudioPricingPage() {
     const [billing, setBilling] = useState<Billing>("annual");
     const plansQuery = useQuery({ queryKey: ["studio", "plans"], queryFn: async () => (await listStudioPlans()).plans });
     const membershipQuery = useQuery({ queryKey: ["studio", "membership", user?.id || ""], queryFn: getStudioMembership, enabled: Boolean(user) });
-    const packsQuery = useQuery({ queryKey: ["studio", "addon-packs", user?.id || ""], queryFn: async () => (await listTopupProducts()).products.filter((product) => product.membersOnly && product.enabled), enabled: Boolean(user) });
     const queryClient = useQueryClient();
     const autoRenew = useMutation({
         mutationFn: setStudioAutoRenew,
@@ -49,7 +48,6 @@ export default function StudioPricingPage() {
     const lots = membership?.creditLots || [];
     const lotCredits = lots.reduce((sum, lot) => sum + lot.remainingMicrocredits, 0);
     const plans = plansQuery.data || [];
-    const packs = packsQuery.data || [];
     const maxSavingPercent = plans.reduce((best, plan) => {
         const monthly = planProduct(plan, 1);
         const annual = planProduct(plan, 12);
@@ -166,24 +164,6 @@ export default function StudioPricingPage() {
                         );
                     })}
                 </div>
-                {packs.length ? (
-                    <section className="studio-addon">
-                        <div className="studio-section-head">
-                            <div>
-                                <h2>会员加购积分</h2>
-                                <p>会员积分不够用时加购。加购的积分不会月底清零，12 个月内有效；扣积分时先用当月会员积分。</p>
-                            </div>
-                        </div>
-                        <div className="studio-addon-grid">
-                            {packs.map((pack) => (
-                                <button key={pack.id} type="button" className="studio-plan-buy" disabled={!pack.canPurchase} onClick={() => openWorkspaceWallet({ productId: pack.id })}>
-                                    <strong>{formatCredits(pack.creditsMicrocredits, 0)} 积分</strong>
-                                    <span>{formatMoney(pack.amountFen, pack.currency)}{pack.saleStatus === "members_only" ? " · 开通会员后可购买" : ""}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </section>
-                ) : null}
                 {plans.length ? (
                     <section className="studio-faq">
                         <h2>常见问题</h2>
