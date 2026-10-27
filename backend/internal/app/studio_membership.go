@@ -26,6 +26,11 @@ type StudioPlanOffer struct {
 	Products []model.TopupProduct `json:"products"`
 }
 
+type StudioCreditLot struct {
+	RemainingMicrocredits int64     `json:"remainingMicrocredits"`
+	ExpiresAt             time.Time `json:"expiresAt"`
+}
+
 type StudioMembershipView struct {
 	Active    bool              `json:"active"`
 	Plan      *model.StudioPlan `json:"plan,omitempty"`
@@ -34,8 +39,12 @@ type StudioMembershipView struct {
 	PeriodEndsAt               *time.Time `json:"periodEndsAt,omitempty"`
 	MonthlyCreditsMicrocredits int64      `json:"monthlyCreditsMicrocredits,omitempty"`
 	GrantsRemaining            int        `json:"grantsRemaining,omitempty"`
-	ActiveTaskLimit            int        `json:"activeTaskLimit"`
-	CommercialLicense          bool       `json:"commercialLicense"`
+	// AutoRenew 为 active（会自动续费）、canceling（本期结束后停止）或空（没有自动续费）。
+	AutoRenew string `json:"autoRenew,omitempty"`
+	// 有有效期的加购积分，按到期先后排序。
+	CreditLots        []StudioCreditLot `json:"creditLots,omitempty"`
+	ActiveTaskLimit   int               `json:"activeTaskLimit"`
+	CommercialLicense bool              `json:"commercialLicense"`
 }
 
 func studioPlanFromInput(id string, input StudioPlanInput) (model.StudioPlan, error) {
@@ -140,9 +149,17 @@ func (s *Service) StudioMembership(userID string) (StudioMembershipView, error) 
 		return StudioMembershipView{}, err
 	}
 	view := StudioMembershipView{ActiveTaskLimit: policy.Task.ActiveTaskLimit}
-	membership, plan, err := s.activeStudioPlan(userID, time.Now())
+	now := time.Now()
+	membership, plan, err := s.activeStudioPlan(userID, now)
 	if err != nil {
 		return view, err
+	}
+	lots, err := s.repo.ActiveCreditLots(userID, now)
+	if err != nil {
+		return view, err
+	}
+	for _, lot := range lots {
+		view.CreditLots = append(view.CreditLots, StudioCreditLot{RemainingMicrocredits: lot.RemainingMicrocredits, ExpiresAt: lot.ExpiresAt})
 	}
 	if membership != nil {
 		expires := membership.ExpiresAt
@@ -153,6 +170,9 @@ func (s *Service) StudioMembership(userID string) (StudioMembershipView, error) 
 	}
 	view.Active, view.Plan, view.CommercialLicense = true, plan, plan.CommercialLicense
 	view.PeriodEndsAt, view.MonthlyCreditsMicrocredits, view.GrantsRemaining = membership.PeriodEndsAt, membership.MonthlyCreditsMicrocredits, membership.GrantsRemaining
+	if membership.SubscriptionID != "" && membership.SubscriptionStatus != "ended" {
+		view.AutoRenew = membership.SubscriptionStatus
+	}
 	view.ActiveTaskLimit = effectiveActiveTaskLimit(policy.Task.ActiveTaskLimit, plan)
 	return view, nil
 }

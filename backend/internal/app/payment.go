@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -72,6 +73,7 @@ type TopupProductRequest struct {
 	PlanID              string                  `json:"planId"`
 	PlanMonths          int                     `json:"planMonths"`
 	MembersOnly         bool                    `json:"membersOnly"`
+	CreditValidMonths   int                     `json:"creditValidMonths"`
 }
 
 type CreatePaymentOrderRequest struct {
@@ -215,7 +217,7 @@ func (s *Service) CreatePaymentOrder(ctx context.Context, actor *model.User, req
 		ProductID: product.ID, ProductName: product.Name, ProviderID: provider.Descriptor().ID,
 		PluginID: provider.Descriptor().PluginID, PluginVersion: provider.Descriptor().PluginVersion, ProviderConfigID: config.ID, ProviderConfigVersion: config.Version,
 		AmountFen: product.AmountFen, Currency: productCurrency, CreditsMicrocredits: credits,
-		PlanID: planID, PlanDurationDays: planDays, PlanMonths: planMonths,
+		PlanID: planID, PlanDurationDays: planDays, PlanMonths: planMonths, CreditValidMonths: product.CreditValidMonths,
 		Status: model.PaymentOrderCreated, CheckoutMode: provider.Descriptor().CheckoutMode,
 		ExpiresAt: now.Add(time.Duration(config.CloseAfterMinutes) * time.Minute),
 	}
@@ -233,7 +235,7 @@ func (s *Service) CreatePaymentOrder(ctx context.Context, actor *model.User, req
 	baseURL := strings.TrimRight(values["publicBaseUrl"], "/")
 	checkout, err := provider.CreateOrder(ctx, values, payment.CreateRequest{
 		MerchantOrderNo: order.MerchantOrderNo, Description: product.Name, AmountFen: order.AmountFen,
-		Currency: order.Currency, ExpiresAt: order.ExpiresAt,
+		Currency: order.Currency, ExpiresAt: order.ExpiresAt, Interval: subscriptionInterval(order.ProviderID, order.PlanMonths),
 		NotifyURL: baseURL + "/api/payments/notify/" + url.PathEscape(order.ProviderID) + "/" + url.PathEscape(config.ID),
 		ReturnURL: baseURL + "/api/payments/return/" + url.PathEscape(order.ProviderID) + "?orderId=" + url.QueryEscape(order.ID),
 	})
@@ -438,6 +440,16 @@ func (s *Service) processPaymentNotification(notification *model.PaymentNotifica
 	if err := json.Unmarshal([]byte(notification.NormalizedJSON), &result); err != nil {
 		return err
 	}
+	if !result.Paid && result.SubscriptionStatus != "" && result.SubscriptionID != "" {
+		if err := s.repo.SetSubscriptionStatus(result.SubscriptionID, result.SubscriptionStatus, time.Now()); err != nil {
+			return err
+		}
+		return s.repo.CompletePaymentNotification(notification.ID)
+	}
+	if !result.Paid && !result.Closed && strings.HasPrefix(result.ProviderStatus, "invoice.") {
+		// 改价、补差价等账单只记录，不对应新的会员周期。
+		return s.repo.CompletePaymentNotification(notification.ID)
+	}
 	if !result.Paid {
 		return errors.New("支付通知不是成功状态")
 	}
@@ -538,12 +550,27 @@ func (s *Service) applyPaymentResult(providerID string, result payment.Result) (
 		if result.AmountFen != order.AmountFen || result.Currency != order.Currency {
 			return nil, repository.ErrPaymentEvidenceMismatch
 		}
-		completed, _, err := s.repo.CompletePaymentOrder(providerID, result.MerchantOrderNo, repository.PaymentEvidence{
+		if result.Renewal && order.ProviderTradeNo != nil && *order.ProviderTradeNo != result.ProviderTradeNo {
+			// 自动续费扣款：沿用首单生成一张续费订单再入账。
+			if order.Status != model.PaymentOrderCredited {
+				return nil, repository.ErrPaymentOrderStateConflict
+			}
+			renewal, err := s.repo.RenewalPaymentOrder(order, result.ProviderTradeNo)
+			if err != nil {
+				return nil, err
+			}
+			order = renewal
+		}
+		previous, _ := s.repo.UserMembership(order.UserID)
+		completed, _, err := s.repo.CompletePaymentOrder(providerID, order.MerchantOrderNo, repository.PaymentEvidence{
 			ProviderTradeNo: result.ProviderTradeNo, ProviderStatus: result.ProviderStatus,
-			AmountFen: result.AmountFen, Currency: result.Currency, PaidAt: result.PaidAt,
+			AmountFen: result.AmountFen, Currency: result.Currency, PaidAt: result.PaidAt, SubscriptionID: result.SubscriptionID,
 		})
 		if err == nil {
 			s.recordAffiliateCommission(completed)
+			if previous != nil && completed.PlanMonths > 0 && completed.RenewalOf == "" {
+				s.cancelReplacedSubscription(previous, completed)
+			}
 		}
 		return completed, err
 	}
@@ -674,4 +701,80 @@ func (s *Service) AdminClosePaymentOrder(ctx context.Context, actor *model.User,
 	}
 	view := paymentOrderView(*order)
 	return &view, nil
+}
+
+// subscriptionProviders 是支持自动续费的支付渠道；其他渠道的会员商品按一次性付款处理。
+var subscriptionProviders = map[string]bool{"stripe-checkout": true}
+
+func subscriptionInterval(providerID string, planMonths int) string {
+	if !subscriptionProviders[providerID] {
+		return ""
+	}
+	switch planMonths {
+	case 1:
+		return "month"
+	case 12:
+		return "year"
+	}
+	return ""
+}
+
+// cancelReplacedSubscription：换套餐或重新开通后，旧订阅立即停止，避免两份订阅同时扣款。
+func (s *Service) cancelReplacedSubscription(previous *model.UserMembership, completed *model.PaymentOrder) {
+	if previous.SubscriptionID == "" || previous.SubscriptionID == completed.SubscriptionID || previous.SubscriptionStatus == "ended" {
+		return
+	}
+	if err := s.manageSubscription(context.Background(), previous, "cancel_now"); err != nil {
+		log.Printf("cancel replaced subscription failed: user=%s subscription=%s error=%v", previous.UserID, previous.SubscriptionID, err)
+	}
+}
+
+func (s *Service) manageSubscription(ctx context.Context, membership *model.UserMembership, action string) error {
+	order, err := s.repo.PaymentOrder(membership.SubscriptionOrderID)
+	if err != nil {
+		return err
+	}
+	provider, _, values, err := s.paymentRuntimeForOrder(order)
+	if err != nil {
+		return err
+	}
+	manager, ok := provider.(payment.SubscriptionManager)
+	if !ok {
+		return BadAuthRequest("这个支付渠道不支持管理自动续费")
+	}
+	operationContext, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	result, err := manager.ManageSubscription(operationContext, values, payment.SubscriptionRequest{
+		MerchantOrderNo: order.MerchantOrderNo, SubscriptionID: membership.SubscriptionID, Action: action,
+	})
+	if err != nil {
+		return WrapAppError(http.StatusBadGateway, "支付渠道处理自动续费失败，请稍后重试", err)
+	}
+	status := result.SubscriptionStatus
+	if status == "" {
+		status = map[string]string{"cancel_now": "ended", "cancel_at_period_end": "canceling", "resume": "active"}[action]
+	}
+	return s.repo.SetSubscriptionStatus(membership.SubscriptionID, status, time.Now())
+}
+
+// SetStudioAutoRenew 让会员取消或恢复自动续费；取消后本期权益照常用到期。
+func (s *Service) SetStudioAutoRenew(ctx context.Context, actor *model.User, enabled bool) (StudioMembershipView, error) {
+	if actor == nil {
+		return StudioMembershipView{}, Unauthorized("请先登录")
+	}
+	membership, err := s.repo.UserMembership(actor.ID)
+	if err != nil {
+		return StudioMembershipView{}, err
+	}
+	if membership == nil || membership.SubscriptionID == "" || membership.SubscriptionStatus == "ended" || !membership.ExpiresAt.After(time.Now()) {
+		return StudioMembershipView{}, BadAuthRequest("当前会员没有自动续费")
+	}
+	action := "cancel_at_period_end"
+	if enabled {
+		action = "resume"
+	}
+	if err := s.manageSubscription(ctx, membership, action); err != nil {
+		return StudioMembershipView{}, err
+	}
+	return s.StudioMembership(actor.ID)
 }

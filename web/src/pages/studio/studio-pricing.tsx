@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Check, Crown } from "./studio-icons";
 
@@ -6,7 +6,7 @@ import { formatCredits } from "@/constant/credits";
 import { formatMoney } from "@/lib/money";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { listTopupProducts, type TopupProduct } from "@/services/api/payments";
-import { getStudioMembership, listStudioPlans, type StudioPlanOffer } from "@/services/api/studio";
+import { getStudioMembership, listStudioPlans, setStudioAutoRenew, type StudioPlanOffer } from "@/services/api/studio";
 import { useUserStore } from "@/stores/use-user-store";
 import { StudioShell } from "./studio-shell";
 
@@ -19,9 +19,10 @@ const VIDEO_REFERENCE_CREDITS = 315;
 const FAQS: { q: string; a: string }[] = [
     { q: "每月积分会累积到下个月吗？", a: "不会。会员积分按月发放、当月有效，到下一个发放日没用完的会员积分会清零，再发放新一个月的积分。例如 3 月 7 日开通 Pro，拿到 14,000 积分，用了 6,000；4 月 7 日剩下的 8,000 清零，重新发放 14,000。" },
     { q: "月付和年付有什么不同？", a: "权益完全一样，只是价格不同。年付比月付省约 15%，积分同样每月发放一次，共 12 个月。想先试试可以选月付，之后随时改成年付。" },
-    { q: "加购积分是什么？", a: "会员积分不够用时，可以另外购买积分包。加购的积分不会在月底清零，扣积分时先用当月会员积分，用完才扣加购积分。积分包只开放给会员。" },
+    { q: "加购积分是什么？", a: "会员积分不够用时，可以另外购买积分包。加购的积分不会在月底清零，购买后 12 个月内有效。扣积分时先用当月会员积分，再用最早到期的加购积分。积分包只开放给会员。" },
     { q: "升级套餐会怎样？", a: "购买更高的套餐后立即生效，马上发放新套餐的每月积分，原套餐没用完的会员积分保留到新周期结束。年付中途换套餐，旧套餐未发放的月份不会保留，有需要请先联系客服。" },
-    { q: "到期或不续费会怎样？", a: "会员不会自动扣款。到期后回到普通用户权益，没用完的会员积分清零；加购的积分仍然可以继续使用，但不能再购买新的积分包。" },
+    { q: "会自动续费吗？怎么取消？", a: "会。用银行卡开通后，每个周期结束时自动扣款并发放新一期积分。可以随时在本页取消自动续费，取消后本期权益照常用到期，不会再扣款。" },
+    { q: "到期或不续费会怎样？", a: "到期后回到普通用户权益，没用完的会员积分清零；加购的积分在有效期内仍然可以继续使用，但不能再购买新的积分包。" },
 ];
 
 function planProduct(plan: StudioPlanOffer, months: number) {
@@ -39,7 +40,14 @@ export default function StudioPricingPage() {
     const plansQuery = useQuery({ queryKey: ["studio", "plans"], queryFn: async () => (await listStudioPlans()).plans });
     const membershipQuery = useQuery({ queryKey: ["studio", "membership", user?.id || ""], queryFn: getStudioMembership, enabled: Boolean(user) });
     const packsQuery = useQuery({ queryKey: ["studio", "addon-packs", user?.id || ""], queryFn: async () => (await listTopupProducts()).products.filter((product) => product.membersOnly && product.enabled), enabled: Boolean(user) });
+    const queryClient = useQueryClient();
+    const autoRenew = useMutation({
+        mutationFn: setStudioAutoRenew,
+        onSuccess: (view) => queryClient.setQueryData(["studio", "membership", user?.id || ""], view),
+    });
     const membership = membershipQuery.data;
+    const lots = membership?.creditLots || [];
+    const lotCredits = lots.reduce((sum, lot) => sum + lot.remainingMicrocredits, 0);
     const plans = plansQuery.data || [];
     const packs = packsQuery.data || [];
     const maxSavingPercent = plans.reduce((best, plan) => {
@@ -69,6 +77,16 @@ export default function StudioPricingPage() {
                                 {membership.grantsRemaining ? ` · 还有 ${membership.grantsRemaining} 个月积分待发放` : ""}
                                 {` · 同时生成 ${membership.activeTaskLimit} 个任务`}
                             </span>
+                            {membership.autoRenew ? (
+                                <span>
+                                    {membership.autoRenew === "active" ? "自动续费已开启" : "已取消自动续费，本期结束后停止"}
+                                    <button type="button" className="studio-link-button" disabled={autoRenew.isPending} onClick={() => autoRenew.mutate(membership.autoRenew !== "active")}>
+                                        {membership.autoRenew === "active" ? "取消自动续费" : "恢复自动续费"}
+                                    </button>
+                                </span>
+                            ) : null}
+                            {autoRenew.isError ? <span role="alert">{autoRenew.error instanceof Error ? autoRenew.error.message : "操作失败"}</span> : null}
+                            {lotCredits > 0 ? <span>加购积分 {formatCredits(lotCredits, 0)}，最早一笔 {new Date(lots[0].expiresAt).toLocaleDateString("zh-CN")} 到期</span> : null}
                         </div>
                     ) : (
                         <div>
@@ -125,7 +143,8 @@ export default function StudioPricingPage() {
                                     <li><Check aria-hidden />同时生成 {plan.activeTaskLimit > 0 ? plan.activeTaskLimit : "标准数量的"} 个任务</li>
                                     <li><Check aria-hidden />所有图片、视频、音频模型</li>
                                     {plan.commercialLicense ? <li><Check aria-hidden />作品可商用</li> : null}
-                                    {!legacy ? <li><Check aria-hidden />积分不够可加购，加购积分不清零</li> : null}
+                                    {!legacy ? <li><Check aria-hidden />积分不够可加购，12 个月内有效</li> : null}
+                                    {!legacy ? <li><Check aria-hidden />自动续费，可随时取消</li> : null}
                                 </ul>
                                 <div className="studio-plan-products">
                                     {legacy ? (
@@ -152,7 +171,7 @@ export default function StudioPricingPage() {
                         <div className="studio-section-head">
                             <div>
                                 <h2>会员加购积分</h2>
-                                <p>会员积分不够用时加购。加购的积分不会月底清零，扣积分时先用当月会员积分。</p>
+                                <p>会员积分不够用时加购。加购的积分不会月底清零，12 个月内有效；扣积分时先用当月会员积分。</p>
                             </div>
                         </div>
                         <div className="studio-addon-grid">

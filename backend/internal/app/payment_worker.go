@@ -122,6 +122,15 @@ func (s *Service) queryPendingPaymentOrders(ctx context.Context) {
 // rollPlanCreditPeriods 清零到期的会员积分，并给还有剩余月份的会员发放下个月积分。
 func (s *Service) rollPlanCreditPeriods() {
 	now := time.Now()
+	lotUsers, err := s.repo.DueCreditLotUsers(now, 100)
+	if err != nil {
+		log.Printf("credit lot expiry query failed: %v", err)
+	}
+	for _, userID := range lotUsers {
+		if err := s.repo.ExpireCreditLots(userID, now); err != nil {
+			log.Printf("credit lot expiry failed: user=%s error=%v", userID, err)
+		}
+	}
 	userIDs, err := s.repo.DuePlanCreditPeriods(now, 100)
 	if err != nil {
 		log.Printf("plan credit period query failed: %v", err)

@@ -54,6 +54,8 @@ type TopupProduct struct {
 	PlanID string `json:"planId,omitempty" gorm:"size:36;index"`
 	// PlanMonths 大于 0 时按月发放会员积分（1 = 月付，12 = 年付），商品积分不再使用。
 	PlanMonths int `json:"planMonths,omitempty"`
+	// CreditValidMonths 大于 0 时，购买的积分在这么多个月后过期。
+	CreditValidMonths int `json:"creditValidMonths,omitempty"`
 	// MembersOnly 的商品只有会员有效期内才能购买。
 	MembersOnly         bool              `json:"membersOnly,omitempty"`
 	Enabled             bool              `json:"enabled" gorm:"index"`
@@ -108,6 +110,10 @@ type PaymentOrder struct {
 	PlanID              string             `json:"planId,omitempty" gorm:"size:36"`
 	PlanDurationDays    int                `json:"planDurationDays,omitempty"`
 	PlanMonths          int                `json:"planMonths,omitempty"`
+	CreditValidMonths   int                `json:"creditValidMonths,omitempty"`
+	// 自动续费：首单和续费订单都记录订阅号；续费订单的 RenewalOf 指向首单。
+	SubscriptionID string `json:"subscriptionId,omitempty" gorm:"size:120;index"`
+	RenewalOf      string `json:"renewalOf,omitempty" gorm:"size:36;index"`
 	CreditsMicrocredits int64              `json:"creditsMicrocredits"`
 	Status              PaymentOrderStatus `json:"status" gorm:"size:24;index;index:idx_payment_order_status_expiry,priority:1"`
 	ProviderTradeNo     *string            `json:"providerTradeNo,omitempty" gorm:"size:96;uniqueIndex:idx_payment_provider_trade,priority:2"`

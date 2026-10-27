@@ -91,6 +91,8 @@ func TestStripeQueryAndCloseOrder(t *testing.T) {
 				return
 			}
 			fmt.Fprint(w, `{"data":[]}`)
+		case strings.HasPrefix(r.URL.Path, "/v1/subscriptions/search"):
+			fmt.Fprint(w, `{"data":[]}`)
 		case r.URL.Path == "/v1/checkout/sessions":
 			fmt.Fprint(w, `{"data":[{"id":"cs_other","client_reference_id":"x"},{"id":"cs_open","client_reference_id":"open-order"}],"has_more":false}`)
 		case r.URL.Path == "/v1/checkout/sessions/cs_open/expire":
@@ -164,5 +166,65 @@ func TestStripeVerifyNotification(t *testing.T) {
 	note, err = provider.VerifyNotification(context.Background(), stripeTestConfig(), headers(signStripe(expiredBody, "whsec_abc", now)), []byte(expiredBody))
 	if err != nil || !note.Closed {
 		t.Fatalf("expired session must close the order: %+v %v", note, err)
+	}
+}
+
+func TestStripeSubscriptionCheckoutAndEvents(t *testing.T) {
+	var form url.Values
+	var method, path string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		form, _ = url.ParseQuery(string(body))
+		method, path = r.Method, r.URL.Path
+		if strings.HasPrefix(r.URL.Path, "/v1/subscriptions/") {
+			fmt.Fprint(w, `{"id":"sub_1","status":"active","cancel_at_period_end":true,"metadata":{"merchant_order_no":"m1"}}`)
+			return
+		}
+		fmt.Fprint(w, `{"id":"cs_1","url":"https://checkout.stripe.com/c/pay/cs_1","expires_at":1900000000}`)
+	}))
+	defer server.Close()
+	now := time.Unix(1_800_000_000, 0)
+	provider := NewStripeProvider(server.Client())
+	provider.baseURL, provider.now = server.URL, func() time.Time { return now }
+	if _, err := provider.CreateOrder(context.Background(), stripeTestConfig(), CreateRequest{MerchantOrderNo: "m1", Description: "Pro 年付", AmountFen: 199900, Currency: "MYR", ExpiresAt: now.Add(time.Hour), ReturnURL: "https://x", Interval: "year"}); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{"mode": "subscription", "subscription_data[metadata][merchant_order_no]": "m1", "line_items[0][price_data][recurring][interval]": "year", "payment_method_types[0]": "card", "payment_method_types[1]": ""}
+	for key, value := range want {
+		if form.Get(key) != value {
+			t.Fatalf("%s = %q, want %q", key, form.Get(key), value)
+		}
+	}
+	if form.Get("payment_intent_data[metadata][merchant_order_no]") != "" {
+		t.Fatal("subscription checkout must not send payment_intent_data")
+	}
+	headers := func(body string) http.Header {
+		header := http.Header{}
+		header.Set("Stripe-Signature", signStripe(body, "whsec_abc", now))
+		return header
+	}
+	session := `{"id":"evt_s","type":"checkout.session.completed","created":1800000000,"data":{"object":{"id":"cs_1","mode":"subscription","client_reference_id":"m1","payment_status":"paid","amount_total":199900,"currency":"myr","payment_intent":null,"invoice":"in_1","subscription":"sub_1"}}}`
+	note, err := provider.VerifyNotification(context.Background(), stripeTestConfig(), headers(session), []byte(session))
+	if err != nil || !note.Paid || note.ProviderTradeNo != "in_1" || note.SubscriptionID != "sub_1" || note.Renewal {
+		t.Fatalf("unexpected subscription checkout notification %+v %v", note, err)
+	}
+	renewal := `{"id":"evt_r","type":"invoice.paid","created":1800000000,"data":{"object":{"id":"in_2","status":"paid","amount_paid":199900,"currency":"myr","billing_reason":"subscription_cycle","subscription":"sub_1","subscription_details":{"metadata":{"merchant_order_no":"m1"}}}}}`
+	note, err = provider.VerifyNotification(context.Background(), stripeTestConfig(), headers(renewal), []byte(renewal))
+	if err != nil || !note.Paid || !note.Renewal || note.ProviderTradeNo != "in_2" || note.MerchantOrderNo != "m1" {
+		t.Fatalf("unexpected renewal notification %+v %v", note, err)
+	}
+	newShape := `{"id":"evt_n","type":"invoice.paid","created":1800000000,"data":{"object":{"id":"in_3","status":"paid","amount_paid":199900,"currency":"myr","billing_reason":"subscription_cycle","parent":{"subscription_details":{"subscription":"sub_1","metadata":{"merchant_order_no":"m1"}}}}}}`
+	note, err = provider.VerifyNotification(context.Background(), stripeTestConfig(), headers(newShape), []byte(newShape))
+	if err != nil || !note.Renewal || note.SubscriptionID != "sub_1" {
+		t.Fatalf("newer invoice shape must be understood %+v %v", note, err)
+	}
+	deleted := `{"id":"evt_d","type":"customer.subscription.deleted","created":1800000000,"data":{"object":{"id":"sub_1","status":"canceled","metadata":{"merchant_order_no":"m1"}}}}`
+	note, err = provider.VerifyNotification(context.Background(), stripeTestConfig(), headers(deleted), []byte(deleted))
+	if err != nil || note.Paid || note.SubscriptionStatus != SubscriptionEnded {
+		t.Fatalf("unexpected deletion notification %+v %v", note, err)
+	}
+	result, err := provider.ManageSubscription(context.Background(), stripeTestConfig(), SubscriptionRequest{SubscriptionID: "sub_1", Action: "cancel_at_period_end"})
+	if err != nil || method != http.MethodPost || path != "/v1/subscriptions/sub_1" || form.Get("cancel_at_period_end") != "true" || result.SubscriptionStatus != SubscriptionCanceling {
+		t.Fatalf("cancel request %s %s %v -> %+v %v", method, path, form, result, err)
 	}
 }

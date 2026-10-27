@@ -57,6 +57,7 @@ type ProductFormValues = {
     planId?: string;
     planMonths?: number;
     membersOnly?: boolean;
+    creditValidMonths?: number;
     credits: number;
     enabled: boolean;
     sortOrder: number;
@@ -280,6 +281,7 @@ export default function AdminPaymentsPage() {
                       planId: product.planId || undefined,
                       planMonths: product.planMonths || 0,
                       membersOnly: Boolean(product.membersOnly),
+                      creditValidMonths: product.creditValidMonths || 0,
                       credits: product.creditsMicrocredits / 1_000_000,
                       enabled: product.enabled,
                       sortOrder: product.sortOrder,
@@ -290,7 +292,7 @@ export default function AdminPaymentsPage() {
                       saleStartAt: product.saleStartAt ? dayjs(product.saleStartAt) : undefined,
                       saleEndAt: product.saleEndAt ? dayjs(product.saleEndAt) : undefined,
                   }
-                : { enabled: true, sortOrder: products.length * 10, amountYuan: 10, currency: "CNY", credits: 10, planMonths: 0, membersOnly: false, saleStrategy: "unlimited" },
+                : { enabled: true, sortOrder: products.length * 10, amountYuan: 10, currency: "CNY", credits: 10, planMonths: 0, membersOnly: false, creditValidMonths: 0, saleStrategy: "unlimited" },
         );
         setProductDrawer(product || null);
     };
@@ -306,6 +308,7 @@ export default function AdminPaymentsPage() {
             planId: values.planId || "",
             planMonths: values.planId ? values.planMonths || 0 : 0,
             membersOnly: Boolean(values.membersOnly),
+            creditValidMonths: values.planId ? 0 : values.creditValidMonths || 0,
             creditsMicrocredits: Math.round(values.credits * 1_000_000),
             enabled: values.enabled,
             sortOrder: values.sortOrder || 0,
@@ -1015,6 +1018,9 @@ export default function AdminPaymentsPage() {
                         </Form.Item>
                         <Form.Item name="membersOnly" label="仅会员可买" valuePropName="checked" extra="用于会员加购的充值包。">
                             <Switch />
+                        </Form.Item>
+                        <Form.Item name="creditValidMonths" label="积分有效期（月）" extra="0 表示永久有效。会员商品不适用。" rules={[{ type: "number", min: 0, max: 120 }]}>
+                            <InputNumber min={0} max={120} precision={0} className="w-full" />
                         </Form.Item>
                     </div>
                     <Form.Item name="saleStrategy" label="上架策略" rules={[{ required: true }]}>

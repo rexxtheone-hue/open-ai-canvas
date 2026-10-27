@@ -40,39 +40,120 @@ func planPeriodLeftoverTx(tx *gorm.DB, membership *model.UserMembership, availab
 	return leftover, nil
 }
 
-// applyPlanPurchaseTx 在支付入账事务里开通按月发放的会员。本次订单的积分已作为第一个月发放。
+// planPurchase 是一笔入账的会员订单：本次订单的积分已作为第一个月发放。
+type planPurchase struct {
+	UserID, PlanID             string
+	Months                     int
+	OrderCredits, AvailableNow int64
+	SubscriptionID, OrderID    string
+	Renewal                    bool
+}
+
+// subscriptionGrace 是自动续费会员的宽限期：续费扣款通常在到期后几分钟到几小时才到账，期间权益不中断。
+const subscriptionGrace = 3 * 24 * time.Hour
+
+// applyPlanPurchaseTx 在支付入账事务里开通按月发放的会员。
 // 续同一套餐时累加剩余月份；换套餐时从现在重新计算，旧套餐未发放的月份不保留。
-// 上一期还没用完的会员积分并入新周期，不会因为提前续费而作废。
-func applyPlanPurchaseTx(tx *gorm.DB, userID, planID string, months int, monthlyCredits, orderCredits, availableAfter int64, now time.Time) error {
+// 手动提前续费时，上一期没用完的会员积分并入新周期；自动续费扣款对应新的一期，上一期剩余照常清零。
+func applyPlanPurchaseTx(tx *gorm.DB, purchase planPurchase, now time.Time) error {
+	if err := settleCreditLotsTx(tx, purchase.UserID, now); err != nil {
+		return err
+	}
 	var membership model.UserMembership
-	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&membership, "user_id = ?", userID).Error
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&membership, "user_id = ?", purchase.UserID).Error
 	isNew := errors.Is(err, gorm.ErrRecordNotFound)
 	if err != nil && !isNew {
 		return err
 	}
 	leftover := int64(0)
 	if !isNew && membership.PeriodEndsAt != nil && membership.PeriodEndsAt.After(now) {
-		if leftover, err = planPeriodLeftoverTx(tx, &membership, availableAfter-orderCredits); err != nil {
+		if leftover, err = planPeriodLeftoverTx(tx, &membership, purchase.AvailableNow-purchase.OrderCredits); err != nil {
 			return err
 		}
+		if purchase.Renewal && leftover > 0 {
+			if err := expirePlanLeftoverTx(tx, purchase.UserID, leftover, fmt.Sprintf("plan-expire:%s:%d", purchase.UserID, membership.PeriodEndsAt.Unix()), now); err != nil {
+				return err
+			}
+			leftover = 0
+		}
 	}
-	remaining := months - 1
+	remaining := purchase.Months - 1
 	active := !isNew && membership.ExpiresAt.After(now)
-	if active && membership.PlanID == planID {
+	if active && membership.PlanID == purchase.PlanID {
 		remaining += membership.GrantsRemaining
 	}
 	if isNew || !active {
-		membership = model.UserMembership{UserID: userID, StartedAt: now}
+		membership = model.UserMembership{UserID: purchase.UserID, StartedAt: now}
 	}
 	start, end := now, now.AddDate(0, 1, 0)
-	membership.PlanID = planID
-	membership.MonthlyCreditsMicrocredits = monthlyCredits
-	membership.PeriodCreditsMicrocredits = leftover + orderCredits
+	membership.PlanID = purchase.PlanID
+	membership.MonthlyCreditsMicrocredits = purchase.OrderCredits
+	membership.PeriodCreditsMicrocredits = leftover + purchase.OrderCredits
 	membership.PeriodStartedAt, membership.PeriodEndsAt = &start, &end
 	membership.GrantsRemaining = remaining
 	membership.ExpiresAt = end.AddDate(0, remaining, 0)
+	if purchase.SubscriptionID != "" {
+		membership.SubscriptionID, membership.SubscriptionOrderID = purchase.SubscriptionID, purchase.OrderID
+		membership.SubscriptionStatus = "active"
+	} else if !purchase.Renewal {
+		membership.SubscriptionID, membership.SubscriptionOrderID, membership.SubscriptionStatus = "", "", ""
+	}
+	if membership.SubscriptionID != "" && membership.SubscriptionStatus == "active" {
+		membership.ExpiresAt = membership.ExpiresAt.Add(subscriptionGrace)
+	}
 	membership.UpdatedAt = now
-	return tx.Save(&membership).Error
+	if err := tx.Save(&membership).Error; err != nil {
+		return err
+	}
+	return resetCreditLotAnchorTx(tx, purchase.UserID, now)
+}
+
+func expirePlanLeftoverTx(tx *gorm.DB, userID string, amount int64, referenceKey string, now time.Time) error {
+	var account model.CreditAccount
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&account, "user_id = ?", userID).Error; err != nil {
+		return err
+	}
+	if amount > account.AvailableMicrocredits {
+		amount = account.AvailableMicrocredits
+	}
+	if amount <= 0 {
+		return nil
+	}
+	account.AvailableMicrocredits -= amount
+	if err := tx.Create(&model.CreditLedgerEntry{
+		ID: newRepositoryID(), UserID: userID, Type: model.CreditLedgerPlanExpire,
+		AmountMicrocredits: -amount, AvailableDeltaMicrocredits: -amount,
+		AvailableAfterMicrocredits: account.AvailableMicrocredits, ReservedAfterMicrocredits: account.ReservedMicrocredits,
+		ReferenceKey: &referenceKey, Note: "本月会员积分到期清零", CreatedAt: now,
+	}).Error; err != nil {
+		return err
+	}
+	return tx.Model(&model.CreditAccount{}).Where("user_id = ?", userID).Updates(map[string]any{
+		"available_microcredits": account.AvailableMicrocredits, "version": gorm.Expr("version + 1"), "updated_at": now,
+	}).Error
+}
+
+// SetSubscriptionStatus 记录渠道通知或用户操作后的自动续费状态；订阅已结束时取消宽限期。
+func (r *Repository) SetSubscriptionStatus(subscriptionID, status string, now time.Time) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var membership model.UserMembership
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&membership, "subscription_id = ?", subscriptionID).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		previous := membership.SubscriptionStatus
+		membership.SubscriptionStatus = status
+		if previous == "active" && status != "active" && membership.ExpiresAt.After(now) {
+			membership.ExpiresAt = membership.ExpiresAt.Add(-subscriptionGrace)
+		} else if previous != "active" && status == "active" && membership.ExpiresAt.After(now) {
+			membership.ExpiresAt = membership.ExpiresAt.Add(subscriptionGrace)
+		}
+		membership.UpdatedAt = now
+		return tx.Save(&membership).Error
+	})
 }
 
 // DuePlanCreditPeriods 返回会员积分周期已到期、需要清零或发放下个月积分的用户。
@@ -100,6 +181,9 @@ func (r *Repository) RollPlanCreditPeriod(userID string, now time.Time) error {
 			return err
 		}
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&account, "user_id = ?", userID).Error; err != nil {
+			return err
+		}
+		if err := settleCreditLotsTx(tx, userID, now); err != nil {
 			return err
 		}
 		periodEnd := *membership.PeriodEndsAt
@@ -155,6 +239,9 @@ func (r *Repository) RollPlanCreditPeriod(userID string, now time.Time) error {
 			membership.GrantsRemaining = 0
 		}
 		membership.UpdatedAt = now
-		return tx.Save(&membership).Error
+		if err := tx.Save(&membership).Error; err != nil {
+			return err
+		}
+		return resetCreditLotAnchorTx(tx, userID, now)
 	})
 }

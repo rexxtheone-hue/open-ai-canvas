@@ -29,6 +29,8 @@ export type TopupProduct = {
     planMonths?: number;
     /** 只有会员可以购买。 */
     membersOnly?: boolean;
+    /** 大于 0 时购买的积分在这么多个月后过期。 */
+    creditValidMonths?: number;
     enabled: boolean;
     sortOrder: number;
     saleStrategy: TopupSaleStrategy;
@@ -142,6 +144,7 @@ export type TopupProductInput = Pick<TopupProduct, "name" | "amountFen" | "credi
     planId?: string;
     planMonths?: number;
     membersOnly?: boolean;
+    creditValidMonths?: number;
     periodDays?: number;
     periodPurchaseLimit?: number;
     stockTotal?: number;

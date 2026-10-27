@@ -162,6 +162,9 @@ func topupProductFromRequest(id, actorID string, request TopupProductRequest, st
 	if request.PlanMonths < 0 || request.PlanMonths > 36 || (request.PlanMonths > 0 && planID == "") {
 		return nil, BadAuthRequest("按月发放积分的商品必须绑定会员套餐，月数为 1 到 36")
 	}
+	if request.CreditValidMonths < 0 || request.CreditValidMonths > 120 {
+		return nil, BadAuthRequest("积分有效期必须为 0 到 120 个月")
+	}
 	if request.PlanMonths > 0 {
 		// 按月发放的会员商品，积分以套餐的每月积分为准。
 		request.CreditsMicrocredits = 0
@@ -201,7 +204,7 @@ func topupProductFromRequest(id, actorID string, request TopupProductRequest, st
 	return &model.TopupProduct{
 		ID: id, Name: name, Description: truncateRunes(strings.TrimSpace(request.Description), 500),
 		AmountFen: request.AmountFen, Currency: currency, CreditsMicrocredits: request.CreditsMicrocredits,
-		PlanID: planID, PlanMonths: request.PlanMonths, MembersOnly: request.MembersOnly,
+		PlanID: planID, PlanMonths: request.PlanMonths, MembersOnly: request.MembersOnly, CreditValidMonths: request.CreditValidMonths,
 		Enabled: request.Enabled, SortOrder: request.SortOrder, SaleStrategy: strategy,
 		PeriodDays: request.PeriodDays, PeriodPurchaseLimit: request.PeriodPurchaseLimit,
 		StockTotal: request.StockTotal, StockRemaining: stockRemaining,

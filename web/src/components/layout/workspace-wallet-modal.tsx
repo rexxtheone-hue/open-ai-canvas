@@ -368,6 +368,8 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
                                                             {formatMoney(product.amountFen, productCurrency(product))} · {unavailableLabel}
                                                             {product.planId ? (product.planMonths && product.planMonths > 1 ? ` · 会员 ${product.planMonths} 个月，积分按月发放` : " · 含会员") : ""}
                                                             {product.membersOnly && product.saleStatus !== "members_only" ? " · 会员加购，不会月底清零" : ""}
+                                                            {product.creditValidMonths ? ` · ${product.creditValidMonths} 个月内有效` : ""}
+                                                            {product.planMonths ? " · 自动续费，可随时取消" : ""}
                                                             {product.description ? ` · ${product.description}` : ""}
                                                         </small>
                                                         {selectedProductId === product.id ? <Check /> : null}

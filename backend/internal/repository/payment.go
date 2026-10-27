@@ -30,6 +30,7 @@ type PaymentEvidence struct {
 	AmountFen       int64
 	Currency        string
 	PaidAt          time.Time
+	SubscriptionID  string
 }
 
 func (r *Repository) TopupProducts(includeDisabled bool) ([]model.TopupProduct, error) {
@@ -357,11 +358,24 @@ func (r *Repository) CompletePaymentOrder(providerID, merchantOrderNo string, ev
 			return err
 		}
 		if order.PlanID != "" && order.PlanMonths > 0 {
-			if err := applyPlanPurchaseTx(tx, order.UserID, order.PlanID, order.PlanMonths, order.CreditsMicrocredits, order.CreditsMicrocredits, account.AvailableMicrocredits, now); err != nil {
+			subscriptionID, subscriptionOrderID := strings.TrimSpace(evidence.SubscriptionID), order.ID
+			if order.RenewalOf != "" {
+				subscriptionOrderID = order.RenewalOf
+			}
+			if err := applyPlanPurchaseTx(tx, planPurchase{
+				UserID: order.UserID, PlanID: order.PlanID, Months: order.PlanMonths,
+				OrderCredits: order.CreditsMicrocredits, AvailableNow: account.AvailableMicrocredits,
+				SubscriptionID: subscriptionID, OrderID: subscriptionOrderID, Renewal: order.RenewalOf != "",
+			}, now); err != nil {
 				return err
 			}
 		} else if order.PlanID != "" && order.PlanDurationDays > 0 {
 			if err := extendMembershipTx(tx, order.UserID, order.PlanID, order.PlanDurationDays, now); err != nil {
+				return err
+			}
+		}
+		if order.PlanID == "" && order.CreditValidMonths > 0 {
+			if err := createCreditLotTx(tx, &order, now); err != nil {
 				return err
 			}
 		}
@@ -371,7 +385,7 @@ func (r *Repository) CompletePaymentOrder(providerID, merchantOrderNo string, ev
 		}
 		tradeNo := evidence.ProviderTradeNo
 		updated := tx.Model(&model.PaymentOrder{}).Where("id = ? AND status <> ?", order.ID, model.PaymentOrderCredited).Updates(map[string]any{
-			"status": model.PaymentOrderCredited, "stock_reserved": false, "provider_trade_no": &tradeNo,
+			"status": model.PaymentOrderCredited, "stock_reserved": false, "provider_trade_no": &tradeNo, "subscription_id": strings.TrimSpace(evidence.SubscriptionID),
 			"provider_status": evidence.ProviderStatus, "provider_paid_at": &paidAt,
 			"credited_at": &now, "last_error": "", "updated_at": now,
 		})
@@ -675,4 +689,34 @@ func (r *Repository) UnresolvedPaymentOrderCandidateCountOverlapping(providerID 
 		}, end, start).
 		Count(&count).Error
 	return count, err
+}
+
+// RenewalPaymentOrder 为自动续费扣款创建（或取回）一张续费订单：商品、金额、套餐都沿用首单，
+// 同一期账单号只会生成一张，重复通知不会重复发放。
+func (r *Repository) RenewalPaymentOrder(original *model.PaymentOrder, tradeNo string) (*model.PaymentOrder, error) {
+	key := "renewal:" + tradeNo
+	var existing model.PaymentOrder
+	err := r.db.First(&existing, "user_id = ? AND idempotency_key = ?", original.UserID, key).Error
+	if err == nil {
+		return &existing, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+	now := time.Now()
+	order := model.PaymentOrder{
+		ID: newRepositoryID(), UserID: original.UserID, IdempotencyKey: key, MerchantOrderNo: newRepositoryID(),
+		ProductID: original.ProductID, ProductName: original.ProductName + " · 自动续费",
+		ProviderID: original.ProviderID, PluginID: original.PluginID, PluginVersion: original.PluginVersion,
+		ProviderConfigID: original.ProviderConfigID, ProviderConfigVersion: original.ProviderConfigVersion,
+		AmountFen: original.AmountFen, Currency: original.Currency, CreditsMicrocredits: original.CreditsMicrocredits,
+		PlanID: original.PlanID, PlanMonths: original.PlanMonths, SubscriptionID: original.SubscriptionID, RenewalOf: original.ID,
+		Status: model.PaymentOrderPending, CheckoutMode: original.CheckoutMode, ExpiresAt: now.AddDate(0, 1, 0),
+		CreatedAt: now, UpdatedAt: now,
+	}
+	if err := r.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&order).Error; err != nil {
+		return nil, err
+	}
+	err = r.db.First(&existing, "user_id = ? AND idempotency_key = ?", original.UserID, key).Error
+	return &existing, err
 }

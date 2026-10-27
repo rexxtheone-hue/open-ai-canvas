@@ -14,6 +14,14 @@ type QueryRequest = paymentsdk.QueryRequest
 type CloseRequest = paymentsdk.CloseRequest
 type Result = paymentsdk.Result
 type Notification = paymentsdk.Notification
+type SubscriptionRequest = paymentsdk.SubscriptionRequest
+type SubscriptionManager = paymentsdk.SubscriptionManager
+
+const (
+	SubscriptionActive    = paymentsdk.SubscriptionActive
+	SubscriptionCanceling = paymentsdk.SubscriptionCanceling
+	SubscriptionEnded     = paymentsdk.SubscriptionEnded
+)
 type BillRecord = paymentsdk.BillRecord
 type Provider = paymentsdk.Provider
 type ProviderError = paymentsdk.ProviderError

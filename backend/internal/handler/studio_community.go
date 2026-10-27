@@ -239,6 +239,21 @@ func RegisterStudioCommunityRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		ok(c, view)
 	}))
+	r.POST("/studio/membership/auto-renew", withUser(func(c *gin.Context, user *model.User) {
+		var input struct {
+			Enabled bool `json:"enabled"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			fail(c, http.StatusBadRequest, err)
+			return
+		}
+		view, err := svc.SetStudioAutoRenew(c.Request.Context(), user, input.Enabled)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, view)
+	}))
 
 	r.GET("/admin/studio/community", withUser(func(c *gin.Context, user *model.User) {
 		page, err := svc.AdminStudioCommunity(user, communityQuery(c))

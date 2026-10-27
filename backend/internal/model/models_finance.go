@@ -130,3 +130,22 @@ type ModelPricing struct {
 	CreatedAt              time.Time `json:"createdAt"`
 	UpdatedAt              time.Time `json:"updatedAt"`
 }
+
+// CreditLot 是有有效期的一笔积分（例如会员加购包）。用户先用当月会员积分，再按到期先后用这些积分，最后才用永久积分。
+type CreditLot struct {
+	ID                    string    `json:"id" gorm:"primaryKey;size:36"`
+	UserID                string    `json:"userId" gorm:"size:36;index"`
+	PaymentOrderID        string    `json:"paymentOrderId" gorm:"size:36;uniqueIndex"`
+	AmountMicrocredits    int64     `json:"amountMicrocredits"`
+	RemainingMicrocredits int64     `json:"remainingMicrocredits"`
+	ExpiresAt             time.Time `json:"expiresAt" gorm:"index"`
+	CreatedAt             time.Time `json:"createdAt"`
+}
+
+// CreditLotState 记录从 AnchorAt 起已经算到有效期积分上的消费，用来增量结算 CreditLot 的剩余量。
+type CreditLotState struct {
+	UserID              string    `json:"userId" gorm:"primaryKey;size:36"`
+	AnchorAt            time.Time `json:"anchorAt"`
+	AppliedMicrocredits int64     `json:"appliedMicrocredits"`
+	UpdatedAt           time.Time `json:"updatedAt"`
+}

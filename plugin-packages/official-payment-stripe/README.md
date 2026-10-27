@@ -8,8 +8,10 @@
 2. Developers → API keys 复制 Secret key，填到插件配置的 `secretKey`。
 3. Developers → Webhooks → Add endpoint：
    - Endpoint URL 填 `https://你的域名/api/payments/notify/stripe-checkout/<配置 ID>`。配置 ID 在后台「支付渠道」保存配置后显示；以后每次保存配置都会生成新的配置 ID，要同步更新这里的地址。
-   - Events 只勾选 `checkout.session.completed`、`checkout.session.async_payment_succeeded`、`checkout.session.async_payment_failed`、`checkout.session.expired`。
+   - Events 勾选 `checkout.session.completed`、`checkout.session.async_payment_succeeded`、`checkout.session.async_payment_failed`、`checkout.session.expired`；会员自动续费还需要 `invoice.paid`、`customer.subscription.updated`、`customer.subscription.deleted`。
    - 保存后复制 Signing secret，填到 `webhookSecret`。
 4. 在后台「充值商品」里新建商品时把币种选成和渠道一致（例如 MYR）。钱包只展示同币种的商品。
+
+会员商品（宿主传入 `Interval=month|year`）会创建 Stripe 订阅：只能用银行卡付款，之后每个周期自动扣款，续费结果通过 `invoice.paid` 通知宿主发放下一期会员权益。用户在网站上取消自动续费时，插件把订阅设为本期结束后停止。
 
 Webhook 只是加速：即使 Webhook 没配好，宿主每 15 秒会按订单号查一次 Stripe，付款后最多约 1 分钟入账。

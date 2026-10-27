@@ -113,6 +113,8 @@ func Models() []any {
 		&model.StudioBrandKit{},
 		&model.StudioPlan{},
 		&model.UserMembership{},
+		&model.CreditLot{},
+		&model.CreditLotState{},
 		&model.StudioPost{},
 		&model.StudioPostLike{},
 		&model.StudioToolCover{},

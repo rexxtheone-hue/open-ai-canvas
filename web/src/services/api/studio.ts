@@ -353,6 +353,10 @@ export type StudioMembership = {
     periodEndsAt?: string;
     monthlyCreditsMicrocredits?: number;
     grantsRemaining?: number;
+    /** active：会自动续费；canceling：本期结束后停止；没有值表示不是自动续费。 */
+    autoRenew?: "active" | "canceling";
+    /** 有有效期的加购积分，按到期先后排序。 */
+    creditLots?: { remainingMicrocredits: number; expiresAt: string }[];
     activeTaskLimit: number;
     commercialLicense: boolean;
 };
@@ -363,6 +367,10 @@ export function listStudioPlans() {
 
 export function getStudioMembership() {
     return http.get<StudioMembership>("/studio/membership");
+}
+
+export function setStudioAutoRenew(enabled: boolean) {
+    return http.post<StudioMembership>("/studio/membership/auto-renew", { enabled });
 }
 
 export type StudioPlanInput = Omit<StudioPlan, "id">;

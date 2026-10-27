@@ -41,6 +41,8 @@ type CreateRequest struct {
 	ExpiresAt       time.Time
 	NotifyURL       string
 	ReturnURL       string
+	// Interval 非空时创建自动续费订阅（month 或 year），首期付款成功后按周期自动扣款。
+	Interval string `json:",omitempty"`
 }
 
 type Checkout struct {
@@ -61,6 +63,29 @@ type Result struct {
 	Paid            bool      `json:"paid"`
 	Closed          bool      `json:"closed"`
 	PaidAt          time.Time `json:"paidAt,omitempty"`
+	// 自动续费订阅：SubscriptionID 是渠道的订阅号；Renewal 表示这是续费扣款（ProviderTradeNo 是这期账单号）；
+	// SubscriptionStatus 为 active（会自动续费）、canceling（本期结束后停止）或 ended（已结束）。
+	SubscriptionID     string `json:"subscriptionId,omitempty"`
+	Renewal            bool   `json:"renewal,omitempty"`
+	SubscriptionStatus string `json:"subscriptionStatus,omitempty"`
+}
+
+const (
+	SubscriptionActive    = "active"
+	SubscriptionCanceling = "canceling"
+	SubscriptionEnded     = "ended"
+)
+
+// SubscriptionRequest 管理自动续费：cancel_at_period_end 本期结束后停止，resume 恢复，cancel_now 立即停止。
+type SubscriptionRequest struct {
+	MerchantOrderNo string
+	SubscriptionID  string
+	Action          string
+}
+
+// SubscriptionManager 是支持自动续费的渠道额外实现的接口。
+type SubscriptionManager interface {
+	ManageSubscription(context.Context, Config, SubscriptionRequest) (Result, error)
 }
 
 type Notification struct {

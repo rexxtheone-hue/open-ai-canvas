@@ -608,6 +608,9 @@ button.studio-block-link { border: 0; background: none; cursor: pointer; font: i
 .studio-addon { display: grid; gap: 12px; margin-top: 12px; }
 .studio-addon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
 .studio-faq { display: grid; gap: 8px; margin-top: 16px; max-width: 820px; }
+.studio-link-button { margin-left: 8px; padding: 0; border: 0; background: none; color: var(--studio-accent); font: inherit; font-size: 12px; cursor: pointer; text-decoration: underline; }
+.studio-link-button:disabled { opacity: 0.5; cursor: wait; }
+.studio-membership-status > div { display: grid; gap: 2px; }
 .studio-faq h2 { margin: 0 0 4px; font-size: 18px; }
 .studio-faq details { padding: 12px 14px; border-radius: var(--studio-radius-sm); border: 1px solid var(--studio-line); background: var(--studio-panel); }
 .studio-faq summary { cursor: pointer; font-weight: 650; font-size: 14px; }

@@ -78,6 +78,17 @@ func RunRPC(provider Provider, input io.Reader, output io.Writer) error {
 		if err == nil {
 			value, err = provider.DownloadTradeBill(ctx, request.Config, billDate)
 		}
+	case "manage_subscription":
+		manager, ok := provider.(SubscriptionManager)
+		if !ok {
+			err = fmt.Errorf("unknown payment operation %q", request.Operation)
+			break
+		}
+		var valueRequest SubscriptionRequest
+		err = json.Unmarshal(request.Request, &valueRequest)
+		if err == nil {
+			value, err = manager.ManageSubscription(ctx, request.Config, valueRequest)
+		}
 	default:
 		err = fmt.Errorf("unknown payment operation %q", request.Operation)
 	}

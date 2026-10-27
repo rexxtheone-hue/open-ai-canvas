@@ -128,6 +128,7 @@ const (
 	CreditLedgerAffiliate    CreditLedgerType = "affiliate_commission"
 	CreditLedgerPlanGrant    CreditLedgerType = "plan_grant"
 	CreditLedgerPlanExpire   CreditLedgerType = "plan_expire"
+	CreditLedgerLotExpire    CreditLedgerType = "credit_expire"
 
 	RedeemCodeUnused   RedeemCodeStatus = "unused"
 	RedeemCodeRedeemed RedeemCodeStatus = "redeemed"

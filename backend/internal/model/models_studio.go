@@ -90,6 +90,10 @@ type UserMembership struct {
 	PeriodStartedAt            *time.Time `json:"periodStartedAt,omitempty"`
 	PeriodEndsAt               *time.Time `json:"periodEndsAt,omitempty" gorm:"index"`
 	GrantsRemaining            int        `json:"grantsRemaining"`
+	// 自动续费订阅：SubscriptionOrderID 是开通订阅的首个订单，续费和取消都通过它找到支付渠道。
+	SubscriptionID      string `json:"subscriptionId,omitempty" gorm:"size:120;index"`
+	SubscriptionOrderID string `json:"subscriptionOrderId,omitempty" gorm:"size:36"`
+	SubscriptionStatus  string `json:"subscriptionStatus,omitempty" gorm:"size:16"`
 	UpdatedAt                  time.Time  `json:"updatedAt"`
 }
 

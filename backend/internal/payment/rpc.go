@@ -437,3 +437,10 @@ func (p *RPCProvider) DownloadTradeBill(ctx context.Context, config Config, bill
 	err := p.call(ctx, rpcRequest{Version: pluginRPCVersion, Operation: "download_trade_bill", Config: config, BillDate: billDate.Format("2006-01-02")}, &result)
 	return result, err
 }
+
+// ManageSubscription 调用插件的 manage_subscription；不支持自动续费的插件会返回 unknown operation。
+func (p *RPCProvider) ManageSubscription(ctx context.Context, config Config, request SubscriptionRequest) (Result, error) {
+	var result Result
+	err := p.call(ctx, rpcRequest{Version: pluginRPCVersion, Operation: "manage_subscription", Config: config, Request: request}, &result)
+	return result, err
+}
