@@ -12,9 +12,9 @@ import { StudioShell } from "./studio-shell";
 
 type Billing = "monthly" | "annual";
 
-// 换算参考：Nano Banana 2.1 1K 一张 30 积分，Kling 3.0 720P 5 秒无声 315 积分。
+// 换算参考：Nano Banana 2.1 1K 一张 30 积分，Wan 3.0 720P 5 秒约 208 积分。
 const IMAGE_REFERENCE_CREDITS = 30;
-const VIDEO_REFERENCE_CREDITS = 315;
+const VIDEO_REFERENCE_CREDITS = 208;
 
 const FAQS: { q: string; a: string }[] = [
     { q: "每月积分会累积到下个月吗？", a: "不会。会员积分按月发放、当月有效，到下一个发放日没用完的会员积分会清零，再发放新一个月的积分。例如 3 月 7 日开通 Pro，拿到 14,000 积分，用了 6,000；4 月 7 日剩下的 8,000 清零，重新发放 14,000。" },
@@ -134,7 +134,7 @@ export default function StudioPricingPage() {
                                     <div className="studio-plan-credits">
                                         <strong>{credits.toLocaleString()} 积分/月</strong>
                                         <span>≈ {Math.floor(credits / IMAGE_REFERENCE_CREDITS).toLocaleString()} 张 Nano Banana 2.1 图片</span>
-                                        <span>≈ {Math.floor(credits / VIDEO_REFERENCE_CREDITS).toLocaleString()} 条 Kling 3.0 5 秒视频</span>
+                                        <span>≈ {Math.floor(credits / VIDEO_REFERENCE_CREDITS).toLocaleString()} 条 Wan 3.0 720P 5 秒视频</span>
                                         <small>每月发放，当月有效</small>
                                     </div>
                                 ) : null}
