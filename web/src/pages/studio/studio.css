@@ -574,7 +574,7 @@ button.studio-block-link { border: 0; background: none; cursor: pointer; font: i
 .studio-membership-status > svg { width: 28px; height: 28px; color: var(--studio-accent); flex: 0 0 auto; }
 .studio-membership-status strong { display: block; font-size: 15px; }
 .studio-membership-status span { color: var(--studio-muted); font-size: 12.5px; }
-.studio-plan-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.studio-plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
 .studio-plan-card { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 18px; border-radius: var(--studio-radius); border: 1px solid var(--studio-line); background: var(--studio-panel); }
 .studio-plan-card.is-current { border-color: var(--studio-accent); }
 .studio-plan-card h3 { margin: 0; font-size: 18px; font-weight: 750; }
@@ -594,9 +594,9 @@ button.studio-block-link { border: 0; background: none; cursor: pointer; font: i
 .studio-billing-toggle button.is-active { background: var(--studio-fg); color: var(--studio-bg); }
 .studio-billing-toggle em { font-style: normal; font-size: 11px; font-weight: 750; color: var(--studio-accent); }
 .studio-plan-price { display: grid; gap: 4px; }
-.studio-plan-price > div { display: flex; align-items: baseline; gap: 6px; }
+.studio-plan-price > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; }
 .studio-plan-price s { color: var(--studio-muted); font-size: 15px; }
-.studio-plan-price strong { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.studio-plan-price strong { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .studio-plan-price span, .studio-plan-price small { color: var(--studio-muted); font-size: 12px; }
 .studio-plan-credits { display: grid; gap: 3px; padding: 12px; border-radius: var(--studio-radius-sm); background: var(--studio-panel-raised); border: 1px solid var(--studio-line); font-size: 12px; color: var(--studio-muted); }
 .studio-plan-credits strong { color: var(--studio-fg); font-size: 15px; }
