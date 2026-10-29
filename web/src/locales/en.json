@@ -4359,6 +4359,7 @@
   "只选一张作为全景源": "Select only one as the panorama source",
   "只重试这个镜头": "Retry this shot only",
   "可不选，最多 4 个。所选技能会在本次生成时由统一 Skill Runtime 按需读取，并记录实际使用的版本和文件。": "Optional, up to 4. Selected skills are read on demand by the unified Skill Runtime for this generation, which records the versions and files actually used.",
+  "可以。在积分中心直接充值，RM100 起，积分 12 个月内有效。如果每月都会用，开会员更划算，还能同时生成更多任务、作品可商用。": "Yes. Top up directly in the Credits Center from RM100. Credits stay valid for 12 months. If you create every month, a plan is better value, with more concurrent tasks and commercial rights.",
   "可以。在积分中心直接充值，RM50 起，积分 12 个月内有效。如果每月都会用，开会员更划算，还能同时生成更多任务、作品可商用。": "Yes. Top up directly in the Credits Center from RM50. Credits stay valid for 12 months. If you create every month, a plan is better value, with more concurrent tasks and commercial rights.",
   "可以。在积分中心选普通充值包，RM100 起，积分 12 个月内有效。如果每月都会用，开会员更划算：Starter RM59 每月就有 2,500 积分。": "Yes. Choose a regular top-up pack in the Credits Center, starting from RM100. Credits stay valid for 12 months. If you create every month, a plan is better value: Starter gives you 2,500 credits every month for RM59.",
   "可以。在音频分类点「创建声音」录一段或上传一段 3–60 秒的人声，之后在声音库里点「使用」。复刻音色需要支持参考音频的配音模型。": "Yes. In the Audio tab, click \"Create Voice\" to record or upload 3–60 seconds of speech, then click \"Use\" in the Voice Library. Cloning the timbre needs a voiceover model that accepts reference audio.",
