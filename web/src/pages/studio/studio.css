@@ -574,11 +574,25 @@ button.studio-block-link { border: 0; background: none; cursor: pointer; font: i
 .studio-membership-status > svg { width: 28px; height: 28px; color: var(--studio-accent); flex: 0 0 auto; }
 .studio-membership-status strong { display: block; font-size: 15px; }
 .studio-membership-status span { color: var(--studio-muted); font-size: 12.5px; }
-.studio-topup-strip { flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.studio-topup-strip > div { display: grid; gap: 2px; }
-.studio-topup-strip strong { font-size: 14px; }
-.studio-topup-strip span { color: var(--studio-muted); font-size: 12.5px; }
-.studio-topup-strip .studio-mini-button { height: 34px; padding: 0 16px; font-size: 13px; }
+.studio-topup-strip { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-top: 4px; padding: 22px 24px; border-radius: var(--studio-radius); border: 1px solid var(--studio-line); background: linear-gradient(100deg, rgba(var(--studio-accent-rgb), 0.14), rgba(var(--studio-accent-rgb), 0.02) 55%), var(--studio-panel); }
+.studio-topup-strip > div { display: grid; gap: 4px; min-width: 0; }
+.studio-topup-strip em { font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--studio-accent-text, var(--studio-accent)); }
+.studio-topup-strip strong { font-size: 17px; font-weight: 750; }
+.studio-topup-strip span { color: var(--studio-muted); font-size: 13px; line-height: 1.6; }
+.studio-topup-strip button { flex: none; height: 40px; padding: 0 22px; border-radius: 999px; border: 0; background: var(--studio-fg); color: var(--studio-bg); font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.studio-topup-strip button:hover { opacity: 0.88; }
+.studio-pricing-faq { display: grid; grid-template-columns: minmax(200px, 320px) minmax(0, 1fr); gap: 40px; margin-top: 48px; padding-top: 40px; border-top: 1px solid var(--studio-line); }
+.studio-pricing-faq-head h2 { margin: 0 0 8px; font-size: 24px; font-weight: 750; }
+.studio-pricing-faq-head p { margin: 0; color: var(--studio-muted); font-size: 13.5px; line-height: 1.6; }
+.studio-pricing-faq-list { border-top: 1px solid var(--studio-line); }
+.studio-pricing-faq-list details { border-bottom: 1px solid var(--studio-line); }
+.studio-pricing-faq-list summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 4px; list-style: none; cursor: pointer; font-size: 15px; font-weight: 650; }
+.studio-pricing-faq-list summary::-webkit-details-marker { display: none; }
+.studio-pricing-faq-list summary:hover { color: var(--studio-accent-text, var(--studio-accent)); }
+.studio-pricing-faq-list summary svg { width: 18px; height: 18px; flex: none; color: var(--studio-muted); transition: transform 0.2s; }
+.studio-pricing-faq-list details[open] summary svg { transform: rotate(180deg); }
+.studio-pricing-faq-list details p { margin: 0; padding: 0 4px 20px; max-width: 760px; color: var(--studio-soft, var(--studio-muted)); font-size: 14px; line-height: 1.75; }
+@media (max-width: 900px) { .studio-pricing-faq { grid-template-columns: 1fr; gap: 16px; margin-top: 32px; padding-top: 28px; } }
 .studio-plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
 .studio-plan-card { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 18px; border-radius: var(--studio-radius); border: 1px solid var(--studio-line); background: var(--studio-panel); }
 .studio-plan-card.is-current { border-color: var(--studio-accent); }
@@ -612,14 +626,9 @@ button.studio-block-link { border: 0; background: none; cursor: pointer; font: i
 .studio-plan-card.is-featured .studio-plan-cta { background: var(--studio-accent); color: var(--studio-accent-fg, #fff); }
 .studio-addon { display: grid; gap: 12px; margin-top: 12px; }
 .studio-addon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
-.studio-faq { display: grid; gap: 8px; margin-top: 16px; max-width: 820px; }
 .studio-link-button { margin-left: 8px; padding: 0; border: 0; background: none; color: var(--studio-accent); font: inherit; font-size: 12px; cursor: pointer; text-decoration: underline; }
 .studio-link-button:disabled { opacity: 0.5; cursor: wait; }
 .studio-membership-status > div { display: grid; gap: 2px; }
-.studio-faq h2 { margin: 0 0 4px; font-size: 18px; }
-.studio-faq details { padding: 12px 14px; border-radius: var(--studio-radius-sm); border: 1px solid var(--studio-line); background: var(--studio-panel); }
-.studio-faq summary { cursor: pointer; font-weight: 650; font-size: 14px; }
-.studio-faq details p { margin: 8px 0 0; color: var(--studio-muted); font-size: 13px; line-height: 1.7; }
 
 @media (max-width: 720px) {
     .studio-post-detail { grid-template-columns: minmax(0, 1fr); }

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Check, Crown } from "./studio-icons";
+import { Check, ChevronDown, Crown } from "./studio-icons";
 
 import { formatCredits } from "@/constant/credits";
 import { formatMoney } from "@/lib/money";
@@ -166,32 +166,34 @@ export default function StudioPricingPage() {
                     })}
                 </div>
                 {plans.length ? (
-                    <div className="studio-block studio-topup-strip">
-                        {membership?.active ? (
-                            <div>
-                                <strong>会员积分不够用？</strong>
-                                <span>可以随时充值积分，12 个月内有效，不会月底清零。</span>
-                            </div>
-                        ) : (
-                            <div>
-                                <strong>暂时不想订阅？</strong>
-                                <span>可以直接充值积分，RM100 起，12 个月内有效。每月都会用的话，开会员更划算。</span>
-                            </div>
-                        )}
-                        <button type="button" className="studio-mini-button" onClick={() => openWorkspaceWallet()}>
+                    <div className="studio-topup-strip">
+                        <div>
+                            <em>{membership?.active ? "加购积分" : "单次充值"}</em>
+                            <strong>{membership?.active ? "会员积分不够用？" : "暂时不想订阅？"}</strong>
+                            <span>{membership?.active ? "可以随时充值积分，12 个月内有效，不会月底清零。" : "可以直接充值积分，RM100 起，12 个月内有效。每月都会用的话，开会员更划算。"}</span>
+                        </div>
+                        <button type="button" onClick={() => openWorkspaceWallet()}>
                             直接充值
                         </button>
                     </div>
                 ) : null}
                 {plans.length ? (
-                    <section className="studio-faq">
-                        <h2>常见问题</h2>
-                        {FAQS.map((item) => (
-                            <details key={item.q}>
-                                <summary>{item.q}</summary>
-                                <p>{item.a}</p>
-                            </details>
-                        ))}
+                    <section className="studio-pricing-faq">
+                        <div className="studio-pricing-faq-head">
+                            <h2>常见问题</h2>
+                            <p>关于会员积分、自动续费和充值的说明。</p>
+                        </div>
+                        <div className="studio-pricing-faq-list">
+                            {FAQS.map((item) => (
+                                <details key={item.q}>
+                                    <summary>
+                                        {item.q}
+                                        <ChevronDown aria-hidden />
+                                    </summary>
+                                    <p>{item.a}</p>
+                                </details>
+                            ))}
+                        </div>
                     </section>
                 ) : null}
             </div>
