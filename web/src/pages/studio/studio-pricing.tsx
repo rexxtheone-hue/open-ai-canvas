@@ -8,6 +8,7 @@ import { formatMoney } from "@/lib/money";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { createPaymentOrder, listPaymentProviders, type TopupProduct } from "@/services/api/payments";
 import { getStudioMembership, listStudioPlans, setStudioAutoRenew, type StudioPlanOffer } from "@/services/api/studio";
+import { useAuthGateStore } from "@/stores/use-auth-gate-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { StudioShell } from "./studio-shell";
 
@@ -47,6 +48,9 @@ export default function StudioPricingPage() {
         onSuccess: (view) => queryClient.setQueryData(["studio", "membership", user?.id || ""], view),
     });
     const { message } = App.useApp();
+    const openAuth = useAuthGateStore((state) => state.openAuth);
+    // 访客可以看套餐，购买前先注册，注册后回到本页。
+    const register = () => openAuth({ mode: "register", next: "/studio/pricing" });
     // 套餐按钮直接下单并跳到支付页；没有可跳转的支付渠道时退回积分中心。
     const checkout = useMutation({
         mutationFn: async (product: TopupProduct) => {
@@ -80,46 +84,69 @@ export default function StudioPricingPage() {
                         <p>每月发放积分，可以生成所有模型的图片、视频和音频。会员还能同时生成更多任务，作品可商用。</p>
                     </div>
                 </div>
-                <div className="studio-block studio-membership-status" role="status">
-                    <Crown aria-hidden />
-                    {membership?.active && membership.plan ? (
-                        <div>
-                            <strong>{membership.plan.name}</strong>
-                            <span>
-                                会员有效期至 {membership.expiresAt ? new Date(membership.expiresAt).toLocaleDateString("zh-CN") : "—"}
-                                {membership.periodEndsAt ? ` · 本月积分 ${new Date(membership.periodEndsAt).toLocaleDateString("zh-CN")} 重置` : ""}
-                                {membership.grantsRemaining ? ` · 还有 ${membership.grantsRemaining} 个月积分待发放` : ""}
-                                {` · 同时生成 ${membership.activeTaskLimit} 个任务`}
-                            </span>
-                            {membership.autoRenew ? (
+                {user ? (
+                    <div className="studio-block studio-membership-status" role="status">
+                        <Crown aria-hidden />
+                        {membership?.active && membership.plan ? (
+                            <div>
+                                <strong>{membership.plan.name}</strong>
                                 <span>
-                                    {membership.autoRenew === "active" ? "自动续费已开启" : "已取消自动续费，本期结束后停止"}
-                                    <button type="button" className="studio-link-button" disabled={autoRenew.isPending} onClick={() => autoRenew.mutate(membership.autoRenew !== "active")}>
-                                        {membership.autoRenew === "active" ? "取消自动续费" : "恢复自动续费"}
-                                    </button>
+                                    会员有效期至 {membership.expiresAt ? new Date(membership.expiresAt).toLocaleDateString("zh-CN") : "—"}
+                                    {membership.periodEndsAt ? ` · 本月积分 ${new Date(membership.periodEndsAt).toLocaleDateString("zh-CN")} 重置` : ""}
+                                    {membership.grantsRemaining ? ` · 还有 ${membership.grantsRemaining} 个月积分待发放` : ""}
+                                    {` · 同时生成 ${membership.activeTaskLimit} 个任务`}
                                 </span>
-                            ) : null}
-                            {autoRenew.isError ? <span role="alert">{autoRenew.error instanceof Error ? autoRenew.error.message : "操作失败"}</span> : null}
-                            {lotCredits > 0 ? <span>加购积分 {formatCredits(lotCredits, 0)}，最早一笔 {new Date(lots[0].expiresAt).toLocaleDateString("zh-CN")} 到期</span> : null}
-                        </div>
-                    ) : (
-                        <div>
-                            <strong>普通用户</strong>
-                            <span>同时生成 {membership?.activeTaskLimit ?? "—"} 个任务{membership?.expiresAt ? ` · 上次会员已于 ${new Date(membership.expiresAt).toLocaleDateString("zh-CN")} 到期` : ""}</span>
-                        </div>
-                    )}
-                </div>
+                                {membership.autoRenew ? (
+                                    <span>
+                                        {membership.autoRenew === "active" ? "自动续费已开启" : "已取消自动续费，本期结束后停止"}
+                                        <button type="button" className="studio-link-button" disabled={autoRenew.isPending} onClick={() => autoRenew.mutate(membership.autoRenew !== "active")}>
+                                            {membership.autoRenew === "active" ? "取消自动续费" : "恢复自动续费"}
+                                        </button>
+                                    </span>
+                                ) : null}
+                                {autoRenew.isError ? <span role="alert">{autoRenew.error instanceof Error ? autoRenew.error.message : "操作失败"}</span> : null}
+                                {lotCredits > 0 ? (
+                                    <span>
+                                        加购积分 {formatCredits(lotCredits, 0)}，最早一笔 {new Date(lots[0].expiresAt).toLocaleDateString("zh-CN")} 到期
+                                    </span>
+                                ) : null}
+                            </div>
+                        ) : (
+                            <div>
+                                <strong>普通用户</strong>
+                                <span>
+                                    同时生成 {membership?.activeTaskLimit ?? "—"} 个任务{membership?.expiresAt ? ` · 上次会员已于 ${new Date(membership.expiresAt).toLocaleDateString("zh-CN")} 到期` : ""}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                ) : null}
                 {plans.length ? (
                     <div className="studio-billing-toggle" role="radiogroup" aria-label="付款周期">
-                        <button type="button" role="radio" aria-checked={billing === "monthly"} className={billing === "monthly" ? "is-active" : ""} onClick={() => setBilling("monthly")}>月付</button>
+                        <button type="button" role="radio" aria-checked={billing === "monthly"} className={billing === "monthly" ? "is-active" : ""} onClick={() => setBilling("monthly")}>
+                            月付
+                        </button>
                         <button type="button" role="radio" aria-checked={billing === "annual"} className={billing === "annual" ? "is-active" : ""} onClick={() => setBilling("annual")}>
                             年付{maxSavingPercent > 0 ? <em>省 {maxSavingPercent}%</em> : null}
                         </button>
                     </div>
                 ) : null}
                 {plansQuery.isLoading ? <p className="studio-hint">正在读取…</p> : null}
-                {plansQuery.isError ? <div className="studio-empty" role="alert"><strong>套餐读取失败</strong><span>{plansQuery.error instanceof Error ? plansQuery.error.message : ""}</span></div> : null}
-                {!plansQuery.isLoading && !plansQuery.isError && !plans.length ? <div className="studio-empty"><strong>暂时没有在售的会员套餐</strong><span>需要积分可以直接在积分中心充值。</span><button type="button" className="studio-mini-button" onClick={() => openWorkspaceWallet()}>打开积分中心</button></div> : null}
+                {plansQuery.isError ? (
+                    <div className="studio-empty" role="alert">
+                        <strong>套餐读取失败</strong>
+                        <span>{plansQuery.error instanceof Error ? plansQuery.error.message : ""}</span>
+                    </div>
+                ) : null}
+                {!plansQuery.isLoading && !plansQuery.isError && !plans.length ? (
+                    <div className="studio-empty">
+                        <strong>暂时没有在售的会员套餐</strong>
+                        <span>需要积分可以直接在积分中心充值。</span>
+                        <button type="button" className="studio-mini-button" onClick={() => openWorkspaceWallet()}>
+                            打开积分中心
+                        </button>
+                    </div>
+                ) : null}
                 <div className="studio-plan-grid">
                     {plans.map((plan) => {
                         const monthly = planProduct(plan, 1);
@@ -153,23 +180,51 @@ export default function StudioPricingPage() {
                                     </div>
                                 ) : null}
                                 <ul>
-                                    {legacy ? <li><Check aria-hidden />有效期 {plan.durationDays} 天</li> : null}
-                                    <li><Check aria-hidden />同时生成 {plan.activeTaskLimit > 0 ? plan.activeTaskLimit : "标准数量的"} 个任务</li>
-                                    <li><Check aria-hidden />所有图片、视频、音频模型</li>
-                                    {plan.commercialLicense ? <li><Check aria-hidden />作品可商用</li> : null}
-                                    {!legacy ? <li><Check aria-hidden />积分不够可充值，12 个月内有效</li> : null}
-                                    {!legacy ? <li><Check aria-hidden />自动续费，可随时取消</li> : null}
+                                    {legacy ? (
+                                        <li>
+                                            <Check aria-hidden />
+                                            有效期 {plan.durationDays} 天
+                                        </li>
+                                    ) : null}
+                                    <li>
+                                        <Check aria-hidden />
+                                        同时生成 {plan.activeTaskLimit > 0 ? plan.activeTaskLimit : "标准数量的"} 个任务
+                                    </li>
+                                    <li>
+                                        <Check aria-hidden />
+                                        所有图片、视频、音频模型
+                                    </li>
+                                    {plan.commercialLicense ? (
+                                        <li>
+                                            <Check aria-hidden />
+                                            作品可商用
+                                        </li>
+                                    ) : null}
+                                    {!legacy ? (
+                                        <li>
+                                            <Check aria-hidden />
+                                            积分不够可充值，12 个月内有效
+                                        </li>
+                                    ) : null}
+                                    {!legacy ? (
+                                        <li>
+                                            <Check aria-hidden />
+                                            自动续费，可随时取消
+                                        </li>
+                                    ) : null}
                                 </ul>
                                 <div className="studio-plan-products">
                                     {legacy ? (
                                         plan.products.map((item) => (
                                             <button key={item.id} type="button" className="studio-plan-buy" disabled={!item.canPurchase} onClick={() => openWorkspaceWallet({ productId: item.id })}>
                                                 <strong>{formatMoney(item.amountFen, item.currency)}</strong>
-                                                <span>{item.name} · 含 {formatCredits(item.creditsMicrocredits, 2)} 积分</span>
+                                                <span>
+                                                    {item.name} · 含 {formatCredits(item.creditsMicrocredits, 2)} 积分
+                                                </span>
                                             </button>
                                         ))
                                     ) : product ? (
-                                        <button type="button" className="studio-plan-cta" disabled={!product.canPurchase || checkout.isPending} onClick={() => (user ? checkout.mutate(product) : openWorkspaceWallet({ productId: product.id }))}>
+                                        <button type="button" className="studio-plan-cta" disabled={!product.canPurchase || checkout.isPending} onClick={() => (user ? checkout.mutate(product) : register())}>
                                             {checkout.isPending && checkout.variables?.id === product.id ? "正在跳转支付…" : isCurrent ? "续费" : membership?.active ? `换成 ${plan.name}` : `开通 ${plan.name}`}
                                         </button>
                                     ) : (
@@ -187,7 +242,7 @@ export default function StudioPricingPage() {
                             <strong>{membership?.active ? "会员积分不够用？" : "暂时不想订阅？"}</strong>
                             <span>{membership?.active ? "可以随时充值积分，12 个月内有效，不会月底清零。" : "可以直接充值积分，RM100 起，12 个月内有效。每月都会用的话，开会员更划算。"}</span>
                         </div>
-                        <button type="button" onClick={() => openWorkspaceWallet()}>
+                        <button type="button" onClick={() => (user ? openWorkspaceWallet() : register())}>
                             直接充值
                         </button>
                     </div>

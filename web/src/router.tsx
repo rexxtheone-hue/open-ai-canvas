@@ -172,7 +172,7 @@ export const router = createBrowserRouter([
             { path: "/studio/creators", element: <RequireAuth>{deferred(<StudioCreatorsPage />)}</RequireAuth> },
             { path: "/studio/profile", element: <RequireAuth>{deferred(<StudioMyProfileRedirect />)}</RequireAuth> },
             { path: "/studio/u/:handle", element: <RequireAuth>{deferred(<StudioProfilePage />)}</RequireAuth> },
-            { path: "/studio/pricing", element: <RequireAuth>{deferred(<StudioPricingPage />)}</RequireAuth> },
+            { path: "/studio/pricing", element: deferred(<StudioPricingPage />) },
             { path: "/studio/partner", element: <RequireAuth>{deferred(<StudioPartnerPage />)}</RequireAuth> },
             { path: "/studio/canvas", element: <RequireAuth>{deferred(<StudioCanvasPage />)}</RequireAuth> },
             { path: "/studio/canvas/library", element: <RequireAuth>{deferred(<StudioCanvasLibraryPage />)}</RequireAuth> },
