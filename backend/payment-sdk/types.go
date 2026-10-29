@@ -36,11 +36,13 @@ type NotificationResponse struct {
 type CreateRequest struct {
 	MerchantOrderNo string
 	Description     string
-	AmountFen       int64
-	Currency        string
-	ExpiresAt       time.Time
-	NotifyURL       string
-	ReturnURL       string
+	// Detail 是支付页商品名下面的一行说明，可为空。
+	Detail    string `json:",omitempty"`
+	AmountFen int64
+	Currency  string
+	ExpiresAt time.Time
+	NotifyURL string
+	ReturnURL string
 	// Interval 非空时创建自动续费订阅（month 或 year），首期付款成功后按周期自动扣款。
 	Interval string `json:",omitempty"`
 }

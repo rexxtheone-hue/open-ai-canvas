@@ -256,6 +256,9 @@ func (p *StripeProvider) CreateOrder(ctx context.Context, config Config, request
 	form.Set("line_items[0][price_data][currency]", strings.ToLower(currency))
 	form.Set("line_items[0][price_data][unit_amount]", strconv.FormatInt(request.AmountFen, 10))
 	form.Set("line_items[0][price_data][product_data][name]", name)
+	if detail := strings.TrimSpace(request.Detail); detail != "" {
+		form.Set("line_items[0][price_data][product_data][description]", detail)
+	}
 	for index, method := range methods {
 		form.Set(fmt.Sprintf("payment_method_types[%d]", index), method)
 	}

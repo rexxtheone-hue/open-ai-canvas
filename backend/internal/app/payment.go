@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -178,7 +179,7 @@ func (s *Service) CreatePaymentOrder(ctx context.Context, actor *model.User, req
 	if providerCurrency := paymentProviderCurrency(values); providerCurrency != productCurrency {
 		return nil, BadAuthRequest(fmt.Sprintf("该支付渠道只支持 %s 结算，不能购买 %s 商品", providerCurrency, productCurrency))
 	}
-	planID, planDays, planMonths, credits := "", 0, 0, product.CreditsMicrocredits
+	planID, planName, planDays, planMonths, credits := "", "", 0, 0, product.CreditsMicrocredits
 	if product.PlanID != "" {
 		plan, err := s.repo.StudioPlan(product.PlanID)
 		if err != nil {
@@ -187,7 +188,7 @@ func (s *Service) CreatePaymentOrder(ctx context.Context, actor *model.User, req
 		if plan == nil || !plan.Enabled || plan.DurationDays <= 0 {
 			return nil, BadAuthRequest("这个会员套餐已下架")
 		}
-		planID, planDays = plan.ID, plan.DurationDays
+		planID, planName, planDays = plan.ID, plan.Name, plan.DurationDays
 		if product.PlanMonths > 0 {
 			if plan.MonthlyCreditsMicrocredits <= 0 {
 				return nil, BadAuthRequest("这个会员套餐还没有设置每月积分")
@@ -233,8 +234,9 @@ func (s *Service) CreatePaymentOrder(ctx context.Context, actor *model.User, req
 		return &view, nil
 	}
 	baseURL := strings.TrimRight(values["publicBaseUrl"], "/")
+	checkoutName, checkoutDetail := checkoutLabels(product, planName, planMonths, credits)
 	checkout, err := provider.CreateOrder(ctx, values, payment.CreateRequest{
-		MerchantOrderNo: order.MerchantOrderNo, Description: product.Name, AmountFen: order.AmountFen,
+		MerchantOrderNo: order.MerchantOrderNo, Description: checkoutName, Detail: checkoutDetail, AmountFen: order.AmountFen,
 		Currency: order.Currency, ExpiresAt: order.ExpiresAt, Interval: subscriptionInterval(order.ProviderID, order.PlanMonths),
 		NotifyURL: baseURL + "/api/payments/notify/" + url.PathEscape(order.ProviderID) + "/" + url.PathEscape(config.ID),
 		ReturnURL: baseURL + "/api/payments/return/" + url.PathEscape(order.ProviderID) + "?orderId=" + url.QueryEscape(order.ID),
@@ -777,4 +779,33 @@ func (s *Service) SetStudioAutoRenew(ctx context.Context, actor *model.User, ena
 		return StudioMembershipView{}, err
 	}
 	return s.StudioMembership(actor.ID)
+}
+
+// checkoutLabels 是支付页上显示的英文商品名和说明，海外卡和 Stripe 收据都看这里。
+func checkoutLabels(product *model.TopupProduct, planName string, planMonths int, credits int64) (string, string) {
+	amount := formatCreditCount(credits)
+	if planMonths > 0 {
+		billing, cycle := "Monthly", "month"
+		if planMonths == 12 {
+			billing, cycle = "Annual", "year"
+		}
+		return fmt.Sprintf("OmniMuse %s - %s plan", planName, billing),
+			fmt.Sprintf("%s credits every month. Renews every %s, cancel anytime.", amount, cycle)
+	}
+	if planName != "" {
+		return fmt.Sprintf("OmniMuse %s membership", planName), fmt.Sprintf("Includes %s credits.", amount)
+	}
+	detail := "One-time credit top-up. Credits never expire."
+	if product.CreditValidMonths > 0 {
+		detail = fmt.Sprintf("One-time credit top-up. Credits are valid for %d months.", product.CreditValidMonths)
+	}
+	return fmt.Sprintf("OmniMuse %s credits", amount), detail
+}
+
+func formatCreditCount(microcredits int64) string {
+	digits := strconv.FormatInt(microcredits/1_000_000, 10)
+	for i := len(digits) - 3; i > 0; i -= 3 {
+		digits = digits[:i] + "," + digits[i:]
+	}
+	return digits
 }
