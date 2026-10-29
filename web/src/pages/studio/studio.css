@@ -574,6 +574,11 @@ button.studio-block-link { border: 0; background: none; cursor: pointer; font: i
 .studio-membership-status > svg { width: 28px; height: 28px; color: var(--studio-accent); flex: 0 0 auto; }
 .studio-membership-status strong { display: block; font-size: 15px; }
 .studio-membership-status span { color: var(--studio-muted); font-size: 12.5px; }
+.studio-topup-strip { flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.studio-topup-strip > div { display: grid; gap: 2px; }
+.studio-topup-strip strong { font-size: 14px; }
+.studio-topup-strip span { color: var(--studio-muted); font-size: 12.5px; }
+.studio-topup-strip .studio-mini-button { height: 34px; padding: 0 16px; font-size: 13px; }
 .studio-plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
 .studio-plan-card { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 18px; border-radius: var(--studio-radius); border: 1px solid var(--studio-line); background: var(--studio-panel); }
 .studio-plan-card.is-current { border-color: var(--studio-accent); }

@@ -166,6 +166,24 @@ export default function StudioPricingPage() {
                     })}
                 </div>
                 {plans.length ? (
+                    <div className="studio-block studio-topup-strip">
+                        {membership?.active ? (
+                            <div>
+                                <strong>会员积分不够用？</strong>
+                                <span>加购积分只要 RM0.015/积分，12 个月内有效，不会月底清零。</span>
+                            </div>
+                        ) : (
+                            <div>
+                                <strong>暂时不想订阅？</strong>
+                                <span>可以直接充值积分，RM100 起，12 个月内有效。每月都会用的话，开会员更划算。</span>
+                            </div>
+                        )}
+                        <button type="button" className="studio-mini-button" onClick={() => openWorkspaceWallet()}>
+                            {membership?.active ? "加购积分" : "直接充值"}
+                        </button>
+                    </div>
+                ) : null}
+                {plans.length ? (
                     <section className="studio-faq">
                         <h2>常见问题</h2>
                         {FAQS.map((item) => (
