@@ -352,7 +352,7 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
                                                               ? `库存 ${product.stockRemaining ?? 0}`
                                                               : product.saleStrategy === "periodic"
                                                                 ? `每 ${product.periodDays} 天限购 ${product.periodPurchaseLimit} 次`
-                                                                : "不限量";
+                                                                : "";
                                                 return (
                                                     <button
                                                         key={product.id}
@@ -365,12 +365,12 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
                                                         <span>{product.name}</span>
                                                         <strong>{product.planMonths ? `每月 ${formatCredits(product.creditsMicrocredits, 0)} 积分` : `${formatCredits(product.creditsMicrocredits, 6)} 积分`}</strong>
                                                         <small>
-                                                            {formatMoney(product.amountFen, productCurrency(product))} · {unavailableLabel}
+                                                            {formatMoney(product.amountFen, productCurrency(product))}
+                                                            {unavailableLabel ? ` · ${unavailableLabel}` : ""}
                                                             {product.planId ? (product.planMonths && product.planMonths > 1 ? ` · 会员 ${product.planMonths} 个月，积分按月发放` : " · 含会员") : ""}
                                                             {product.membersOnly && product.saleStatus !== "members_only" ? " · 会员加购，不会月底清零" : ""}
                                                             {product.creditValidMonths ? ` · ${product.creditValidMonths} 个月内有效` : ""}
                                                             {product.planMonths ? " · 自动续费，可随时取消" : ""}
-                                                            {product.description ? ` · ${product.description}` : ""}
                                                         </small>
                                                         {selectedProductId === product.id ? <Check /> : null}
                                                     </button>

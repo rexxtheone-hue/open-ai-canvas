@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { App } from "antd";
 import { useState } from "react";
 import { Check, ChevronDown, Crown } from "./studio-icons";
 
 import { formatCredits } from "@/constant/credits";
 import { formatMoney } from "@/lib/money";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
-import type { TopupProduct } from "@/services/api/payments";
+import { createPaymentOrder, listPaymentProviders, type TopupProduct } from "@/services/api/payments";
 import { getStudioMembership, listStudioPlans, setStudioAutoRenew, type StudioPlanOffer } from "@/services/api/studio";
 import { useUserStore } from "@/stores/use-user-store";
 import { StudioShell } from "./studio-shell";
@@ -44,6 +45,20 @@ export default function StudioPricingPage() {
     const autoRenew = useMutation({
         mutationFn: setStudioAutoRenew,
         onSuccess: (view) => queryClient.setQueryData(["studio", "membership", user?.id || ""], view),
+    });
+    const { message } = App.useApp();
+    // 套餐按钮直接下单并跳到支付页；没有可跳转的支付渠道时退回积分中心。
+    const checkout = useMutation({
+        mutationFn: async (product: TopupProduct) => {
+            const { providers } = await listPaymentProviders();
+            const currency = (product.currency || "CNY").toUpperCase();
+            const provider = providers.find((item) => item.enabled && item.pluginEnabled && item.configured && item.checkoutMode === "redirect" && (item.currency || "CNY").toUpperCase() === currency);
+            if (!provider) return "";
+            const { order } = await createPaymentOrder({ productId: product.id, providerId: provider.id, idempotencyKey: crypto.randomUUID() });
+            return order.checkout.mode === "redirect" ? order.checkout.url || "" : "";
+        },
+        onSuccess: (url, product) => (url ? window.location.assign(url) : openWorkspaceWallet({ productId: product.id })),
+        onError: (error) => message.error(error instanceof Error ? error.message : "创建支付订单失败"),
     });
     const membership = membershipQuery.data;
     const lots = membership?.creditLots || [];
@@ -154,8 +169,8 @@ export default function StudioPricingPage() {
                                             </button>
                                         ))
                                     ) : product ? (
-                                        <button type="button" className="studio-plan-cta" disabled={!product.canPurchase} onClick={() => openWorkspaceWallet({ productId: product.id })}>
-                                            {isCurrent ? "续费" : membership?.active ? `换成 ${plan.name}` : `开通 ${plan.name}`}
+                                        <button type="button" className="studio-plan-cta" disabled={!product.canPurchase || checkout.isPending} onClick={() => (user ? checkout.mutate(product) : openWorkspaceWallet({ productId: product.id }))}>
+                                            {checkout.isPending && checkout.variables?.id === product.id ? "正在跳转支付…" : isCurrent ? "续费" : membership?.active ? `换成 ${plan.name}` : `开通 ${plan.name}`}
                                         </button>
                                     ) : (
                                         <span className="studio-hint">{billing === "annual" ? "暂无年付" : "暂无月付"}</span>
