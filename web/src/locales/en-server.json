@@ -1459,6 +1459,7 @@
   "充值商品不存在或已停用": "The top-up product does not exist or is disabled",
   "充值商品名称不能为空且不能超过 120 个字符": "The top-up product name cannot be empty or exceed 120 characters",
   "充值商品当前不可购买": "The top-up product cannot be purchased right now",
+  "充值积分": "Credit top-up",
   "充值积分必须为 0.000001 至 10 亿积分": "Top-up credits must be between 0.000001 and 1 billion credits",
   "充值金额必须为 1 分至 100 万元": "The top-up amount must be between 0.01 CNY and 1,000,000 CNY",
   "先按 first_frame、last_frame、reference_image 等 role 分流，再按 order 为工作流生成 ref_image_N；不再用数组 0/1 猜测角色。": "Images are first split by role (first_frame, last_frame, reference_image, etc.), then ref_image_N is generated for the workflow by order; array positions 0/1 are no longer used to guess roles.",
