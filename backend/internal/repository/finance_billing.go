@@ -240,7 +240,7 @@ func (r *Repository) MarkBillingUncertain(id string, errorText string) error {
 	// uncertain 保留冻结积分，直到人工核对；这里故意不自动结算或退款。
 	return r.db.Model(&model.BillingOrder{}).
 		Where("id = ? AND status IN ?", id, []model.BillingStatus{model.BillingStatusReserved, model.BillingStatusRunning}).
-		Updates(map[string]any{"status": model.BillingStatusUncertain, "error": errorText, "updated_at": time.Now()}).Error
+		Updates(map[string]any{"status": model.BillingStatusUncertain, "error": clipRunes(errorText, 1000), "updated_at": time.Now()}).Error
 }
 
 func (r *Repository) SettleBillingOrder(id string, providerRequestID string) error {
@@ -668,7 +668,7 @@ func (r *Repository) RefundBillingOrder(id string, errorText string) error {
 			return err
 		}
 		now := time.Now()
-		updates := map[string]any{"status": model.BillingStatusRefunded, "error": errorText, "refunded_amount_microcredits": order.AmountMicrocredits, "refunded_at": &now, "updated_at": now}
+		updates := map[string]any{"status": model.BillingStatusRefunded, "error": clipRunes(errorText, 1000), "refunded_amount_microcredits": order.AmountMicrocredits, "refunded_at": &now, "updated_at": now}
 		if err := tx.Model(&order).Updates(updates).Error; err != nil {
 			return err
 		}
@@ -685,7 +685,7 @@ func (r *Repository) RefundBillingOrder(id string, errorText string) error {
 			Model:                      order.Model,
 			ChannelID:                  order.ChannelID,
 			Scene:                      order.Scene,
-			Note:                       errorText,
+			Note:                       clipRunes(errorText, 500),
 		}).Error
 	})
 }
@@ -717,4 +717,13 @@ func tokenUsageAmount(order model.BillingOrder, usage *BillingUsage) (int64, err
 		return 0, errors.New("invalid token usage amount")
 	}
 	return amount, nil
+}
+
+// clipRunes 让上游返回的长错误信息不超过字段长度，否则退款事务会整体失败。
+func clipRunes(value string, limit int) string {
+	runes := []rune(value)
+	if len(runes) <= limit {
+		return value
+	}
+	return string(runes[:limit])
 }
