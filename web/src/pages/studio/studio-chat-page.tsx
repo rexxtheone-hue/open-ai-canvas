@@ -4,6 +4,9 @@ import { requireUser } from "@/stores/use-auth-gate-store";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, AudioLines, BookOpen, Check, ChevronDown, Clapperboard, ImageIcon, Library, Loader2, MessageSquarePlus, Paperclip, Pencil, Plus, Sparkles, Trash2, UserRound, X } from "./studio-icons";
 import { useSkillRuntimeCatalog } from "@/components/skills/skill-runtime-picker";
+import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
+import { AIMessageMarkdown } from "@/components/ai/ai-message-markdown";
+import { studioChatVisionInputs } from "./studio-chat-vision";
 import { SKILL_RUNTIME_PROFILES, skillRuntime, skillRuntimeMetadata } from "@/services/skill-runtime";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -321,8 +324,16 @@ export default function StudioChatPage() {
 
             const snapshot = studioChatAssets(withUser, works);
             const newRefs = snapshot.slice(snapshot.length - attachments.length).map((asset) => `#${asset.index} ${studioKindLabel(asset.kind)}`);
-            const prompt = [content, newRefs.length ? `（附件：${newRefs.join("、")}）` : ""].filter(Boolean).join("\n") || "（发送了附件）";
+            // 把素材真正交给模型：本轮有附件就用本轮的，否则沿用最近一次附上的，追问时模型仍看得到。
+            const visionSource = attachments.length ? attachments : [...before].reverse().find((item) => item.role === "user" && item.attachments?.length)?.attachments || [];
+            const visionLabels = visionSource.map((item) => {
+                const asset = snapshot.find((entry) => entry.attachment?.id === item.id);
+                return asset ? `#${asset.index} ${studioKindLabel(asset.kind)}` : item.name;
+            });
+            const maxImages = modelCapabilityConfigFor(config, textModel).text?.references.maxImages || 0;
             setStreaming("");
+            const vision = visionSource.length && maxImages > 0 ? await studioChatVisionInputs(visionSource, visionLabels, maxImages) : { images: [], notes: visionSource.length ? ["当前对话模型看不到图片和视频，请让用户描述素材内容。"] : [] };
+            const prompt = [content, newRefs.length ? `（附件：${newRefs.join("、")}）` : "", vision.notes.length ? `（素材说明：${vision.notes.join(" ")}）` : ""].filter(Boolean).join("\n") || "（发送了附件）";
             let reply = "";
             try {
                 // 选中的 Skill 内容附在本轮提示词前面；历史里只存用户原话，所以每轮都重新附上。
@@ -336,6 +347,7 @@ export default function StudioChatPage() {
                     prompt: prepared?.prompt || prompt,
                     config: { ...config, model: textModel, textModel, systemPrompt } as AiConfig,
                     textHistory: studioChatHistory(before),
+                    referenceImages: vision.images,
                     metadata: { studioAgent: "chat", ...(expert ? { expertId: expert.expertId } : {}), ...(prepared ? skillRuntimeMetadata(prepared.provenance) : {}) },
                     onTextDelta: (delta) => {
                         reply += delta;
@@ -477,7 +489,7 @@ export default function StudioChatPage() {
                                         {item.attachments.map((attachment) => <AttachmentThumb key={attachment.id} item={attachment} />)}
                                     </div>
                                 ) : null}
-                                {item.content ? <div className="studio-chat-bubble">{item.content}</div> : null}
+                                {item.content ? (item.role === "assistant" ? <div className="studio-chat-bubble is-markdown"><AIMessageMarkdown>{item.content}</AIMessageMarkdown></div> : <div className="studio-chat-bubble">{item.content}</div>) : null}
                                 {(item.actions || []).map((action) => (
                                     <ActionCard
                                         key={action.id}
@@ -495,7 +507,7 @@ export default function StudioChatPage() {
                         ))}
                         {streaming !== null ? (
                             <div className="studio-chat-message is-assistant">
-                                <div className="studio-chat-bubble">{streaming || <Loader2 className="studio-spin" aria-label="AI 正在思考" />}</div>
+                                {streaming ? <div className="studio-chat-bubble is-markdown"><AIMessageMarkdown isStreaming>{streaming}</AIMessageMarkdown></div> : <div className="studio-chat-bubble"><Loader2 className="studio-spin" aria-label="AI 正在思考" /></div>}
                             </div>
                         ) : null}
                     </div>
