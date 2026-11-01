@@ -283,6 +283,21 @@
     outline: none;
 }
 .studio-prompt textarea:focus { border-color: color-mix(in oklab, var(--studio-accent) 70%, transparent); }
+/* 素材标记高亮：背后叠一层同尺寸文字，只给标记上底色；输入框本身透明 */
+.studio-prompt-field { position: relative; display: grid; }
+.studio-prompt-field > * { grid-area: 1 / 1; }
+.studio-prompt-field > textarea, .studio-prompt-backdrop { scrollbar-gutter: stable; white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; }
+.studio-prompt-backdrop { overflow: hidden; pointer-events: none; color: transparent; box-sizing: border-box; width: 100%; height: 100%; border: 1px solid transparent; border-radius: var(--studio-radius-sm); background: var(--studio-panel); padding: 10px 12px; font-size: 14px; line-height: 1.6; }
+.studio-prompt-backdrop.studio-prompt-full { min-height: 0; border-color: transparent; background: #0d0e0f; padding: 14px; font-size: 15px; line-height: 1.7; border-radius: 14px; }
+.studio-prompt-backdrop:has(+ textarea) + textarea { position: relative; background: transparent; }
+.studio-prompt-backdrop mark { color: transparent; background: rgba(var(--studio-accent-rgb), 0.24); box-shadow: 0 0 0 1px rgba(var(--studio-accent-rgb), 0.45); border-radius: 4px; }
+.studio-mention-menu { position: absolute; z-index: 20; left: 8px; top: calc(100% - 6px); width: min(300px, calc(100% - 16px)); max-height: 260px; overflow: auto; padding: 6px; border: 1px solid var(--studio-line-strong); border-radius: 12px; background: #141516; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45); display: grid; gap: 2px; }
+.studio-mention-menu .studio-list-item[aria-selected="true"] { background: var(--studio-accent-soft); }
+.studio-mention-thumb { flex: 0 0 auto; width: 32px; height: 32px; border-radius: 6px; object-fit: cover; background: rgba(214, 225, 255, 0.06); display: grid; place-items: center; color: var(--studio-soft); font-size: 14px; }
+.studio-mention-token { flex: 0 0 auto; color: var(--studio-accent); font-weight: 600; font-size: 13px; }
+.studio-mention-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--studio-muted); font-size: 12px; }
+.studio-ref-slot .studio-ref-token { position: absolute; left: 6px; bottom: 6px; z-index: 2; padding: 1px 6px; border: 0; border-radius: 999px; background: rgba(0, 0, 0, 0.65); color: #fff; font: inherit; font-size: 11px; font-weight: 600; line-height: 18px; cursor: pointer; }
+.studio-ref-slot .studio-ref-token:hover { background: rgb(var(--studio-accent-rgb)); color: #0b0b0b; }
 .studio-prompt-tools { display: flex; align-items: center; gap: 6px; }
 .studio-prompt-tools .studio-counter { margin-left: auto; color: var(--studio-muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
 .studio-prompt-tools .studio-counter.is-over { color: var(--studio-danger); }

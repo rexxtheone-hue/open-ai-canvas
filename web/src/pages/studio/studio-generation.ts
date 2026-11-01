@@ -7,6 +7,7 @@ import { detectVideoMode, inferVideoOperation, modelGroupReferenceLimits, modelP
 import { applyVideoModeImageRoles, isSpecialtyVideoOperation, pickVideoModeMaterials, videoModeInputError, videoModeOperation, videoModeUsedInput, type VideoMode } from "@/lib/video-modes";
 import { modelOptionName, resolveModelRequestConfig, selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
 import type { StudioKind } from "@/services/api/studio";
+import { studioModelPrompt } from "./studio-mentions";
 
 /** Studio 生成工具的全部可编辑状态。模型值沿用渠道编码（channelId::model）。 */
 export type StudioToolState = {
@@ -84,7 +85,7 @@ export function studioBrandPrompt(kit: StudioBrandKitLike, kind: "image" | "vide
 export function studioFinalPrompt(state: Pick<StudioToolState, "kind" | "prompt" | "brand" | "specialty">) {
     // 专项工具的指令已包含用户补充说明，不再追加品牌，避免改动换背景、高清等结果的主体。
     if (state.specialty) return state.specialty.instruction.trim();
-    const prompt = state.prompt.trim();
+    const prompt = studioModelPrompt(state.prompt.trim());
     if (!prompt || state.kind === "audio" || !state.brand) return prompt;
     const brand = state.kind === "video" ? (state.brand.videoPrompt ?? state.brand.prompt) : state.brand.prompt;
     return brand ? `${prompt}\n\n${brand}` : prompt;

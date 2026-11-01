@@ -19,6 +19,7 @@ import { StudioLibrary } from "./studio-library";
 import { StudioAssetPicker, type StudioPickerKind } from "./studio-asset-picker";
 import { StudioOptionField } from "./studio-option-field";
 import { StudioPromptBox } from "./studio-prompt-box";
+import { studioMentions, syncStudioPromptMentions } from "./studio-mentions";
 import { StudioCameraPanel } from "./studio-camera-panel";
 import { appendCameraMove, enhanceStudioPrompt, planStudioShots, studioTextModel } from "./studio-prompt-tools";
 import { StudioRecorder } from "./studio-recorder";
@@ -319,6 +320,21 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     const totalReferenceLimit = limits.maxImages + limits.maxVideos + limits.maxAudios;
     const isFrameTool = !specialtySpec && tool.presetMode === "image_to_video";
     const isTextOnly = !specialtySpec && tool.presetMode === "text_to_video";
+    const mentionsEnabled = !specialtySpec && !isFrameTool && !isTextOnly && kind !== "audio";
+    const mentions = useMemo(() => (mentionsEnabled ? studioMentions(state.attachments) : []), [mentionsEnabled, state.attachments]);
+    const insertMentionRef = useRef<((token: string) => void) | null>(null);
+    // 添加或移除素材时，提示词里的标记跟着增删和补号；带入作品时提示词和素材一起换，不再追加。
+    const mentionSyncRef = useRef({ attachments: state.attachments, prompt: state.prompt });
+    useEffect(() => {
+        const previous = mentionSyncRef.current;
+        mentionSyncRef.current = { attachments: state.attachments, prompt: state.prompt };
+        if (!mentionsEnabled || previous.attachments === state.attachments || previous.prompt !== state.prompt) return;
+        const next = syncStudioPromptMentions(state.prompt, previous.attachments, state.attachments);
+        if (next !== state.prompt) {
+            mentionSyncRef.current.prompt = next;
+            update({ prompt: next });
+        }
+    }, [mentionsEnabled, state.attachments, state.prompt, update]);
     const variantCount = specialty?.variants?.length || 0;
     const showCount = !variantCount && (kind === "image" || (kind === "video" && (!specialtySpec || Boolean(specialtySpec.count))));
 
@@ -554,13 +570,17 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                             <div className="studio-block">
                                 <div className="studio-block-title">添加参考 <em>可选</em></div>
                                 <div className="studio-ref-grid">
-                                    {attachmentCards.map(({ attachment, isUsed, role }) => (
+                                    {attachmentCards.map(({ attachment, isUsed, role }) => {
+                                        const token = mentions.find((mention) => mention.attachment.id === attachment.id)?.token;
+                                        return (
                                         <div key={attachment.id} className={`studio-ref-slot is-filled${isUsed ? "" : " is-unused"}`} title={isUsed ? attachment.name : "当前模型或模式不使用这个素材，生成时不会发送"}>
                                             <AttachmentPreview attachment={attachment} />
                                             {role ? <span className="studio-ref-role">{role}</span> : null}
+                                            {token ? <button type="button" className="studio-ref-token" title="插入到描述里" onClick={() => insertMentionRef.current?.(token)}>{token}</button> : null}
                                             <button type="button" className="studio-ref-remove" aria-label={`移除 ${attachment.name}`} onClick={() => studio.removeAttachment(attachment.id)}><X aria-hidden /></button>
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                     {referenceKinds.map((referenceKind) => referenceTile(referenceKind))}
                                 </div>
                                 <p className="studio-hint">
@@ -591,6 +611,8 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                             onSubmitShortcut={() => {
                                 if (!blockReason && !submitting) void handleGenerate();
                             }}
+                            mentions={mentions}
+                            insertMentionRef={insertMentionRef}
                         />
 
                         {specialtySpec?.promptChips?.length || (!specialtySpec && kind === "audio") ? (
