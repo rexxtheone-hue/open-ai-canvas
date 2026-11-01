@@ -10,7 +10,7 @@ import { CreditSymbol } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { selectableModelsByCapability } from "@/stores/use-config-store";
 import { modelCapabilityConfigFor } from "@/lib/model-capabilities";
-import { videoModeMaterialRole, videoModeUsesMaterial } from "@/lib/video-modes";
+import { videoModeMaterialRole, videoModeUsesMaterial, type VideoMode } from "@/lib/video-modes";
 import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { creationAttachmentKind, type CreationAttachment } from "@/pages/create/creation-assets";
 import { resolveResourceUrl } from "@/services/api/resources";
@@ -32,7 +32,8 @@ import { studioAttachmentFromMedia, uploadStudioFile, useStudioTool } from "./us
 import { StudioPanelFooter, StudioPanelTabs, StudioToolSwitcher } from "./studio-workspace";
 import { StudioToolThumb } from "./studio-tool-thumb";
 import { StudioModelCard, StudioModelPanel } from "./studio-model-panel";
-import { studioFrameRatioNotice, studioImagesPerRequest, studioImageDefaultRatio, studioImageRatioSupported, studioModelSupportsSpecialty } from "./studio-generation";
+import { studioUpscaleModel } from "./studio-auto-upscale";
+import { studioVideoSeconds, studioFrameRatioNotice, studioImagesPerRequest, studioImageDefaultRatio, studioImageRatioSupported, studioModelSupportsSpecialty } from "./studio-generation";
 import { useStudioToolCovers } from "./use-studio-tool-meta";
 import { buildSpecialtyState, defaultSpecialtyOptions, orderedSlotAttachments, ratioOfChoice, restoreSpecialtyOptions, slotAccepts, slotItems, studioSpecialtySpec, type StudioSlot, type StudioSlotValues } from "./studio-specialty";
 import { STUDIO_ATTACH_KEY, STUDIO_REUSE_KEY } from "./studio-agent";
@@ -52,10 +53,31 @@ const VOICE_OVER_SAMPLES = [
     { label: "品牌故事", text: "十年前，我们在一间小小的工作室里，做出了第一件作品。那时我们只有一个信念：把每一个细节做到最好。" },
 ];
 
+type VideoTask = "reference" | "edit" | "extend";
+
+/** 生成视频的任务类型：参考生成、编辑已有视频、延长已有视频。 */
+const VIDEO_TASKS: Array<{ id: VideoTask; label: string; hint: string; mode?: VideoMode }> = [
+    { id: "reference", label: "参考生成", hint: "图片、视频、音频任意组合作为参考，用 @ 指定每个素材的作用。" },
+    { id: "edit", label: "视频编辑", hint: "放一段视频，用一句话修改：换背景、打光、风格、特效、去除物体都在这里。", mode: "inpaint" },
+    { id: "extend", label: "延长视频", hint: "放一段视频，从结尾自然往下续拍。", mode: "extend" },
+];
+
+const REFERENCE_CHIPS = [
+    { label: "多镜头", text: "多镜头叙事：拆成 3–5 个镜头，景别和机位有变化，镜头之间衔接自然，人物和场景前后一致" },
+];
+
+const EDIT_TASK_CHIPS = [
+    { label: "换背景", text: "把 @视频1 的背景换成" },
+    { label: "重新打光", text: "@视频1 的光线改为温暖的黄金时刻阳光，阴影和高光自然变化" },
+    { label: "换风格", text: "@视频1 整体转换为日系动画风格，内容和动作不变" },
+    { label: "加特效", text: "给 @视频1 加上特效：" },
+    { label: "去除物体", text: "去掉 @视频1 画面中的" },
+];
+
 /** 品牌素材或风格参考图，作为图片参考加入。 */
-function settingsSummary(kind: StudioKind, state: ReturnType<typeof useStudioTool>["state"]) {
+function settingsSummary(kind: StudioKind, state: ReturnType<typeof useStudioTool>["state"], config: ReturnType<typeof useStudioTool>["config"]) {
     if (kind === "image") return [state.image.ratio, state.image.imageResolution !== "auto" ? state.image.imageResolution : "", state.image.quality !== "auto" ? state.image.quality : ""].filter(Boolean).join(" | ") || "默认";
-    if (kind === "video") return `${state.video.ratio} | ${state.video.videoQuality.replace(/p$/i, "")}p | ${state.video.seconds}s`;
+    if (kind === "video") return `${state.video.ratio} | ${state.video.videoQuality.replace(/p$/i, "")}p | ${studioVideoSeconds(state, config)}s`;
     return state.audio.voice || "默认音色";
 }
 
@@ -150,6 +172,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     const imageCountNow = state.attachments.filter((attachment) => creationAttachmentKind(attachment) === "image").length;
     useEffect(() => {
         if (kind !== "video" || specialtySpec || tool.presetMode || !videoModeNow) return;
+        if (videoModeNow === "inpaint" || videoModeNow === "extend") return;
         if (videoModeNow !== "image_to_video" || imageCountNow === 0) setVideoMode(undefined);
     }, [imageCountNow, kind, setVideoMode, specialtySpec, tool.presetMode, videoModeNow]);
 
@@ -327,21 +350,30 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
         setStudioVideoTrimLimit(trimLimit);
         return () => setStudioVideoTrimLimit(0);
     }, [trimLimit]);
-    const mentionsEnabled = !specialtySpec && !isFrameTool && !isTextOnly && kind !== "audio";
+    const mentionsEnabled = specialtySpec ? Boolean(specialtySpec.mentions) : !isFrameTool && !isTextOnly && kind !== "audio";
     const mentions = useMemo(() => (mentionsEnabled ? studioMentions(state.attachments) : []), [mentionsEnabled, state.attachments]);
     const insertMentionRef = useRef<((token: string) => void) | null>(null);
+    const mentionTokenOf = (id: string) => mentions.find((mention) => mention.attachment.id === id)?.token;
     // 添加或移除素材时，提示词里的标记跟着增删和补号；带入作品时提示词和素材一起换，不再追加。
     const mentionSyncRef = useRef({ attachments: state.attachments, prompt: state.prompt });
     useEffect(() => {
         const previous = mentionSyncRef.current;
         mentionSyncRef.current = { attachments: state.attachments, prompt: state.prompt };
-        if (!mentionsEnabled || previous.attachments === state.attachments || previous.prompt !== state.prompt) return;
+        // 专项工具的指令已写好 @视频1 等标记，不自动追加，只保留 @ 选择和高亮。
+        if (!mentionsEnabled || specialtySpec || previous.attachments === state.attachments || previous.prompt !== state.prompt) return;
         const next = syncStudioPromptMentions(state.prompt, previous.attachments, state.attachments);
         if (next !== state.prompt) {
             mentionSyncRef.current.prompt = next;
             update({ prompt: next });
         }
-    }, [mentionsEnabled, state.attachments, state.prompt, update]);
+    }, [mentionsEnabled, specialtySpec, state.attachments, state.prompt, update]);
+
+    const isCreateVideo = tool.id === "create-video";
+    const videoTask: VideoTask = state.video.mode === "inpaint" ? "edit" : state.video.mode === "extend" ? "extend" : "reference";
+    const draftOn = state.video.videoQuality.replace(/p$/i, "") === "480";
+    const draftSupported = Boolean(videoProfile?.resolutions.some((value) => value.replace(/p$/i, "") === "480"));
+    const draftBackRef = useRef("720");
+    const upscaleAvailable = isCreateVideo && Boolean(studioUpscaleModel(config));
     const variantCount = specialty?.variants?.length || 0;
     const showCount = !variantCount && (kind === "image" || (kind === "video" && (!specialtySpec || Boolean(specialtySpec.count))));
 
@@ -470,6 +502,17 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                         </button>
                         <StudioModelCard config={config} model={resolvedModel || state.model} open={modelPanelOpen} onToggle={() => { setModelPanelOpen((value) => !value); setSwitcherOpen(false); }} />
 
+                        {isCreateVideo ? (
+                            <div className="studio-block">
+                                <div className="studio-task-tabs" role="tablist" aria-label="任务类型">
+                                    {VIDEO_TASKS.map((task) => (
+                                        <button key={task.id} type="button" role="tab" aria-selected={videoTask === task.id} onClick={() => setVideoMode(task.mode)}>{task.label}</button>
+                                    ))}
+                                </div>
+                                <p className="studio-hint">{VIDEO_TASKS.find((task) => task.id === videoTask)?.hint}</p>
+                            </div>
+                        ) : null}
+
                         {specialtySpec?.slots.length ? (
                             <div className="studio-block">
                                 <div className="studio-slot-grid">
@@ -488,6 +531,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                                     {items.map((item) => (
                                                         <div key={item.id} className="studio-ref-slot is-filled" title={item.name}>
                                                             <AttachmentPreview attachment={item} />
+                                                            {mentionTokenOf(item.id) ? <button type="button" className="studio-ref-token" title="插入到描述里" onClick={() => insertMentionRef.current?.(mentionTokenOf(item.id)!)}>{mentionTokenOf(item.id)}</button> : null}
                                                             <button type="button" className="studio-ref-remove" aria-label={`移除 ${slot.label}`} onClick={() => removeFromSlot(slot, item.id)}><X aria-hidden /></button>
                                                         </div>
                                                     ))}
@@ -578,7 +622,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                 <div className="studio-block-title">添加参考 <em>可选</em></div>
                                 <div className="studio-ref-grid">
                                     {attachmentCards.map(({ attachment, isUsed, role }) => {
-                                        const token = mentions.find((mention) => mention.attachment.id === attachment.id)?.token;
+                                        const token = mentionTokenOf(attachment.id);
                                         return (
                                         <div key={attachment.id} className={`studio-ref-slot is-filled${isUsed ? "" : " is-unused"}`} title={isUsed ? attachment.name : "当前模型或模式不使用这个素材，生成时不会发送"}>
                                             <AttachmentPreview attachment={attachment} />
@@ -636,6 +680,49 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                         }}
                                     >{chip.label}</button>
                                 ))}
+                            </div>
+                        ) : null}
+
+                        {isCreateVideo ? (
+                            <div className="studio-chip-list is-compact" role="group" aria-label="快捷标签">
+                                {(videoTask === "edit" ? EDIT_TASK_CHIPS : videoTask === "reference" ? REFERENCE_CHIPS : []).map((chip) => (
+                                    <button
+                                        key={chip.label}
+                                        type="button"
+                                        onClick={() => {
+                                            const current = state.prompt.trim();
+                                            if (!current.includes(chip.text)) studio.update({ prompt: current ? `${current}，${chip.text}` : chip.text });
+                                        }}
+                                    >{chip.label}</button>
+                                ))}
+                            </div>
+                        ) : null}
+
+                        {isCreateVideo ? (
+                            <div className="studio-block">
+                                <div className="studio-block-title">生成选项</div>
+                                <div className="studio-chip-list studio-gen-options" role="group" aria-label="生成选项">
+                                    {videoTask === "edit" ? (
+                                        <button type="button" aria-pressed={Boolean(state.video.adaptive)} title="输出时长跟原视频一致" onClick={() => studio.updateVideo({ adaptive: !state.video.adaptive })}>自适应时长</button>
+                                    ) : null}
+                                    <button
+                                        type="button"
+                                        aria-pressed={draftOn}
+                                        disabled={!draftSupported}
+                                        title={draftSupported ? "先用 480p 快速出草稿，满意再出高清" : "当前模型不支持 480p"}
+                                        onClick={() => {
+                                            if (draftOn) studio.updateVideo({ videoQuality: draftBackRef.current });
+                                            else {
+                                                draftBackRef.current = state.video.videoQuality;
+                                                studio.updateVideo({ videoQuality: "480" });
+                                            }
+                                        }}
+                                    >草稿 480p</button>
+                                    {upscaleAvailable ? (
+                                        <button type="button" aria-pressed={Boolean(state.video.autoUpscale)} title="生成完成后自动交给视频高清再出一版（另计积分）" onClick={() => studio.updateVideo({ autoUpscale: !state.video.autoUpscale })}>自动高清</button>
+                                    ) : null}
+                                </div>
+                                {state.video.autoUpscale && upscaleAvailable ? <p className="studio-hint">完成后会自动提交视频高清，另按高清价格扣积分；需要保持 Studio 页面打开。</p> : null}
                             </div>
                         ) : null}
 
@@ -719,7 +806,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                 >
                                     <button type="button" className="studio-row-button" aria-label="输出设置">
                                         <SlidersHorizontal aria-hidden />
-                                        <span><small>输出</small><b>{settingsSummary(kind, state)}</b></span>
+                                        <span><small>输出</small><b>{settingsSummary(kind, state, config)}</b></span>
                                         <ChevronRight aria-hidden />
                                     </button>
                                 </Popover>

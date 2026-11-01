@@ -31,25 +31,27 @@ export type StudioToolDefinition = {
     specialty?: boolean;
     /** 生成视频的预设模式（图生视频、文生视频入口），打开时直接选好。 */
     presetMode?: VideoMode;
+    /** 已并入其它工具，不出现在工具列表；旧链接仍能打开。 */
+    merged?: boolean;
 };
 
 /** 已上线的工具。全部显示；没有可用模型时工具页说明原因并禁止生成。 */
 export const STUDIO_TOOLS: StudioToolDefinition[] = [
     // 视频
-    { id: "create-video", label: "生成视频", description: "文字、图片、首尾帧或全能参考生成视频", icon: Clapperboard, path: "/studio/create-video", tabs: ["video"], kind: "video", badge: "HOT", gradient: ["#ff5f9e", "#7b2ff7"] },
+    { id: "create-video", label: "生成视频", description: "全能参考生成，也能编辑、延长已有视频", icon: Clapperboard, path: "/studio/create-video", tabs: ["video"], kind: "video", badge: "HOT", gradient: ["#ff5f9e", "#7b2ff7"] },
     { id: "frame-to-video", label: "图生视频", description: "用首帧（和尾帧）图片生成视频", icon: ImagePlay, path: "/studio/frame-to-video", tabs: ["video"], kind: "video", presetMode: "image_to_video", gradient: ["#fc5c7d", "#6a82fb"] },
     { id: "text-to-video", label: "文生视频", description: "只用文字描述生成视频", icon: Type, path: "/studio/text-to-video", tabs: ["video"], kind: "video", presetMode: "text_to_video", gradient: ["#ff9966", "#ff5e62"] },
-    { id: "smart-shot", label: "智能分镜", description: "一句话拆成多镜头，生成完整短片", icon: ListVideo, path: "/studio/tools/smart-shot", tabs: ["video"], kind: "video", specialty: true, badge: "NEW", gradient: ["#f953c6", "#b91d73"] },
-    { id: "edit-video", label: "编辑视频", description: "用一句话修改已有视频", icon: PenLine, path: "/studio/tools/edit-video", tabs: ["video"], kind: "video", specialty: true, gradient: ["#7f00ff", "#e100ff"] },
-    { id: "replace-character", label: "换角色", description: "把视频里的人换成你的角色", icon: Replace, path: "/studio/tools/replace-character", tabs: ["video", "character"], kind: "video", specialty: true, badge: "NEW", gradient: ["#e65c00", "#f9d423"] },
-    { id: "restyle-video", label: "视频换风格", description: "动画、油画、乐高等风格一键转换", icon: Palette, path: "/studio/tools/restyle-video", tabs: ["video"], kind: "video", specialty: true, gradient: ["#ec008c", "#fc6767"] },
-    { id: "extend-video", label: "延长视频", description: "从结尾自然往下续拍", icon: FastForward, path: "/studio/tools/extend-video", tabs: ["video"], kind: "video", specialty: true, gradient: ["#1fa2ff", "#12d8fa"] },
-    { id: "motion-sync", label: "动作同步", description: "让角色模仿参考视频里的动作", icon: PersonStanding, path: "/studio/tools/motion-sync", tabs: ["video", "character"], kind: "video", specialty: true, gradient: ["#00c6ff", "#0072ff"] },
+    { id: "smart-shot", label: "智能分镜", description: "一句话拆成多镜头，生成完整短片", icon: ListVideo, path: "/studio/tools/smart-shot", tabs: ["video"], kind: "video", specialty: true, badge: "NEW", gradient: ["#f953c6", "#b91d73"] , merged: true },
+    { id: "edit-video", label: "编辑视频", description: "一句话修改或延长已有视频", icon: PenLine, path: "/studio/tools/edit-video", tabs: ["video"], kind: "video", specialty: true, gradient: ["#7f00ff", "#e100ff"] },
+    { id: "replace-character", label: "换角色", description: "把视频里的人换成你的角色，或让角色模仿动作", icon: Replace, path: "/studio/tools/replace-character", tabs: ["video", "character"], kind: "video", specialty: true, badge: "NEW", gradient: ["#e65c00", "#f9d423"] },
+    { id: "restyle-video", label: "视频换风格", description: "动画、油画、乐高等风格一键转换", icon: Palette, path: "/studio/tools/restyle-video", tabs: ["video"], kind: "video", specialty: true, gradient: ["#ec008c", "#fc6767"] , merged: true },
+    { id: "extend-video", label: "延长视频", description: "从结尾自然往下续拍", icon: FastForward, path: "/studio/tools/extend-video", tabs: ["video"], kind: "video", specialty: true, gradient: ["#1fa2ff", "#12d8fa"] , merged: true },
+    { id: "motion-sync", label: "动作同步", description: "让角色模仿参考视频里的动作", icon: PersonStanding, path: "/studio/tools/motion-sync", tabs: ["video", "character"], kind: "video", specialty: true, gradient: ["#00c6ff", "#0072ff"] , merged: true },
     { id: "lip-sync", label: "对口型", description: "让人像或人物视频按声音说话", icon: MicVocal, path: "/studio/tools/lip-sync", tabs: ["video", "character"], kind: "video", specialty: true, gradient: ["#ee0979", "#ff6a00"] },
     { id: "video-upscale", label: "视频高清", description: "把视频提升到更高清晰度", icon: MonitorUp, path: "/studio/tools/video-upscale", tabs: ["video"], kind: "video", specialty: true, gradient: ["#8e2de2", "#4a00e0"] },
-    { id: "video-background", label: "视频换背景", description: "人物不变，替换视频背景", icon: Wallpaper, path: "/studio/tools/video-background", tabs: ["video"], kind: "video", specialty: true, gradient: ["#0cebeb", "#29ffc6"] },
-    { id: "video-relight", label: "视频重新打光", description: "给视频换一种光线氛围", icon: Lightbulb, path: "/studio/tools/video-relight", tabs: ["video"], kind: "video", specialty: true, gradient: ["#f2994a", "#f2c94c"] },
-    { id: "vfx", label: "视频特效", description: "火焰、传送门等特效加进视频", icon: Flame, path: "/studio/tools/vfx", tabs: ["video"], kind: "video", specialty: true, gradient: ["#ff512f", "#dd2476"] },
+    { id: "video-background", label: "视频换背景", description: "人物不变，替换视频背景", icon: Wallpaper, path: "/studio/tools/video-background", tabs: ["video"], kind: "video", specialty: true, gradient: ["#0cebeb", "#29ffc6"] , merged: true },
+    { id: "video-relight", label: "视频重新打光", description: "给视频换一种光线氛围", icon: Lightbulb, path: "/studio/tools/video-relight", tabs: ["video"], kind: "video", specialty: true, gradient: ["#f2994a", "#f2c94c"] , merged: true },
+    { id: "vfx", label: "视频特效", description: "火焰、传送门等特效加进视频", icon: Flame, path: "/studio/tools/vfx", tabs: ["video"], kind: "video", specialty: true, gradient: ["#ff512f", "#dd2476"] , merged: true },
     { id: "add-sound-effect", label: "视频配音效", description: "按画面自动生成同步音效", icon: Volume2, path: "/studio/tools/add-sound-effect", tabs: ["video", "audio"], kind: "video", specialty: true, gradient: ["#3a1c71", "#d76d77"] },
     // 图片
     { id: "create-image", label: "生成图片", description: "文字或参考图生成图片", icon: ImageIcon, path: "/studio/create-image", tabs: ["image"], kind: "image", badge: "HOT", gradient: ["#ffb347", "#ff5e62"] },

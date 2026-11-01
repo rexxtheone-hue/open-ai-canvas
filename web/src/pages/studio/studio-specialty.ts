@@ -55,6 +55,12 @@ export type StudioSpecialtySpec = {
     kind: StudioKind;
     /** 视频专项操作；图片工具和普通视频生成为空。 */
     operation?: StudioSpecialtyOperation;
+    /** 操作随选项变化（编辑 / 延长、替换人物 / 动作模仿）。 */
+    operationFor?: (options: Record<string, string>) => StudioSpecialtyOperation;
+    /** 模型不支持主操作时改用参考生视频，原视频作为 @视频1 发送。 */
+    fallbackOperation?: StudioSpecialtyOperation;
+    /** 提示词里可以用 @视频1、@图片1 指定素材。 */
+    mentions?: boolean;
     /** 还没有接入的能力名称；设置后没有模型能用，生成按钮显示原因。 */
     unsupported?: string;
     /** 音频专项只能用这个协议插件的模型（例如文字生成音效），配音模型不出现在这里。 */
@@ -254,6 +260,35 @@ const angleModeOption: StudioSpecialtyOption = {
     ],
 };
 const allAnglesOption: StudioSpecialtyOption = { key: "all", label: "一次生成全部角度", type: "toggle", choices: [], default: "off", info: "按 6 个常用机位各生成一张，忽略上面的角度设置" };
+const editTaskOption: StudioSpecialtyOption = {
+    key: "task",
+    label: "任务",
+    default: "edit",
+    choices: [
+        { value: "edit", label: "编辑视频", prompt: "" },
+        { value: "extend", label: "延长视频", prompt: "" },
+    ],
+};
+const swapModeOption: StudioSpecialtyOption = {
+    key: "mode",
+    label: "方式",
+    default: "replace",
+    choices: [
+        { value: "replace", label: "替换人物", prompt: "" },
+        { value: "motion", label: "动作模仿", prompt: "" },
+    ],
+    info: "替换人物：保留原视频的场景，只把人换掉。动作模仿：角色照着原视频做同样的动作（原动作同步）。",
+};
+const VIDEO_SOURCE_CONSTRAINT = "大小和时长按所选模型（Seedance 2.5 最长 30 秒 / 200MB），超长可在上传时裁剪";
+const EDIT_CHIPS: StudioSpecialtySpec["promptChips"] = [
+    { label: "换背景", text: "把背景换成", mode: "append" },
+    { label: "重新打光", text: "光线改为温暖的黄金时刻阳光，阴影和高光自然变化", mode: "append" },
+    { label: "换风格", text: "整体转换为日系动画风格，内容和动作不变", mode: "append" },
+    { label: "加特效", text: "加上特效：", mode: "append" },
+    { label: "去除物体", text: "去掉画面中的", mode: "append" },
+    { label: "换服装", text: "人物的衣服换成 @图片1 里的服装", mode: "append" },
+];
+
 const replaceScopeOption: StudioSpecialtyOption = {
     key: "scope",
     label: "替换方式",
@@ -432,12 +467,20 @@ export const STUDIO_SPECIALTY_SPECS: Record<string, StudioSpecialtySpec> = {
     "edit-video": {
         kind: "video",
         operation: "inpaint",
+        operationFor: (options) => (options.task === "extend" ? "extend" : "inpaint"),
+        fallbackOperation: "reference_to_video",
+        mentions: true,
         slots: [
-            { key: "source", label: "原视频", accept: "video", required: true, hint: "上传或选择一段视频", constraint: "MP4 / MOV，100MB 以内，1–10 秒，720–2160px" },
-            { key: "refs", label: "参考图", accept: "image", required: false, max: 3, hint: "可选，要换上的物体或风格" },
+            { key: "source", label: "原视频", accept: "video", required: true, hint: "上传或选择一段视频", constraint: VIDEO_SOURCE_CONSTRAINT },
+            { key: "refs", label: "参考图", accept: "image", required: false, max: 3, hint: "可选，要换上的物体、服装或风格" },
         ],
-        prompt: { label: "描述你想怎么修改", placeholder: "例如：把天空换成晚霞，人物衣服换成红色。", required: true },
-        instruction: (text) => `按以下要求修改这段视频，没提到的部分（人物外貌、动作、镜头运动、时长）保持不变：${text.trim()}。如果提供了参考图，按参考图的外观修改。`,
+        options: [editTaskOption],
+        promptChips: EDIT_CHIPS,
+        prompt: { label: "描述你想怎么修改或延长", placeholder: "例如：把 @视频1 的天空换成晚霞，人物衣服换成 @图片1 的样子。延长时写接下来发生什么。", required: true },
+        instruction: (text, options) =>
+            options.task === "extend"
+                ? `从 @视频1 的最后一帧自然衔接继续生成：${text.trim()}。人物、场景、光线和画风与原视频保持一致，动作和镜头运动连贯不跳变。如果提供了参考图，新出现的人物或物体按参考图的外观。`
+                : `按以下要求修改 @视频1，没提到的部分（人物外貌、动作、镜头运动、时长）保持不变：${text.trim()}。如果提供了参考图，按参考图的外观修改。`,
     },
     "video-background": {
         kind: "video",
@@ -472,13 +515,21 @@ export const STUDIO_SPECIALTY_SPECS: Record<string, StudioSpecialtySpec> = {
     "replace-character": {
         kind: "video",
         operation: "replace_element",
+        operationFor: (options) => (options.mode === "motion" ? "motion_transfer" : "replace_element"),
+        fallbackOperation: "reference_to_video",
+        mentions: true,
         slots: [
-            { key: "source", label: "原视频", accept: "video", required: true, hint: "上传或选择一段视频", constraint: "最长 30 秒" },
-            { key: "character", label: "替换角色", accept: "image", required: true, hint: "上传图片或选择角色" },
+            { key: "source", label: "原视频", accept: "video", required: true, hint: "上传、录制或选择一段视频", constraint: VIDEO_SOURCE_CONSTRAINT, record: "video" },
+            { key: "character", label: "替换角色", accept: "image", required: true, max: 4, hint: "可放多张：多人按顺序替换，或同一角色的多个角度" },
         ],
-        options: [replaceScopeOption],
-        prompt: { label: "提示词", placeholder: "可选，例如：只替换穿白衣服的人。", required: false },
-        instruction: (text, options) => withNote(`把视频中的主要人物替换成参考图中的角色：${choicePrompt(replaceScopeOption, options.scope)}，保持原视频的动作、表情、镜头运动、光线和背景不变。`, text),
+        options: [swapModeOption, replaceScopeOption],
+        prompt: { label: "提示词", placeholder: "可选，例如：@视频1 里穿白衣服的人换成 @图片1，另一个人换成 @图片2。", required: false },
+        instruction: (text, options) => {
+            if (options.mode === "motion") {
+                return withNote("视频中的人物是 @图片1 里的角色（脸、发型、服装都按图片）。完整复制 @视频1 里的身体动作、手势、头部动作和节奏，但不要使用 @视频1 里的人物，要把那个人完全替换成图片中的角色。保留 @视频1 的背景、构图和光线。", text);
+            }
+            return withNote(`把 @视频1 中的人物替换成参考图中的角色：${choicePrompt(replaceScopeOption, options.scope)}。只有一张角色图时替换主要人物；有多张时，如果是不同的人，按画面中人物从左到右依次替换为 @图片1、@图片2……；如果是同一个角色的不同角度，就综合这些图还原这个角色。保持原视频的动作、表情、镜头运动、光线、背景和时长不变。`, text);
+        },
     },
     "restyle-video": {
         kind: "video",
@@ -495,12 +546,13 @@ export const STUDIO_SPECIALTY_SPECS: Record<string, StudioSpecialtySpec> = {
     "extend-video": {
         kind: "video",
         operation: "extend",
+        fallbackOperation: "reference_to_video",
         slots: [
             { key: "source", label: "原视频", accept: "video", required: true, hint: "要延长的视频", constraint: "2–30 秒" },
             { key: "refs", label: "视觉参考", accept: "image", required: false, max: 4, hint: "可选，新出现的人物或物体", constraint: "JPEG / PNG / WEBP，30MB 以内" },
         ],
         prompt: { label: "描述视频接下来怎么发展", placeholder: "例如：女孩转身走向窗边，镜头慢慢跟上。", required: true },
-        instruction: (text) => `从原视频最后一帧自然衔接继续生成：${text.trim()}。人物、场景、光线和画风与原视频保持一致，动作和镜头运动连贯不跳变。如果提供了参考图，新出现的人物或物体按参考图的外观。`,
+        instruction: (text) => `从 @视频1 的最后一帧自然衔接继续生成：${text.trim()}。人物、场景、光线和画风与原视频保持一致，动作和镜头运动连贯不跳变。如果提供了参考图，新出现的人物或物体按参考图的外观。`,
     },
     "camera-motion": {
         kind: "video",
@@ -837,9 +889,11 @@ const OPERATION_LABELS: Record<string, string> = {
 /** 交给生成钩子的专项状态。槽位全空时不报错，等用户点生成前再提示。 */
 export function buildSpecialtyState(spec: StudioSpecialtySpec, values: StudioSlotValues, userText: string, options: Record<string, string>, context: StudioSpecialtyContext = {}): StudioSpecialtyState {
     const requiredCount = (accept: StudioSlotAccept) => spec.slots.filter((slot) => slot.required && slot.accept === accept).length;
+    const operation = spec.operationFor?.(options) ?? spec.operation;
     return {
-        operation: spec.operation,
-        operationLabel: spec.unsupported || spec.audioLabel || (spec.operation ? OPERATION_LABELS[spec.operation] || spec.operation : spec.kind === "video" ? "视频生成" : spec.kind === "audio" ? "声音克隆" : "图片编辑"),
+        operation,
+        fallbackOperation: spec.fallbackOperation,
+        operationLabel: spec.unsupported || spec.audioLabel || (operation ? OPERATION_LABELS[operation] || operation : spec.kind === "video" ? "视频生成" : spec.kind === "audio" ? "声音克隆" : "图片编辑"),
         unsupported: Boolean(spec.unsupported),
         audioProtocol: spec.audioProtocol,
         kind: spec.kind,

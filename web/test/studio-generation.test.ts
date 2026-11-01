@@ -394,4 +394,40 @@ describe("做同款与选项回填", () => {
         const plain = studioRemixAsWork({ kind: "image", tool: "create-image", prompt: "一杯咖啡", settings: { size: "1:1" } });
         expect(plain.settings).toMatchObject({ userPrompt: "一杯咖啡", size: "1:1" });
     });
+    test("换角色：模型不支持替换时改用参考生视频，原视频作为 @视频1", () => {
+        const config = studioConfig();
+        const spec = studioSpecialtySpec("replace-character")!;
+        const video = { ...attachment("v", "video/mp4"), durationMs: 7400 } as CreationAttachment;
+        const values = { source: video, character: [attachment("a", "image/png"), attachment("b", "image/png")] };
+        const specialty = buildSpecialtyState(spec, values, "", defaultSpecialtyOptions(spec));
+        expect(specialty.operation).toBe("replace_element");
+        expect(studioModelSupportsSpecialty(config, "relay::clip-pro", specialty)).toBe(true);
+        const current = state("video", { tool: "replace-character", attachments: orderedSlotAttachments(spec, values), specialty });
+        expect(studioModelRequirements(config, current)).toMatchObject({ videoOperation: "reference_to_video", videoSeconds: "8" });
+        const submission = studioSubmission(config, current, "relay::clip-pro", studioReferenceLimits(config, current, "relay::clip-pro"));
+        expect(submission.metadata.videoEditOperation).toBe("reference_to_video");
+        expect(submission.prompt).toContain("@视频1");
+        const motion = buildSpecialtyState(spec, values, "", { ...defaultSpecialtyOptions(spec), mode: "motion" });
+        expect(motion.operation).toBe("motion_transfer");
+    });
+
+    test("生成视频的编辑、延长任务在模型不支持时改走参考生视频并加说明", () => {
+        const config = studioConfig();
+        const video = { ...attachment("v", "video/mp4"), durationMs: 6200 } as CreationAttachment;
+        const editing = state("video", { prompt: "天空换成晚霞", attachments: [video], video: { ratio: "16:9", seconds: "5", videoQuality: "720", generateAudio: true, mode: "inpaint", adaptive: true } });
+        const submission = studioSubmission(config, editing, "relay::clip-pro", studioReferenceLimits(config, editing, "relay::clip-pro"));
+        expect(submission.metadata.videoMode).toBe("reference_to_video");
+        expect(submission.prompt.startsWith("编辑 @视频1")).toBe(true);
+        expect(studioModelRequirements(config, editing).videoSeconds).toBe("7");
+        const extending = { ...editing, video: { ...editing.video, mode: "extend" as const, adaptive: false } };
+        expect(studioSubmission(config, extending, "relay::clip-pro", studioReferenceLimits(config, extending, "relay::clip-pro")).prompt).toContain("最后一帧");
+        expect(studioModelRequirements(config, extending).videoSeconds).toBe("5");
+    });
+
+    test("编辑视频页可以切换成延长", () => {
+        const spec = studioSpecialtySpec("edit-video")!;
+        expect(buildSpecialtyState(spec, {}, "继续走", { task: "extend" }).operation).toBe("extend");
+        expect(specialtyPrompt(spec, "继续走", { task: "extend" })).toContain("最后一帧");
+        expect(buildSpecialtyState(spec, {}, "换天空", defaultSpecialtyOptions(spec)).operation).toBe("inpaint");
+    });
 });

@@ -3,7 +3,7 @@ import { creationVideoConfig } from "@/pages/create/creation-generation-config";
 import { audioGenerationPrompt, isDoubaoAudioConfig } from "@/lib/audio-generation";
 import { imageParameterAccepts, imageParameterRequest } from "@/lib/image-parameters";
 import { modelCapabilityConfigFor, normalizeImageValue, videoDurationAllowed, type VideoCapabilityConfig } from "@/lib/model-capabilities";
-import { detectVideoMode, inferVideoOperation, modelGroupReferenceLimits, modelPromptLengthError, resolveCompatibleModel, resolveModelVideoBooleanOptions, type ModelReferenceLimits, type ModelRequirements } from "@/lib/model-selection";
+import { detectVideoMode, groupModelsByDisplayName, inferVideoOperation, modelGroupReferenceLimits, modelPromptLengthError, resolveCompatibleModel, resolveModelVideoBooleanOptions, type ModelReferenceLimits, type ModelRequirements } from "@/lib/model-selection";
 import { applyVideoModeImageRoles, isSpecialtyVideoOperation, pickVideoModeMaterials, videoModeInputError, videoModeOperation, videoModeUsedInput, type VideoMode } from "@/lib/video-modes";
 import { modelOptionName, resolveModelRequestConfig, selectableModelsByCapability, type AiConfig } from "@/stores/use-config-store";
 import type { StudioKind } from "@/services/api/studio";
@@ -18,7 +18,7 @@ export type StudioToolState = {
     attachments: CreationAttachment[];
     count: number;
     image: { ratio: string; quality: string; imageResolution: string; imageParameters: string };
-    video: { ratio: string; seconds: string; videoQuality: string; generateAudio: boolean; mode?: VideoMode };
+    video: { ratio: string; seconds: string; videoQuality: string; generateAudio: boolean; mode?: VideoMode; adaptive?: boolean; autoUpscale?: boolean };
     audio: { voice: string; format: string; speed: string };
     /** 选中的品牌套件。配音不使用品牌（朗读文案必须原样）。 */
     brand?: StudioBrandContext;
@@ -28,6 +28,8 @@ export type StudioToolState = {
 
 export type StudioSpecialtyState = {
     operation?: string;
+    /** 模型不支持 operation 时改用的操作（通常是参考生视频，把原视频当 @视频1 发送）。 */
+    fallbackOperation?: string;
     operationLabel: string;
     /** 还没有接入协议的能力：没有模型可用。 */
     unsupported?: boolean;
@@ -84,7 +86,7 @@ export function studioBrandPrompt(kit: StudioBrandKitLike, kind: "image" | "vide
 /** 实际发送的提示词：图片和视频在用户提示词后追加品牌要求。 */
 export function studioFinalPrompt(state: Pick<StudioToolState, "kind" | "prompt" | "brand" | "specialty">) {
     // 专项工具的指令已包含用户补充说明，不再追加品牌，避免改动换背景、高清等结果的主体。
-    if (state.specialty) return state.specialty.instruction.trim();
+    if (state.specialty) return studioModelPrompt(state.specialty.instruction.trim());
     const prompt = studioModelPrompt(state.prompt.trim());
     if (!prompt || state.kind === "audio" || !state.brand) return prompt;
     const brand = state.kind === "video" ? (state.brand.videoPrompt ?? state.brand.prompt) : state.brand.prompt;
@@ -132,7 +134,7 @@ export function studioModelSupportsSpecialty(config: AiConfig, model: string, sp
     }
     if (specialty.operation) {
         const video = profile.video;
-        if (!video?.operations.includes(specialty.operation)) return false;
+        if (!video?.operations.includes(specialty.operation) && !(specialty.fallbackOperation && video?.operations.includes(specialty.fallbackOperation))) return false;
         // 延长、编辑等要把原视频发给模型，模型必须能接收足够的参考视频和图片。
         return video.references.maxVideos >= (specialty.minVideos || 0) && video.references.maxImages >= specialty.minImages;
     }
@@ -168,12 +170,68 @@ export function studioPreferredModel(config: AiConfig, kind: StudioKind, remembe
     return options[0];
 }
 
+/** 同名模型组里有没有路由支持这个视频操作。 */
+function groupSupportsOperation(config: AiConfig, model: string, operation: string) {
+    const options = selectableModelsByCapability(config, "video");
+    const group = groupModelsByDisplayName(config, options).find((item) => item.models.includes(model));
+    return (group?.models || [model]).some((item) => modelCapabilityConfigFor(config, item).video?.operations.includes(operation));
+}
+
+/** 专项工具实际使用的操作：模型不支持主操作时改用备用操作。 */
+export function studioSpecialtyOperation(config: AiConfig, state: Pick<StudioToolState, "model" | "specialty">) {
+    const specialty = state.specialty;
+    if (!specialty?.operation) return undefined;
+    if (!specialty.fallbackOperation || !state.model || groupSupportsOperation(config, state.model, specialty.operation)) return specialty.operation;
+    return groupSupportsOperation(config, state.model, specialty.fallbackOperation) ? specialty.fallbackOperation : specialty.operation;
+}
+
+const MODE_FALLBACK_PREFIX: Partial<Record<VideoMode, string>> = {
+    inpaint: "编辑 @视频1：没有提到的人物外貌、动作、镜头运动和时长保持不变，按以下要求修改。",
+    extend: "从 @视频1 的最后一帧自然衔接，继续往下生成，人物、场景、光线和画风保持一致：",
+};
+
+/** 视频编辑、延长：模型不支持时改用参考生视频，原视频作为 @视频1，提示词前加上说明。 */
+export function studioVideoModeFor(config: AiConfig, state: Pick<StudioToolState, "model" | "video" | "specialty">): { mode?: VideoMode; prefix: string } {
+    const mode = state.video.mode;
+    if (state.specialty || !mode || !MODE_FALLBACK_PREFIX[mode] || !state.model || groupSupportsOperation(config, state.model, mode)) return { mode, prefix: "" };
+    if (!groupSupportsOperation(config, state.model, "reference_to_video")) return { mode, prefix: "" };
+    return { mode: "reference_to_video", prefix: MODE_FALLBACK_PREFIX[mode]! };
+}
+
+/** 编辑类操作的输出时长跟原视频一致。 */
+const EDIT_LENGTH_OPERATIONS = new Set(["inpaint", "replace_element", "style_transfer", "camera_motion"]);
+
+/** 按模型时长范围取最接近的值。 */
+function fitDuration(profile: VideoCapabilityConfig | undefined, seconds: number) {
+    if (!profile) return seconds;
+    const duration = profile.duration;
+    if (duration.selection === "enum" && duration.values?.length) {
+        return duration.values.find((value) => value >= seconds) ?? duration.values[duration.values.length - 1];
+    }
+    return Math.min(duration.max ?? seconds, Math.max(duration.min ?? seconds, seconds));
+}
+
 /** 输出与原视频等长的专项操作，按原视频时长计费，不用输出设置里的时长。 */
 const SOURCE_LENGTH_OPERATIONS = new Set(["video_upscale", "video_sfx", "dubbing"]);
 /** 输出时长等于动作参考视频的动作同步协议；其它动作同步模型按所选时长生成。 */
 const SOURCE_LENGTH_MOTION_PROTOCOLS = new Set(["replicate-dreamactor", "replicate-kling-motion"]);
 
+function sourceVideoSeconds(state: StudioToolState) {
+    const source = state.attachments.find((attachment) => creationAttachmentKind(attachment) === "video");
+    const durationMs = source && "durationMs" in source ? source.durationMs : undefined;
+    return durationMs && durationMs > 0 ? Math.ceil(durationMs / 1000) : 0;
+}
+
 function sourceLengthSeconds(state: StudioToolState, config?: AiConfig) {
+    // 编辑视频、换角色，以及生成视频里开了「自适应」的编辑任务：时长跟原视频走。
+    const editOperation = state.specialty?.operation;
+    const adaptive = (editOperation && EDIT_LENGTH_OPERATIONS.has(editOperation)) || (!state.specialty && state.video.adaptive && state.video.mode === "inpaint");
+    if (adaptive) {
+        const seconds = sourceVideoSeconds(state);
+        if (!seconds) return "";
+        const profile = config && state.model ? modelCapabilityConfigFor(config, state.model).video : undefined;
+        return String(fitDuration(profile, seconds));
+    }
     const operation = state.specialty?.operation;
     if (!operation) return "";
     const motion = operation === "motion_transfer" && config !== undefined && Boolean(state.model) && SOURCE_LENGTH_MOTION_PROTOCOLS.has(modelProtocol(config, state.model));
@@ -213,7 +271,8 @@ export function studioModelRequirements(config: AiConfig, state: StudioToolState
     }
     if (state.kind === "video") {
         const seconds = studioVideoSeconds(state, config);
-        return { capability: "video", input, videoSeconds: seconds, ...(state.specialty?.operation ? { videoOperation: state.specialty.operation } : { videoMode: state.video.mode }), options: { size: state.video.ratio, videoSeconds: Number(seconds), vquality: state.video.videoQuality } };
+        const operation = studioSpecialtyOperation(config, state);
+        return { capability: "video", input, videoSeconds: seconds, ...(operation ? { videoOperation: operation } : { videoMode: studioVideoModeFor(config, state).mode }), options: { size: state.video.ratio, videoSeconds: Number(seconds), vquality: state.video.videoQuality } };
     }
     return { capability: "audio", input, options: {} };
 }
@@ -416,13 +475,15 @@ export function studioSubmission(config: AiConfig, state: StudioToolState, model
         metadata.studioPrompt = state.prompt.trim();
     }
     const videoCount = state.specialty && !state.specialty.allowCount ? 1 : Math.max(1, Math.min(studioMaxCount(config, "video", model), Math.floor(state.count) || 1));
+    if (state.kind === "video" && state.video.autoUpscale && !state.specialty) metadata.autoUpscale = true;
     if (state.kind === "video" && state.specialty?.operation) {
         // 专项操作按槽位顺序发送全部素材，不走视频模式的素材挑选。
-        metadata.videoEditOperation = state.specialty.operation;
+        metadata.videoEditOperation = studioSpecialtyOperation(config, { ...state, model }) || state.specialty.operation;
         return { mode: "video", prompt: finalPrompt, config: generationConfig, count: videoCount, referenceImages: split.referenceImages, referenceVideos: split.referenceVideos, referenceAudios: split.referenceAudios, metadata };
     }
     if (state.kind === "video") {
-        const mode = state.video.mode;
+        const { mode, prefix } = studioVideoModeFor(config, { ...state, model });
+        const videoPrompt = prefix ? studioModelPrompt(`${prefix}${finalPrompt}`) : finalPrompt;
         const videoProfile = modelCapabilityConfigFor(config, model).video;
         const referenceVideos = pickVideoModeMaterials(mode, "video", split.referenceVideos);
         const referenceAudios = pickVideoModeMaterials(mode, "audio", split.referenceAudios);
@@ -432,7 +493,7 @@ export function studioSubmission(config: AiConfig, state: StudioToolState, model
         const operation = mode ? videoModeOperation(mode) : inferVideoOperation({ textCount: 1, characterCount: 0, ...counts }, videoProfile?.operations);
         if (mode) metadata.videoMode = mode;
         metadata.videoEditOperation = operation;
-        return { mode: "video", prompt: finalPrompt, config: generationConfig, count: videoCount, referenceImages, referenceVideos, referenceAudios, metadata };
+        return { mode: "video", prompt: videoPrompt, config: generationConfig, count: videoCount, referenceImages, referenceVideos, referenceAudios, metadata };
     }
     if (state.kind === "image") {
         const count = Math.max(1, Math.min(studioMaxCount(config, "image", model), Math.floor(state.count) || 1));

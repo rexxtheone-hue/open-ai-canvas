@@ -19,6 +19,7 @@ import { STUDIO_TOOL_TABS, STUDIO_TOOLS, studioToolById } from "./studio-tools";
 import { useStudioPins, useStudioToolCovers } from "./use-studio-tool-meta";
 import "./studio.css";
 import { StudioVideoTrimHost } from "./studio-video-trim";
+import { StudioAutoUpscaleWatcher } from "./studio-auto-upscale";
 
 export function StudioBrandName() {
     return <>{useAppearanceStore((state) => state.appearance.brandName)}</>;
@@ -116,6 +117,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
     return (
         <div className={`studio-root${collapsed ? " is-collapsed" : ""}`}>
             <StudioVideoTrimHost />
+            <StudioAutoUpscaleWatcher />
             <nav className="studio-sidebar" aria-label="AI Studio 导航">
                 <div className="studio-side-top">
                     <Link to="/studio" className="studio-side-brand" aria-label="AI Studio 首页">

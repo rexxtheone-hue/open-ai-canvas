@@ -34,6 +34,7 @@ import {
 } from "./studio-generation";
 import { notifyStudioWorksChanged } from "./use-studio-works";
 import { StudioTrimCancelled, trimStudioVideoIfNeeded } from "./studio-video-trim";
+import { rememberAutoUpscale } from "./studio-auto-upscale";
 
 type StoredToolSettings = Pick<StudioToolState, "model" | "count" | "image" | "video" | "audio">;
 
@@ -165,7 +166,9 @@ export function useStudioTool(kind: StudioKind, tool: string, options: { special
                     else if (attachmentKind === "video") counts.videoCount += 1;
                     else if (attachmentKind === "audio") counts.audioCount += 1;
                 }
-                const mode = current.video.mode && videoModeShouldReset(videoProfile, current.video.mode, counts) ? undefined : current.video.mode;
+                // 编辑、延长在模型不支持时改走参考生视频，不因换模型被清掉。
+                const keepMode = current.video.mode === "inpaint" || current.video.mode === "extend";
+                const mode = current.video.mode && !keepMode && videoModeShouldReset(videoProfile, current.video.mode, counts) ? undefined : current.video.mode;
                 const generateAudio = videoProfile.generateAudio.supported ? current.video.generateAudio : false;
                 const next = { ratio: normalized.ratio, seconds: normalized.seconds, videoQuality: normalized.resolution.replace(/p$/i, ""), generateAudio, mode };
                 const count = Math.max(1, Math.min(studioMaxCount(config, "video", resolvedModel), current.count));
@@ -307,6 +310,7 @@ export function useStudioTool(kind: StudioKind, tool: string, options: { special
                         clientOperationId: crypto.randomUUID(),
                     });
                     settled.push({ status: "fulfilled", value: task });
+                    if (submission.metadata.autoUpscale && task?.id) rememberAutoUpscale(task.id);
                     notifyStudioWorksChanged();
                 } catch (reason) {
                     settled.push({ status: "rejected", reason });
