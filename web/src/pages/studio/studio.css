@@ -1887,3 +1887,9 @@ html.studio-active .ant-select-dropdown .ant-select-item-option-selected { backg
 .studio-lightbox-nav.is-next { right: 16px; }
 .studio-lightbox-caption { position: absolute; left: 50%; bottom: 18px; max-width: min(760px, calc(100vw - 48px)); margin: 0; transform: translateX(-50%); overflow: hidden; color: rgba(244, 244, 246, 0.72); font-size: 13px; line-height: 1.5; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 640px) { .studio-lightbox { padding: 56px 12px 56px; } .studio-lightbox-nav { top: auto; bottom: 12px; transform: none; } }
+
+/* 上传视频时裁剪 */
+.studio-trim { display: grid; gap: 12px; }
+.studio-trim-video { width: 100%; max-height: 52vh; border-radius: 12px; background: #000; object-fit: contain; }
+.studio-trim-meta { display: flex; justify-content: space-between; color: var(--studio-muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.studio-trim-meta b { color: var(--studio-fg); font-weight: 600; }

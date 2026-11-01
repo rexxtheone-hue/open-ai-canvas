@@ -33,6 +33,7 @@ import {
     type StudioToolState,
 } from "./studio-generation";
 import { notifyStudioWorksChanged } from "./use-studio-works";
+import { StudioTrimCancelled, trimStudioVideoIfNeeded } from "./studio-video-trim";
 
 type StoredToolSettings = Pick<StudioToolState, "model" | "count" | "image" | "video" | "audio">;
 
@@ -89,7 +90,10 @@ export async function uploadStudioFile(file: File): Promise<CreationAttachment> 
     if (!requireUser()) throw new Error("注册或登录后即可上传素材");
     let attachment: CreationAttachment;
     if (file.type.startsWith("image/")) attachment = creationAttachmentFromImage(file, await uploadImage(file));
-    else if (file.type.startsWith("video/")) attachment = creationAttachmentFromVideo(file, await uploadMediaFile(file, "studio-upload"));
+    else if (file.type.startsWith("video/")) {
+        const ready = await trimStudioVideoIfNeeded(file);
+        attachment = creationAttachmentFromVideo(ready, await uploadMediaFile(ready, "studio-upload"));
+    }
     else if (file.type.startsWith("audio/")) attachment = creationAttachmentFromAudio(file, await uploadMediaFile(file, "studio-upload"));
     else throw new Error(`${file.name} 不是图片、视频或音频`);
     // 记进「添加参考」面板的「上传」分页；登记失败不影响这次使用。
@@ -230,6 +234,7 @@ export function useStudioTool(kind: StudioKind, tool: string, options: { special
                 if (!/^(image|video|audio)\//.test(file.type)) failures.push(`${file.name} 不是图片、视频或音频`);
                 else uploaded.push(await uploadStudioFile(file));
             } catch (cause) {
+                if (cause instanceof StudioTrimCancelled) continue;
                 failures.push(`${file.name} 上传失败：${cause instanceof Error ? cause.message : "未知错误"}`);
             } finally {
                 setUploading((count) => Math.max(0, count - 1));

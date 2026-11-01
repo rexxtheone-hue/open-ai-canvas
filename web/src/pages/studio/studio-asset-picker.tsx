@@ -11,6 +11,7 @@ import { useStudioAssets } from "./studio-character-picker";
 import { studioCharacterAttachments, studioCharacterCover } from "./studio-characters";
 import { studioMediaSrc } from "./studio-library";
 import { onStudioUploadsChanged, studioAttachmentFromMedia, uploadStudioFile } from "./use-studio-tool";
+import { StudioTrimCancelled } from "./studio-video-trim";
 
 export type StudioPickerKind = "character" | StudioKind;
 type Source = "creations" | "uploads" | "favorites";
@@ -186,7 +187,7 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
                 const resourceId = resourceIdFromStorageKey("storageKey" in uploaded ? uploaded.storageKey : undefined);
                 done.push(resourceId ? { ...uploaded, id: `upload:${resourceId}` } : uploaded);
             } catch (cause) {
-                message.error(`${file.name}：${cause instanceof Error ? cause.message : "上传失败"}`);
+                if (!(cause instanceof StudioTrimCancelled)) message.error(`${file.name}：${cause instanceof Error ? cause.message : "上传失败"}`);
             } finally {
                 setUploading((count) => Math.max(0, count - 1));
             }

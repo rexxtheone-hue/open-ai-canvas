@@ -20,6 +20,7 @@ import { StudioAssetPicker, type StudioPickerKind } from "./studio-asset-picker"
 import { StudioOptionField } from "./studio-option-field";
 import { StudioPromptBox } from "./studio-prompt-box";
 import { studioMentions, syncStudioPromptMentions } from "./studio-mentions";
+import { setStudioVideoTrimLimit, StudioTrimCancelled } from "./studio-video-trim";
 import { StudioCameraPanel } from "./studio-camera-panel";
 import { appendCameraMove, enhanceStudioPrompt, planStudioShots, studioTextModel } from "./studio-prompt-tools";
 import { StudioRecorder } from "./studio-recorder";
@@ -208,7 +209,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                 try {
                     done.push(await uploadStudioFile(file));
                 } catch (cause) {
-                    message.error(`${file.name} 上传失败：${cause instanceof Error ? cause.message : "未知错误"}`);
+                    if (!(cause instanceof StudioTrimCancelled)) message.error(`${file.name} 上传失败：${cause instanceof Error ? cause.message : "未知错误"}`);
                 }
             }
             if (done.length) fillSlot(slot, done);
@@ -320,6 +321,11 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     const totalReferenceLimit = limits.maxImages + limits.maxVideos + limits.maxAudios;
     const isFrameTool = !specialtySpec && tool.presetMode === "image_to_video";
     const isTextOnly = !specialtySpec && tool.presetMode === "text_to_video";
+    const trimLimit = kind === "video" && resolvedModel ? modelCapabilityConfigFor(config, resolvedModel).video?.references.maxVideoDurationSeconds || 0 : 0;
+    useEffect(() => {
+        setStudioVideoTrimLimit(trimLimit);
+        return () => setStudioVideoTrimLimit(0);
+    }, [trimLimit]);
     const mentionsEnabled = !specialtySpec && !isFrameTool && !isTextOnly && kind !== "audio";
     const mentions = useMemo(() => (mentionsEnabled ? studioMentions(state.attachments) : []), [mentionsEnabled, state.attachments]);
     const insertMentionRef = useRef<((token: string) => void) | null>(null);
