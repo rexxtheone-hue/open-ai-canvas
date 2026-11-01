@@ -291,7 +291,7 @@
 .studio-prompt-backdrop.studio-prompt-full { min-height: 0; border-color: transparent; background: #0d0e0f; padding: 14px; font-size: 15px; line-height: 1.7; border-radius: 14px; }
 .studio-prompt-backdrop:has(+ textarea) + textarea { position: relative; background: transparent; }
 .studio-prompt-backdrop mark { color: transparent; background: rgba(var(--studio-accent-rgb), 0.24); box-shadow: 0 0 0 1px rgba(var(--studio-accent-rgb), 0.45); border-radius: 4px; }
-.studio-mention-menu { position: absolute; z-index: 20; left: 8px; top: calc(100% - 6px); width: min(300px, calc(100% - 16px)); max-height: 260px; overflow: auto; padding: 6px; border: 1px solid var(--studio-line-strong); border-radius: 12px; background: #141516; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45); display: grid; gap: 2px; }
+.studio-mention-menu { position: absolute; z-index: 20; left: 8px; bottom: calc(100% + 6px); width: min(300px, calc(100% - 16px)); max-height: 260px; overflow: auto; padding: 6px; border: 1px solid var(--studio-line-strong); border-radius: 12px; background: #141516; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45); display: grid; gap: 2px; }
 .studio-mention-menu .studio-list-item[aria-selected="true"] { background: var(--studio-accent-soft); }
 .studio-mention-thumb { flex: 0 0 auto; width: 32px; height: 32px; border-radius: 6px; object-fit: cover; background: rgba(214, 225, 255, 0.06); display: grid; place-items: center; color: var(--studio-soft); font-size: 14px; }
 .studio-mention-token { flex: 0 0 auto; color: var(--studio-accent); font-weight: 600; font-size: 13px; }

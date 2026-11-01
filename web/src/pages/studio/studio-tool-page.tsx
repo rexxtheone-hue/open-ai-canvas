@@ -321,7 +321,8 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     const totalReferenceLimit = limits.maxImages + limits.maxVideos + limits.maxAudios;
     const isFrameTool = !specialtySpec && tool.presetMode === "image_to_video";
     const isTextOnly = !specialtySpec && tool.presetMode === "text_to_video";
-    const trimLimit = kind === "video" && resolvedModel ? modelCapabilityConfigFor(config, resolvedModel).video?.references.maxVideoDurationSeconds || 0 : 0;
+    // 模型接受参考视频但没写时长上限时，按常见的 15 秒处理。
+    const trimLimit = kind === "video" && resolvedModel && limits.maxVideos > 0 ? modelCapabilityConfigFor(config, resolvedModel).video?.references.maxVideoDurationSeconds || 15 : 0;
     useEffect(() => {
         setStudioVideoTrimLimit(trimLimit);
         return () => setStudioVideoTrimLimit(0);
