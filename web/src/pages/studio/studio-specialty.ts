@@ -279,7 +279,7 @@ const swapModeOption: StudioSpecialtyOption = {
     ],
     info: "替换人物：保留原视频的场景，只把人换掉。动作模仿：角色照着原视频做同样的动作（原动作同步）。",
 };
-const VIDEO_SOURCE_CONSTRAINT = "大小和时长按所选模型（Seedance 2.5 最长 30 秒 / 200MB），超长可在上传时裁剪";
+const VIDEO_SOURCE_CONSTRAINT = "时长按模型上限，超长可裁剪";
 const EDIT_CHIPS: StudioSpecialtySpec["promptChips"] = [
     { label: "换背景", text: "把背景换成", mode: "append" },
     { label: "重新打光", text: "光线改为温暖的黄金时刻阳光，阴影和高光自然变化", mode: "append" },
