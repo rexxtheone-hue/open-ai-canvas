@@ -8,6 +8,7 @@ import { CanvasRefreshShell } from "@/pages/canvas/canvas-refresh-shell";
 import { AuthScene } from "@/pages/auth/auth-scene";
 import RouteErrorPage from "@/pages/route-error";
 import { isGuestWorkspacePath } from "@/lib/guest-workspace";
+import { useUserStore } from "@/stores/use-user-store";
 
 const AdminPage = lazy(() => import("@/pages/admin"));
 const AnalyticsPage = lazy(() => import("@/pages/admin/admin-route-pages").then((module) => ({ default: module.AnalyticsPage })));
@@ -49,6 +50,7 @@ const CanvasProjectPage = lazy(loadCanvasProjectPage);
 const SharedCanvasPage = lazy(() => import("@/pages/canvas/shared"));
 const CreatePage = lazy(loadCreatePage);
 const StudioEntryPage = lazy(() => import("@/pages/studio/studio-entry"));
+const LandingPage = lazy(() => import("@/pages/landing"));
 const StudioHomePage = lazy(() => import("@/pages/studio/studio-home"));
 const StudioToolPage = lazy(() => import("@/pages/studio/studio-tool-page"));
 const StudioToolsPage = lazy(() => import("@/pages/studio/studio-pages").then((module) => ({ default: module.StudioToolsPage })));
@@ -103,6 +105,14 @@ function fullScreenDeferred(element: ReactNode) {
     return <Suspense fallback={<FullScreenLoader label="正在打开创作空间" detail="准备当前页面" />}>{element}</Suspense>;
 }
 
+/** 根路径：访客看到官网落地页，已登录的直接进入 Studio。 */
+function RootEntry() {
+    const hydrated = useUserStore((state) => state.hydrated);
+    const user = useUserStore((state) => state.user);
+    if (!hydrated) return <FullScreenLoader />;
+    return user ? <StudioEntryPage /> : <LandingPage />;
+}
+
 function AuthenticatedWorkspaceLayout() {
     const { pathname } = useLocation();
     const isCanvasProjectRoute = pathname.startsWith("/canvas/");
@@ -145,6 +155,7 @@ export const router = createBrowserRouter([
             { path: "/forgot-password", element: fullScreenDeferred(<ForgotPasswordPage />) },
         ],
     },
+    { path: "/", element: fullScreenDeferred(<RootEntry />), errorElement: <RouteErrorPage /> },
     { path: "/share/canvas/:token", element: fullScreenDeferred(<SharedCanvasPage />), errorElement: <RouteErrorPage /> },
     { path: "/u/:handle", element: fullScreenDeferred(<StudioPublicProfilePage />), errorElement: <RouteErrorPage /> },
     { path: "/portrait-verified", element: fullScreenDeferred(<PortraitVerifiedPage />), errorElement: <RouteErrorPage /> },
@@ -153,7 +164,6 @@ export const router = createBrowserRouter([
         element: <AuthenticatedWorkspaceLayout />,
         errorElement: <RouteErrorPage />,
         children: [
-            { path: "/", element: deferred(<StudioEntryPage />) },
             { path: "/create", element: deferred(<CreatePage />) },
             { path: "/studio", element: <RequireAuth>{deferred(<StudioHomePage />)}</RequireAuth> },
             { path: "/studio/agents", element: <RequireAuth>{deferred(<StudioChatPage />)}</RequireAuth> },
