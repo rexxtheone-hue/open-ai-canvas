@@ -66,3 +66,14 @@ func (r *Repository) StaleBillingReviewStats(now time.Time, age time.Duration) (
 	stats.Oldest = &oldest.CreatedAt
 	return stats, nil
 }
+
+// StaleOpenTaskBillingOrders 返回超过 age 未更新、仍未闭合且关联任务的订单，按创建时间从旧到新。
+func (r *Repository) StaleOpenTaskBillingOrders(now time.Time, age time.Duration, limit int) ([]model.BillingOrder, error) {
+	var orders []model.BillingOrder
+	err := r.db.Where("status IN ? AND task_id <> '' AND updated_at < ?", []model.BillingStatus{
+		model.BillingStatusReserved,
+		model.BillingStatusRunning,
+		model.BillingStatusUncertain,
+	}, now.Add(-age)).Order("created_at asc").Limit(limit).Find(&orders).Error
+	return orders, err
+}
