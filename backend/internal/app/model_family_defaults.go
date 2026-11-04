@@ -69,6 +69,7 @@ func applyModelFamilyVideoDefaults(video *VideoCapabilityConfig, protocol string
 	switch {
 	case has("seedance-2", "seedance2", "seedance-v2"):
 		setVideoReferences(video, 9, 30, 3, 50, 15, 3, 15, 15)
+		video.References.MaxTotalVideoDuration, video.References.MaxTotalAudioDuration = 15, 15
 		video.Duration = rangeDuration(4, 15, 5)
 		video.Ratios, video.DefaultRatio = append([]string{"adaptive"}, standardRatios...), "16:9"
 		video.Resolutions, video.DefaultResolution = []string{"480p", "720p", "1080p"}, "720p"
@@ -121,6 +122,7 @@ func applyModelFamilyVideoDefaults(video *VideoCapabilityConfig, protocol string
 		video.Resolutions, video.DefaultResolution = []string{"720p"}, "720p"
 	case has("wan3", "wan-3"):
 		setVideoReferences(video, 10, 20, 3, 100, 15, 1, 15, 30)
+		video.References.MaxTotalVideoDuration, video.References.MaxTotalAudioDuration, video.References.MaxCombinedVideoDuration = 15, 15, 30
 		video.Duration = rangeDuration(2, 15, 5)
 		video.Ratios, video.DefaultRatio = append([]string{"adaptive"}, standardRatios[:5]...), "16:9"
 		video.Resolutions, video.DefaultResolution = []string{"480p", "720p", "1080p"}, "1080p"

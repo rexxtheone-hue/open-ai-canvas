@@ -164,6 +164,10 @@ func studioWorkKind(task model.Task) (kind string, source string) {
 func studioWorkFromTask(task model.Task, summary TaskSummary, favorite bool) StudioWork {
 	kind, source := studioWorkKind(task)
 	work := StudioWork{TaskSummary: summary, Kind: kind, Source: source, Favorite: favorite, Media: studioMediaFromResult(task.ResultJSON)}
+	// 任务摘要只留 500 字；作品要能「再次生成」，提示词必须完整。
+	if task.Prompt != "" {
+		work.Prompt = task.Prompt
+	}
 	if task.Status == model.TaskStatusFailed {
 		work.Error = truncateRunes(task.Error, 500)
 	}

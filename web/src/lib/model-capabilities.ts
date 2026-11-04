@@ -111,6 +111,11 @@ export type VideoCapabilityConfig = {
         maxAudios: number;
         maxAudioBytes: number;
         maxAudioDurationSeconds: number;
+        /** 0 或未设表示不限：所有参考视频、音频合计时长上限。 */
+        maxTotalVideoDurationSeconds?: number;
+        maxTotalAudioDurationSeconds?: number;
+        /** 有参考视频时，参考视频合计时长加输出时长的上限。 */
+        maxCombinedVideoDurationSeconds?: number;
     };
     duration: {
         selection: "range" | "enum";

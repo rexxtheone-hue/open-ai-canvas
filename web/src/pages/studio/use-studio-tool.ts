@@ -10,6 +10,7 @@ import { getActiveUserScope } from "@/lib/user-scope";
 import { videoModeShouldReset, type VideoMode } from "@/lib/video-modes";
 import { creationAttachmentFromAudio, creationAttachmentFromImage, creationAttachmentFromVideo, creationAttachmentKind, type CreationAttachment } from "@/pages/create/creation-assets";
 import { submitBackendGenerationTask } from "@/services/api/generation-task";
+import { videoReferenceError } from "@/services/api/video-validation";
 import type { StudioKind, StudioMedia, StudioWork } from "@/services/api/studio";
 import { uploadMediaFile } from "@/services/file-storage";
 import { uploadImage } from "@/services/image-storage";
@@ -209,7 +210,15 @@ export function useStudioTool(kind: StudioKind, tool: string, options: { special
         cost: credits,
     });
     // 专项工具的每个素材都是必需的，模型放不下时不能悄悄少发。
-    const blockReason = baseBlockReason || (specialty && resolvedModel && overflowIds.size ? "当前模型放不下所选素材，请换一个模型" : "");
+    // 参考素材超出模型限制（单段时长、合计时长、大小）时提交前就提示，不等上游拒绝。
+    const referenceError = useMemo(() => {
+        if (state.kind !== "video" || !resolvedModel || baseBlockReason) return "";
+        const profile = modelCapabilityConfigFor(config, resolvedModel).video;
+        if (!profile) return "";
+        const submission = studioSubmission(config, state, resolvedModel, limits);
+        return videoReferenceError(profile, submission.referenceImages, submission.referenceVideos, submission.referenceAudios, Number(submission.config.videoSeconds) || 0);
+    }, [baseBlockReason, config, limits, resolvedModel, state]);
+    const blockReason = baseBlockReason || referenceError || (specialty && resolvedModel && overflowIds.size ? "当前模型放不下所选素材，请换一个模型" : "");
 
     const update = useCallback((patch: Partial<StudioToolState>) => setState((current) => ({ ...current, ...patch })), []);
     const updateImage = useCallback((patch: Partial<StudioToolState["image"]>) => setState((current) => ({ ...current, image: { ...current.image, ...patch } })), []);

@@ -87,12 +87,15 @@ export function ModelCapabilityEditor({ value, onChange, protocol, capability = 
                         <NumberField label="最大音频引用" value={profile.references.maxAudios} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxAudios: value || 0 })} />
                         <NumberField label="单个音频上限 MB" value={bytesToMB(profile.references.maxAudioBytes)} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxAudioBytes: mbToBytes(value) })} />
                         <NumberField label="单个音频最长秒数" value={profile.references.maxAudioDurationSeconds} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxAudioDurationSeconds: value || 0 })} />
+                        <NumberField label="音频合计最长秒数（0 不限）" value={profile.references.maxTotalAudioDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxTotalAudioDurationSeconds: value || 0 })} />
                         <BooleanField label="同步音频" value={profile.generateAudio} disabled={disabled} onChange={(generateAudio) => update({ generateAudio })} />
                     </ReferenceCard>
                     <ReferenceCard title="视频引用" description="视频数量、大小与时长限制">
                         <NumberField label="最大视频引用" value={profile.references.maxVideos} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxVideos: value || 0 })} />
                         <NumberField label="单个视频上限 MB" value={bytesToMB(profile.references.maxVideoBytes)} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxVideoBytes: mbToBytes(value) })} />
                         <NumberField label="单个视频最长秒数" value={profile.references.maxVideoDurationSeconds} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxVideoDurationSeconds: value || 0 })} />
+                        <NumberField label="视频合计最长秒数（0 不限）" value={profile.references.maxTotalVideoDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxTotalVideoDurationSeconds: value || 0 })} />
+                        <NumberField label="参考视频 + 输出合计秒数（0 不限）" value={profile.references.maxCombinedVideoDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxCombinedVideoDurationSeconds: value || 0 })} />
                     </ReferenceCard>
                     <ReferenceCard title="通用限制" description="所有视频请求共用的基础约束">
                         <NumberField label="提示词最大字符数" value={profile.references.promptMaxChars} min={1} disabled={disabled} onChange={(value) => updateReferences({ promptMaxChars: value || 1 })} />
@@ -319,6 +322,8 @@ export function ModelCapabilityEditor({ value, onChange, protocol, capability = 
                             <NumberField label="最大视频引用" value={profile.references.maxVideos} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxVideos: value || 0 })} />
                             <NumberField label="单个视频上限 MB" value={bytesToMB(profile.references.maxVideoBytes)} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxVideoBytes: mbToBytes(value) })} />
                             <NumberField label="单个视频最长秒数" value={profile.references.maxVideoDurationSeconds} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxVideoDurationSeconds: value || 0 })} />
+                        <NumberField label="视频合计最长秒数（0 不限）" value={profile.references.maxTotalVideoDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxTotalVideoDurationSeconds: value || 0 })} />
+                        <NumberField label="参考视频 + 输出合计秒数（0 不限）" value={profile.references.maxCombinedVideoDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxCombinedVideoDurationSeconds: value || 0 })} />
                         </div>
                     </CapabilityBlock>
                 ) : null}
@@ -348,6 +353,7 @@ export function ModelCapabilityEditor({ value, onChange, protocol, capability = 
                             <NumberField label="最大音频引用" value={profile.references.maxAudios} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxAudios: value || 0 })} />
                             <NumberField label="单个音频上限 MB" value={bytesToMB(profile.references.maxAudioBytes)} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxAudioBytes: mbToBytes(value) })} />
                             <NumberField label="单个音频最长秒数" value={profile.references.maxAudioDurationSeconds} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxAudioDurationSeconds: value || 0 })} />
+                        <NumberField label="音频合计最长秒数（0 不限）" value={profile.references.maxTotalAudioDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxTotalAudioDurationSeconds: value || 0 })} />
                         </div>
                         <BooleanField label="同步音频" value={profile.generateAudio} disabled={disabled} onChange={(generateAudio) => update({ generateAudio })} />
                     </CapabilityGroup>

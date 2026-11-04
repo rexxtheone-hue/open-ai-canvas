@@ -152,7 +152,7 @@ func validateVideoCapabilityConfig(value *VideoCapabilityConfig) error {
 	if value.References.MinImages > value.References.MaxImages {
 		return BadAuthRequest("最少图片引用数不能超过最大图片引用数")
 	}
-	if value.References.MaxImageBytes < 0 || value.References.MaxVideoBytes < 0 || value.References.MaxAudioBytes < 0 || value.References.MaxVideoDuration < 0 || value.References.MaxAudioDuration < 0 {
+	if value.References.MaxImageBytes < 0 || value.References.MaxVideoBytes < 0 || value.References.MaxAudioBytes < 0 || value.References.MaxVideoDuration < 0 || value.References.MaxAudioDuration < 0 || value.References.MaxTotalVideoDuration < 0 || value.References.MaxTotalAudioDuration < 0 || value.References.MaxCombinedVideoDuration < 0 {
 		return BadAuthRequest("引用素材限制不能小于 0")
 	}
 	if err := validateVideoDuration(value.Duration); err != nil {
@@ -377,6 +377,9 @@ func validateVideoTask(profile *VideoCapabilityConfig, input canvasGenerationInp
 	seconds, err := strconv.Atoi(strings.TrimSpace(input.Config.VideoSeconds))
 	if err != nil || !videoDurationAllowed(profile.Duration, seconds) {
 		return newModelCapabilityArgumentError("durationSeconds", "unsupported_value", BadAuthRequest("视频时长不在当前模型支持范围内"))
+	}
+	if message := videoReferenceTotalError(profile.References, input.ReferenceVideos, input.ReferenceAudios, seconds); message != "" {
+		return newModelCapabilityArgumentError("referenceNodeIds", "unsupported_value", BadAuthRequest(message))
 	}
 	if input.Config.Size != "" && !videoRatioAllowed(profile.Ratios, input.Config.Size) {
 		return newModelCapabilityArgumentError("size", "unsupported_value", BadAuthRequest("画面比例不在当前模型支持范围内"))
@@ -1035,4 +1038,25 @@ func absFloat(value float64) float64 {
 		return -value
 	}
 	return value
+}
+
+// videoReferenceTotalError 检查参考素材的合计时长；提示与前端 videoReferenceTotalError 保持一致。
+func videoReferenceTotalError(refs VideoReferenceConfig, videos, audios []providerMedia, outputSeconds int) string {
+	var videoMs, audioMs int64
+	for _, media := range videos {
+		videoMs += media.DurationMs
+	}
+	for _, media := range audios {
+		audioMs += media.DurationMs
+	}
+	if refs.MaxTotalVideoDuration > 0 && videoMs > int64(refs.MaxTotalVideoDuration)*1000+100 {
+		return fmt.Sprintf("参考视频合计 %.1f 秒，当前模型最多 %d 秒，请剪短或删掉一段", float64(videoMs)/1000, refs.MaxTotalVideoDuration)
+	}
+	if refs.MaxTotalAudioDuration > 0 && audioMs > int64(refs.MaxTotalAudioDuration)*1000+100 {
+		return fmt.Sprintf("参考音频合计 %.1f 秒，当前模型最多 %d 秒，请剪短或删掉一段", float64(audioMs)/1000, refs.MaxTotalAudioDuration)
+	}
+	if refs.MaxCombinedVideoDuration > 0 && videoMs > 0 && videoMs+int64(outputSeconds)*1000 > int64(refs.MaxCombinedVideoDuration)*1000+100 {
+		return fmt.Sprintf("参考视频 %.1f 秒加输出 %d 秒超过当前模型的 %d 秒上限，请缩短输出时长或参考视频", float64(videoMs)/1000, outputSeconds, refs.MaxCombinedVideoDuration)
+	}
+	return ""
 }

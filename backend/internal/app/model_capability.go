@@ -126,6 +126,11 @@ type VideoReferenceConfig struct {
 	MaxAudios        int   `json:"maxAudios"`
 	MaxAudioBytes    int64 `json:"maxAudioBytes"`
 	MaxAudioDuration int   `json:"maxAudioDurationSeconds"`
+	// 0 表示不限；万相 3.0、Seedance 2.0 等按所有参考视频/音频的合计时长限制。
+	MaxTotalVideoDuration int `json:"maxTotalVideoDurationSeconds,omitempty"`
+	MaxTotalAudioDuration int `json:"maxTotalAudioDurationSeconds,omitempty"`
+	// 有参考视频时，参考视频合计时长加输出时长的上限（万相 3.0 为 30 秒）。
+	MaxCombinedVideoDuration int `json:"maxCombinedVideoDurationSeconds,omitempty"`
 }
 
 // DefaultVideoPromptMaxChars 是普通视频模型提示词字符数的默认上限。

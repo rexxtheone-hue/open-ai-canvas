@@ -46,6 +46,7 @@ export function applyModelFamilyVideoDefaults(video: VideoCapabilityConfig, prot
     const has = (...parts: string[]) => parts.some((part) => name.includes(part));
     if (has("seedance-2", "seedance2", "seedance-v2")) {
         setReferences(video, 9, 30, 3, 50, 15, 3, 15, 15);
+        Object.assign(video.references, { maxTotalVideoDurationSeconds: 15, maxTotalAudioDurationSeconds: 15 });
         video.duration = range(4, 15, 5);
         video.ratios = ["adaptive", ...STANDARD_RATIOS];
         video.defaultRatio = "16:9";
@@ -107,6 +108,7 @@ export function applyModelFamilyVideoDefaults(video: VideoCapabilityConfig, prot
         video.defaultResolution = "720p";
     } else if (has("wan3", "wan-3")) {
         setReferences(video, 10, 20, 3, 100, 15, 1, 15, 30);
+        Object.assign(video.references, { maxTotalVideoDurationSeconds: 15, maxTotalAudioDurationSeconds: 15, maxCombinedVideoDurationSeconds: 30 });
         video.duration = range(2, 15, 5);
         video.ratios = ["adaptive", ...STANDARD_RATIOS.slice(0, 5)];
         video.defaultRatio = "16:9";
