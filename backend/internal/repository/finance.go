@@ -162,6 +162,9 @@ func (r *Repository) RetryTaskWithBilling(userID string, prepared *model.Task, o
 			"model": prepared.Model, "provider": prepared.Provider,
 			"lease_owner": "", "lease_expires_at": nil, "updated_at": time.Now(),
 		}
+		// 用户重试是新一轮提交，执行次数从零算起；否则直连渠道任务（route_run 从 0 起）
+		// 重试后会被误判为「旧任务缺少提交记录」而卡在待核对，积分一直被预扣。
+		updates["attempts"] = 0
 		if order != nil {
 			updates["billing_order_id"] = order.ID
 		} else {
