@@ -76,6 +76,11 @@ func applyModelFamilyVideoDefaults(video *VideoCapabilityConfig, protocol string
 		video.GenerateAudio = VideoBooleanConfig{Supported: true, Default: true}
 		video.Watermark = VideoBooleanConfig{Supported: true, Default: false}
 		addVideoOperations(video, "reference_to_video", "audio_to_video")
+		if has("seedance-2-5", "seedance-2.5", "seedance2.5") {
+			setVideoReferences(video, 30, 30, 10, 200, 30, 10, 15, 30)
+			video.References.MaxTotalVideoDuration, video.References.MaxTotalAudioDuration = 30, 30
+			video.Duration = rangeDuration(4, 30, 5)
+		}
 	case has("seedance-1", "seedance1"):
 		setVideoReferences(video, 2, 30, 0, 0, 0, 0, 0, 0)
 		video.Duration = rangeDuration(2, 12, 5)

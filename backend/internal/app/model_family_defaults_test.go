@@ -11,6 +11,13 @@ func TestModelFamilyVideoDefaultsApplyToPluginProtocolsOnly(t *testing.T) {
 	if seedance.References.MaxVideos != 3 || seedance.References.MaxAudios != 3 || !seedance.GenerateAudio.Supported || seedance.Duration.Max != 15 {
 		t.Fatalf("seedance 2 defaults = %#v", seedance)
 	}
+	if seedance.References.MaxTotalAudioDuration != 15 || seedance.References.MaxTotalVideoDuration != 15 {
+		t.Fatalf("seedance 2 totals = %#v", seedance.References)
+	}
+	seedance25 := DefaultModelCapabilityConfigForModel("cloudwise-seedance", "dreamina-seedance-2-5-260628").Video
+	if seedance25.References.MaxTotalAudioDuration != 30 || seedance25.References.MaxTotalVideoDuration != 30 || seedance25.References.MaxAudios != 10 || seedance25.Duration.Max != 30 {
+		t.Fatalf("seedance 2.5 defaults = %#v", seedance25)
+	}
 	h3max := DefaultModelCapabilityConfigForModel("cloudwise-minimax-video", "MiniMax-H3-Max").Video
 	if h3max.References.MaxImages != 2 || h3max.References.MaxVideos != 0 || h3max.Resolutions[0] != "480P" {
 		t.Fatalf("H3-Max defaults = %#v", h3max)

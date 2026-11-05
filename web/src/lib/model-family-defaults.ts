@@ -55,6 +55,11 @@ export function applyModelFamilyVideoDefaults(video: VideoCapabilityConfig, prot
         video.generateAudio = { supported: true, default: true };
         video.watermark = { supported: true, default: false };
         addOperations(video, "reference_to_video", "audio_to_video");
+        if (has("seedance-2-5", "seedance-2.5", "seedance2.5")) {
+            setReferences(video, 30, 30, 10, 200, 30, 10, 15, 30);
+            Object.assign(video.references, { maxTotalVideoDurationSeconds: 30, maxTotalAudioDurationSeconds: 30 });
+            video.duration = range(4, 30, 5);
+        }
     } else if (has("seedance-1", "seedance1")) {
         setReferences(video, 2, 30, 0, 0, 0, 0, 0, 0);
         video.duration = range(2, 12, 5);
