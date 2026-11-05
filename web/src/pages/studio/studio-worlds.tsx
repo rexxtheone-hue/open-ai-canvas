@@ -321,7 +321,7 @@ export function StudioCreateWorldModal({ open, onClose, initialPrompt = "", onCr
     );
 }
 
-/** 我的世界网格：全景草稿，可以环视、放进场景或拍漫游镜头。 */
+/** 我的世界网格：全景草稿，可以环视或放进场景。 */
 export function StudioWorldGrid({ enabled = true, filter = "all", onCreate, onUsed }: { enabled?: boolean; filter?: "all" | "3d" | "draft"; onCreate: () => void; onUsed?: () => void }) {
     const [viewing, setViewing] = useState<StudioWork | null>(null);
     const handoff = useWorldHandoff();
@@ -346,7 +346,6 @@ export function StudioWorldGrid({ enabled = true, filter = "all", onCreate, onUs
                                     <Popover trigger="click" arrow={false} content={(
                                         <div className="studio-popup studio-menu">
                                             <button type="button" className="studio-menu-item" onClick={() => use(work, "cast-in-scene")}>把角色放进这个世界</button>
-                                            <button type="button" className="studio-menu-item" onClick={() => use(work, "world-cam")}>在这个世界拍漫游镜头</button>
                                         </div>
                                     )}>
                                         <button type="button" className="studio-mini-button is-primary"><Check aria-hidden />使用</button>

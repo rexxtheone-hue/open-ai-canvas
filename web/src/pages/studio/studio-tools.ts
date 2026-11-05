@@ -77,7 +77,6 @@ export const STUDIO_TOOLS: StudioToolDefinition[] = [
     { id: "cast-in-scene", label: "角色入景", description: "把角色放进任意场景", icon: MountainSnow, path: "/studio/tools/cast-in-scene", tabs: ["character"], kind: "image", specialty: true, gradient: ["#2c3e50", "#4ca1af"] },
     // 世界
     { id: "create-pano", label: "全景世界", description: "生成 360° 全景场景", icon: Globe, path: "/studio/tools/create-pano", tabs: ["image"], kind: "image", specialty: true, badge: "NEW", gradient: ["#0f2027", "#2c5364"] },
-    { id: "world-cam", label: "世界漫游镜头", description: "在全景或场景图里拍一段运镜", icon: Camera, path: "/studio/tools/world-cam", tabs: ["video"], kind: "video", specialty: true, gradient: ["#373b44", "#4286f4"] },
 ];
 
 export function studioToolById(id: string) {
