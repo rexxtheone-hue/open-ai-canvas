@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -152,7 +153,7 @@ func validateVideoCapabilityConfig(value *VideoCapabilityConfig) error {
 	if value.References.MinImages > value.References.MaxImages {
 		return BadAuthRequest("最少图片引用数不能超过最大图片引用数")
 	}
-	if value.References.MaxImageBytes < 0 || value.References.MaxVideoBytes < 0 || value.References.MaxAudioBytes < 0 || value.References.MaxVideoDuration < 0 || value.References.MaxAudioDuration < 0 || value.References.MaxTotalVideoDuration < 0 || value.References.MaxTotalAudioDuration < 0 || value.References.MaxCombinedVideoDuration < 0 {
+	if value.References.MaxImageBytes < 0 || value.References.MaxVideoBytes < 0 || value.References.MaxAudioBytes < 0 || value.References.MaxVideoDuration < 0 || value.References.MaxAudioDuration < 0 || value.References.MaxTotalVideoDuration < 0 || value.References.MaxTotalAudioDuration < 0 || value.References.MaxCombinedVideoDuration < 0 || value.References.MinVideoDuration < 0 || value.References.MinAudioDuration < 0 || value.References.MinImageSide < 0 || value.References.MaxImageLongSide < 0 || value.References.MaxImageShortSide < 0 || value.References.MaxImageAspectRatio < 0 || value.References.MinVideoSide < 0 || value.References.MaxVideoLongSide < 0 || value.References.MaxVideoShortSide < 0 || value.References.MaxVideoAspectRatio < 0 {
 		return BadAuthRequest("引用素材限制不能小于 0")
 	}
 	if err := validateVideoDuration(value.Duration); err != nil {
@@ -381,6 +382,9 @@ func validateVideoTask(profile *VideoCapabilityConfig, input canvasGenerationInp
 	if message := videoReferenceTotalError(profile.References, input.ReferenceVideos, input.ReferenceAudios, seconds); message != "" {
 		return newModelCapabilityArgumentError("referenceNodeIds", "unsupported_value", BadAuthRequest(message))
 	}
+	if message := videoReferenceMediaError(profile.References, input.ReferenceImages, input.ReferenceVideos, input.ReferenceAudios); message != "" {
+		return newModelCapabilityArgumentError("referenceNodeIds", "unsupported_value", BadAuthRequest(message))
+	}
 	if input.Config.Size != "" && !videoRatioAllowed(profile.Ratios, input.Config.Size) {
 		return newModelCapabilityArgumentError("size", "unsupported_value", BadAuthRequest("画面比例不在当前模型支持范围内"))
 	}
@@ -425,6 +429,9 @@ func validateImageTask(profile *ImageCapabilityConfig, input canvasGenerationInp
 		if profile.References.MaxImageBytes > 0 && media.Bytes > profile.References.MaxImageBytes {
 			return newModelCapabilityArgumentError("referenceNodeIds", "unsupported_value", BadAuthRequest("参考图片文件超过当前模型大小限制"))
 		}
+	}
+	if message := imageReferenceMediaError(profile.References, input.ReferenceImages); message != "" {
+		return newModelCapabilityArgumentError("referenceNodeIds", "unsupported_value", BadAuthRequest(message))
 	}
 	if input.Mask != nil && !profile.References.MaskSupported {
 		return newModelCapabilityArgumentError("logicalModelId", "unsupported_value", BadAuthRequest("当前图片模型不支持蒙版编辑"))
@@ -1059,4 +1066,134 @@ func videoReferenceTotalError(refs VideoReferenceConfig, videos, audios []provid
 		return fmt.Sprintf("参考视频 %.1f 秒加输出 %d 秒超过当前模型的 %d 秒上限，请缩短输出时长或参考视频", float64(videoMs)/1000, outputSeconds, refs.MaxCombinedVideoDuration)
 	}
 	return ""
+}
+
+var referenceMimeFormats = map[string]string{
+	"image/jpeg": "jpg", "image/jpg": "jpg", "image/pjpeg": "jpg",
+	"video/quicktime": "mov", "video/x-matroska": "mkv", "video/3gpp": "3gp",
+	"audio/mpeg": "mp3", "audio/mp3": "mp3", "audio/x-mpeg": "mp3", "audio/mpeg3": "mp3",
+	"audio/x-wav": "wav", "audio/wave": "wav", "audio/vnd.wave": "wav", "audio/x-pn-wav": "wav",
+	"audio/mp4": "m4a", "audio/x-m4a": "m4a", "audio/m4a": "m4a", "audio/aac": "aac", "audio/x-aac": "aac",
+}
+
+func normalizeMediaFormat(value string) string {
+	value = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(value, ".")))
+	if value == "jpeg" {
+		return "jpg"
+	}
+	return value
+}
+
+// referenceMediaFormat 优先按 MIME 判断文件格式，取不到再看文件名或地址的扩展名；判断不了返回空。
+func referenceMediaFormat(media providerMedia) string {
+	for _, mime := range []string{media.MimeType, media.Type} {
+		mime = strings.ToLower(strings.TrimSpace(strings.SplitN(mime, ";", 2)[0]))
+		if format, ok := referenceMimeFormats[mime]; ok {
+			return format
+		}
+		if _, subtype, ok := strings.Cut(mime, "/"); ok && subtype != "" && subtype != "octet-stream" && !strings.Contains(subtype, "*") {
+			return normalizeMediaFormat(strings.TrimPrefix(subtype, "x-"))
+		}
+	}
+	for _, name := range []string{media.Name, strings.SplitN(strings.SplitN(media.URL, "?", 2)[0], "#", 2)[0]} {
+		if dot := strings.LastIndex(name, "."); dot >= 0 && dot > strings.LastIndex(name, "/") && len(name)-dot <= 6 {
+			return normalizeMediaFormat(name[dot+1:])
+		}
+	}
+	return ""
+}
+
+func referenceMediaLabel(kind string, media providerMedia, index int) string {
+	if name := strings.TrimSpace(media.Name); name != "" {
+		return fmt.Sprintf("参考%s「%s」", kind, name)
+	}
+	return fmt.Sprintf("第 %d 个参考%s", index+1, kind)
+}
+
+func referenceFormatError(kind string, items []providerMedia, allowed []string) string {
+	if len(allowed) == 0 {
+		return ""
+	}
+	names := make([]string, 0, len(allowed))
+	for _, format := range allowed {
+		names = append(names, strings.ToUpper(normalizeMediaFormat(format)))
+	}
+	for index, media := range items {
+		format := referenceMediaFormat(media)
+		if format == "" {
+			continue
+		}
+		if !slices.ContainsFunc(allowed, func(item string) bool { return normalizeMediaFormat(item) == format }) {
+			return fmt.Sprintf("%s是 %s 格式，当前模型只支持 %s，请转换后再上传", referenceMediaLabel(kind, media, index), strings.ToUpper(format), strings.Join(names, "、"))
+		}
+	}
+	return ""
+}
+
+func referenceMinDurationError(kind string, items []providerMedia, minSeconds int) string {
+	if minSeconds <= 0 {
+		return ""
+	}
+	for index, media := range items {
+		if media.DurationMs > 0 && media.DurationMs < int64(minSeconds)*1000-100 {
+			return fmt.Sprintf("%s只有 %.1f 秒，当前模型每段至少 %d 秒", referenceMediaLabel(kind, media, index), float64(media.DurationMs)/1000, minSeconds)
+		}
+	}
+	return ""
+}
+
+func referencePixelError(kind string, items []providerMedia, minSide, maxLong, maxShort int, maxAspect float64) string {
+	for index, media := range items {
+		if media.Width <= 0 || media.Height <= 0 {
+			continue
+		}
+		short, long := min(media.Width, media.Height), max(media.Width, media.Height)
+		label := referenceMediaLabel(kind, media, index)
+		switch {
+		case minSide > 0 && short < minSide:
+			return fmt.Sprintf("%s尺寸 %dx%d 太小，当前模型要求短边至少 %d 像素", label, media.Width, media.Height, minSide)
+		case maxLong > 0 && long > maxLong:
+			return fmt.Sprintf("%s尺寸 %dx%d 太大，当前模型要求长边最多 %d 像素，请缩小后再上传", label, media.Width, media.Height, maxLong)
+		case maxShort > 0 && short > maxShort:
+			return fmt.Sprintf("%s尺寸 %dx%d 太大，当前模型要求短边最多 %d 像素，请缩小后再上传", label, media.Width, media.Height, maxShort)
+		case maxAspect > 0 && float64(long)/float64(short) > maxAspect+0.01:
+			return fmt.Sprintf("%s比例 %dx%d 太长或太窄，当前模型要求长宽比不超过 %g:1", label, media.Width, media.Height, maxAspect)
+		}
+	}
+	return ""
+}
+
+// videoReferenceMediaError 检查参考素材的格式、最短时长和像素尺寸，与前端 videoReferenceMediaError 保持一致。
+func videoReferenceMediaError(refs VideoReferenceConfig, images, videos, audios []providerMedia) string {
+	for _, message := range []string{
+		referenceFormatError("图片", images, refs.ImageFormats),
+		referenceFormatError("视频", videos, refs.VideoFormats),
+		referenceFormatError("音频", audios, refs.AudioFormats),
+		referenceMinDurationError("视频", videos, refs.MinVideoDuration),
+		referenceMinDurationError("音频", audios, refs.MinAudioDuration),
+		referencePixelError("图片", images, refs.MinImageSide, refs.MaxImageLongSide, refs.MaxImageShortSide, refs.MaxImageAspectRatio),
+		referencePixelError("视频", videos, refs.MinVideoSide, refs.MaxVideoLongSide, refs.MaxVideoShortSide, refs.MaxVideoAspectRatio),
+	} {
+		if message != "" {
+			return message
+		}
+	}
+	return ""
+}
+
+// imageReferenceMediaError 检查图片模型参考图的合计大小、格式和像素尺寸，与前端 imageReferenceMediaError 保持一致。
+func imageReferenceMediaError(refs ImageReferenceConfig, images []providerMedia) string {
+	if refs.MaxTotalImageBytes > 0 {
+		var total int64
+		for _, media := range images {
+			total += media.Bytes
+		}
+		if total > refs.MaxTotalImageBytes {
+			return fmt.Sprintf("参考图合计 %.1f MB，当前模型一次最多 %.0f MB，请减少或压缩参考图", float64(total)/1024/1024, float64(refs.MaxTotalImageBytes)/1024/1024)
+		}
+	}
+	if message := referenceFormatError("图片", images, refs.ImageFormats); message != "" {
+		return message
+	}
+	return referencePixelError("图片", images, refs.MinImageSide, refs.MaxImageLongSide, 0, refs.MaxImageAspectRatio)
 }

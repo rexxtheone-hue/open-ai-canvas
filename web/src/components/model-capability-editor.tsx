@@ -82,12 +82,14 @@ export function ModelCapabilityEditor({ value, onChange, protocol, capability = 
                             }}
                         />
                         <NumberField label="单张图片上限 MB" value={bytesToMB(profile.references.maxImageBytes)} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxImageBytes: mbToBytes(value) })} />
+                        <ReferenceMediaLimitFields kind="image" references={profile.references} disabled={disabled} onChange={updateReferences} />
                     </ReferenceCard>
                     <ReferenceCard title="音频引用" description="音频输入与同步输出限制">
                         <NumberField label="最大音频引用" value={profile.references.maxAudios} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxAudios: value || 0 })} />
                         <NumberField label="单个音频上限 MB" value={bytesToMB(profile.references.maxAudioBytes)} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxAudioBytes: mbToBytes(value) })} />
                         <NumberField label="单个音频最长秒数" value={profile.references.maxAudioDurationSeconds} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxAudioDurationSeconds: value || 0 })} />
                         <NumberField label="音频合计最长秒数（0 不限）" value={profile.references.maxTotalAudioDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxTotalAudioDurationSeconds: value || 0 })} />
+                        <ReferenceMediaLimitFields kind="audio" references={profile.references} disabled={disabled} onChange={updateReferences} />
                         <BooleanField label="同步音频" value={profile.generateAudio} disabled={disabled} onChange={(generateAudio) => update({ generateAudio })} />
                     </ReferenceCard>
                     <ReferenceCard title="视频引用" description="视频数量、大小与时长限制">
@@ -96,6 +98,7 @@ export function ModelCapabilityEditor({ value, onChange, protocol, capability = 
                         <NumberField label="单个视频最长秒数" value={profile.references.maxVideoDurationSeconds} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxVideoDurationSeconds: value || 0 })} />
                         <NumberField label="视频合计最长秒数（0 不限）" value={profile.references.maxTotalVideoDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxTotalVideoDurationSeconds: value || 0 })} />
                         <NumberField label="参考视频 + 输出合计秒数（0 不限）" value={profile.references.maxCombinedVideoDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxCombinedVideoDurationSeconds: value || 0 })} />
+                        <ReferenceMediaLimitFields kind="video" references={profile.references} disabled={disabled} onChange={updateReferences} />
                     </ReferenceCard>
                     <ReferenceCard title="通用限制" description="所有视频请求共用的基础约束">
                         <NumberField label="提示词最大字符数" value={profile.references.promptMaxChars} min={1} disabled={disabled} onChange={(value) => updateReferences({ promptMaxChars: value || 1 })} />
@@ -324,6 +327,7 @@ export function ModelCapabilityEditor({ value, onChange, protocol, capability = 
                             <NumberField label="单个视频最长秒数" value={profile.references.maxVideoDurationSeconds} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxVideoDurationSeconds: value || 0 })} />
                         <NumberField label="视频合计最长秒数（0 不限）" value={profile.references.maxTotalVideoDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxTotalVideoDurationSeconds: value || 0 })} />
                         <NumberField label="参考视频 + 输出合计秒数（0 不限）" value={profile.references.maxCombinedVideoDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxCombinedVideoDurationSeconds: value || 0 })} />
+                            <ReferenceMediaLimitFields kind="video" references={profile.references} disabled={disabled} onChange={updateReferences} />
                         </div>
                     </CapabilityBlock>
                 ) : null}
@@ -345,6 +349,7 @@ export function ModelCapabilityEditor({ value, onChange, protocol, capability = 
                                 }}
                             />
                             <NumberField label="单张图片上限 MB" value={bytesToMB(profile.references.maxImageBytes)} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxImageBytes: mbToBytes(value) })} />
+                            <ReferenceMediaLimitFields kind="image" references={profile.references} disabled={disabled} onChange={updateReferences} />
                         </div>
                     </CapabilityGroup>
 
@@ -354,6 +359,7 @@ export function ModelCapabilityEditor({ value, onChange, protocol, capability = 
                             <NumberField label="单个音频上限 MB" value={bytesToMB(profile.references.maxAudioBytes)} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxAudioBytes: mbToBytes(value) })} />
                             <NumberField label="单个音频最长秒数" value={profile.references.maxAudioDurationSeconds} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxAudioDurationSeconds: value || 0 })} />
                         <NumberField label="音频合计最长秒数（0 不限）" value={profile.references.maxTotalAudioDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxTotalAudioDurationSeconds: value || 0 })} />
+                            <ReferenceMediaLimitFields kind="audio" references={profile.references} disabled={disabled} onChange={updateReferences} />
                         </div>
                         <BooleanField label="同步音频" value={profile.generateAudio} disabled={disabled} onChange={(generateAudio) => update({ generateAudio })} />
                     </CapabilityGroup>
@@ -713,6 +719,45 @@ function AutoDLScreenSpecFields({ profile, workflow, disabled, onChange }: { pro
     );
 }
 
+type VideoReferences = VideoCapabilityConfig["references"];
+
+/** 参考素材的格式、最短时长、像素和长宽比限制；留空或 0 表示不限。 */
+function ReferenceMediaLimitFields({ kind, references, disabled, onChange }: { kind: "image" | "video" | "audio"; references: VideoReferences; disabled: boolean; onChange: (patch: Partial<VideoReferences>) => void }) {
+    const formatsKey = kind === "image" ? "imageFormats" : kind === "video" ? "videoFormats" : "audioFormats";
+    const label = kind === "image" ? "图片" : kind === "video" ? "视频" : "音频";
+    const formats = references[formatsKey] || [];
+    return (
+        <>
+            <Field label={`允许的${label}格式（逗号分隔，留空不限）`}>
+                <Input
+                    disabled={disabled}
+                    placeholder={kind === "audio" ? "mp3, wav" : kind === "video" ? "mp4, mov" : "jpg, png, webp"}
+                    defaultValue={formats.join(", ")}
+                    onBlur={(event) => onChange({ [formatsKey]: Array.from(new Set(event.target.value.split(/[,，\s]+/).map((item) => item.trim().replace(/^\./, "").toLowerCase()).filter(Boolean))) })}
+                />
+            </Field>
+            {kind === "video" ? <NumberField label="单个视频最短秒数（0 不限）" value={references.minVideoDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => onChange({ minVideoDurationSeconds: value || 0 })} /> : null}
+            {kind === "audio" ? <NumberField label="单个音频最短秒数（0 不限）" value={references.minAudioDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => onChange({ minAudioDurationSeconds: value || 0 })} /> : null}
+            {kind === "image" ? (
+                <>
+                    <NumberField label="图片短边最少像素（0 不限）" value={references.minImageSidePixels || 0} min={0} disabled={disabled} onChange={(value) => onChange({ minImageSidePixels: value || 0 })} />
+                    <NumberField label="图片长边最多像素（0 不限）" value={references.maxImageLongSidePixels || 0} min={0} disabled={disabled} onChange={(value) => onChange({ maxImageLongSidePixels: value || 0 })} />
+                    <NumberField label="图片短边最多像素（0 不限）" value={references.maxImageShortSidePixels || 0} min={0} disabled={disabled} onChange={(value) => onChange({ maxImageShortSidePixels: value || 0 })} />
+                    <NumberField label="图片长宽比上限（如 2.5，0 不限）" value={references.maxImageAspectRatio || 0} min={0} precision={2} disabled={disabled} onChange={(value) => onChange({ maxImageAspectRatio: value || 0 })} />
+                </>
+            ) : null}
+            {kind === "video" ? (
+                <>
+                    <NumberField label="视频短边最少像素（0 不限）" value={references.minVideoSidePixels || 0} min={0} disabled={disabled} onChange={(value) => onChange({ minVideoSidePixels: value || 0 })} />
+                    <NumberField label="视频长边最多像素（0 不限）" value={references.maxVideoLongSidePixels || 0} min={0} disabled={disabled} onChange={(value) => onChange({ maxVideoLongSidePixels: value || 0 })} />
+                    <NumberField label="视频短边最多像素（0 不限）" value={references.maxVideoShortSidePixels || 0} min={0} disabled={disabled} onChange={(value) => onChange({ maxVideoShortSidePixels: value || 0 })} />
+                    <NumberField label="视频长宽比上限（如 2.5，0 不限）" value={references.maxVideoAspectRatio || 0} min={0} precision={2} disabled={disabled} onChange={(value) => onChange({ maxVideoAspectRatio: value || 0 })} />
+                </>
+            ) : null}
+        </>
+    );
+}
+
 function Field({ label, children }: { label: string; children: ReactNode }) {
     return (
         <label className="block min-w-0">
@@ -722,11 +767,11 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
     );
 }
 
-function NumberField({ label, value, min, max, disabled, onChange }: { label: string; value?: number; min: number; max?: number; disabled: boolean; onChange: (value: number | null) => void }) {
+function NumberField({ label, value, min, max, precision = 0, disabled, onChange }: { label: string; value?: number; min: number; max?: number; precision?: number; disabled: boolean; onChange: (value: number | null) => void }) {
     return (
         <label className="admin-capability-number-field block min-w-0">
             <span className="admin-capability-field-label mb-1.5 block text-xs text-foreground/62">{label}</span>
-            <InputNumber className="w-full" disabled={disabled} min={min} max={max} precision={0} value={value} onChange={onChange} />
+            <InputNumber className="w-full" disabled={disabled} min={min} max={max} precision={precision} value={value} onChange={onChange} />
         </label>
     );
 }

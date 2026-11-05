@@ -1,5 +1,6 @@
 import { imageSizeRequest, type ImageCapabilityConfig } from "@/lib/model-capabilities";
 import type { ReferenceImage } from "@/types/image";
+import { formatError, pixelError } from "./video-validation";
 
 const QUALITY_BASE: Record<string, number> = {
     low: 1024,
@@ -136,6 +137,16 @@ export function validateImageCapability(profile: ImageCapabilityConfig, referenc
     if (references.length > profile.references.maxImages) throw new Error(`当前图片模型最多支持 ${profile.references.maxImages} 张参考图`);
     if (mask && !profile.references.maskSupported) throw new Error("当前图片模型不支持蒙版编辑");
     if (profile.references.maxImageBytes > 0 && references.some((image) => (image.bytes || 0) > profile.references.maxImageBytes)) throw new Error("参考图片文件超过当前模型大小限制");
+    const mediaError = imageReferenceMediaError(profile, references);
+    if (mediaError) throw new Error(mediaError);
+}
+
+/** 参考图合计大小、格式、像素尺寸问题，与后端 imageReferenceMediaError 保持一致；没问题返回空字符串。 */
+export function imageReferenceMediaError(profile: ImageCapabilityConfig, references: ReferenceImage[]) {
+    const refs = profile.references;
+    const total = references.reduce((sum, image) => sum + (image.bytes || 0), 0);
+    if (refs.maxTotalImageBytes && total > refs.maxTotalImageBytes) return `参考图合计 ${(total / 1024 / 1024).toFixed(1)} MB，当前模型一次最多 ${Math.round(refs.maxTotalImageBytes / 1024 / 1024)} MB，请减少或压缩参考图`;
+    return formatError("图片", references, refs.imageFormats) || pixelError("图片", references, refs.minImageSidePixels, refs.maxImageLongSidePixels, 0, refs.maxImageAspectRatio);
 }
 
 export function normalizeVolcengineArkImageSize(size: string | undefined) {

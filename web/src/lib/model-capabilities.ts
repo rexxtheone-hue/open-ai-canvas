@@ -76,6 +76,12 @@ export type ImageCapabilityConfig = {
         maxImages: number;
         maxImageBytes: number;
         maskSupported: boolean;
+        /** 0 或空表示不限：参考图合计字节数、允许格式、短边下限、长边上限、长宽比上限。 */
+        maxTotalImageBytes?: number;
+        imageFormats?: string[];
+        minImageSidePixels?: number;
+        maxImageLongSidePixels?: number;
+        maxImageAspectRatio?: number;
     };
     size: {
         parameter: ImageSizeParameter;
@@ -116,6 +122,21 @@ export type VideoCapabilityConfig = {
         maxTotalAudioDurationSeconds?: number;
         /** 有参考视频时，参考视频合计时长加输出时长的上限。 */
         maxCombinedVideoDurationSeconds?: number;
+        minVideoDurationSeconds?: number;
+        minAudioDurationSeconds?: number;
+        /** 允许的文件格式（扩展名，如 mp3、wav、jpg）；空表示不限。 */
+        imageFormats?: string[];
+        videoFormats?: string[];
+        audioFormats?: string[];
+        /** 像素限制：短边下限、长边上限、短边上限，长宽比上限按长边/短边计；0 或未设不限。 */
+        minImageSidePixels?: number;
+        maxImageLongSidePixels?: number;
+        maxImageShortSidePixels?: number;
+        maxImageAspectRatio?: number;
+        minVideoSidePixels?: number;
+        maxVideoLongSidePixels?: number;
+        maxVideoShortSidePixels?: number;
+        maxVideoAspectRatio?: number;
     };
     duration: {
         selection: "range" | "enum";

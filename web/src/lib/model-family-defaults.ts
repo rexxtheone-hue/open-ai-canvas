@@ -36,6 +36,21 @@ function addOperations(video: VideoCapabilityConfig, ...operations: VideoCapabil
     for (const operation of operations) if (!video.operations.includes(operation)) video.operations.push(operation);
 }
 
+/** 参考素材的允许格式、单段最短秒数，以及图片、视频的短边下限、长边上限和长宽比上限（与后端 setReferenceMediaRules 一致）。 */
+const mediaRules = (imageFormats: string[], videoFormats: string[], audioFormats: string[], minVideoDurationSeconds: number, minAudioDurationSeconds: number, minImageSidePixels: number, maxImageLongSidePixels: number, maxImageAspectRatio: number, minVideoSidePixels: number, maxVideoLongSidePixels: number, maxVideoAspectRatio: number): Partial<VideoCapabilityConfig["references"]> => ({
+    imageFormats,
+    videoFormats,
+    audioFormats,
+    minVideoDurationSeconds,
+    minAudioDurationSeconds,
+    minImageSidePixels,
+    maxImageLongSidePixels,
+    maxImageAspectRatio,
+    minVideoSidePixels,
+    maxVideoLongSidePixels,
+    maxVideoAspectRatio,
+});
+
 const range = (min: number, max: number, value: number): VideoCapabilityConfig["duration"] => ({ selection: "range", min, max, step: 1, default: value });
 const choices = (value: number, ...values: number[]): VideoCapabilityConfig["duration"] => ({ selection: "enum", values, default: value });
 
@@ -55,6 +70,7 @@ export function applyModelFamilyVideoDefaults(video: VideoCapabilityConfig, prot
         video.generateAudio = { supported: true, default: true };
         video.watermark = { supported: true, default: false };
         addOperations(video, "reference_to_video", "audio_to_video");
+        Object.assign(video.references, mediaRules(["jpg", "png", "webp", "bmp", "tiff", "gif", "heic", "heif"], ["mp4", "mov"], ["wav", "mp3"], 2, 2, 300, 6000, 2.5, 300, 6000, 2.5));
         if (has("seedance-2-5", "seedance-2.5", "seedance2.5")) {
             setReferences(video, 30, 30, 10, 200, 30, 10, 15, 30);
             Object.assign(video.references, { maxTotalVideoDurationSeconds: 30, maxTotalAudioDurationSeconds: 30 });
@@ -82,10 +98,12 @@ export function applyModelFamilyVideoDefaults(video: VideoCapabilityConfig, prot
         video.defaultRatio = "16:9";
         if (has("max")) {
             setReferences(video, 2, 30, 0, 0, 0, 0, 0, 0);
+            Object.assign(video.references, mediaRules(["jpg", "png", "webp", "heic", "heif"], [], [], 0, 0, 256, 5760, 2.5, 0, 0, 0), { promptMaxChars: 7000 });
             video.duration = range(5, 15, 5);
             video.resolutions = ["480P", "768P"];
         } else {
             setReferences(video, 9, 30, 3, 50, 15, 3, 15, 15);
+            Object.assign(video.references, mediaRules(["jpg", "png", "webp", "heic", "heif"], ["mp4", "mov"], ["wav", "mp3"], 2, 2, 256, 5760, 2.5, 256, 5760, 2.5), { maxTotalVideoDurationSeconds: 15, maxTotalAudioDurationSeconds: 15, promptMaxChars: 7000 });
             video.duration = range(4, 15, 5);
             video.resolutions = ["768P", "2K"];
             addOperations(video, "reference_to_video");
@@ -114,6 +132,7 @@ export function applyModelFamilyVideoDefaults(video: VideoCapabilityConfig, prot
     } else if (has("wan3", "wan-3")) {
         setReferences(video, 10, 20, 3, 100, 15, 1, 15, 30);
         Object.assign(video.references, { maxTotalVideoDurationSeconds: 15, maxTotalAudioDurationSeconds: 15, maxCombinedVideoDurationSeconds: 30 });
+        Object.assign(video.references, mediaRules(["jpg", "png", "bmp", "webp"], ["mp4", "mov"], ["wav", "mp3"], 1, 1, 240, 8000, 8, 240, 4096, 8));
         video.duration = range(2, 15, 5);
         video.ratios = ["adaptive", ...STANDARD_RATIOS.slice(0, 5)];
         video.defaultRatio = "16:9";

@@ -179,6 +179,12 @@ type ImageReferenceConfig struct {
 	MaxImages      int   `json:"maxImages"`
 	MaxImageBytes  int64 `json:"maxImageBytes"`
 	MaskSupported  bool  `json:"maskSupported"`
+	// 0 或空表示不限：参考图合计字节数、允许格式、短边下限、长边上限、长宽比上限。
+	MaxTotalImageBytes  int64    `json:"maxTotalImageBytes,omitempty"`
+	ImageFormats        []string `json:"imageFormats,omitempty"`
+	MinImageSide        int      `json:"minImageSidePixels,omitempty"`
+	MaxImageLongSide    int      `json:"maxImageLongSidePixels,omitempty"`
+	MaxImageAspectRatio float64  `json:"maxImageAspectRatio,omitempty"`
 }
 
 type ImageSizeConfig struct {
@@ -237,6 +243,21 @@ type VideoReferenceConfig struct {
 	MaxTotalAudioDuration int `json:"maxTotalAudioDurationSeconds,omitempty"`
 	// 有参考视频时，参考视频合计时长加输出时长的上限（万相 3.0 为 30 秒）。
 	MaxCombinedVideoDuration int `json:"maxCombinedVideoDurationSeconds,omitempty"`
+	MinVideoDuration         int `json:"minVideoDurationSeconds,omitempty"`
+	MinAudioDuration         int `json:"minAudioDurationSeconds,omitempty"`
+	// 允许的文件格式（扩展名，如 mp3、wav、jpg）；空表示不限。
+	ImageFormats []string `json:"imageFormats,omitempty"`
+	VideoFormats []string `json:"videoFormats,omitempty"`
+	AudioFormats []string `json:"audioFormats,omitempty"`
+	// 像素限制：短边下限、长边上限、短边上限（0 不限），长宽比上限按长边/短边计。
+	MinImageSide        int     `json:"minImageSidePixels,omitempty"`
+	MaxImageLongSide    int     `json:"maxImageLongSidePixels,omitempty"`
+	MaxImageShortSide   int     `json:"maxImageShortSidePixels,omitempty"`
+	MaxImageAspectRatio float64 `json:"maxImageAspectRatio,omitempty"`
+	MinVideoSide        int     `json:"minVideoSidePixels,omitempty"`
+	MaxVideoLongSide    int     `json:"maxVideoLongSidePixels,omitempty"`
+	MaxVideoShortSide   int     `json:"maxVideoShortSidePixels,omitempty"`
+	MaxVideoAspectRatio float64 `json:"maxVideoAspectRatio,omitempty"`
 }
 
 type VideoDurationConfig struct {

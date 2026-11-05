@@ -39,6 +39,14 @@ func setVideoReferences(video *VideoCapabilityConfig, images, imageMB, videos, v
 	refs.MaxAudios, refs.MaxAudioBytes, refs.MaxAudioDuration = audios, int64(audioMB)*mb, audioSeconds
 }
 
+// setReferenceMediaRules 设置参考素材的允许格式、单段最短秒数，以及图片、视频的短边下限、长边上限和长宽比上限。
+func setReferenceMediaRules(refs *VideoReferenceConfig, imageFormats, videoFormats, audioFormats []string, minVideoSeconds, minAudioSeconds, minImageSide, maxImageLong int, maxImageAspect float64, minVideoSide, maxVideoLong int, maxVideoAspect float64) {
+	refs.ImageFormats, refs.VideoFormats, refs.AudioFormats = imageFormats, videoFormats, audioFormats
+	refs.MinVideoDuration, refs.MinAudioDuration = minVideoSeconds, minAudioSeconds
+	refs.MinImageSide, refs.MaxImageLongSide, refs.MaxImageAspectRatio = minImageSide, maxImageLong, maxImageAspect
+	refs.MinVideoSide, refs.MaxVideoLongSide, refs.MaxVideoAspectRatio = minVideoSide, maxVideoLong, maxVideoAspect
+}
+
 func addVideoOperations(video *VideoCapabilityConfig, operations ...string) {
 	for _, operation := range operations {
 		exists := false
@@ -76,6 +84,7 @@ func applyModelFamilyVideoDefaults(video *VideoCapabilityConfig, protocol string
 		video.GenerateAudio = VideoBooleanConfig{Supported: true, Default: true}
 		video.Watermark = VideoBooleanConfig{Supported: true, Default: false}
 		addVideoOperations(video, "reference_to_video", "audio_to_video")
+		setReferenceMediaRules(&video.References, []string{"jpg", "png", "webp", "bmp", "tiff", "gif", "heic", "heif"}, []string{"mp4", "mov"}, []string{"wav", "mp3"}, 2, 2, 300, 6000, 2.5, 300, 6000, 2.5)
 		if has("seedance-2-5", "seedance-2.5", "seedance2.5") {
 			setVideoReferences(video, 30, 30, 10, 200, 30, 10, 15, 30)
 			video.References.MaxTotalVideoDuration, video.References.MaxTotalAudioDuration = 30, 30
@@ -102,11 +111,15 @@ func applyModelFamilyVideoDefaults(video *VideoCapabilityConfig, protocol string
 		video.Ratios, video.DefaultRatio = []string{"adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"}, "16:9"
 		if has("max") {
 			setVideoReferences(video, 2, 30, 0, 0, 0, 0, 0, 0)
+			setReferenceMediaRules(&video.References, []string{"jpg", "png", "webp", "heic", "heif"}, nil, nil, 0, 0, 256, 5760, 2.5, 0, 0, 0)
+			video.References.PromptMaxChars = 7000
 			video.Duration = rangeDuration(5, 15, 5)
 			video.Resolutions, video.DefaultResolution = []string{"480P", "768P"}, "768P"
 			break
 		}
 		setVideoReferences(video, 9, 30, 3, 50, 15, 3, 15, 15)
+		setReferenceMediaRules(&video.References, []string{"jpg", "png", "webp", "heic", "heif"}, []string{"mp4", "mov"}, []string{"wav", "mp3"}, 2, 2, 256, 5760, 2.5, 256, 5760, 2.5)
+		video.References.MaxTotalVideoDuration, video.References.MaxTotalAudioDuration, video.References.PromptMaxChars = 15, 15, 7000
 		video.Duration = rangeDuration(4, 15, 5)
 		video.Resolutions, video.DefaultResolution = []string{"768P", "2K"}, "768P"
 		addVideoOperations(video, "reference_to_video")
@@ -128,6 +141,7 @@ func applyModelFamilyVideoDefaults(video *VideoCapabilityConfig, protocol string
 	case has("wan3", "wan-3"):
 		setVideoReferences(video, 10, 20, 3, 100, 15, 1, 15, 30)
 		video.References.MaxTotalVideoDuration, video.References.MaxTotalAudioDuration, video.References.MaxCombinedVideoDuration = 15, 15, 30
+		setReferenceMediaRules(&video.References, []string{"jpg", "png", "bmp", "webp"}, []string{"mp4", "mov"}, []string{"wav", "mp3"}, 1, 1, 240, 8000, 8, 240, 4096, 8)
 		video.Duration = rangeDuration(2, 15, 5)
 		video.Ratios, video.DefaultRatio = append([]string{"adaptive"}, standardRatios[:5]...), "16:9"
 		video.Resolutions, video.DefaultResolution = []string{"480p", "720p", "1080p"}, "1080p"
