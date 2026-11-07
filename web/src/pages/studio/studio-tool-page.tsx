@@ -120,6 +120,10 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     const studio = useStudioTool(kind, tool.id, { specialty });
     const { state, config, resolvedModel, generationConfig, limits, overflowIds, maxCount, credits, creditsEnabled, blockReason, submitting, uploading } = studio;
     const [outputOpen, setOutputOpen] = useState(false);
+    const outputSettingsRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (outputOpen) outputSettingsRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }, [outputOpen]);
     const autoPolishKey = `studio.auto-polish.${tool.id}.v1`;
     const [autoPolish, setAutoPolishState] = useState(() => {
         try {
@@ -769,17 +773,20 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                         <Switch id={`studio-audio-${tool.id}`} checked={state.video.generateAudio} onChange={(checked) => studio.updateVideo({ generateAudio: checked })} />
                                     </label>
                                 ) : null}
-                                <Popover
-                                    open={outputOpen}
-                                    onOpenChange={setOutputOpen}
-                                    trigger="click"
-                                    placement="right"
-                                    arrow={false}
-                                    content={
-                                        kind === "image" ? (
+                                <button type="button" className={`studio-row-button${outputOpen ? " is-open" : ""}`} aria-label="输出设置" aria-expanded={outputOpen} onClick={() => setOutputOpen((open) => !open)}>
+                                    <SlidersHorizontal aria-hidden />
+                                    <span><small>输出</small><b>{settingsSummary(kind, state, config)}</b></span>
+                                    <ChevronRight aria-hidden />
+                                </button>
+                                </div>
+                                {/* 直接在按钮下方展开：浮层在可滚动侧栏里定位不准，矮屏幕上会跑到看不见的地方。 */}
+                                {outputOpen ? (
+                                    <div className="studio-output-settings" ref={outputSettingsRef}>
+                                        {kind === "image" ? (
                                             <ImageSettingsPanel
                                                 config={generationConfig}
                                                 theme={theme}
+                                                className="w-full space-y-3"
                                                 showCount={false}
                                                 showTransparent={false}
                                                 onConfigChange={(key, value) => {
@@ -793,6 +800,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                             <VideoSettingsPanel
                                                 config={generationConfig}
                                                 theme={theme}
+                                                className="w-full space-y-3"
                                                 hideGenerateAudio={Boolean(videoProfile?.generateAudio.supported) && (!specialtySpec || Boolean(specialtySpec.shotPlan))}
                                                 onConfigChange={(key, value) => {
                                                     if (key === "size") studio.updateVideo({ ratio: value });
@@ -801,16 +809,9 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
                                                     else if (key === "videoGenerateAudio") studio.updateVideo({ generateAudio: value === "true" });
                                                 }}
                                             />
-                                        )
-                                    }
-                                >
-                                    <button type="button" className="studio-row-button" aria-label="输出设置">
-                                        <SlidersHorizontal aria-hidden />
-                                        <span><small>输出</small><b>{settingsSummary(kind, state, config)}</b></span>
-                                        <ChevronRight aria-hidden />
-                                    </button>
-                                </Popover>
-                                </div>
+                                        )}
+                                    </div>
+                                ) : null}
                             </>
                         )}
                     </div>
