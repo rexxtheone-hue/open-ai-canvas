@@ -1902,3 +1902,30 @@ html.studio-active .ant-select-dropdown .ant-select-item-option-selected { backg
 .studio-gen-options button:disabled { opacity: 0.45; cursor: not-allowed; }
 .studio-output-settings { margin-top: 8px; padding: 14px; border-radius: 16px; border: 1px solid var(--studio-line); background: var(--studio-panel-raised); }
 .studio-row-button.is-open > svg:last-child { transform: rotate(90deg); }
+
+/* 手机/窄屏：右栏叠在左栏下方，原本贴在右栏里的浮层会跑到屏幕外，改为全屏从右侧滑入。 */
+@media (max-width: 960px) {
+    .studio-right-panel > .studio-switcher,
+    .studio-right-panel > .studio-model-panel,
+    .studio-right-panel > .studio-picker,
+    .studio-right-panel > .studio-camera-panel {
+        position: fixed;
+        z-index: 1000;
+        inset: 0;
+        width: auto;
+        border-radius: 0;
+        border: 0;
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        animation: studio-sheet-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .studio-right-panel > .studio-camera-panel { padding: calc(20px + env(safe-area-inset-top, 0px)) 16px calc(20px + env(safe-area-inset-bottom, 0px)); }
+    .studio-picker-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+    .studio-model-row { grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; }
+    .studio-model-chips, .studio-model-price { grid-column: 2 / -1; justify-content: flex-start; }
+    .studio-model-price { white-space: normal; }
+    .studio-camera-head { padding: 0 40px; }
+    .studio-camera-head h2 { font-size: 24px; }
+}
+@keyframes studio-sheet-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .studio-right-panel > * { animation: none !important; } }

@@ -147,6 +147,7 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     const [searchParams, setSearchParams] = useSearchParams();
     const { update, applyWorkSettings, addAttachments } = studio;
     const [cameraOpen, setCameraOpen] = useState(false);
+    const [frameMenuOpen, setFrameMenuOpen] = useState(false);
     const openPicker = (next: PickerState) => {
         setPicker(next);
         setSwitcherOpen(false);
@@ -475,14 +476,16 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
             <Popover
                 key={referenceKind}
                 trigger="click"
+                open={frameMenuOpen}
+                onOpenChange={setFrameMenuOpen}
                 placement="bottomLeft"
                 arrow={false}
                 content={(
                     <div className="studio-popup studio-option-list">
-                        <button type="button" className="studio-option-item is-rich" onClick={() => openPicker({ kinds, initialKind: "image", max })}>
+                        <button type="button" className="studio-option-item is-rich" onClick={() => { setFrameMenuOpen(false); openPicker({ kinds, initialKind: "image", max }); }}>
                             <span><b>添加图片或角色参考</b><small>用参考引导视频内容</small></span>
                         </button>
-                        <button type="button" className="studio-option-item is-rich" onClick={() => openPicker({ kinds: ["image", "character"], initialKind: "image", max: 1, firstFrame: true, title: "设为首帧" })}>
+                        <button type="button" className="studio-option-item is-rich" onClick={() => { setFrameMenuOpen(false); openPicker({ kinds: ["image", "character"], initialKind: "image", max: 1, firstFrame: true, title: "设为首帧" }); }}>
                             <span><b>设为首帧</b><small>用这张图作为视频的第一帧</small></span>
                         </button>
                     </div>
