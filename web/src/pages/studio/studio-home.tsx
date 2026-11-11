@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { requireUser } from "@/stores/use-auth-gate-store";
-import { ArrowRight, ArrowUp, ChevronLeft, ChevronRight, Clapperboard, Film, ImageIcon, MessageSquareText, Music, Sparkles, Wand2 } from "./studio-icons";
+import { ArrowRight, ArrowUp, ChevronLeft, ChevronRight, Clapperboard, Film, ImageIcon, LayoutGrid, MessageSquareText, Music, Sparkles, Wand2 } from "./studio-icons";
 import { Link, useNavigate } from "react-router";
 
 import { modelDisplayName, selectableModelsByCapability, useEffectiveConfig } from "@/stores/use-config-store";
@@ -44,11 +44,22 @@ function writeLocal(key: string, value: string) {
     }
 }
 
+const HOME_MODE_KEY = "studio.home.mode.v1";
+
 export default function StudioHomePage({ initialMode = "agents" }: { initialMode?: "agents" | "tools" }) {
     const navigate = useNavigate();
     const config = useEffectiveConfig();
     const user = useUserStore((state) => state.user);
-    const [mode, setMode] = useState<"agents" | "tools">(initialMode);
+    // 记住上次选的模式；手机上直接用工具的人多，没选过时默认显示工具。
+    const [mode, setModeState] = useState<"agents" | "tools">(() => {
+        const saved = readLocal(HOME_MODE_KEY, "");
+        if (saved === "agents" || saved === "tools") return saved;
+        return typeof window !== "undefined" && window.matchMedia?.("(max-width: 720px)").matches ? "tools" : initialMode;
+    });
+    const setMode = (value: "agents" | "tools") => {
+        writeLocal(HOME_MODE_KEY, value);
+        setModeState(value);
+    };
     const [agent, setAgent] = useState<AgentMode>("chat");
     const [runModes, setRunModes] = useState<Record<AgentMode, string>>(() => ({ chat: readLocal(RUN_KEYS.chat.key, "ask"), director: readLocal(RUN_KEYS.director.key, "guide") }));
     const [prompt, setPrompt] = useState("");
@@ -159,6 +170,7 @@ export default function StudioHomePage({ initialMode = "agents" }: { initialMode
                             {tools.filter((tool) => !tool.specialty).map((tool) => (
                                 <StudioPosterCard key={tool.id} to={tool.path} title={tool.label} icon={tool.icon} gradient={tool.gradient} cover={covers[tool.id]} />
                             ))}
+                            <Link to="/studio/video" className="studio-poster studio-poster-more"><LayoutGrid aria-hidden /><span>全部工具</span><ArrowRight aria-hidden /></Link>
                         </div>
                     )}
                 </section>

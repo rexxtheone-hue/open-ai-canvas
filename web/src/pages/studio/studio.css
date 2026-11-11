@@ -1929,3 +1929,17 @@ html.studio-active .ant-select-dropdown .ant-select-item-option-selected { backg
 }
 @keyframes studio-sheet-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
 @media (prefers-reduced-motion: reduce) { .studio-right-panel > * { animation: none !important; } }
+
+/* 手机首页：压缩标题区，工具一行 3 个，打开就能看到并点进工具。 */
+@media (max-width: 720px) {
+    .studio-home { padding-top: 8px; gap: 32px; }
+    .studio-hero { gap: 14px; padding-top: 12px; }
+    .studio-hero h1 { font-size: 24px; }
+    .studio-hero .studio-poster-grid.is-compact { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .studio-hero .studio-poster-title { height: auto; min-height: 36px; padding: 6px 8px; font-size: 12px; line-height: 1.25; white-space: normal; }
+    .studio-hero .studio-poster-title svg { display: none; }
+}
+.studio-poster-more { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 100%; border: 1px dashed rgba(214, 225, 255, 0.18); background: rgba(214, 225, 255, 0.03); color: var(--studio-soft); font-family: var(--studio-display); font-size: 14px; font-weight: 650; text-decoration: none; }
+.studio-poster-more:hover { border-color: rgba(var(--studio-accent-rgb), 0.6); background: rgba(var(--studio-accent-rgb), 0.08); color: var(--studio-fg); }
+.studio-poster-more svg { width: 22px; height: 22px; }
+.studio-poster-more svg:last-child { width: 16px; height: 16px; }
