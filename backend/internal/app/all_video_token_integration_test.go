@@ -21,7 +21,7 @@ func TestAllVideoProtocolsQuoteReserveAndSettleWithoutProviderUsage(t *testing.T
 			if err != nil {
 				t.Fatal(err)
 			}
-			assertVideoTokenQuote(t, quote, 1_900_800)
+			assertVideoTokenQuote(t, quote, 1_814_400)
 			input := quoteInput(intent, channelModel.ModelKey)
 			input["config"].(map[string]any)["channelId"] = channel.ID
 			input, err = svc.resolveSystemChannelModelSelection(input, "canvas_video", "")
@@ -47,7 +47,7 @@ func TestAllVideoProtocolsQuoteReserveAndSettleWithoutProviderUsage(t *testing.T
 			if err != nil {
 				t.Fatal(err)
 			}
-			if settled.Status != model.BillingStatusSettled || settled.UsageSource != "video_formula" || settled.UsageAvailable || settled.OutputTokens != 108_000 || settled.ActualAmountMicrocredits != 1_728_000 || settled.RefundedAmountMicrocredits != 172_800 {
+			if settled.Status != model.BillingStatusSettled || settled.UsageSource != "video_formula" || settled.UsageAvailable || settled.OutputTokens != 108_000 || settled.ActualAmountMicrocredits != 1_728_000 || settled.RefundedAmountMicrocredits != 86_400 {
 				t.Fatalf("wrong formula settlement: %#v", settled)
 			}
 			var account model.CreditAccount

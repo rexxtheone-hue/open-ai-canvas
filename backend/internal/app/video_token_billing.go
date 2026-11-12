@@ -62,7 +62,7 @@ func estimateArkVideoTokenUsage(input map[string]any) (*VideoTokenEstimate, erro
 	if err != nil {
 		return nil, err
 	}
-	const fps, margin = int64(24), int64(10)
+	const fps, margin = int64(24), int64(5)
 	if dimensions.width > math.MaxInt64/dimensions.height/fps {
 		return nil, BadAuthRequest("视频尺寸超出 Token 计算范围")
 	}

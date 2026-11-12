@@ -20,9 +20,9 @@ func TestVideoTokenChannelQuoteAgreesWithTaskBilling(t *testing.T) {
 		wantPrice int64
 		wantCost  int64
 	}{
-		{name: "audio default", wantTier: "video-audio", wantPrice: 16_000_000, wantCost: 1_900_800},
-		{name: "explicit audio", audio: true, wantTier: "video-audio", wantPrice: 16_000_000, wantCost: 1_900_800},
-		{name: "silent", audio: false, wantTier: "video-silent", wantPrice: 8_000_000, wantCost: 950_400},
+		{name: "audio default", wantTier: "video-audio", wantPrice: 16_000_000, wantCost: 1_814_400},
+		{name: "explicit audio", audio: true, wantTier: "video-audio", wantPrice: 16_000_000, wantCost: 1_814_400},
+		{name: "silent", audio: false, wantTier: "video-silent", wantPrice: 8_000_000, wantCost: 907_200},
 		{name: "configured free", audio: true, free: true, wantTier: "video-audio"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -100,7 +100,7 @@ func TestVideoTokenLogicalQuoteAgreesWithSystemChannel(t *testing.T) {
 			if err != nil {
 				t.Fatalf("QuoteLogicalModel() error = %v", err)
 			}
-			assertVideoTokenQuote(t, logicalQuote, 1_900_800)
+			assertVideoTokenQuote(t, logicalQuote, 1_814_400)
 			if logicalQuote.LogicalModelID != logical.ID {
 				t.Fatalf("logicalModelId = %q, want %q", logicalQuote.LogicalModelID, logical.ID)
 			}
@@ -188,12 +188,12 @@ func newVideoTokenQuoteFixture(t *testing.T) (*Service, *gorm.DB, model.ModelCha
 
 func assertVideoTokenQuote(t *testing.T, quote *LogicalModelQuote, amount int64) {
 	t.Helper()
-	if quote == nil || quote.BillingMode != "token" || !quote.Estimated || quote.Quantity != 118_800 || quote.AmountMicrocredits != amount {
-		t.Fatalf("unexpected video quote: %#v, want 118800 tokens and %d microcredits", quote, amount)
+	if quote == nil || quote.BillingMode != "token" || !quote.Estimated || quote.Quantity != 113_400 || quote.AmountMicrocredits != amount {
+		t.Fatalf("unexpected video quote: %#v, want 113400 tokens and %d microcredits", quote, amount)
 	}
 	want := VideoTokenEstimate{
-		FormulaTokens: 108_000, ReservedTokens: 118_800, OutputWidth: 1280, OutputHeight: 720,
-		FramesPerSecond: 24, OutputSeconds: 5, ReservationMarginPercent: 10,
+		FormulaTokens: 108_000, ReservedTokens: 113_400, OutputWidth: 1280, OutputHeight: 720,
+		FramesPerSecond: 24, OutputSeconds: 5, ReservationMarginPercent: 5,
 	}
 	if quote.VideoTokenEstimate == nil || *quote.VideoTokenEstimate != want {
 		t.Fatalf("video estimate = %#v, want %#v", quote.VideoTokenEstimate, want)

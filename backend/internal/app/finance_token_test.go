@@ -27,7 +27,7 @@ func TestEstimateArkVideoTokensUsesPixelFrameEstimate(t *testing.T) {
 		},
 	})
 	// 官方公式 1280*720*5*24/1024 = 108000；平台另预留 10%。
-	if estimate.Err != nil || estimate.InputTokens != 0 || estimate.OutputTokens != 118800 {
+	if estimate.Err != nil || estimate.InputTokens != 0 || estimate.OutputTokens != 113400 {
 		t.Fatalf("estimateArkVideoTokens() = %#v", estimate)
 	}
 }
@@ -39,7 +39,7 @@ func TestEstimateArkVideoTokensIncludesUnknownReferenceVideo(t *testing.T) {
 		},
 		"referenceVideos": []any{map[string]any{"id": "video-1"}},
 	})
-	if estimate.Err != nil || estimate.OutputTokens != 475200 || !estimate.Video.ReferenceDurationEstimated {
+	if estimate.Err != nil || estimate.OutputTokens != 453600 || !estimate.Video.ReferenceDurationEstimated {
 		t.Fatalf("estimateArkVideoTokens() = %#v", estimate)
 	}
 }

@@ -28,7 +28,7 @@ func TestArkVideoEstimateUsesOfficialDimensionsAndNoExtraFrames(t *testing.T) {
 			}
 			got := estimate.Video
 			want := (tt.width*tt.height*24*5 + 1023) / 1024
-			if got.OutputWidth != tt.width || got.OutputHeight != tt.height || got.FormulaTokens != want || got.DimensionsEstimated != tt.estimated || got.ReservedTokens != (want*110+99)/100 {
+			if got.OutputWidth != tt.width || got.OutputHeight != tt.height || got.FormulaTokens != want || got.DimensionsEstimated != tt.estimated || got.ReservedTokens != (want*105+99)/100 {
 				t.Fatalf("estimate=%#v, want %dx%d, tokens=%d", got, tt.width, tt.height, want)
 			}
 		})
