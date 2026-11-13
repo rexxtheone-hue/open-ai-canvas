@@ -722,3 +722,12 @@ func (r *Repository) RenewalPaymentOrder(original *model.PaymentOrder, tradeNo s
 	err = r.db.First(&existing, "user_id = ? AND idempotency_key = ?", original.UserID, key).Error
 	return &existing, err
 }
+
+// TopupPeriodPurchaseCount 返回用户在 since 之后占用某个限购商品名额的订单数，口径与下单时的限购检查一致。
+func (r *Repository) TopupPeriodPurchaseCount(userID string, productID string, since time.Time) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.PaymentOrder{}).Where("user_id = ? AND product_id = ? AND status IN ? AND created_at >= ?", userID, productID, []model.PaymentOrderStatus{
+		model.PaymentOrderCreated, model.PaymentOrderPending, model.PaymentOrderClosing, model.PaymentOrderCreateFailed, model.PaymentOrderCredited,
+	}, since).Count(&count).Error
+	return count, err
+}

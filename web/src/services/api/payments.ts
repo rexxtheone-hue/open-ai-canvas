@@ -40,7 +40,7 @@ export type TopupProduct = {
     stockRemaining?: number;
     saleStartAt?: string;
     saleEndAt?: string;
-    saleStatus?: "disabled" | "on_sale" | "upcoming" | "ended" | "sold_out" | string;
+    saleStatus?: "disabled" | "on_sale" | "upcoming" | "ended" | "sold_out" | "members_only" | "purchase_limit" | string;
     canPurchase: boolean;
     createdBy: string;
     updatedBy: string;

@@ -34,6 +34,20 @@ func (s *Service) TopupProducts(actor *model.User) ([]model.TopupProduct, error)
 			}
 		}
 	}
+	// 限购商品（如新手礼包）买满后标记出来，前台直接隐藏，免得点了才报错。
+	for index := range products {
+		product := &products[index]
+		if !product.CanPurchase || product.SaleStrategy != model.TopupSaleStrategyPeriodic || product.PeriodDays <= 0 || product.PeriodPurchaseLimit <= 0 {
+			continue
+		}
+		count, err := s.repo.TopupPeriodPurchaseCount(actor.ID, product.ID, now.Add(-time.Duration(product.PeriodDays)*24*time.Hour))
+		if err != nil {
+			return nil, err
+		}
+		if count >= int64(product.PeriodPurchaseLimit) {
+			product.CanPurchase, product.SaleStatus = false, "purchase_limit"
+		}
+	}
 	return products, nil
 }
 

@@ -124,7 +124,7 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
         setPaymentsLoading(true);
         Promise.all([listTopupProducts(), listPaymentProviders()])
             .then(([productResult, providerResult]) => {
-                const enabledProducts = productResult.products.filter((item) => item.enabled && (!item.planId || item.id === preferredProductId));
+                const enabledProducts = productResult.products.filter((item) => item.enabled && item.saleStatus !== "purchase_limit" && (!item.planId || item.id === preferredProductId));
                 const usableProviders = providerResult.providers.filter((item) => item.enabled && item.pluginEnabled && item.configured);
                 setProducts(enabledProducts);
                 setProviders(usableProviders);
