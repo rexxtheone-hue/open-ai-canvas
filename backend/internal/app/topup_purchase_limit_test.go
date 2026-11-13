@@ -46,4 +46,7 @@ func TestTopupProductsHideStarterPackAfterPurchase(t *testing.T) {
 	if got := status(fresh); got["starter"] != "on_sale" {
 		t.Fatalf("a new user can still buy the starter pack, got %v", got)
 	}
+	if got := status(nil); got["starter"] != "on_sale" || got["regular"] != "on_sale" {
+		t.Fatalf("guests can see the packs on the pricing page, got %v", got)
+	}
 }

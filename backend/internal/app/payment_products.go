@@ -10,10 +10,8 @@ import (
 	"yingce/backend/internal/model"
 )
 
+// TopupProducts 未登录访客也能看价格（充值页、官网），但只能看，下单仍要登录。
 func (s *Service) TopupProducts(actor *model.User) ([]model.TopupProduct, error) {
-	if actor == nil {
-		return nil, Unauthorized("请先登录")
-	}
 	if err := s.RequireFeature(FeatureCredits); err != nil {
 		return nil, err
 	}
@@ -23,6 +21,14 @@ func (s *Service) TopupProducts(actor *model.User) ([]model.TopupProduct, error)
 	}
 	now := time.Now()
 	products = s.withPlanMonthlyCredits(decorateTopupProducts(products, now))
+	if actor == nil {
+		for index := range products {
+			if products[index].MembersOnly && products[index].CanPurchase {
+				products[index].CanPurchase, products[index].SaleStatus = false, "members_only"
+			}
+		}
+		return products, nil
+	}
 	_, activePlan, err := s.activeStudioPlan(actor.ID, now)
 	if err != nil {
 		return nil, err

@@ -1,0 +1,274 @@
+.topup-offers {
+    --t-accent: #d65cff;
+    --t-accent-rgb: 214, 92, 255;
+    --t-ink: #1a0622;
+    --t-fg: #f4f5f7;
+    --t-soft: #c9cdd4;
+    --t-muted: #a7acb6;
+    --t-panel: #141517;
+    --t-line: rgba(214, 225, 255, 0.08);
+    --t-display: "Space Grotesk Variable", "Space Grotesk", "Inter Variable", ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    color: var(--t-fg);
+    text-align: left;
+}
+.topup-offers h3,
+.topup-offers p {
+    margin: 0;
+}
+.topup-badge {
+    flex: 0 0 auto;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--t-accent);
+    color: var(--t-ink);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+.topup-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 46px;
+    padding: 0 22px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--t-fg);
+    color: #111214;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.15s ease, transform 0.15s ease;
+}
+.topup-button.is-accent {
+    background: var(--t-accent);
+    color: var(--t-ink);
+}
+.topup-button:hover:not(:disabled) {
+    filter: brightness(1.08);
+}
+.topup-button:active:not(:disabled) {
+    transform: translateY(1px);
+}
+.topup-button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.topup-starter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 24px 40px;
+    padding: 26px 30px;
+    border: 1px solid rgba(var(--t-accent-rgb), 0.45);
+    border-radius: 22px;
+    background: linear-gradient(120deg, rgba(var(--t-accent-rgb), 0.16), rgba(20, 21, 23, 0.9) 60%);
+}
+.topup-starter-main {
+    display: flex;
+    flex: 1 1 360px;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+.topup-starter-tags {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--t-soft);
+    font-size: 13px;
+}
+.topup-starter h3 {
+    font-family: var(--t-display);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.25;
+}
+.topup-starter p {
+    color: var(--t-soft);
+    font-size: 15px;
+    line-height: 1.6;
+}
+.topup-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+}
+.topup-chips span {
+    padding: 6px 12px;
+    border: 1px solid rgba(214, 225, 255, 0.12);
+    border-radius: 999px;
+    background: rgba(11, 11, 13, 0.55);
+    color: var(--t-soft);
+    font-size: 13px;
+}
+.topup-chips b {
+    margin-left: 4px;
+    color: var(--t-fg);
+}
+.topup-starter-buy {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 200px;
+}
+.topup-starter-buy strong {
+    font-family: var(--t-display);
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1.1;
+}
+.topup-starter-buy span {
+    color: var(--t-soft);
+    font-size: 14px;
+}
+.topup-starter-buy .topup-button {
+    margin-top: 6px;
+}
+
+.topup-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+}
+.topup-card {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 22px;
+    border: 1px solid var(--t-line);
+    border-radius: 20px;
+    background: var(--t-panel);
+}
+.topup-card.is-hero {
+    border-color: var(--t-accent);
+    background: #1a1520;
+    box-shadow: 0 24px 60px -30px rgba(var(--t-accent-rgb), 0.6);
+}
+.topup-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 26px;
+    color: #e6e8ec;
+    font-size: 14px;
+    font-weight: 600;
+}
+.topup-card-price {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.topup-card-price strong {
+    font-family: var(--t-display);
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+}
+.topup-card-price span {
+    color: var(--t-muted);
+    font-size: 14px;
+}
+.topup-card-seedance {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 14px;
+    border-radius: 14px;
+    background: rgba(214, 225, 255, 0.05);
+}
+.topup-card.is-hero .topup-card-seedance {
+    background: rgba(var(--t-accent-rgb), 0.16);
+}
+.topup-card-seedance strong {
+    font-family: var(--t-display);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.15;
+}
+.topup-card-seedance span {
+    color: #e6e8ec;
+    font-size: 13px;
+}
+.topup-card-uses {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.topup-card-uses small {
+    color: var(--t-muted);
+    font-size: 12px;
+}
+.topup-card-uses div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+.topup-card-uses div span {
+    color: var(--t-soft);
+}
+.topup-card-uses b {
+    flex: 0 0 auto;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+}
+.topup-card-facts {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 0;
+    border-top: 1px solid var(--t-line);
+    border-bottom: 1px solid var(--t-line);
+    color: var(--t-soft);
+    font-size: 13.5px;
+    line-height: 1.5;
+}
+.topup-card-facts b {
+    color: var(--t-fg);
+}
+.topup-card.is-hero .topup-card-facts b {
+    color: var(--t-accent);
+}
+.topup-card .topup-button {
+    margin-top: auto;
+}
+.topup-note {
+    color: var(--t-muted);
+    font-size: 13px;
+    text-align: center;
+}
+
+@media (max-width: 720px) {
+    .topup-starter {
+        padding: 20px;
+        gap: 18px;
+    }
+    .topup-starter h3 {
+        font-size: 22px;
+    }
+    .topup-starter p {
+        font-size: 14px;
+    }
+    .topup-starter-buy {
+        width: 100%;
+    }
+    .topup-starter-buy strong {
+        font-size: 32px;
+    }
+    .topup-card {
+        padding: 18px;
+        gap: 14px;
+    }
+}

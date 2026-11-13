@@ -226,7 +226,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                                 {link("/studio/inspire", "灵感社区", Compass)}
                                 {link("/studio/creators", "创作者", Users)}
                                 {link("/studio/profile", "我的主页", UserPen)}
-                                {link("/studio/pricing", "会员", Crown)}
+                                {link("/studio/pricing", "充值", Crown)}
                                 {link("/studio/partner", "认证与推广", Megaphone)}
                             </div>,
                         )}
@@ -282,7 +282,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                             ) : null}
                             {creditsEnabled ? (
                                 <Link to="/studio/pricing" className="studio-upgrade-button">
-                                    升级
+                                    充值
                                 </Link>
                             ) : null}
                             <WorkspaceAccountMenu studio />

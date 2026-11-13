@@ -2,13 +2,14 @@ import "@fontsource-variable/space-grotesk/index.css";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Check, ChevronDown, Clapperboard, Languages, Menu, Sparkles, Wand2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { currentLocale, setLocale } from "@/lib/i18n/runtime";
-import { formatMoney } from "@/lib/money";
 import { getAuthSettings } from "@/services/api/auth";
-import { listStudioPlans, listStudioToolCovers, type StudioPlanOffer } from "@/services/api/studio";
+import { TopupOffers } from "@/components/topup-offers";
+import { listTopupProducts } from "@/services/api/payments";
+import { listStudioToolCovers } from "@/services/api/studio";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
 import "./landing.css";
 
@@ -44,17 +45,12 @@ const TOOLS = [
 
 const MODELS = ["Seedance 2.5", "Veo 3.1", "Wan 3.0", "MiniMax H3", "Vidu Q4", "Grok Imagine", "Nano Banana 2.1", "GPT Image 2.5", "Midjourney", "Seedream 5.0", "Lyria 3 Pro"];
 
-// 和会员页的换算一致：Nano Banana 2.1 1K 一张 30 积分，Wan 3.0 720P 5 秒约 208 积分。
-const IMAGE_REFERENCE_CREDITS = 30;
-const VIDEO_REFERENCE_CREDITS = 208;
-
 const FAQS = [
     { q: "不会剪辑、不会写脚本也能用吗？", a: "能。用对话模式说你想做什么，AI 会先写脚本、排好镜头，再一个个生成。想自己控制的话，可以用导演模式逐个镜头调整。" },
     { q: "积分怎么算？", a: "生成图片、视频、音频都按次扣积分，提交前就会显示要扣多少。例如 Nano Banana 2.1 一张 1K 图片 30 积分，Wan 3.0 一条 720P 5 秒视频约 208 积分。生成失败会自动退回积分。" },
-    { q: "做出来的视频可以拿去投广告吗？", a: "会员套餐的作品可以商用，包括投放 Facebook、TikTok 广告和放在官网、门店使用。" },
-    { q: "怎么付款？", a: "以马币计价，用银行卡付款。会员按月或按年自动续费，可以随时在会员页取消，取消后本期权益照常用到期。" },
-    { q: "每月的会员积分会累积吗？", a: "不会。会员积分按月发放、当月有效。另外充值的积分不会月底清零，购买后 12 个月内有效。" },
-    { q: "不开会员可以用吗？", a: "可以。注册后先用赠送的积分试用，之后可以直接充值积分，不一定要开会员。经常用的话开会员更划算，还能同时生成更多任务。" },
+    { q: "怎么付款？", a: "以马币计价，用银行卡一次性付款，不订阅、不自动续费。新用户可以先买 RM 99 新手礼包。" },
+    { q: "充值的积分多久到期？", a: "每次充值单独计算，从付款当天起 12 个月有效，大额充值包 24 个月。到期前 30 天和 7 天会提醒你。" },
+    { q: "可以先试用吗？", a: "可以。注册后先用赠送的积分试用，满意了再充值。" },
 ];
 
 function coverSource(src: string | undefined) {
@@ -112,88 +108,18 @@ function LanguageToggle() {
     );
 }
 
-function planProduct(plan: StudioPlanOffer, months: number) {
-    return plan.products.find((product) => (product.planMonths || 0) === months && product.canPurchase);
-}
-
 function Pricing() {
-    const [annual, setAnnual] = useState(false);
-    const plansQuery = useQuery({ queryKey: ["landing", "plans"], queryFn: async () => (await listStudioPlans()).plans, staleTime: 5 * 60_000 });
-    const plans = (plansQuery.data || []).filter((plan) => plan.monthlyCreditsMicrocredits > 0 && plan.products.some((product) => product.canPurchase));
-    const saving = plans.reduce((best, plan) => {
-        const monthly = planProduct(plan, 1);
-        const yearly = planProduct(plan, 12);
-        return monthly && yearly ? Math.max(best, Math.round((1 - yearly.amountFen / (monthly.amountFen * 12)) * 100)) : best;
-    }, 0);
-    if (plansQuery.isLoading) return <p className="landing-muted">正在读取套餐…</p>;
-    if (!plans.length) {
+    const navigate = useNavigate();
+    const productsQuery = useQuery({ queryKey: ["landing", "topup-products"], queryFn: async () => (await listTopupProducts()).products, staleTime: 5 * 60_000 });
+    if (productsQuery.isLoading) return <p className="landing-muted">正在读取充值包…</p>;
+    if (!productsQuery.data?.length) {
         return (
             <p className="landing-muted">
-                套餐暂时读取不到，可以 <Link to="/studio/pricing">打开会员页</Link> 查看。
+                充值包暂时读取不到，可以 <Link to="/studio/pricing">打开充值页</Link> 查看。
             </p>
         );
     }
-    return (
-        <>
-            <div className="landing-billing" role="radiogroup" aria-label="付款周期">
-                <button type="button" role="radio" aria-checked={!annual} onClick={() => setAnnual(false)}>
-                    月付
-                </button>
-                <button type="button" role="radio" aria-checked={annual} onClick={() => setAnnual(true)}>
-                    年付{saving > 0 ? <em>省 {saving}%</em> : null}
-                </button>
-            </div>
-            <div className="landing-plans">
-                {plans.map((plan) => {
-                    const monthly = planProduct(plan, 1);
-                    const yearly = planProduct(plan, 12);
-                    const product = annual ? yearly || monthly : monthly || yearly;
-                    if (!product) return null;
-                    const months = Math.max(1, product.planMonths || 1);
-                    const credits = plan.monthlyCreditsMicrocredits / 1_000_000;
-                    return (
-                        <article key={plan.id} className={`landing-plan${plan.badge ? " is-featured" : ""}`}>
-                            {plan.badge ? <span className="landing-plan-badge">{plan.badge}</span> : null}
-                            <h3>{plan.name}</h3>
-                            {plan.description ? <p>{plan.description}</p> : null}
-                            <div className="landing-plan-price">
-                                <strong>{formatMoney(Math.round(product.amountFen / months), product.currency)}</strong>
-                                <span>/月</span>
-                            </div>
-                            <small className="landing-plan-note">{months === 12 ? `按年付 ${formatMoney(product.amountFen, product.currency)}` : "按月付款，随时可取消"}</small>
-                            <ul>
-                                <li>
-                                    <Check aria-hidden />
-                                    每月 {credits.toLocaleString()} 积分
-                                </li>
-                                <li>
-                                    <Check aria-hidden />约 {Math.floor(credits / VIDEO_REFERENCE_CREDITS).toLocaleString()} 条 5 秒视频或 {Math.floor(credits / IMAGE_REFERENCE_CREDITS).toLocaleString()} 张图片
-                                </li>
-                                <li>
-                                    <Check aria-hidden />
-                                    同时生成任务数：{plan.activeTaskLimit}
-                                </li>
-                                <li>
-                                    <Check aria-hidden />
-                                    所有图片、视频、音频模型
-                                </li>
-                                {plan.commercialLicense ? (
-                                    <li>
-                                        <Check aria-hidden />
-                                        作品可商用
-                                    </li>
-                                ) : null}
-                            </ul>
-                            <Link className={`landing-button${plan.badge ? " is-primary" : ""}`} to={register("/studio/pricing")}>
-                                选择 {plan.name}
-                            </Link>
-                        </article>
-                    );
-                })}
-            </div>
-            <p className="landing-muted landing-center">不开会员也可以注册后直接充值积分，充值积分 12 个月内有效。</p>
-        </>
-    );
+    return <TopupOffers products={productsQuery.data} onBuy={() => navigate(register("/studio/pricing"))} />;
 }
 
 /** 官网落地页：未登录的访客打开根路径时看到；已登录的直接进入 Studio。 */
@@ -371,7 +297,7 @@ export default function LandingPage() {
                     <div className="landing-wrap">
                         <div className="landing-head">
                             <h2>简单透明的价格</h2>
-                            <p>每月发放积分，所有模型通用。{bonus > 0 ? `注册就送 ${bonus} 积分，先试再买。` : ""}</p>
+                            <p>充越多，送越多，积分所有模型通用。{bonus > 0 ? `注册就送 ${bonus} 积分，先试再买。` : ""}</p>
                         </div>
                         <Pricing />
                     </div>

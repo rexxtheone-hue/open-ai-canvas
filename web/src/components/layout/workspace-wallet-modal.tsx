@@ -350,7 +350,9 @@ export function WorkspaceWalletModal({ open, onClose, pendingPaymentOrderId, pay
                                                             ? `已售罄（库存 ${product.stockRemaining ?? 0}）`
                                                             : product.saleStrategy === "inventory"
                                                               ? `库存 ${product.stockRemaining ?? 0}`
-                                                              : product.saleStrategy === "periodic"
+                                                              : product.saleStrategy === "periodic" && (product.periodDays || 0) >= 3650
+                                                                ? `每个账号限购 ${product.periodPurchaseLimit} 次`
+                                                                : product.saleStrategy === "periodic"
                                                                 ? `每 ${product.periodDays} 天限购 ${product.periodPurchaseLimit} 次`
                                                                 : "";
                                                 return (
