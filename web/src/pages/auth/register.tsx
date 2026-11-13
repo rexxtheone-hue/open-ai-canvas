@@ -382,7 +382,8 @@ const AGREEMENT_HEADING = /^\s*([一二三四五六七八九十百]+、[^\n]{0,4
 function splitAgreementParagraph(paragraph: string): { text: string; heading: boolean }[] {
     const match = paragraph.match(AGREEMENT_HEADING);
     if (!match) {
-        const headingOnly = /^\s*[一二三四五六七八九十百]+、[^\n]{0,40}\s*$/.test(paragraph);
+        // 英文条款的「1. Introduction」「3.1 Eligibility」这类短标题也单独加重；以句号结尾的是正文条目，不算标题。
+        const headingOnly = /^\s*[一二三四五六七八九十百]+、[^\n]{0,40}\s*$/.test(paragraph) || /^\s*\d+(\.\d+)*\.?\s+[^\n]{1,60}?[^.\s]\s*$/.test(paragraph);
         return [{ text: paragraph.trim(), heading: headingOnly }];
     }
     return [

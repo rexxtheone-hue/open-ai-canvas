@@ -533,7 +533,7 @@ export default function AccessSettingsPanel() {
                         >
                             <Input.TextArea
                                 value={agreementContent}
-                                maxLength={20000}
+                                maxLength={60000}
                                 autoSize={{ minRows: 8, maxRows: 20 }}
                                 placeholder="输入服务协议条款正文"
                                 onChange={(event) => {
