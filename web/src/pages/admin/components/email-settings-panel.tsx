@@ -523,9 +523,11 @@ function validateEmailDraft(values: EmailFormValues, setting: EmailSetting | nul
 
 function emailResponseMatches(setting: EmailSetting, expected: NormalizedEmailFormValues) {
     const actual = normalizeEmailFormValues(toEmailFormValues(setting));
-    const fields: Array<keyof EmailFormValues> = ["enabled", "host", "port", "username", "encryption", "fromEmail", "fromName"];
+    const fields: Array<keyof EmailFormValues> = ["enabled", "host", "port", "username", "encryption", "fromEmail"];
     if (expected.password && !setting.hasPassword) return false;
-    return fields.every((key) => actual[key] === expected[key]) && arraysEqual(actual.registrationAllowedDomains, expected.registrationAllowedDomains);
+    // 发件人名称填的正好是站点名时，服务端会标成「沿用站点名称」，两种写法都算一致。
+    const fromNameMatches = actual.fromName === expected.fromName || (setting.fromNameInherited && (expected.fromName === "" || expected.fromName === setting.fromName));
+    return fromNameMatches && fields.every((key) => actual[key] === expected[key]) && arraysEqual(actual.registrationAllowedDomains, expected.registrationAllowedDomains);
 }
 
 function isEmailSetting(value: unknown): value is EmailSetting {
