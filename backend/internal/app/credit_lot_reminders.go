@@ -66,11 +66,12 @@ func (s *Service) remindUserExpiringCreditLots(userID string, now time.Time) err
 	}
 	if email := strings.TrimSpace(user.Email); email != "" {
 		items := make([]model.CreditLot, 0, len(pending))
+		stage := 0
 		for _, item := range pending {
 			items = append(items, item.lot)
+			stage = max(stage, item.stage)
 		}
-		subject, body := creditLotReminderEmail(items, now, s.studioLink())
-		if err := s.auth.SendNoticeEmail(email, subject, body); err != nil {
+		if err := s.auth.SendNoticeEmail(email, creditLotReminderEmail(items, now, s.studioLink(), stage)); err != nil {
 			return err
 		}
 	}
@@ -97,22 +98,50 @@ var creditReminderZone = func() *time.Location {
 	return time.FixedZone("UTC+8", 8*60*60)
 }()
 
-func creditLotReminderEmail(lots []model.CreditLot, now time.Time, link string) (string, string) {
+func creditLotReminderEmail(lots []model.CreditLot, now time.Time, link string, stage int) auth.EmailContent {
 	var total int64
-	lines := make([]string, 0, len(lots))
+	soonest := lots[0]
+	rows := make([]auth.EmailRow, 0, len(lots))
 	for _, lot := range lots {
 		total += lot.RemainingMicrocredits
+		if lot.ExpiresAt.Before(soonest.ExpiresAt) {
+			soonest = lot
+		}
 		days := int(lot.ExpiresAt.Sub(now).Hours()/24) + 1
-		lines = append(lines, fmt.Sprintf("· %s 积分，%s 到期（还有 %d 天）", formatReminderCredits(lot.RemainingMicrocredits), lot.ExpiresAt.In(creditReminderZone).Format("2006-01-02"), days))
+		rows = append(rows, auth.EmailRow{
+			Label: formatReminderCredits(lot.RemainingMicrocredits) + " credits",
+			Value: fmt.Sprintf("Expires %s (%s left)", lot.ExpiresAt.In(creditReminderZone).Format("2 Jan 2006"), plural(days, "day")),
+		})
 	}
-	subject := fmt.Sprintf("你有 %s 积分快到期了", formatReminderCredits(total))
-	body := "你好，\n\n你充值的积分快到期了：\n\n" + strings.Join(lines, "\n") +
-		"\n\n到期后没用完的积分会自动清零，记得在到期前用完。"
+	days := int(soonest.ExpiresAt.Sub(now).Hours()/24) + 1
+	content := auth.EmailContent{
+		Subject:   fmt.Sprintf("Your %s credits expire in %s", formatReminderCredits(total), plural(days, "day")),
+		Preheader: "Use them before " + soonest.ExpiresAt.In(creditReminderZone).Format("2 Jan 2006") + " so they don't go to waste.",
+		Heading:   "Your credits are expiring soon",
+		Intro: []string{
+			fmt.Sprintf("You have %s purchased credits that will expire soon. Any credits you haven't used by the expiry date are removed from your account and can't be restored.", formatReminderCredits(total)),
+		},
+		Rows: rows,
+		Body: []string{
+			"Not sure what to make? Turn a product photo into a 30-second ad video, refresh your social posts with new on-brand images, or let an AI agent plan and produce a whole campaign for you.",
+			"We always use the credits that expire soonest first, so anything you create now uses these credits before any others.",
+		},
+		Notice: "We'll remind you once more 7 days before these credits expire if they're still unused.",
+	}
+	if stage >= 2 {
+		content.Notice = "This is your final reminder for these credits. After the expiry date, unused credits can't be restored."
+	}
 	if link != "" {
-		body += "\n\n现在去创作：" + link
+		content.ButtonText, content.ButtonURL = "Use my credits", link
 	}
-	body += "\n\nYour purchased credits are expiring soon. Unused credits are removed on the expiry date shown above."
-	return subject, body
+	return content
+}
+
+func plural(count int, unit string) string {
+	if count == 1 {
+		return "1 " + unit
+	}
+	return fmt.Sprintf("%d %ss", count, unit)
 }
 
 func formatReminderCredits(microcredits int64) string {

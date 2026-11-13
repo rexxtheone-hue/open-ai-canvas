@@ -37,7 +37,7 @@ func TestPasswordResetChangesPasswordConsumesCodeAndRevokesSessions(t *testing.T
 
 	var deliveredCode string
 	svc.SetMailSender(func(_ EmailSettingValue, recipient string, subject string, body string) error {
-		if recipient != user.Email || subject != "OmniMuse密码重置验证码" {
+		if recipient != user.Email || !strings.HasSuffix(subject, "is your OmniMuse password reset code") {
 			t.Fatalf("unexpected reset email: recipient=%q subject=%q", recipient, subject)
 		}
 		deliveredCode = codeFromEmailBody(body)
@@ -260,10 +260,10 @@ func assertRegistrationAndPasswordResetEmailBrand(t *testing.T, fromName, wantNa
 			t.Fatalf("email did not use resolved sender name %q: %#v", wantName, delivered)
 		}
 	}
-	if deliveries[0].subject != wantName+"注册验证码" || deliveries[1].subject != wantName+"密码重置验证码" {
+	if !strings.HasSuffix(deliveries[0].subject, " is your "+wantName+" verification code") || !strings.HasSuffix(deliveries[1].subject, " is your "+wantName+" password reset code") {
 		t.Fatalf("unexpected branded subjects: %#v", deliveries)
 	}
-	if !strings.Contains(deliveries[0].body, "你正在注册"+wantName+"。") {
+	if !strings.Contains(deliveries[0].body, "Welcome to "+wantName+"!") {
 		t.Fatalf("registration body did not use resolved sender name: %q", deliveries[0].body)
 	}
 }
@@ -288,7 +288,7 @@ func newPasswordResetTestService(t *testing.T) (*Service, *gorm.DB) {
 }
 
 func codeFromEmailBody(body string) string {
-	marker := "验证码："
+	marker := "Your verification code: "
 	start := strings.Index(body, marker)
 	if start < 0 {
 		return ""

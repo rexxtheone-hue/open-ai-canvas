@@ -195,7 +195,7 @@ func (s *Service) SendProfileEmailCode(ctx context.Context, actor *model.User, c
 		}
 		return nil, err
 	}
-	if err := s.deliverEmail(setting, email, setting.FromName+"更换邮箱验证码", "验证码："+code+"\n\n验证码 10 分钟内有效，仅用于更换本账号的邮箱。若非本人操作，请忽略本邮件。"); err != nil {
+	if err := s.deliverEmail(setting, email, emailChangeCodeEmail(setting.FromName, code)); err != nil {
 		return nil, kernel.NewAppError(503, "邮件发送失败，请稍后重试")
 	}
 	if err := s.repo.SetAuthVerificationReady(v.ID); err != nil {
@@ -246,7 +246,7 @@ func (s *Service) ChangeProfileEmail(actor *model.User, cookie string, req Profi
 	result := &ProfileEmailChangeResult{Changed: true, NotificationStatus: "not_needed"}
 	if user.Email != "" {
 		result.NotificationStatus = "sent"
-		if err := s.deliverEmail(setting, user.Email, setting.FromName+"账号邮箱已变更", "你的"+setting.FromName+"账号邮箱已成功变更，所有登录会话已退出。若非本人操作，请立即联系管理员。"); err != nil {
+		if err := s.deliverEmail(setting, user.Email, emailChangedEmail(setting.FromName)); err != nil {
 			result.NotificationStatus = "failed"
 		}
 	}

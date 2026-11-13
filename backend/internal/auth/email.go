@@ -13,7 +13,6 @@ import (
 	"log"
 	"log/slog"
 	"math/big"
-	"mime"
 	"net"
 	"net/mail"
 	"net/smtp"
@@ -149,8 +148,8 @@ func (s *Service) EmailEnabled() (bool, error) {
 // ErrEmailNotConfigured 表示后台还没启用 SMTP 邮件，通知类邮件只能跳过。
 var ErrEmailNotConfigured = errors.New("email delivery is not configured")
 
-// SendNoticeEmail 用后台配置的 SMTP 发一封通知邮件；邮件未启用时返回 ErrEmailNotConfigured。
-func (s *Service) SendNoticeEmail(recipient string, subject string, body string) error {
+// SendNoticeEmail 用后台配置的 SMTP 发一封品牌样式的通知邮件；邮件未启用时返回 ErrEmailNotConfigured。
+func (s *Service) SendNoticeEmail(recipient string, content EmailContent) error {
 	_, setting, err := s.readEmailSetting()
 	if err != nil {
 		return err
@@ -159,7 +158,7 @@ func (s *Service) SendNoticeEmail(recipient string, subject string, body string)
 		return ErrEmailNotConfigured
 	}
 	setting = resolveEmailSender(setting, s.host.BrandName())
-	return s.deliverEmail(setting, recipient, setting.FromName+"："+subject, body)
+	return s.deliverEmail(setting, recipient, renderEmail(setting.FromName, content))
 }
 
 func (s *Service) SendRegistrationEmailCode(rawEmail string) error {
@@ -223,7 +222,7 @@ func (s *Service) SendRegistrationEmailCode(rawEmail string) error {
 		return err
 	}
 	setting = resolveEmailSender(setting, s.host.BrandName())
-	if err := s.deliverEmail(setting, email, setting.FromName+"注册验证码", registrationEmailBody(setting.FromName, code)); err != nil {
+	if err := s.deliverEmail(setting, email, registrationEmail(setting.FromName, code)); err != nil {
 		cleanupErr := s.repo.DeleteEmailVerificationCode(record.ID)
 		if cleanupErr != nil {
 			return errors.Join(
@@ -445,7 +444,7 @@ func resolveEmailSender(value EmailSettingValue, brandName string) EmailSettingV
 	return value
 }
 
-func sendSMTPMail(setting EmailSettingValue, recipient string, subject string, body string) (err error) {
+func sendSMTPMail(setting EmailSettingValue, recipient string, msg EmailMessage) (err error) {
 	stage := "connect"
 	defer func() {
 		if err != nil {
@@ -500,7 +499,7 @@ func sendSMTPMail(setting EmailSettingValue, recipient string, subject string, b
 		return err
 	}
 	from := mail.Address{Name: setting.FromName, Address: setting.FromEmail}
-	message := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s", from.String(), recipient, mime.QEncoding.Encode("UTF-8", subject), body)
+	message := buildEmailMIME(from.String(), recipient, msg)
 	stage = "write_body"
 	if _, err := wc.Write([]byte(message)); err != nil {
 		_ = wc.Close()
@@ -514,17 +513,17 @@ func sendSMTPMail(setting EmailSettingValue, recipient string, subject string, b
 	return client.Quit()
 }
 
-func (s *Service) deliverEmail(setting EmailSettingValue, recipient string, subject string, body string) error {
+func (s *Service) deliverEmail(setting EmailSettingValue, recipient string, msg EmailMessage) error {
 	var err error
 	if s.mailSender != nil {
-		err = s.mailSender(setting, recipient, subject, body)
+		err = s.mailSender(setting, recipient, msg.Subject, msg.Text)
 	} else {
-		err = sendSMTPMail(setting, recipient, subject, body)
+		err = sendSMTPMail(setting, recipient, msg)
 	}
 	if err != nil {
 		slog.Error("smtp email delivery failed",
 			"host", setting.Host, "port", setting.Port, "encryption", setting.Encryption,
-			"recipient", maskedEmail(recipient), "error", smtpLogError(err, setting, recipient, subject, body))
+			"recipient", maskedEmail(recipient), "error", smtpLogError(err, setting, recipient, msg.Subject, msg.Text))
 	}
 	return err
 }
@@ -560,6 +559,3 @@ func randomNumericCode(length int) (string, error) {
 	return fmt.Sprintf("%0*d", length, value.Int64()), nil
 }
 
-func registrationEmailBody(brandName string, code string) string {
-	return "你正在注册" + brandName + "。\n\n验证码：" + code + "\n\n验证码 10 分钟内有效。若非本人操作，请忽略本邮件。"
-}

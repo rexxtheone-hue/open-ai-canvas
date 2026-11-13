@@ -46,7 +46,7 @@ func TestCreditLotExpiryRemindersSendOncePerStage(t *testing.T) {
 	if len(mails) != 1 || stage("lot-a") != 1 || stage("lot-b") != 0 {
 		t.Fatalf("expected one 30-day reminder, mails=%v stages=%d/%d", mails, stage("lot-a"), stage("lot-b"))
 	}
-	if !strings.HasPrefix(mails[0], "a@example.com|") || !strings.Contains(mails[0], "3,200 积分") || strings.Contains(mails[0], "1,000 积分") {
+	if !strings.HasPrefix(mails[0], "a@example.com|") || !strings.Contains(mails[0], "3,200 credits") || strings.Contains(mails[0], "1,000 credits") {
 		t.Fatalf("reminder must list only the expiring lot: %s", mails[0])
 	}
 	svc.remindExpiringCreditLots(now.Add(time.Hour))
