@@ -139,7 +139,9 @@ type CreditLot struct {
 	AmountMicrocredits    int64     `json:"amountMicrocredits"`
 	RemainingMicrocredits int64     `json:"remainingMicrocredits"`
 	ExpiresAt             time.Time `json:"expiresAt" gorm:"index"`
-	CreatedAt             time.Time `json:"createdAt"`
+	// ExpiryReminderStage 记录已发过的到期提醒：1 = 到期前 30 天，2 = 到期前 7 天。
+	ExpiryReminderStage int       `json:"-" gorm:"not null;default:0"`
+	CreatedAt           time.Time `json:"createdAt"`
 }
 
 // CreditLotState 记录从 AnchorAt 起已经算到有效期积分上的消费，用来增量结算 CreditLot 的剩余量。

@@ -115,6 +115,21 @@ func (r *Repository) ActiveCreditLots(userID string, now time.Time) ([]model.Cre
 	return lots, err
 }
 
+// CreditLotReminderUsers 返回有积分将在 30 天内到期、且这一档提醒还没发过的用户。
+func (r *Repository) CreditLotReminderUsers(now time.Time, limit int) ([]string, error) {
+	var userIDs []string
+	err := r.db.Model(&model.CreditLot{}).
+		Where("remaining_microcredits > 0 AND expires_at > ? AND ((expiry_reminder_stage < 1 AND expires_at <= ?) OR (expiry_reminder_stage < 2 AND expires_at <= ?))",
+			now, now.AddDate(0, 0, 30), now.AddDate(0, 0, 7)).
+		Distinct("user_id").Limit(limit).Pluck("user_id", &userIDs).Error
+	return userIDs, err
+}
+
+// MarkCreditLotReminderStage 记下某笔积分已经发到哪一档到期提醒，只会往上调。
+func (r *Repository) MarkCreditLotReminderStage(lotID string, stage int) error {
+	return r.db.Model(&model.CreditLot{}).Where("id = ? AND expiry_reminder_stage < ?", lotID, stage).Update("expiry_reminder_stage", stage).Error
+}
+
 func (r *Repository) DueCreditLotUsers(now time.Time, limit int) ([]string, error) {
 	var userIDs []string
 	err := r.db.Model(&model.CreditLot{}).Where("remaining_microcredits > 0 AND expires_at <= ?", now).

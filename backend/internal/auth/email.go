@@ -146,6 +146,22 @@ func (s *Service) EmailEnabled() (bool, error) {
 	return value.Enabled && value.Host != "" && value.Port > 0 && value.FromEmail != "", nil
 }
 
+// ErrEmailNotConfigured 表示后台还没启用 SMTP 邮件，通知类邮件只能跳过。
+var ErrEmailNotConfigured = errors.New("email delivery is not configured")
+
+// SendNoticeEmail 用后台配置的 SMTP 发一封通知邮件；邮件未启用时返回 ErrEmailNotConfigured。
+func (s *Service) SendNoticeEmail(recipient string, subject string, body string) error {
+	_, setting, err := s.readEmailSetting()
+	if err != nil {
+		return err
+	}
+	if !setting.Enabled || setting.Host == "" || setting.Port <= 0 || setting.FromEmail == "" {
+		return ErrEmailNotConfigured
+	}
+	setting = resolveEmailSender(setting, s.host.BrandName())
+	return s.deliverEmail(setting, recipient, setting.FromName+"："+subject, body)
+}
+
 func (s *Service) SendRegistrationEmailCode(rawEmail string) error {
 	p, err := s.verificationPolicy()
 	if err != nil {

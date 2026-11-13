@@ -1943,3 +1943,17 @@ html.studio-active .ant-select-dropdown .ant-select-item-option-selected { backg
 .studio-poster-more:hover { border-color: rgba(var(--studio-accent-rgb), 0.6); background: rgba(var(--studio-accent-rgb), 0.08); color: var(--studio-fg); }
 .studio-poster-more svg { width: 22px; height: 22px; }
 .studio-poster-more svg:last-child { width: 16px; height: 16px; }
+
+/* 充值积分快到期的提醒条 */
+.studio-expiry-notice { display: flex; align-items: center; gap: 10px; margin: 0 12px 8px 8px; padding: 8px 8px 8px 14px; border-radius: 14px; border: 1px solid rgba(245, 165, 36, 0.28); background: rgba(245, 165, 36, 0.08); color: var(--studio-fg); font-size: 13px; line-height: 1.45; }
+.studio-expiry-notice > svg { flex: 0 0 auto; width: 18px; height: 18px; color: #f5a524; }
+.studio-expiry-notice > span { flex: 1 1 auto; min-width: 0; }
+.studio-expiry-notice.is-urgent { border-color: rgba(240, 82, 82, 0.4); background: rgba(240, 82, 82, 0.1); }
+.studio-expiry-notice.is-urgent > svg { color: #f05252; }
+.studio-expiry-action { flex: 0 0 auto; padding: 5px 12px; border-radius: 999px; background: var(--studio-fg); color: #111; font-weight: 600; text-decoration: none; }
+.studio-expiry-notice .studio-icon-button { flex: 0 0 auto; width: 28px; height: 28px; }
+@media (max-width: 720px) {
+    .studio-expiry-notice { margin: 0 12px 8px; flex-wrap: wrap; align-items: flex-start; }
+    .studio-expiry-notice > span { flex-basis: calc(100% - 66px); }
+    .studio-expiry-action { order: 3; margin-left: 28px; }
+}

@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "react-router";
-import { ChatFill, ChevronDown, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, Layers, LayoutTemplate, Library, Megaphone, MessageSquareText, Palette, PanelLeft, Pin, UserPen, UserRound, Users, Wand2 } from "./studio-icons";
+import { ChatFill, ChevronDown, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, Layers, LayoutTemplate, Library, Megaphone, MessageSquareText, Hourglass, Palette, PanelLeft, Pin, UserPen, UserRound, Users, Wand2, X } from "./studio-icons";
 
 import "@fontsource-variable/space-grotesk/index.css";
 
@@ -13,6 +14,7 @@ import { openWorkspaceWallet } from "@/lib/workspace-wallet";
 import { useUserStore } from "@/stores/use-user-store";
 import { useAuthGateStore } from "@/stores/use-auth-gate-store";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
+import { getStudioMembership } from "@/services/api/studio";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { StudioToolThumb } from "./studio-tool-thumb";
 import { STUDIO_TOOL_TABS, STUDIO_TOOLS, studioToolById } from "./studio-tools";
@@ -296,9 +298,46 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                         </>
                     )}
                 </header>
+                {user && creditsEnabled ? <StudioCreditExpiryNotice userId={user.id} /> : null}
                 <div className="studio-content">{children}</div>
             </div>
             <WorkspaceWalletHost />
+        </div>
+    );
+}
+
+const EXPIRY_DISMISS_KEY = "studio.credit-expiry.dismissed.v1";
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** 充值积分 30 天内到期时在顶栏下方提醒；关掉后，进入最后 7 天会再提醒一次。 */
+function StudioCreditExpiryNotice({ userId }: { userId: string }) {
+    const membershipQuery = useQuery({ queryKey: ["studio", "membership", userId], queryFn: getStudioMembership, staleTime: 5 * 60_000 });
+    const [dismissed, setDismissed] = useState(() => readJSON(EXPIRY_DISMISS_KEY, ""));
+    const now = Date.now();
+    const expiring = (membershipQuery.data?.creditLots || []).filter((lot) => lot.remainingMicrocredits > 0 && new Date(lot.expiresAt).getTime() - now <= 30 * DAY_MS);
+    if (!expiring.length) return null;
+    const first = new Date(expiring[0].expiresAt);
+    const days = Math.max(1, Math.ceil((first.getTime() - now) / DAY_MS));
+    const key = `${expiring[0].expiresAt}|${days <= 7 ? 7 : 30}`;
+    if (dismissed === key) return null;
+    const total = Math.round(expiring.reduce((sum, lot) => sum + lot.remainingMicrocredits, 0) / 1_000_000).toLocaleString("en-US");
+    const date = `${first.getFullYear()}-${String(first.getMonth() + 1).padStart(2, "0")}-${String(first.getDate()).padStart(2, "0")}`;
+    return (
+        <div className={`studio-expiry-notice${days <= 7 ? " is-urgent" : ""}`} role="status">
+            <Hourglass aria-hidden />
+            <span>{`你有 ${total} 积分将在 ${date} 到期（还有 ${days} 天），到期没用完会清零。`}</span>
+            <Link to="/studio/create-video" className="studio-expiry-action">去创作</Link>
+            <button
+                type="button"
+                className="studio-icon-button"
+                aria-label="关闭提醒"
+                onClick={() => {
+                    writeJSON(EXPIRY_DISMISS_KEY, key);
+                    setDismissed(key);
+                }}
+            >
+                <X aria-hidden />
+            </button>
         </div>
     );
 }

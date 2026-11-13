@@ -101,6 +101,7 @@ import {
     ViewGrid as IconoirViewGrid,
     Voice as IconoirVoice,
     Xmark as IconoirXmark,
+    Hourglass as IconoirHourglass,
     ZoomIn as IconoirZoomIn,
 } from "iconoir-react";
 
@@ -245,5 +246,6 @@ export const WandSparkles = iconoir(IconoirMagicWand as IconoirComponent, "WandS
 export const Waypoints = iconoir(IconoirNetwork as IconoirComponent, "Waypoints");
 export const WorldFill = iconoir(IconoirPlanet as IconoirComponent, "WorldFill");
 export const X = iconoir(IconoirXmark as IconoirComponent, "X");
+export const Hourglass = iconoir(IconoirHourglass as IconoirComponent, "Hourglass");
 export const ZoomIn = iconoir(IconoirZoomIn as IconoirComponent, "ZoomIn");
 export const ImageIcon = Image;
