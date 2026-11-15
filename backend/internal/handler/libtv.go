@@ -78,6 +78,11 @@ func RegisterLibTVRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		result, err := svc.ImportLibTV(user.ID, c.Param("id"), strings.TrimSpace(req.UUID))
 		if err != nil {
+			// LibTV Token 由平台统一配置；代理商网站上不暴露平台的配置状态。
+			if !requestTenant(c).IsPlatform && strings.Contains(err.Error(), "Token") {
+				failService(c, service.BadAuthRequest("LibTV 导入暂未开放"))
+				return
+			}
 			failService(c, err)
 			return
 		}

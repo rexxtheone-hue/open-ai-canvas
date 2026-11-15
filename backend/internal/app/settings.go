@@ -84,7 +84,7 @@ type PublicOSSSetting struct {
 }
 
 func (s *Service) AdminOSSSetting(actor *model.User) (*PublicOSSSetting, error) {
-	if err := s.RequireAdmin(actor); err != nil {
+	if err := s.requirePlatformOperator(actor); err != nil {
 		return nil, err
 	}
 	setting, value, err := s.readOSSSetting()
@@ -99,7 +99,7 @@ func (s *Service) AdminOSSSetting(actor *model.User) (*PublicOSSSetting, error) 
 }
 
 func (s *Service) UpdateOSSSetting(actor *model.User, req OSSSettingRequest) (*PublicOSSSetting, error) {
-	if err := s.RequireAdmin(actor); err != nil {
+	if err := s.requirePlatformOperator(actor); err != nil {
 		return nil, err
 	}
 	currentSetting, currentValue, err := s.readOSSSetting()

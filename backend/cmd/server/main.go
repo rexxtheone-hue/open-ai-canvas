@@ -21,6 +21,7 @@ import (
 	"yingce/backend/internal/logging"
 	"yingce/backend/internal/repository"
 	"yingce/backend/internal/service"
+	"yingce/backend/internal/tenantrls"
 	"yingce/backend/internal/updaterclient"
 
 	"github.com/gin-gonic/gin"
@@ -54,6 +55,12 @@ func run(ctx context.Context) error {
 	}
 	if err := database.ConfigurePool(db); err != nil {
 		return err
+	}
+	// TENANT_RLS=1 时在事务内写入请求租户（app.tenant_id）；默认关闭，启用前先在 staging 验证。
+	if installed, err := tenantrls.Register(db); err != nil {
+		return err
+	} else if installed {
+		log.Printf("[tenant-rls] 已开启：事务内按请求租户设置 %s", tenantrls.SettingName)
 	}
 	sqlDB, err := db.DB()
 	if err != nil {

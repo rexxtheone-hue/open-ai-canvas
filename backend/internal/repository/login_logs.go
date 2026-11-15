@@ -21,7 +21,13 @@ type LoginLogFilter struct {
 	To      *time.Time
 }
 
-func (r *Repository) AppendLoginLog(event *model.LoginLog) error { return r.db.Create(event).Error }
+// AppendLoginLog 在按租户的仓库上把日志记到该租户；不存在的账号登录失败时没有 user_id，只能靠请求租户归属。
+func (r *Repository) AppendLoginLog(event *model.LoginLog) error {
+	if event.TenantID == "" && r.tenantID != "" {
+		event.TenantID = r.tenantID
+	}
+	return r.db.Create(event).Error
+}
 
 func (r *Repository) LoginLogs(filter LoginLogFilter, limit, offset int) ([]model.LoginLog, int64, error) {
 	query := r.db.Model(&model.LoginLog{})

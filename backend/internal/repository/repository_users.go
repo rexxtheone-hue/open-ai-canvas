@@ -103,9 +103,10 @@ func (r *Repository) AdminUserReferences(tenantID string) ([]model.User, error) 
 	return users, err
 }
 
-func (r *Repository) ActiveAdminCountExcluding(userID string) (int64, error) {
+// ActiveAdminCountExcluding 只数同一租户的管理员，「至少保留一个管理员」按租户各自判断。
+func (r *Repository) ActiveAdminCountExcluding(tenantID, userID string) (int64, error) {
 	var count int64
-	query := r.db.Model(&model.User{}).Where("role = ? AND status = ?", model.UserRoleAdmin, model.UserStatusActive)
+	query := scopeTenant(r.db.Model(&model.User{}), tenantID).Where("role = ? AND status = ?", model.UserRoleAdmin, model.UserStatusActive)
 	if userID != "" {
 		query = query.Where("id <> ?", userID)
 	}

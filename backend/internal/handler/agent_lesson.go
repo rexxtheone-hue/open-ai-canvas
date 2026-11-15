@@ -186,7 +186,7 @@ func RegisterAgentLessonAdminRoutes(r *gin.RouterGroup, svc *service.Service) {
 			failService(c, err)
 			return
 		}
-		if err := svc.RequireAdmin(user); err != nil {
+		if err := svc.RequirePlatformOperator(user); err != nil {
 			failService(c, err)
 			return
 		}
@@ -210,7 +210,7 @@ func RegisterAgentLessonAdminRoutes(r *gin.RouterGroup, svc *service.Service) {
 			failService(c, err)
 			return
 		}
-		if err := svc.RequireAdmin(user); err != nil {
+		if err := svc.RequirePlatformOperator(user); err != nil {
 			failService(c, err)
 			return
 		}

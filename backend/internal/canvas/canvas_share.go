@@ -130,6 +130,15 @@ func (s *Service) PublicCanvasShare(token string) (PublicCanvasShare, error) {
 	return PublicCanvasShare{Project: publicProject, ExpiresAt: share.ExpiresAt}, nil
 }
 
+// SharedCanvasOwner 返回有效分享链接所属的用户，供调用方核对网站租户。
+func (s *Service) SharedCanvasOwner(token string) (string, error) {
+	share, _, err := s.sharedCanvasProject(token)
+	if err != nil {
+		return "", err
+	}
+	return share.UserID, nil
+}
+
 func (s *Service) OpenSharedCanvasResource(token string, resourceID string) (*model.Resource, io.ReadCloser, error) {
 	stream, err := s.OpenSharedCanvasResourceRange(token, resourceID, "")
 	if err != nil {

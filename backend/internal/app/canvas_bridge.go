@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 
@@ -8,6 +9,8 @@ import (
 	"yingce/backend/internal/canvas"
 	"yingce/backend/internal/model"
 	"yingce/backend/internal/repository"
+
+	"gorm.io/gorm"
 )
 
 type (
@@ -157,6 +160,35 @@ func (s *Service) DeleteCanvasShare(userID string, projectID string) error {
 
 func (s *Service) PublicCanvasShare(token string) (PublicCanvasShare, error) {
 	return s.canvasDomain().PublicCanvasShare(token)
+}
+
+// sharedCanvasOnHost 让分享链接只在作者所属租户的网址上打开；在别家网址上当作不存在，
+// 避免 A 家的作品挂着 B 家的品牌展示。
+func (s *Service) sharedCanvasOnHost(ctx context.Context, token string) error {
+	owner, err := s.canvasDomain().SharedCanvasOwner(token)
+	if err != nil {
+		return err
+	}
+	if s.tenantIDForUserID(owner) != requestTenantID(ctx) {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// PublicCanvasShareForHost 是按请求网址核对租户的公开分享读取。
+func (s *Service) PublicCanvasShareForHost(ctx context.Context, token string) (PublicCanvasShare, error) {
+	if err := s.sharedCanvasOnHost(ctx, token); err != nil {
+		return PublicCanvasShare{}, err
+	}
+	return s.PublicCanvasShare(token)
+}
+
+// PrepareSharedCanvasResourceDeliveryForHost 同上，用于分享页里的媒体文件。
+func (s *Service) PrepareSharedCanvasResourceDeliveryForHost(ctx context.Context, token string, resourceID string, options ResourceAccessOptions, rangeHeader string) (*ResourceDelivery, error) {
+	if err := s.sharedCanvasOnHost(ctx, token); err != nil {
+		return nil, err
+	}
+	return s.PrepareSharedCanvasResourceDelivery(token, resourceID, options, rangeHeader)
 }
 
 func (s *Service) OpenSharedCanvasResource(token string, resourceID string) (*model.Resource, io.ReadCloser, error) {

@@ -50,7 +50,7 @@ func (s *Service) AdminQueryFailedVideoTask(ctx context.Context, actor *model.Us
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	log, err := s.repo.APICallLog(strings.TrimSpace(logID))
+	log, err := s.repo.TenantAPICallLog(userTenantID(actor), strings.TrimSpace(logID))
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (s *Service) AdminRecoverVideoByURL(ctx context.Context, actor *model.User,
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	log, task, err := s.adminRecoveryTask(logID)
+	log, task, err := s.adminRecoveryTask(actor, logID)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +214,7 @@ func (s *Service) AdminBatchQueryFailedVideoTasks(ctx context.Context, actor *mo
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			item := ProviderTaskRecoveryItem{LogID: id}
-			log, logErr := s.repo.APICallLog(id)
+			log, logErr := s.repo.TenantAPICallLog(userTenantID(actor), id)
 			if logErr != nil {
 				item.Error = logErr.Error()
 				_ = s.appendAdminAudit(actor, "api_log.query_provider_task", "api_call_log", id, "批量查询视频任务失败", map[string]any{"apiCallLogId": id, "outcome": "failed", "error": item.Error})
@@ -249,8 +249,8 @@ func (s *Service) AdminBatchQueryFailedVideoTasks(ctx context.Context, actor *mo
 	return result, nil
 }
 
-func (s *Service) adminRecoveryTask(logID string) (*model.ApiCallLog, *model.Task, error) {
-	log, err := s.repo.APICallLog(strings.TrimSpace(logID))
+func (s *Service) adminRecoveryTask(actor *model.User, logID string) (*model.ApiCallLog, *model.Task, error) {
+	log, err := s.repo.TenantAPICallLog(userTenantID(actor), strings.TrimSpace(logID))
 	if err != nil {
 		return nil, nil, err
 	}

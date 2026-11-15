@@ -30,10 +30,11 @@ func (r *Repository) AppendAdminAudit(event *model.AdminAuditEvent) error {
 }
 
 // BulkDisableUsers 把管理员保留校验、会话清理、状态更新和审计写入放在同一事务中，避免部分停用。
-func (r *Repository) BulkDisableUsers(actorID string, userIDs []string, events []model.AdminAuditEvent, now time.Time) ([]model.User, error) {
+// BulkDisableUsers 只处理 tenantID 内的用户；别家的 ID 视为不存在。
+func (r *Repository) BulkDisableUsers(tenantID, actorID string, userIDs []string, events []model.AdminAuditEvent, now time.Time) ([]model.User, error) {
 	var users []model.User
 	err := r.db.Transaction(func(tx *gorm.DB) error {
-		query := tx.Where("id IN ?", userIDs)
+		query := scopeTenant(tx, tenantID).Where("id IN ?", userIDs)
 		if r.Dialect() == "postgres" {
 			query = query.Clauses(clause.Locking{Strength: "UPDATE"})
 		}
@@ -49,7 +50,7 @@ func (r *Repository) BulkDisableUsers(actorID string, userIDs []string, events [
 			}
 		}
 		var remainingAdmins int64
-		if err := tx.Model(&model.User{}).
+		if err := scopeTenant(tx.Model(&model.User{}), tenantID).
 			Where("role = ? AND status = ? AND id NOT IN ?", model.UserRoleAdmin, model.UserStatusActive, userIDs).
 			Count(&remainingAdmins).Error; err != nil {
 			return err

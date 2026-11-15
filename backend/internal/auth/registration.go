@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -100,6 +101,10 @@ func (s *Service) AgreementTitleForMessage() string {
 // 标题未配置时跟随当前品牌名，保证品牌改名后注册页文案同步。
 // 读取失败时返回空标题，由调用方决定是降级展示还是给出失败提示。
 func (s *Service) RegistrationAgreement() (string, string) {
+	// 代理商网站读叠加后的设置，并用代理商品牌兜底，注册与报错文案都不出现平台品牌。
+	if tenantID := s.tenantID(); !isPlatformTenantID(tenantID) {
+		return s.RegistrationAgreementForTenant(tenantID, s.host.EmailBrand(context.Background(), tenantID).Name)
+	}
 	_, value, err := s.readRegistrationSetting()
 	if err != nil {
 		return "", ""
