@@ -99,7 +99,7 @@ func (w *taskLifecycleCoordinator) retryTask(userID string, id string) (*model.T
 		return nil, BadAuthRequest("任务已被其他请求重新入队，请勿重复重试")
 	}
 	if err != nil {
-		return nil, err
+		return nil, tenantBillingError(err)
 	}
 	_ = s.log(userID, task.ID, "info", "任务已重新入队", "")
 	return taskForOutput(*task), nil

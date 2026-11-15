@@ -48,6 +48,9 @@ func reserveBillingOrder(tx *gorm.DB, order *model.BillingOrder) error {
 	if updated.RowsAffected != 1 {
 		return ErrInsufficientCredits
 	}
+	if err := reserveTenantPoolTx(tx, order); err != nil {
+		return err
+	}
 	if err := tx.First(&account, "user_id = ?", order.UserID).Error; err != nil {
 		return err
 	}
@@ -256,11 +259,13 @@ func (r *Repository) settleBillingOrder(id string, providerRequestID string, aud
 	var observedUsageSource string
 	var observedActual int64
 	observedActualAvailable := false
-	err := r.db.Transaction(func(tx *gorm.DB) error {
+	tenantOrder := false
+	settleUser := func(tx *gorm.DB) error {
 		var order model.BillingOrder
 		if err := tx.First(&order, "id = ?", id).Error; err != nil {
 			return err
 		}
+		tenantOrder = tenantOrderApplies(order)
 		if order.Status == model.BillingStatusSettled {
 			return nil
 		}
@@ -468,6 +473,12 @@ func (r *Repository) settleBillingOrder(id string, providerRequestID string, aud
 			ChannelID:                  order.ChannelID,
 			Scene:                      order.Scene,
 		}).Error
+	}
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		if err := settleUser(tx); err != nil || !tenantOrder {
+			return err
+		}
+		return settleTenantPoolTx(tx, id)
 	})
 	if err != nil && observedUsage != nil {
 		// 即使账户状态异常导致回滚，也保留结算依据并标明来源，供用户和管理员核对。
@@ -613,7 +624,7 @@ func (r *Repository) RestoreRefundedBillingOrder(id string, providerRequestID st
 		if chargeCapped {
 			consumeNote += "；已按本轮 Agent 硬上限结算"
 		}
-		return tx.Create(&model.CreditLedgerEntry{
+		if err := tx.Create(&model.CreditLedgerEntry{
 			ID:                         newRepositoryID(),
 			UserID:                     order.UserID,
 			Type:                       model.CreditLedgerConsume,
@@ -626,7 +637,13 @@ func (r *Repository) RestoreRefundedBillingOrder(id string, providerRequestID st
 			ChannelID:                  order.ChannelID,
 			Scene:                      order.Scene,
 			Note:                       consumeNote,
-		}).Error
+		}).Error; err != nil {
+			return err
+		}
+		if !tenantOrderApplies(order) {
+			return nil
+		}
+		return restoreTenantPoolTx(tx, order.ID)
 	})
 }
 
@@ -672,7 +689,7 @@ func (r *Repository) RefundBillingOrder(id string, errorText string) error {
 		if err := tx.Model(&order).Updates(updates).Error; err != nil {
 			return err
 		}
-		return tx.Create(&model.CreditLedgerEntry{
+		if err := tx.Create(&model.CreditLedgerEntry{
 			ID:                         newRepositoryID(),
 			UserID:                     order.UserID,
 			Type:                       model.CreditLedgerRefund,
@@ -686,7 +703,13 @@ func (r *Repository) RefundBillingOrder(id string, errorText string) error {
 			ChannelID:                  order.ChannelID,
 			Scene:                      order.Scene,
 			Note:                       clipRunes(errorText, 500),
-		}).Error
+		}).Error; err != nil {
+			return err
+		}
+		if !tenantOrderApplies(order) {
+			return nil
+		}
+		return refundTenantPoolTx(tx, order.ID)
 	})
 }
 

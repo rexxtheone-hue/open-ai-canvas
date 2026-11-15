@@ -132,6 +132,7 @@ func (s *Service) rollPlanCreditPeriods() {
 		}
 	}
 	s.remindExpiringCreditLots(now)
+	s.runTenantBillingJobs(now)
 	userIDs, err := s.repo.DuePlanCreditPeriods(now, 100)
 	if err != nil {
 		log.Printf("plan credit period query failed: %v", err)

@@ -67,6 +67,9 @@ type ChannelModel struct {
 	CreatedAt  time.Time               `json:"createdAt"`
 	UpdatedAt  time.Time               `json:"updatedAt"`
 	DeletedAt  gorm.DeletedAt          `json:"-" gorm:"index"`
+
+	// AgencyDiscountPercent 是代理商批发折扣（15/25/30/40）：池扣减 = 平台积分 × (100 − 折扣) / 85。
+	AgencyDiscountPercent int `json:"-" gorm:"not null;default:15"`
 }
 
 // ChannelModelPriceTier 表示渠道模型在一个规格组合下的可执行上游 SKU 和用户价格。
