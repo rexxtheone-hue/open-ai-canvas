@@ -106,7 +106,7 @@ func RegisterFinanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 			failService(c, err)
 			return
 		}
-		setting, err := svc.AdminGoogleSetting(user)
+		setting, err := svc.AdminGoogleSettingFor(c.Request.Context(), user)
 		if err != nil {
 			failService(c, err)
 			return
@@ -124,7 +124,7 @@ func RegisterFinanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 			fail(c, http.StatusBadRequest, err)
 			return
 		}
-		setting, err := svc.UpdateGoogleSetting(user, req)
+		setting, err := svc.UpdateGoogleSettingFor(c.Request.Context(), user, req)
 		if err != nil {
 			failService(c, err)
 			return
@@ -137,7 +137,7 @@ func RegisterFinanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 			failService(c, err)
 			return
 		}
-		setting, err := svc.AdminRegistrationSetting(user)
+		setting, err := svc.AdminRegistrationSettingFor(c.Request.Context(), user)
 		if err != nil {
 			failService(c, err)
 			return
@@ -155,7 +155,7 @@ func RegisterFinanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 			fail(c, http.StatusBadRequest, err)
 			return
 		}
-		setting, err := svc.UpdateRegistrationSetting(user, req)
+		setting, err := svc.UpdateRegistrationSettingFor(c.Request.Context(), user, req)
 		if err != nil {
 			failService(c, err)
 			return
@@ -168,7 +168,7 @@ func RegisterFinanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 			failService(c, err)
 			return
 		}
-		policy, err := svc.AdminCreditPolicy(user)
+		policy, err := svc.AdminCreditPolicyFor(c.Request.Context(), user)
 		if err != nil {
 			failService(c, err)
 			return
@@ -186,7 +186,7 @@ func RegisterFinanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 			fail(c, http.StatusBadRequest, err)
 			return
 		}
-		policy, err := svc.UpdateCreditPolicy(user, req)
+		policy, err := svc.UpdateCreditPolicyFor(c.Request.Context(), user, req)
 		if err != nil {
 			failService(c, err)
 			return
@@ -199,7 +199,7 @@ func RegisterFinanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 			failService(c, err)
 			return
 		}
-		setting, err := svc.AdminEmailSetting(user)
+		setting, err := svc.AdminEmailSettingFor(c.Request.Context(), user)
 		if err != nil {
 			failService(c, err)
 			return
@@ -217,7 +217,7 @@ func RegisterFinanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 			fail(c, http.StatusBadRequest, err)
 			return
 		}
-		setting, err := svc.UpdateEmailSetting(user, req)
+		setting, err := svc.UpdateEmailSettingFor(c.Request.Context(), user, req)
 		if err != nil {
 			failService(c, err)
 			return

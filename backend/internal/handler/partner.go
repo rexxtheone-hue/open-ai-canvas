@@ -94,16 +94,16 @@ func RegisterPartnerRoutes(r *gin.RouterGroup, svc *service.Service) {
 			return svc.ReviewAffiliatePayout(user, c.Param("id"), req)
 		})(c)
 	})
-	r.GET("/admin/affiliate-settings", partnerRoute(svc, func(_ *gin.Context, user *model.User) (any, error) {
-		return svc.AdminAffiliateSetting(user)
+	r.GET("/admin/affiliate-settings", partnerRoute(svc, func(c *gin.Context, user *model.User) (any, error) {
+		return svc.AdminAffiliateSettingFor(c.Request.Context(), user)
 	}))
 	r.PUT("/admin/affiliate-settings", func(c *gin.Context) {
 		var req service.AffiliateSetting
 		if !bindPartnerJSON(c, &req) {
 			return
 		}
-		partnerRoute(svc, func(_ *gin.Context, user *model.User) (any, error) {
-			return svc.UpdateAffiliateSetting(user, req)
+		partnerRoute(svc, func(c *gin.Context, user *model.User) (any, error) {
+			return svc.UpdateAffiliateSettingFor(c.Request.Context(), user, req)
 		})(c)
 	})
 }

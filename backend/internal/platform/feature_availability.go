@@ -113,6 +113,10 @@ func (s *Service) FeatureEnabled(feature string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	return featureFlag(value, feature)
+}
+
+func featureFlag(value FeatureAvailability, feature string) (bool, error) {
 	switch feature {
 	case FeatureShortDrama:
 		return value.ShortDramaEnabled, nil
@@ -149,6 +153,10 @@ func (s *Service) RequireFeature(feature string) error {
 	if enabled {
 		return nil
 	}
+	return featureDisabledError(feature)
+}
+
+func featureDisabledError(feature string) error {
 	switch feature {
 	case FeatureShortDrama:
 		return kernel.Forbidden("短剧创作暂未开放")
