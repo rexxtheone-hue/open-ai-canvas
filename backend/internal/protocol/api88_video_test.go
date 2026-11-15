@@ -242,6 +242,8 @@ func TestAPI88VideoValidatesExtendAndEditSupport(t *testing.T) {
 		{"extend on gemini 1.1", GenerationRequest{Model: "gemini-omni-flash-1.1", Prompt: "x", Operation: "extend", Videos: source}, false},
 		{"extend on veo", GenerationRequest{Model: "veo-3.1-fast", Prompt: "x", Operation: "extend", Videos: source}, false},
 		{"edit on gemini 1.1", GenerationRequest{Model: "gemini-omni-flash-1.1", Prompt: "x", Operation: "inpaint", Videos: source}, false},
+		{"extend on gemini 1.2", GenerationRequest{Model: "gemini-omni-flash-1.2", Prompt: "x", Operation: "extend", Videos: source}, false},
+		{"edit on gemini 1.2", GenerationRequest{Model: "gemini-omni-flash-1.2", Prompt: "x", Operation: "inpaint", Videos: source}, false},
 		{"normal SD2.5", GenerationRequest{Model: "SD2.5", Prompt: "x", Operation: "text_to_video"}, false},
 	}
 	for _, item := range cases {

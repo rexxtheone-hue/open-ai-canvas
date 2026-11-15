@@ -6161,5 +6161,7 @@
   "；范围：{0}-{1}": "; range: {0}-{1}",
   "；请在任务中心查看任务详情，不会自动重试收费生成": "; see the task details in the task center; paid generation will not be retried automatically",
   "；请按本回合 model_list 返回的能力参数修正后重试": "; correct the request using the capability parameters returned by this turn's model_list and try again",
-  "；默认值：": "; default value: "
+  "；默认值：": "; default value: ",
+  "该模型不支持视频续写，请改用 gemini-omni-flash-1.2、gemini-omni-flash-1.1 或 Veo。": "This model does not support video extension. Please use gemini-omni-flash-1.2, gemini-omni-flash-1.1 or Veo.",
+  "该模型不支持视频局部修改，请改用 gemini-omni-flash-1.2 或 gemini-omni-flash-1.1。": "This model does not support partial video edits. Please use gemini-omni-flash-1.2 or gemini-omni-flash-1.1."
 }

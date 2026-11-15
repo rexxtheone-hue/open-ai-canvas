@@ -17,6 +17,7 @@
 | --- | --- | --- | --- | --- | --- |
 | `SD2.5` | 480p（默认）、720p、1080p | 4–30 秒 | 必须显式指定 | 30 / 10 / 10 | 支持 `generate_audio` |
 | `SD2.0` | 480p（默认）、720p、1080p、4k | 4–15 秒 | 默认 1:1 | 9 / 3 / 3，合计最多 12 | 不支持，开启会报 400 |
+| `gemini-omni-flash-1.2` | 720p、1080p、4k | 3–15 秒 | 16:9、9:16 | 10 / 3 / 0 | 不支持参考音频 |
 | `gemini-omni-flash-1.1` | 720p、1080p、4k | 3–10 秒 | 16:9、9:16 | 10 / 3 / 0 | 不支持参考音频 |
 | `minimax-h3`（别名 `minimax_h3`） | 768p（默认）、1080p、2k | 4–15 秒 | 16:9、9:16、1:1、4:3、3:4、21:9 | 9 / 3 / 3 | 成片自带音轨，不发送 `generate_audio` |
 | `kling-3.0-turbo` | 720p（默认）、1080p、2k、4k | 4–15 秒 | 16:9、9:16、1:1 | 30（含首尾帧）/ 10 / 0 | 支持 `generate_audio` |
@@ -69,6 +70,7 @@
 | `extend`（视频续写） | `task: "extend"`，第一段视频放顶层 `video` | `duration`、`ratio`、`videos`、`metadata.referenceVideos`；Veo 不发 `resolution`，Gemini 只发 720p/1080p（其他档位回落 720p） |
 | `inpaint`、`replace_element`、`style_transfer`、`camera_motion`（视频编辑） | `task: "edit"`，第一段视频放顶层 `video`，`resolution` 照常 | `duration`、`ratio`、`videos`、`metadata.referenceVideos` |
 
+- `gemini-omni-flash-1.2` 续写按新增秒数计费，输入视频 1–24 秒，支持多轮续接；输出为重新生成的完整视频。
 - `gemini-omni-flash-1.1` 续写每次新增约 10 秒，输入视频 1–30 秒，按新增秒数计费；输出为重新生成的完整视频。
 - `veo-3.1` 续写每次新增 7 秒。
 - 编辑保持原视频比例。
@@ -99,7 +101,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "api88-video",
   "name": "88API 统一视频",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "author": "Rexx",
   "description": "88API 统一视频协议插件（POST /v1/videos，异步轮询），适配 SD2.5、SD2.0 云厂商版、MiniMax H3、可灵 Kling 与 Gemini Omni、Veo，支持视频续写与视频编辑。",
   "permissions": [
@@ -203,7 +205,7 @@
                   }
                 },
                 {
-                  "$eq": [
+                  "$in": [
                     {
                       "$lower": {
                         "$coalesce": [
@@ -214,7 +216,10 @@
                         ]
                       }
                     },
-                    "gemini-omni-flash-1.1"
+                    [
+                      "gemini-omni-flash-1.1",
+                      "gemini-omni-flash-1.2"
+                    ]
                   ]
                 },
                 {
@@ -241,7 +246,7 @@
                 }
               ]
             },
-            "message": "该模型不支持视频续写，请改用 gemini-omni-flash-1.1 或 Veo。"
+            "message": "该模型不支持视频续写，请改用 gemini-omni-flash-1.2、gemini-omni-flash-1.1 或 Veo。"
           },
           {
             "assert": {
@@ -263,7 +268,7 @@
                   }
                 },
                 {
-                  "$eq": [
+                  "$in": [
                     {
                       "$lower": {
                         "$coalesce": [
@@ -274,12 +279,15 @@
                         ]
                       }
                     },
-                    "gemini-omni-flash-1.1"
+                    [
+                      "gemini-omni-flash-1.1",
+                      "gemini-omni-flash-1.2"
+                    ]
                   ]
                 }
               ]
             },
-            "message": "该模型不支持视频局部修改，请改用 gemini-omni-flash-1.1。"
+            "message": "该模型不支持视频局部修改，请改用 gemini-omni-flash-1.2 或 gemini-omni-flash-1.1。"
           },
           {
             "assert": {
