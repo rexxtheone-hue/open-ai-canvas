@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"mime/multipart"
 	"strings"
+	"time"
 
 	"yingce/backend/internal/model"
 	"yingce/backend/internal/tenantsetting"
@@ -374,16 +375,9 @@ func (s *Service) UpdateAffiliateSettingFor(ctx context.Context, actor *model.Us
 
 // ---- 帮助中心内容（客服、条款、隐私） ----
 
+// StudioSiteContentFor 返回请求网址所属租户的帮助中心内容（每个租户各自一份）。
 func (s *Service) StudioSiteContentFor(ctx context.Context) (map[string]string, error) {
-	content, err := s.StudioSiteContent()
-	tenantID := tenantsetting.TenantID(ctx)
-	if err != nil || tenantID == "" {
-		return content, err
-	}
-	if _, err := s.repo.OverlayTenantSetting(tenantID, tenantsetting.KeyStudioSiteContent, &content); err != nil {
-		return nil, err
-	}
-	return content, nil
+	return s.StudioSiteContent(ctx)
 }
 
 func (s *Service) SaveStudioSiteContentFor(ctx context.Context, actor *model.User, key, content string) error {
@@ -406,16 +400,7 @@ func (s *Service) SaveStudioSiteContentFor(ctx context.Context, actor *model.Use
 	if err != nil {
 		return err
 	}
-	layer := map[string]string{}
-	row, err := s.repo.TenantSettingRow(tenantID, tenantsetting.KeyStudioSiteContent)
-	if err != nil {
-		return err
-	}
-	if row != nil && json.Unmarshal([]byte(row.ValueJSON), &layer) != nil {
-		layer = map[string]string{}
-	}
-	layer[key] = content
-	return s.saveTenantLayer(actor, tenantID, tenantsetting.KeyStudioSiteContent, layer, "更新代理商帮助中心内容")
+	return s.repo.SaveStudioSiteContent(model.StudioSiteContent{TenantID: tenantID, Key: key, Content: content, UpdatedAt: time.Now().UTC()})
 }
 
 // ---- 注册、邮件、Google 登录（auth 域） ----

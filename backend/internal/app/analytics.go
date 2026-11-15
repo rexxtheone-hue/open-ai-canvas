@@ -125,6 +125,7 @@ func (s *Service) AdminAnalytics(actor *model.User, query AnalyticsQuery) (*Anal
 		return nil, err
 	}
 	filter := normalizeAnalyticsFilter(query)
+	filter.TenantID = userTenantID(actor)
 	tasks, err := s.repo.AnalyticsTasks(filter)
 	if err != nil {
 		return nil, err
@@ -162,15 +163,15 @@ func (s *Service) AdminAnalytics(actor *model.User, query AnalyticsQuery) (*Anal
 			rollingTasks = tasksWithLoggedRequests(rollingTasks, rollingLogs)
 		}
 	}
-	users, err := s.repo.Users()
+	users, err := s.repo.TenantUsers(filter.TenantID)
 	if err != nil {
 		return nil, err
 	}
-	totalBalance, err := s.repo.TotalCreditBalance()
+	totalBalance, err := s.repo.TotalCreditBalance(filter.TenantID)
 	if err != nil {
 		return nil, err
 	}
-	queued, err := s.repo.CurrentQueuedTaskCount()
+	queued, err := s.repo.CurrentQueuedTaskCount(filter.TenantID)
 	if err != nil {
 		return nil, err
 	}

@@ -105,6 +105,7 @@ type ChannelModelPriceTier struct {
 
 type ApiCallLog struct {
 	ID                     string        `json:"id" gorm:"primaryKey;size:36"`
+	TenantID               string        `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	UserID                 string        `json:"userId" gorm:"index;size:36;index:idx_api_logs_user_created,priority:1"`
 	TraceID                string        `json:"traceId,omitempty" gorm:"index;size:96"`
 	RequestID              string        `json:"requestId,omitempty" gorm:"index;size:96"`

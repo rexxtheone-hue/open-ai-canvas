@@ -28,7 +28,8 @@ const (
 
 // BillingTenantSnapshot 嵌在计费订单里：代理商客户的订单记下平台价快照与批发池扣减，平台订单全部为零值。
 type BillingTenantSnapshot struct {
-	TenantID                            string `json:"tenantId,omitempty" gorm:"size:36;not null;default:'';index"`
+	// PoolTenantID 是要扣批发池的代理商；平台订单为空。（订单所属租户另见 BillingOrder.TenantID）
+	PoolTenantID                        string `json:"poolTenantId,omitempty" gorm:"column:pool_tenant_id;size:36;not null;default:'';index"`
 	TenantDiscountPercent               int    `json:"-" gorm:"not null;default:0"`
 	TenantPlatformAmountMicrocredits    int64  `json:"-" gorm:"not null;default:0"`
 	TenantPlatformUnitPriceMicrocredits int64  `json:"-" gorm:"not null;default:0"`

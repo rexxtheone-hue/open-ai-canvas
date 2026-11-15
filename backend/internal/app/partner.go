@@ -190,7 +190,7 @@ func (s *Service) AdminPartnerApplications(actor *model.User, kind, status strin
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	rows, total, err := s.repo.AdminPartnerApplications(kind, status, offset, 50)
+	rows, total, err := s.repo.AdminPartnerApplications(userTenantID(actor), kind, status, offset, 50)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +208,7 @@ func (s *Service) ReviewPartnerApplication(actor *model.User, id string, req Par
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	item, err := s.repo.PartnerApplicationByID(id)
+	item, err := s.repo.PartnerApplicationByID(userTenantID(actor), id)
 	if err != nil {
 		return nil, err
 	}
@@ -339,6 +339,10 @@ func (s *Service) attachReferral(userID, code string) error {
 	user, err := s.repo.User(userID)
 	if err != nil {
 		return err
+	}
+	// 推广码只在推广者自己的网站（租户）有效。
+	if repository.TenantIDOrPlatform(account.TenantID) != userTenantID(user) {
+		return nil
 	}
 	if time.Since(user.CreatedAt) > affiliateReferralWindow {
 		return nil
@@ -552,7 +556,7 @@ func (s *Service) AdminAffiliates(actor *model.User, search string, offset int) 
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	rows, total, err := s.repo.AdminAffiliates(search, offset, 50)
+	rows, total, err := s.repo.AdminAffiliates(userTenantID(actor), search, offset, 50)
 	if err != nil {
 		return nil, err
 	}
@@ -571,6 +575,9 @@ func (s *Service) UpdateAffiliate(actor *model.User, userID string, req Affiliat
 	account, err := s.repo.AffiliateAccount(userID)
 	if err != nil {
 		return nil, err
+	}
+	if account != nil && repository.TenantIDOrPlatform(account.TenantID) != userTenantID(actor) {
+		account = nil
 	}
 	if account == nil {
 		return nil, NotFound("推广者不存在")
@@ -607,7 +614,7 @@ func (s *Service) AdminAffiliatePayouts(actor *model.User, status string, offset
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	rows, total, err := s.repo.AdminAffiliatePayouts(status, offset, 50)
+	rows, total, err := s.repo.AdminAffiliatePayouts(userTenantID(actor), status, offset, 50)
 	if err != nil {
 		return nil, err
 	}
@@ -639,7 +646,7 @@ func (s *Service) ReviewAffiliatePayout(actor *model.User, id string, req Affili
 	if status == model.AffiliatePayoutRejected && note == "" {
 		return nil, BadAuthRequest("驳回时请填写原因")
 	}
-	payout, err := s.repo.ResolveAffiliatePayout(id, status, note, actor.ID)
+	payout, err := s.repo.ResolveAffiliatePayout(userTenantID(actor), id, status, note, actor.ID)
 	if errors.Is(err, repository.ErrCreationConflict) {
 		return nil, BadAuthRequest("这笔提现已经处理过")
 	}

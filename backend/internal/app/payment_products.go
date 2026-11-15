@@ -3,19 +3,26 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
 
 	"yingce/backend/internal/model"
+
+	"gorm.io/gorm"
 )
 
-// TopupProducts 未登录访客也能看价格（充值页、官网），但只能看，下单仍要登录。
-func (s *Service) TopupProducts(actor *model.User) ([]model.TopupProduct, error) {
+// TopupProducts 未登录访客也能看价格（充值页、官网），但只能看，下单仍要登录。只列出当前网站（租户）的商品。
+func (s *Service) TopupProducts(ctx context.Context, actor *model.User) ([]model.TopupProduct, error) {
 	if err := s.RequireFeature(FeatureCredits); err != nil {
 		return nil, err
 	}
-	products, err := s.repo.TopupProducts(false)
+	tenantID := requestTenantID(ctx)
+	if actor != nil {
+		tenantID = userTenantID(actor)
+	}
+	products, err := s.repo.TopupProducts(tenantID, false)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +88,7 @@ func (s *Service) AdminTopupProducts(actor *model.User) ([]model.TopupProduct, e
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	products, err := s.repo.TopupProducts(true)
+	products, err := s.repo.TopupProducts(userTenantID(actor), true)
 	if err != nil {
 		return nil, err
 	}
@@ -126,6 +133,7 @@ func (s *Service) CreateTopupProduct(actor *model.User, request TopupProductRequ
 	if err := s.validateTopupPlan(product.PlanID); err != nil {
 		return nil, err
 	}
+	product.TenantID = userTenantID(actor)
 	if err := s.repo.CreateTopupProduct(product); err != nil {
 		return nil, err
 	}
@@ -143,6 +151,9 @@ func (s *Service) UpdateTopupProduct(actor *model.User, id string, request Topup
 	var product *model.TopupProduct
 	// 已售数量必须在锁住商品行之后计算，否则会覆盖并发下单扣减或关单退回的库存。
 	err := s.repo.UpdateTopupProduct(id, func(existing *model.TopupProduct) (*model.TopupProduct, error) {
+		if existing.TenantID != userTenantID(actor) {
+			return nil, gorm.ErrRecordNotFound
+		}
 		consumed := existing.StockTotal - existing.StockRemaining
 		if existing.SaleStrategy != model.TopupSaleStrategyInventory {
 			consumed = 0
@@ -163,7 +174,7 @@ func (s *Service) UpdateTopupProduct(actor *model.User, id string, request Topup
 	if err := s.appendAdminAudit(actor, "topup_product.update", "topup_product", product.ID, "更新积分充值商品", map[string]any{"enabled": product.Enabled, "saleStrategy": product.SaleStrategy}); err != nil {
 		return nil, err
 	}
-	return s.repo.TopupProduct(product.ID)
+	return s.repo.TenantTopupProduct(userTenantID(actor), product.ID)
 }
 
 func topupProductFromRequest(id, actorID string, request TopupProductRequest, stockArgs ...int64) (*model.TopupProduct, error) {

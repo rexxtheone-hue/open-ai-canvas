@@ -357,8 +357,8 @@ func TestTenantRegistrationCreditsAndSiteContentAreScopedToTheSite(t *testing.T)
 	if got := f.mustCall(http.MethodGet, platformHost, "", "/api/studio/site-content", nil)["terms"]; got != "平台条款正文" {
 		t.Fatalf("platform terms changed: %v", got)
 	}
-	if got := f.mustCall(http.MethodGet, agencyBHost, "", "/api/studio/site-content", nil)["terms"]; got != "平台条款正文" {
-		t.Fatalf("agency B must see platform terms: %v", got)
+	if got := f.mustCall(http.MethodGet, agencyBHost, "", "/api/studio/site-content", nil)["terms"]; got != "" {
+		t.Fatalf("an agency without its own terms must not show the platform terms: %v", got)
 	}
 }
 

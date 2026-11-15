@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"time"
@@ -150,7 +151,7 @@ func (s *Service) PublishStudioWork(userID, taskID string, input StudioPublishIn
 	return views[0], nil
 }
 
-func (s *Service) StudioCommunity(viewerID string, query StudioCommunityQuery) (StudioPostPage, error) {
+func (s *Service) StudioCommunity(ctx context.Context, viewerID string, query StudioCommunityQuery) (StudioPostPage, error) {
 	userID, followerID := "", ""
 	if query.Mine {
 		userID = viewerID
@@ -158,10 +159,10 @@ func (s *Service) StudioCommunity(viewerID string, query StudioCommunityQuery) (
 	if query.Following {
 		followerID = viewerID
 	}
-	return s.studioCommunityPage(viewerID, query, userID, followerID)
+	return s.studioCommunityPage(requestTenantID(ctx), viewerID, query, userID, followerID)
 }
 
-func (s *Service) studioCommunityPage(viewerID string, query StudioCommunityQuery, userID, followerID string) (StudioPostPage, error) {
+func (s *Service) studioCommunityPage(tenantID, viewerID string, query StudioCommunityQuery, userID, followerID string) (StudioPostPage, error) {
 	kind := ""
 	if query.Kind != "" && query.Kind != "all" {
 		if _, err := studioKindForFilter(query.Kind); err != nil {
@@ -169,7 +170,7 @@ func (s *Service) studioCommunityPage(viewerID string, query StudioCommunityQuer
 		}
 		kind = query.Kind
 	}
-	repoQuery := repository.StudioPostQuery{Kind: kind, Sort: query.Sort, Templates: query.Templates, Featured: query.Featured, Search: query.Search, Offset: max(query.Offset, 0), Limit: query.Limit, UserID: userID, FollowerID: followerID}
+	repoQuery := repository.StudioPostQuery{TenantID: tenantID, Kind: kind, Sort: query.Sort, Templates: query.Templates, Featured: query.Featured, Search: query.Search, Offset: max(query.Offset, 0), Limit: query.Limit, UserID: userID, FollowerID: followerID}
 	posts, hasMore, err := s.repo.StudioPosts(repoQuery)
 	if err != nil {
 		return StudioPostPage{}, err
@@ -189,7 +190,7 @@ func (s *Service) AdminStudioCommunity(actor *model.User, query StudioCommunityQ
 	if err := s.RequireAdmin(actor); err != nil {
 		return StudioPostPage{}, err
 	}
-	posts, hasMore, err := s.repo.StudioPosts(repository.StudioPostQuery{Sort: "latest", Templates: query.Templates, Featured: query.Featured, Search: query.Search, Offset: max(query.Offset, 0), Limit: query.Limit, IncludeHidden: true})
+	posts, hasMore, err := s.repo.StudioPosts(repository.StudioPostQuery{TenantID: userTenantID(actor), Sort: "latest", Templates: query.Templates, Featured: query.Featured, Search: query.Search, Offset: max(query.Offset, 0), Limit: query.Limit, IncludeHidden: true})
 	if err != nil {
 		return StudioPostPage{}, err
 	}
@@ -208,7 +209,7 @@ func (s *Service) UpdateStudioPostAdmin(actor *model.User, id string, input Stud
 	if err := s.RequireAdmin(actor); err != nil {
 		return StudioPostView{}, err
 	}
-	post, err := s.repo.StudioPost(strings.TrimSpace(id))
+	post, err := s.repo.StudioPost(userTenantID(actor), strings.TrimSpace(id))
 	if err != nil {
 		return StudioPostView{}, err
 	}
@@ -240,7 +241,7 @@ func (s *Service) UpdateStudioPostAdmin(actor *model.User, id string, input Stud
 
 // DeleteStudioPost：作者撤回或管理员删除。作品本身仍在作者的作品库里。
 func (s *Service) DeleteStudioPost(actor *model.User, id string) error {
-	post, err := s.repo.StudioPost(strings.TrimSpace(id))
+	post, err := s.repo.StudioPost(userTenantID(actor), strings.TrimSpace(id))
 	if err != nil {
 		return err
 	}
@@ -254,7 +255,7 @@ func (s *Service) DeleteStudioPost(actor *model.User, id string) error {
 }
 
 func (s *Service) LikeStudioPost(userID, id string, liked bool) (int64, error) {
-	post, err := s.repo.StudioPost(strings.TrimSpace(id))
+	post, err := s.repo.StudioPost(s.tenantIDForUserID(userID), strings.TrimSpace(id))
 	if err != nil {
 		return 0, err
 	}
@@ -266,7 +267,7 @@ func (s *Service) LikeStudioPost(userID, id string, liked bool) (int64, error) {
 
 // RemixStudioPost「做同款」：返回作品的工具、提示词和参数，由前端填进对应工具。
 func (s *Service) RemixStudioPost(userID, id string) (StudioRemix, error) {
-	post, err := s.repo.StudioPost(strings.TrimSpace(id))
+	post, err := s.repo.StudioPost(s.tenantIDForUserID(userID), strings.TrimSpace(id))
 	if err != nil {
 		return StudioRemix{}, err
 	}

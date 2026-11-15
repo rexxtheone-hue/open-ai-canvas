@@ -12,6 +12,8 @@ import (
 )
 
 type PaymentOrderFilter struct {
+	// TenantID 为空时不按租户过滤（仅限内部任务）；后台列表和导出必须填写。
+	TenantID                               string
 	Status, Keyword, ProviderID, TimeField string
 	From, Until                            time.Time
 }

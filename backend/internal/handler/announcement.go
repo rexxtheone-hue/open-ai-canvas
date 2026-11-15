@@ -11,7 +11,7 @@ import (
 
 func RegisterAnnouncementRoutes(r *gin.RouterGroup, svc *service.Service) {
 	r.GET("/banner-announcements", func(c *gin.Context) {
-		banners, err := svc.ActiveBannerAnnouncements()
+		banners, err := svc.ActiveBannerAnnouncements(c.Request.Context())
 		if err != nil {
 			failService(c, err)
 			return

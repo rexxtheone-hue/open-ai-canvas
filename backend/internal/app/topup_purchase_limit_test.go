@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -27,7 +28,7 @@ func TestTopupProductsHideStarterPackAfterPurchase(t *testing.T) {
 		t.Fatal(err)
 	}
 	status := func(user *model.User) map[string]string {
-		products, err := svc.TopupProducts(user)
+		products, err := svc.TopupProducts(context.Background(), user)
 		if err != nil {
 			t.Fatal(err)
 		}

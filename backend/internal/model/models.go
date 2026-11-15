@@ -29,6 +29,7 @@ type WorkflowStepStatus string
 // AdminAuditEvent 只允许追加，用于还原管理员写操作，禁止作为可编辑业务状态使用。
 type AdminAuditEvent struct {
 	ID           string    `json:"id" gorm:"primaryKey;size:36"`
+	TenantID     string    `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	ActorUserID  string    `json:"actorUserId" gorm:"index;size:36"`
 	Action       string    `json:"action" gorm:"index;size:80"`
 	TargetType   string    `json:"targetType" gorm:"index;size:40"`

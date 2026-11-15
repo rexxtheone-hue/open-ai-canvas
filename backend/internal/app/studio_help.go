@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -56,7 +57,7 @@ func (s *Service) AdminStudioFeedback(actor *model.User, status string) ([]Studi
 	if status != "" && !studioFeedbackStatuses[status] {
 		return nil, BadAuthRequest("反馈状态无效")
 	}
-	items, err := s.repo.StudioFeedbacks(status, 300)
+	items, err := s.repo.StudioFeedbacks(userTenantID(actor), status, 300)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +83,7 @@ func (s *Service) SetStudioFeedbackStatus(actor *model.User, id, status string) 
 	if !studioFeedbackStatuses[status] {
 		return BadAuthRequest("反馈状态无效")
 	}
-	updated, err := s.repo.UpdateStudioFeedbackStatus(strings.TrimSpace(id), status)
+	updated, err := s.repo.UpdateStudioFeedbackStatus(userTenantID(actor), strings.TrimSpace(id), status)
 	if err != nil {
 		return err
 	}
@@ -92,9 +93,9 @@ func (s *Service) SetStudioFeedbackStatus(actor *model.User, id, status string) 
 	return nil
 }
 
-// StudioSiteContent 返回帮助中心内容，没填写的项为空字符串。
-func (s *Service) StudioSiteContent() (map[string]string, error) {
-	items, err := s.repo.StudioSiteContents()
+// StudioSiteContent 返回当前网站（租户）的帮助中心内容，没填写的项为空字符串。
+func (s *Service) StudioSiteContent(ctx context.Context) (map[string]string, error) {
+	items, err := s.repo.StudioSiteContents(requestTenantID(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -127,5 +128,5 @@ func (s *Service) SaveStudioSiteContent(actor *model.User, key, content string) 
 	if err != nil {
 		return err
 	}
-	return s.repo.SaveStudioSiteContent(model.StudioSiteContent{Key: key, Content: content, UpdatedAt: time.Now().UTC()})
+	return s.repo.SaveStudioSiteContent(model.StudioSiteContent{TenantID: userTenantID(actor), Key: key, Content: content, UpdatedAt: time.Now().UTC()})
 }

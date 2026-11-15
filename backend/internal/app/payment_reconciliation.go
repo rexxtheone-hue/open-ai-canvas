@@ -37,8 +37,19 @@ type AdminPaymentReconciliationItemPage struct {
 	Limit int                               `json:"pageSize"`
 }
 
+// requirePlatformPaymentReconciliation 对账按支付渠道商户号核对全部订单，渠道是平台统一配置的，只有平台后台能看和执行。
+func requirePlatformPaymentReconciliation(actor *model.User) error {
+	if userTenantID(actor) != model.PlatformTenantID {
+		return Forbidden("支付对账只在平台后台提供")
+	}
+	return nil
+}
+
 func (s *Service) RunPaymentReconciliation(ctx context.Context, actor *model.User, request RunPaymentReconciliationRequest) (*model.PaymentReconciliationRun, error) {
 	if err := s.RequireAdmin(actor); err != nil {
+		return nil, err
+	}
+	if err := requirePlatformPaymentReconciliation(actor); err != nil {
 		return nil, err
 	}
 	return s.runPaymentReconciliation(ctx, actor, strings.TrimSpace(request.ProviderID), strings.TrimSpace(request.BillDate))
@@ -279,6 +290,9 @@ func (s *Service) AdminPaymentReconciliationPage(actor *model.User, query Paymen
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
+	if err := requirePlatformPaymentReconciliation(actor); err != nil {
+		return nil, err
+	}
 	page, limit = normalizeAdminPage(page, limit)
 	filter, err := query.filter()
 	if err != nil {
@@ -293,6 +307,9 @@ func (s *Service) AdminPaymentReconciliationPage(actor *model.User, query Paymen
 
 func (s *Service) AdminPaymentReconciliationItems(actor *model.User, runID, result string, page, limit int) (*AdminPaymentReconciliationItemPage, error) {
 	if err := s.RequireAdmin(actor); err != nil {
+		return nil, err
+	}
+	if err := requirePlatformPaymentReconciliation(actor); err != nil {
 		return nil, err
 	}
 	page, limit = normalizeAdminPage(page, limit)

@@ -268,6 +268,7 @@ var schemaMigrations = []migration{
 	{version: 77, name: "tenants_foundation", checksum: "sha256:tenants-foundation-v77-20261115", apply: migrateTenantsFoundation},
 	{version: 78, name: "tenant_scoped_accounts", checksum: "sha256:tenant-scoped-accounts-v78-20261115", apply: migrateTenantScopedAccounts},
 	{version: 79, name: "tenant_settings", checksum: "sha256:tenant-settings-v79-20261115", apply: migrateTenantSettings},
+	{version: 80, name: "tenant_scoped_tables", checksum: "sha256:tenant-scoped-tables-v80-20261115", apply: migrateTenantScopedTables},
 	{version: 81, name: "tenant_wholesale_billing", checksum: tenantBillingChecksum, apply: migrateTenantBilling},
 }
 

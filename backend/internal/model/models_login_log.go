@@ -5,6 +5,7 @@ import "time"
 // LoginLog 保存事件时的用户快照，不随账号改名或会话清理改写历史。
 type LoginLog struct {
 	ID          string    `json:"id" gorm:"primaryKey;size:36"`
+	TenantID    string    `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	UserID      *string   `json:"userId" gorm:"index;size:36"`
 	Username    string    `json:"username" gorm:"size:80"`
 	DisplayName string    `json:"displayName" gorm:"size:80"`

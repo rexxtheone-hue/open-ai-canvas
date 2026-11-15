@@ -29,7 +29,7 @@ func (s *Service) AdminUsers(actor *model.User, query AdminListQuery) (*AdminUse
 		return nil, err
 	}
 	page, limit := normalizeAdminPage(query.Page, query.Limit)
-	users, total, err := s.repo.ForTenant(UserTenantID(actor)).AdminUsers(query.Keyword, model.UserRole(query.Type), model.UserStatus(query.Status), limit, (page-1)*limit)
+	users, total, err := s.repo.AdminUsers(userTenantID(actor), query.Keyword, model.UserRole(query.Type), model.UserStatus(query.Status), limit, (page-1)*limit)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (s *Service) AdminReferences(actor *model.User) (*AdminReferenceData, error
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	users, err := s.repo.AdminUserReferences()
+	users, err := s.repo.AdminUserReferences(userTenantID(actor))
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +178,7 @@ func (s *Service) UpdateUser(actor *model.User, userID string, req UpdateUserReq
 	if err := s.requireSuperAdmin(actor); err != nil {
 		return nil, err
 	}
-	user, err := s.repo.User(userID)
+	user, err := s.adminTenantUser(actor, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +268,7 @@ func (s *Service) DeleteUser(actor *model.User, userID string) error {
 	if actor.ID == userID {
 		return BadAuthRequest("不能删除当前登录的管理员账号")
 	}
-	user, err := s.repo.User(userID)
+	user, err := s.adminTenantUser(actor, userID)
 	if err != nil {
 		return err
 	}
@@ -319,6 +319,16 @@ func (s *Service) BulkDisableUsers(actor *model.User, req BulkDisableUsersReques
 	if len(userIDs) > 100 {
 		return nil, BadAuthRequest("单次最多停用 100 个用户")
 	}
+	// 只能停用本租户的用户；别家的 ID 当作不存在。
+	targets, err := s.repo.UsersByIDs(userIDs)
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range userIDs {
+		if target, ok := targets[id]; ok && userTenantID(&target) != userTenantID(actor) {
+			return nil, BadAuthRequest("部分用户不存在，请刷新列表后重试")
+		}
+	}
 	metadata, err := json.Marshal(map[string]any{"userIds": userIDs, "count": len(userIDs)})
 	if err != nil {
 		return nil, err
@@ -326,7 +336,7 @@ func (s *Service) BulkDisableUsers(actor *model.User, req BulkDisableUsersReques
 	now := time.Now()
 	events := make([]model.AdminAuditEvent, 0, len(userIDs))
 	for _, userID := range userIDs {
-		events = append(events, model.AdminAuditEvent{ID: newID(), ActorUserID: actor.ID, Action: "user.bulk_disable", TargetType: "user", TargetID: userID, Summary: "批量停用用户并清除登录态", MetadataJSON: string(metadata), CreatedAt: now})
+		events = append(events, model.AdminAuditEvent{ID: newID(), TenantID: userTenantID(actor), ActorUserID: actor.ID, Action: "user.bulk_disable", TargetType: "user", TargetID: userID, Summary: "批量停用用户并清除登录态", MetadataJSON: string(metadata), CreatedAt: now})
 	}
 	users, err := s.repo.BulkDisableUsers(actor.ID, userIDs, events, now)
 	if errors.Is(err, repository.ErrBulkUserNotFound) {

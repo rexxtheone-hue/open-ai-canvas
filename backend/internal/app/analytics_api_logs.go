@@ -24,6 +24,7 @@ func (s *Service) AdminAPICallLogs(actor *model.User, query APICallLogQuery) (*A
 		return nil, BadAuthRequest("请求明细类型无效")
 	}
 	filter := normalizeAnalyticsFilter(query.AnalyticsQuery)
+	filter.TenantID = userTenantID(actor)
 	logs, total, err := s.repo.QueryAPICallLogs(repository.APICallLogFilter{AnalyticsFilter: filter, RecordType: query.RecordType, Keyword: query.Keyword, Status: query.Status, Page: query.Page, Limit: query.Limit})
 	if err != nil {
 		return nil, err
@@ -170,7 +171,7 @@ func (s *Service) adminAPICallLogMediaResource(actor *model.User, logID string) 
 	if err := s.RequireAdmin(actor); err != nil {
 		return "", nil, err
 	}
-	log, err := s.repo.APICallLog(strings.TrimSpace(logID))
+	log, err := s.repo.TenantAPICallLog(userTenantID(actor), strings.TrimSpace(logID))
 	if err != nil {
 		return "", nil, err
 	}
@@ -200,7 +201,7 @@ func (s *Service) AdminAPICallLog(actor *model.User, id string) (*model.ApiCallL
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	log, err := s.repo.APICallLog(strings.TrimSpace(id))
+	log, err := s.repo.TenantAPICallLog(userTenantID(actor), strings.TrimSpace(id))
 	if err != nil {
 		return nil, err
 	}
@@ -219,6 +220,7 @@ func (s *Service) AdminAPICallLogsCSV(actor *model.User, query APICallLogQuery) 
 		return nil, BadAuthRequest("请求明细类型无效")
 	}
 	filter := normalizeAnalyticsFilter(query.AnalyticsQuery)
+	filter.TenantID = userTenantID(actor)
 	ids := uniqueNonEmpty(query.IDs)
 	if len(query.IDs) > 0 && len(ids) == 0 {
 		return nil, BadAuthRequest("请选择要导出的请求明细")
@@ -269,6 +271,7 @@ func (s *Service) AdminAnalyticsCSV(actor *model.User, query AnalyticsQuery) ([]
 		return nil, err
 	}
 	filter := normalizeAnalyticsFilter(query)
+	filter.TenantID = userTenantID(actor)
 	logs, err := s.repo.AnalyticsAPICallLogs(filter)
 	if err != nil {
 		return nil, err

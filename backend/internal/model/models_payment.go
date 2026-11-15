@@ -44,6 +44,7 @@ const (
 // select a product ID and can never submit their own payable amount or credits.
 type TopupProduct struct {
 	ID          string `json:"id" gorm:"primaryKey;size:36"`
+	TenantID    string `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	Name        string `json:"name" gorm:"size:120"`
 	Description string `json:"description,omitempty" gorm:"size:500"`
 	AmountFen   int64  `json:"amountFen" gorm:"index"`
@@ -93,6 +94,7 @@ type PaymentProviderConfig struct {
 
 type PaymentOrder struct {
 	ID                    string `json:"id" gorm:"primaryKey;size:36"`
+	TenantID              string `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	UserID                string `json:"userId" gorm:"size:36;index;uniqueIndex:idx_payment_user_idempotency,priority:1"`
 	IdempotencyKey        string `json:"idempotencyKey" gorm:"size:120;uniqueIndex:idx_payment_user_idempotency,priority:2"`
 	MerchantOrderNo       string `json:"merchantOrderNo" gorm:"size:32;uniqueIndex"`

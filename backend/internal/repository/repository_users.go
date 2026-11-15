@@ -63,9 +63,9 @@ func (r *Repository) Users() ([]model.User, error) {
 	return users, err
 }
 
-func (r *Repository) TotalCreditBalance() (int64, error) {
+func (r *Repository) TotalCreditBalance(tenantID string) (int64, error) {
 	var total int64
-	err := r.db.Model(&model.CreditAccount{}).Select("COALESCE(SUM(available_microcredits), 0)").Scan(&total).Error
+	err := r.db.Model(&model.CreditAccount{}).Select("COALESCE(SUM(available_microcredits), 0)").Where("user_id IN (?)", scopeTenant(r.db.Model(&model.User{}).Select("id"), tenantID)).Scan(&total).Error
 	// Some analytics fixtures predate the wallet table; the balance card is a
 	// read-only enhancement and must not make the existing overview unavailable.
 	if err != nil && (strings.Contains(err.Error(), "no such table") || strings.Contains(strings.ToLower(err.Error()), "does not exist")) {
@@ -74,10 +74,10 @@ func (r *Repository) TotalCreditBalance() (int64, error) {
 	return total, err
 }
 
-func (r *Repository) AdminUsers(keyword string, role model.UserRole, status model.UserStatus, limit int, offset int) ([]model.User, int64, error) {
+func (r *Repository) AdminUsers(tenantID string, keyword string, role model.UserRole, status model.UserStatus, limit int, offset int) ([]model.User, int64, error) {
 	var users []model.User
 	var total int64
-	query := r.tenantScope(r.db.Model(&model.User{}))
+	query := scopeTenant(r.db.Model(&model.User{}), tenantID)
 	if value := strings.TrimSpace(keyword); value != "" {
 		pattern := "%" + strings.ToLower(value) + "%"
 		query = query.Where("lower(username) LIKE ? OR lower(display_name) LIKE ? OR lower(email) LIKE ?", pattern, pattern, pattern)
@@ -97,9 +97,9 @@ func (r *Repository) AdminUsers(keyword string, role model.UserRole, status mode
 	return users, total, nil
 }
 
-func (r *Repository) AdminUserReferences() ([]model.User, error) {
+func (r *Repository) AdminUserReferences(tenantID string) ([]model.User, error) {
 	var users []model.User
-	err := r.db.Select("id", "username", "display_name").Order("created_at desc").Limit(100).Find(&users).Error
+	err := scopeTenant(r.db, tenantID).Select("id", "username", "display_name").Order("created_at desc").Limit(100).Find(&users).Error
 	return users, err
 }
 

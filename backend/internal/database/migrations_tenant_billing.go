@@ -25,7 +25,7 @@ func migrateTenantBilling(tx *gorm.DB) error {
 		}
 	}
 	for _, field := range []string{
-		"TenantID", "TenantDiscountPercent", "TenantPlatformAmountMicrocredits", "TenantPlatformUnitPriceMicrocredits",
+		"PoolTenantID", "TenantDiscountPercent", "TenantPlatformAmountMicrocredits", "TenantPlatformUnitPriceMicrocredits",
 		"TenantPlatformMultiplierBPS", "TenantPlatformSurchargeMicrocredits", "TenantReservedMicrocredits", "TenantChargeMicrocredits",
 	} {
 		if !tx.Migrator().HasColumn(&model.BillingOrder{}, field) {
@@ -34,8 +34,8 @@ func migrateTenantBilling(tx *gorm.DB) error {
 			}
 		}
 	}
-	if !tx.Migrator().HasIndex(&model.BillingOrder{}, "TenantID") {
-		if err := tx.Migrator().CreateIndex(&model.BillingOrder{}, "TenantID"); err != nil {
+	if !tx.Migrator().HasIndex(&model.BillingOrder{}, "PoolTenantID") {
+		if err := tx.Migrator().CreateIndex(&model.BillingOrder{}, "PoolTenantID"); err != nil {
 			return fmt.Errorf("计费订单租户索引：%w", err)
 		}
 	}

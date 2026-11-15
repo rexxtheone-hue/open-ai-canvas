@@ -28,6 +28,7 @@ const (
 // PartnerApplication 每个用户每种身份一条，驳回后可以修改再提交。
 type PartnerApplication struct {
 	ID         string     `json:"id" gorm:"primaryKey;size:36"`
+	TenantID   string     `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	UserID     string     `json:"userId" gorm:"size:36;uniqueIndex:idx_partner_application_user_kind,priority:1"`
 	Kind       string     `json:"kind" gorm:"size:16;index;uniqueIndex:idx_partner_application_user_kind,priority:2"`
 	Status     string     `json:"status" gorm:"size:16;index"`
@@ -43,6 +44,7 @@ type PartnerApplication struct {
 // AffiliateAccount 是审核通过的推广者。CommissionRateBP 为 0 时使用系统默认比例（万分比）。
 type AffiliateAccount struct {
 	UserID           string    `json:"userId" gorm:"primaryKey;size:36"`
+	TenantID         string    `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	Code             string    `json:"code" gorm:"uniqueIndex;size:32"`
 	CommissionRateBP int       `json:"commissionRateBp"`
 	Status           string    `json:"status" gorm:"size:16;index"`
@@ -62,6 +64,7 @@ type AffiliateReferral struct {
 // AvailableAt 之前处于冷却期；PayoutID 非空表示已被提现申请占用。
 type AffiliateCommission struct {
 	ID              string    `json:"id" gorm:"primaryKey;size:36"`
+	TenantID        string    `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	AffiliateUserID string    `json:"affiliateUserId" gorm:"size:36;index"`
 	ReferredUserID  string    `json:"referredUserId" gorm:"size:36;index"`
 	PaymentOrderID  string    `json:"paymentOrderId" gorm:"uniqueIndex;size:36"`
@@ -77,6 +80,7 @@ type AffiliateCommission struct {
 // AffiliatePayout 是推广者的提现或换积分申请。现金由财务审核后线下打款，积分即时到账。
 type AffiliatePayout struct {
 	ID                  string     `json:"id" gorm:"primaryKey;size:36"`
+	TenantID            string     `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	AffiliateUserID     string     `json:"affiliateUserId" gorm:"size:36;index"`
 	Kind                string     `json:"kind" gorm:"size:16"`
 	Currency            string     `json:"currency" gorm:"size:8"`

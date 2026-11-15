@@ -64,6 +64,7 @@ func (s *Service) AdminLoginLogs(actor *model.User, query LoginLogQuery, page, p
 		return nil, kernel.BadAuthRequest("开始时间不能晚于结束时间")
 	}
 	page, pageSize = normalizeAdminPage(page, pageSize)
+	filter.TenantID = userTenantID(actor)
 	logs, total, err := s.repo.LoginLogs(filter, pageSize, (page-1)*pageSize)
 	if err != nil {
 		return nil, err
@@ -75,7 +76,7 @@ func (s *Service) AdminLoginLog(actor *model.User, id string) (*model.LoginLog, 
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	event, err := s.repo.LoginLog(strings.TrimSpace(id))
+	event, err := s.repo.LoginLog(userTenantID(actor), strings.TrimSpace(id))
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, kernel.NotFound("登录日志不存在")
 	}

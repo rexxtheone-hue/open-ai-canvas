@@ -113,7 +113,7 @@ func (s *Service) applyTenantPricing(order *model.BillingOrder, tenantID string)
 	if err != nil {
 		return err
 	}
-	order.TenantID = tenantID
+	order.PoolTenantID = tenantID
 	order.TenantDiscountPercent = discount
 	order.TenantPlatformAmountMicrocredits = platform
 	order.TenantPlatformUnitPriceMicrocredits = order.UnitPriceMicrocredits

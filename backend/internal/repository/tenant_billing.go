@@ -19,7 +19,7 @@ import (
 var ErrTenantPoolInsufficient = errors.New("服务暂时不可用，请联系客服")
 
 func tenantOrderApplies(order model.BillingOrder) bool {
-	return order.TenantID != "" && order.TenantID != model.PlatformTenantID
+	return order.PoolTenantID != "" && order.PoolTenantID != model.PlatformTenantID
 }
 
 func tenantReferenceKey(prefix string, id string) *string {
@@ -70,11 +70,11 @@ func reserveTenantPoolTx(tx *gorm.DB, order *model.BillingOrder) error {
 		return errors.New("代理商批发扣减无效")
 	}
 	order.TenantReservedMicrocredits = charge
-	if err := ensureTenantAccountTx(tx, order.TenantID); err != nil {
+	if err := ensureTenantAccountTx(tx, order.PoolTenantID); err != nil {
 		return err
 	}
 	updated := tx.Model(&model.TenantCreditAccount{}).
-		Where("tenant_id = ? AND available_microcredits >= ?", order.TenantID, charge).
+		Where("tenant_id = ? AND available_microcredits >= ?", order.PoolTenantID, charge).
 		Updates(map[string]any{
 			"available_microcredits": gorm.Expr("available_microcredits - ?", charge),
 			"reserved_microcredits":  gorm.Expr("reserved_microcredits + ?", charge),
@@ -88,7 +88,7 @@ func reserveTenantPoolTx(tx *gorm.DB, order *model.BillingOrder) error {
 		return ErrTenantPoolInsufficient
 	}
 	return createTenantLedgerTx(tx, model.TenantLedgerEntry{
-		TenantID: order.TenantID, Type: model.TenantLedgerReserve,
+		TenantID: order.PoolTenantID, Type: model.TenantLedgerReserve,
 		AvailableDeltaMicrocredits: -charge, ReservedDeltaMicrocredits: charge,
 		BillingOrderID: order.ID, UserID: order.UserID, Model: order.Model,
 		ReferenceKey: tenantReferenceKey("reserve", order.ID),
@@ -176,7 +176,7 @@ func settleTenantPoolTx(tx *gorm.DB, orderID string) error {
 	}
 	reserved := order.TenantChargeMicrocredits
 	updated := tx.Model(&model.TenantCreditAccount{}).
-		Where("tenant_id = ? AND reserved_microcredits >= ?", order.TenantID, reserved).
+		Where("tenant_id = ? AND reserved_microcredits >= ?", order.PoolTenantID, reserved).
 		Updates(map[string]any{
 			"available_microcredits": gorm.Expr("available_microcredits + ?", reserved-actual),
 			"reserved_microcredits":  gorm.Expr("reserved_microcredits - ?", reserved),
@@ -189,14 +189,14 @@ func settleTenantPoolTx(tx *gorm.DB, orderID string) error {
 	if updated.RowsAffected != 1 {
 		return errors.New("代理商批发池预留余额不一致")
 	}
-	if _, err := consumeTenantLotsTx(tx, order.TenantID, actual); err != nil {
+	if _, err := consumeTenantLotsTx(tx, order.PoolTenantID, actual); err != nil {
 		return err
 	}
 	if err := tx.Model(&model.BillingOrder{}).Where("id = ?", order.ID).Update("tenant_charge_microcredits", actual).Error; err != nil {
 		return err
 	}
 	return createTenantLedgerTx(tx, model.TenantLedgerEntry{
-		TenantID: order.TenantID, Type: model.TenantLedgerConsume, AmountMicrocredits: -actual,
+		TenantID: order.PoolTenantID, Type: model.TenantLedgerConsume, AmountMicrocredits: -actual,
 		AvailableDeltaMicrocredits: reserved - actual, ReservedDeltaMicrocredits: -reserved,
 		BillingOrderID: order.ID, UserID: order.UserID, Model: order.Model, ReferenceKey: key,
 	})
@@ -217,7 +217,7 @@ func refundTenantPoolTx(tx *gorm.DB, orderID string) error {
 	}
 	reserved := order.TenantChargeMicrocredits
 	updated := tx.Model(&model.TenantCreditAccount{}).
-		Where("tenant_id = ? AND reserved_microcredits >= ?", order.TenantID, reserved).
+		Where("tenant_id = ? AND reserved_microcredits >= ?", order.PoolTenantID, reserved).
 		Updates(map[string]any{
 			"available_microcredits": gorm.Expr("available_microcredits + ?", reserved),
 			"reserved_microcredits":  gorm.Expr("reserved_microcredits - ?", reserved),
@@ -234,7 +234,7 @@ func refundTenantPoolTx(tx *gorm.DB, orderID string) error {
 		return err
 	}
 	return createTenantLedgerTx(tx, model.TenantLedgerEntry{
-		TenantID: order.TenantID, Type: model.TenantLedgerRefund, AmountMicrocredits: reserved,
+		TenantID: order.PoolTenantID, Type: model.TenantLedgerRefund, AmountMicrocredits: reserved,
 		AvailableDeltaMicrocredits: reserved, ReservedDeltaMicrocredits: -reserved,
 		BillingOrderID: order.ID, UserID: order.UserID, Model: order.Model, ReferenceKey: key,
 	})
@@ -261,23 +261,23 @@ func restoreTenantPoolTx(tx *gorm.DB, orderID string) error {
 	if err != nil {
 		return err
 	}
-	if err := ensureTenantAccountTx(tx, order.TenantID); err != nil {
+	if err := ensureTenantAccountTx(tx, order.PoolTenantID); err != nil {
 		return err
 	}
-	if err := tx.Model(&model.TenantCreditAccount{}).Where("tenant_id = ?", order.TenantID).Updates(map[string]any{
+	if err := tx.Model(&model.TenantCreditAccount{}).Where("tenant_id = ?", order.PoolTenantID).Updates(map[string]any{
 		"available_microcredits": gorm.Expr("available_microcredits - ?", actual),
 		"version":                gorm.Expr("version + 1"), "updated_at": time.Now(),
 	}).Error; err != nil {
 		return err
 	}
-	if _, err := consumeTenantLotsTx(tx, order.TenantID, actual); err != nil {
+	if _, err := consumeTenantLotsTx(tx, order.PoolTenantID, actual); err != nil {
 		return err
 	}
 	if err := tx.Model(&model.BillingOrder{}).Where("id = ?", order.ID).Update("tenant_charge_microcredits", actual).Error; err != nil {
 		return err
 	}
 	return createTenantLedgerTx(tx, model.TenantLedgerEntry{
-		TenantID: order.TenantID, Type: model.TenantLedgerConsume, AmountMicrocredits: -actual,
+		TenantID: order.PoolTenantID, Type: model.TenantLedgerConsume, AmountMicrocredits: -actual,
 		AvailableDeltaMicrocredits: -actual, BillingOrderID: order.ID, UserID: order.UserID, Model: order.Model,
 		Note: "人工确认上游成功，退款订单重新扣费", ReferenceKey: key,
 	})
@@ -288,12 +288,12 @@ func adjustTenantPoolForRouteSwitchTx(tx *gorm.DB, order model.BillingOrder, rep
 	if replacement == nil || !tenantOrderApplies(order) {
 		return nil, nil
 	}
-	if replacement.TenantID != order.TenantID {
+	if replacement.PoolTenantID != order.PoolTenantID {
 		return nil, ErrBillingStateConflict
 	}
 	delta := replacement.TenantChargeMicrocredits - order.TenantChargeMicrocredits
 	if delta != 0 {
-		query := tx.Model(&model.TenantCreditAccount{}).Where("tenant_id = ?", order.TenantID)
+		query := tx.Model(&model.TenantCreditAccount{}).Where("tenant_id = ?", order.PoolTenantID)
 		if delta > 0 {
 			query = query.Where("available_microcredits >= ?", delta)
 		} else {
@@ -314,7 +314,7 @@ func adjustTenantPoolForRouteSwitchTx(tx *gorm.DB, order model.BillingOrder, rep
 			return nil, errors.New("代理商批发池预留余额不一致")
 		}
 		if err := createTenantLedgerTx(tx, model.TenantLedgerEntry{
-			TenantID: order.TenantID, Type: model.TenantLedgerReserve,
+			TenantID: order.PoolTenantID, Type: model.TenantLedgerReserve,
 			AvailableDeltaMicrocredits: -delta, ReservedDeltaMicrocredits: delta,
 			BillingOrderID: order.ID, UserID: order.UserID, Model: replacement.Model, Note: "备用供应线路价格调整",
 			ReferenceKey: tenantReferenceKey("route", order.ID+":"+routeID),

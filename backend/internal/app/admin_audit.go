@@ -54,7 +54,7 @@ func newAdminAuditEvent(actor *model.User, action string, targetType string, tar
 		encoded = string(data)
 	}
 	return &model.AdminAuditEvent{
-		ID: newID(), ActorUserID: actor.ID, Action: strings.TrimSpace(action), TargetType: strings.TrimSpace(targetType),
+		ID: newID(), TenantID: userTenantID(actor), ActorUserID: actor.ID, Action: strings.TrimSpace(action), TargetType: strings.TrimSpace(targetType),
 		TargetID: strings.TrimSpace(targetID), Summary: truncateRunes(strings.TrimSpace(summary), 500), MetadataJSON: encoded, CreatedAt: time.Now(),
 	}, nil
 }
@@ -63,7 +63,7 @@ func (s *Service) AdminUserDetail(actor *model.User, userID string) (*AdminUserD
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	user, err := s.repo.User(strings.TrimSpace(userID))
+	user, err := s.adminTenantUser(actor, strings.TrimSpace(userID))
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (s *Service) AdminUserLedger(actor *model.User, userID string, entryType st
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	if _, err := s.repo.User(userID); err != nil {
+	if _, err := s.adminTenantUser(actor, userID); err != nil {
 		return nil, err
 	}
 	page, limit = normalizeAdminPage(page, limit)
@@ -120,7 +120,7 @@ func (s *Service) AdminUserTasks(actor *model.User, userID string, page int, lim
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	if _, err := s.repo.User(userID); err != nil {
+	if _, err := s.adminTenantUser(actor, userID); err != nil {
 		return nil, err
 	}
 	page, limit = normalizeAdminPage(page, limit)
@@ -132,10 +132,10 @@ func (s *Service) AdminUserAuditEvents(actor *model.User, userID string, page in
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	if _, err := s.repo.User(userID); err != nil {
+	if _, err := s.adminTenantUser(actor, userID); err != nil {
 		return nil, err
 	}
 	page, limit = normalizeAdminPage(page, limit)
-	events, total, err := s.repo.AdminAuditEvents("user", userID, limit, (page-1)*limit)
+	events, total, err := s.repo.AdminAuditEvents(userTenantID(actor), "user", userID, limit, (page-1)*limit)
 	return &AdminAuditPage{Events: events, Total: total, Page: page, Limit: limit}, err
 }

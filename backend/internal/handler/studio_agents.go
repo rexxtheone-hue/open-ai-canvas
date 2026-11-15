@@ -137,7 +137,7 @@ func RegisterStudioAgentRoutes(r *gin.RouterGroup, svc *service.Service) {
 	}))
 	// 帮助与条款是公开内容，访客也能阅读。
 	r.GET("/studio/site-content", func(c *gin.Context) {
-		content, err := svc.StudioSiteContentFor(c.Request.Context())
+		content, err := svc.StudioSiteContent(c.Request.Context())
 		respond(c, content, err)
 	})
 	r.GET("/admin/studio/feedback", withUser(func(c *gin.Context, user *model.User) {

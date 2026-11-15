@@ -112,10 +112,10 @@ func (r *Repository) BillingOrdersByTaskIDs(userID string, taskIDs []string) (ma
 	return result, nil
 }
 
-func (r *Repository) AdminBillingOrders(status string, keyword string, limit int, offset int) ([]model.BillingOrder, int64, error) {
+func (r *Repository) AdminBillingOrders(tenantID string, status string, keyword string, limit int, offset int) ([]model.BillingOrder, int64, error) {
 	var items []model.BillingOrder
 	var total int64
-	query := r.db.Model(&model.BillingOrder{})
+	query := scopeTenant(r.db.Model(&model.BillingOrder{}), tenantID, "billing_orders.tenant_id")
 	if status == "review" {
 		query = query.Joins("LEFT JOIN tasks ON tasks.id = billing_orders.task_id").Where(
 			"billing_orders.status = ? OR (billing_orders.status = ? AND billing_orders.updated_at < ?) OR (billing_orders.status = ? AND tasks.status IN ?)",

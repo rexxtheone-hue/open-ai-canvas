@@ -143,7 +143,7 @@ func TestTenantDualReservationSettleAndRefund(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if order.TenantID != testAgencyID || order.AmountMicrocredits != 1_000_000 || order.TenantChargeMicrocredits != 882_353 {
+	if order.PoolTenantID != testAgencyID || order.AmountMicrocredits != 1_000_000 || order.TenantChargeMicrocredits != 882_353 {
 		t.Fatalf("order snapshot: %#v", order.BillingTenantSnapshot)
 	}
 	if pool := f.pool(t); pool.AvailableMicrocredits != 5_000_000-882_353 || pool.ReservedMicrocredits != 882_353 {
@@ -291,7 +291,7 @@ func TestTenantRetailMultiplierFixedPriceAndHiddenModel(t *testing.T) {
 	}
 	// 平台用户不受代理商规则影响。
 	platform, err := f.reserve(testPlatformUser, "platform")
-	if err != nil || platform.AmountMicrocredits != 1_000_000 || platform.TenantID != "" {
+	if err != nil || platform.AmountMicrocredits != 1_000_000 || platform.PoolTenantID != "" {
 		t.Fatalf("platform order changed: %#v %v", platform, err)
 	}
 }

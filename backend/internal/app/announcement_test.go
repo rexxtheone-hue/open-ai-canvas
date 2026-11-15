@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -290,7 +291,7 @@ func TestBannerAnnouncementLifecycle(t *testing.T) {
 		t.Fatalf("banner = %+v", banner)
 	}
 
-	activeBanners, err := svc.ActiveBannerAnnouncements()
+	activeBanners, err := svc.ActiveBannerAnnouncements(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -310,7 +311,7 @@ func TestBannerAnnouncementLifecycle(t *testing.T) {
 		t.Fatalf("updated = %+v", updated)
 	}
 
-	activeAfterDisable, _ := svc.ActiveBannerAnnouncements()
+	activeAfterDisable, _ := svc.ActiveBannerAnnouncements(context.Background())
 	if len(activeAfterDisable) != 0 {
 		t.Fatalf("expected 0 active banners, got %d", len(activeAfterDisable))
 	}
@@ -335,7 +336,7 @@ func TestBannerAnnouncementAcceptsFutureStartAndLinkKinds(t *testing.T) {
 	}
 
 	// 未来开始时间未到，不应出现在 active 列表
-	active, err := svc.ActiveBannerAnnouncements()
+	active, err := svc.ActiveBannerAnnouncements(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,7 +386,7 @@ func TestBannerAnnouncementValidityWindowFiltering(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	active, err := svc.ActiveBannerAnnouncements()
+	active, err := svc.ActiveBannerAnnouncements(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -423,14 +424,14 @@ func TestBannerAnnouncementTitleRuns(t *testing.T) {
 	}
 
 	// 读回时样式分段必须完整保留（列存储 + 显式编解码的回归点）。
-	stored, err := svc.repo.BannerAnnouncement(banner.ID)
+	stored, err := svc.repo.BannerAnnouncement("", banner.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(stored.TitleRuns) != 2 || stored.TitleRuns[0].FontSize == nil || *stored.TitleRuns[0].FontSize != 16 {
 		t.Fatalf("stored = %+v", stored.TitleRuns)
 	}
-	active, err := svc.ActiveBannerAnnouncements()
+	active, err := svc.ActiveBannerAnnouncements(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -536,14 +537,14 @@ func TestBannerAnnouncementNoticeType(t *testing.T) {
 	}
 
 	// 读回路径（仓储 + 公开接口）都要保留类型。
-	stored, err := svc.repo.BannerAnnouncement(banner.ID)
+	stored, err := svc.repo.BannerAnnouncement("", banner.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if stored.NoticeType != "activity" {
 		t.Fatalf("stored = %+v", stored)
 	}
-	active, err := svc.ActiveBannerAnnouncements()
+	active, err := svc.ActiveBannerAnnouncements(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -569,7 +570,7 @@ func TestBannerAnnouncementNoticeType(t *testing.T) {
 	if updated.NoticeType != "warning" {
 		t.Fatalf("updated = %+v", updated)
 	}
-	reloaded, err := svc.repo.BannerAnnouncement(banner.ID)
+	reloaded, err := svc.repo.BannerAnnouncement("", banner.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -650,14 +651,14 @@ func TestBannerAnnouncementTitleRunsWithEmoji(t *testing.T) {
 		t.Fatalf("titleRuns = %+v, want 3（开头 emoji 与正文同为默认样式应合并）", banner.TitleRuns)
 	}
 
-	stored, err := svc.repo.BannerAnnouncement(banner.ID)
+	stored, err := svc.repo.BannerAnnouncement("", banner.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(stored.TitleRuns) != 3 {
 		t.Fatalf("stored = %+v", stored.TitleRuns)
 	}
-	active, err := svc.ActiveBannerAnnouncements()
+	active, err := svc.ActiveBannerAnnouncements(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

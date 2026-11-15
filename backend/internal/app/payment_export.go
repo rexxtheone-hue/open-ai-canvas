@@ -92,6 +92,7 @@ func (s *Service) AdminPaymentOrdersCSV(ctx context.Context, actor *model.User, 
 	if err != nil {
 		return nil, err
 	}
+	filter.TenantID = userTenantID(actor)
 	orders, users, err := s.repo.WithContext(ctx).ExportPaymentOrders(filter, paymentExportLimit+1)
 	if err != nil {
 		return nil, err
@@ -113,6 +114,9 @@ func (s *Service) AdminPaymentOrdersCSV(ctx context.Context, actor *model.User, 
 
 func (s *Service) AdminPaymentReconciliationsCSV(ctx context.Context, actor *model.User, query PaymentReconciliationQuery) ([]byte, error) {
 	if err := s.RequireAdmin(actor); err != nil {
+		return nil, err
+	}
+	if err := requirePlatformPaymentReconciliation(actor); err != nil {
 		return nil, err
 	}
 	filter, err := query.filter()
@@ -139,6 +143,9 @@ func (s *Service) AdminPaymentReconciliationsCSV(ctx context.Context, actor *mod
 
 func (s *Service) AdminPaymentReconciliationItemsCSV(ctx context.Context, actor *model.User, runID, result string) ([]byte, error) {
 	if err := s.RequireAdmin(actor); err != nil {
+		return nil, err
+	}
+	if err := requirePlatformPaymentReconciliation(actor); err != nil {
 		return nil, err
 	}
 	if err := validatePaymentResult(result); err != nil {
