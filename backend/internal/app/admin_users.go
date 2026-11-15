@@ -61,6 +61,14 @@ func (s *Service) AdminReferences(actor *model.User) (*AdminReferenceData, error
 	if err != nil {
 		return nil, err
 	}
+	// 系统渠道属于平台，代理商管理员只拿到自己租户的用户。
+	if IsTenantAdmin(actor) {
+		result := &AdminReferenceData{Users: make([]AdminUserReference, 0, len(users)), Channels: []AdminChannelReference{}}
+		for _, user := range users {
+			result.Users = append(result.Users, AdminUserReference{ID: user.ID, Username: user.Username, DisplayName: user.DisplayName})
+		}
+		return result, nil
+	}
 	channels, err := s.repo.AdminSystemChannelReferences()
 	if err != nil {
 		return nil, err

@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { formatCredits } from "@/constant/credits";
 import { IconButton } from "@/pages/admin/ui/controls";
 import { AdminDataTable, AdminEmpty, AdminStatusBadge, AdminTableEmpty, PaginationBar, type AdminStatusTone } from "./admin-ui";
+import { UserWorksPanel } from "../agencies/user-works-panel";
 import { getAdminUserDetail, listAdminUserAuditEvents, listAdminUserLedger, listAdminUserTasks, type AdminAuditEvent, type AdminUserDetail, type AdminUserTask } from "@/services/api/auth";
 import type { CreditLedgerEntry } from "@/services/api/wallet";
 
@@ -201,6 +202,11 @@ export function AdminUserDetailDrawer({ userId, onClose, previousUserId, nextUse
                                     footer={<PaginationBar alwaysShow current={taskPage} pageSize={20} total={taskTotal} onChange={(page) => setTaskPage(page)} pageSizeOptions={[20]} />}
                                 />
                             ),
+                        },
+                        {
+                            key: "works",
+                            label: "作品",
+                            children: <UserWorksPanel userId={detail.user.id} />,
                         },
                         {
                             key: "audit",

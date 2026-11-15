@@ -26,7 +26,7 @@ func init() {
 
 // IsTenantAdmin 判断是否为代理商管理员。
 func IsTenantAdmin(user *model.User) bool {
-	return user != nil && user.Role == model.UserRoleTenantAdmin
+	return user != nil && (user.Role == model.UserRoleTenantAdmin || user.StaffRole == model.UserRoleTenantAdmin)
 }
 
 func settingActorTenantID(user *model.User) string {
@@ -44,12 +44,16 @@ func RequireTenantAdminOrAdmin(actor *model.User, tenant model.Tenant) (bool, er
 		return false, Unauthorized("请先登录")
 	}
 	if tenant.IsPlatform {
-		if actor.Role == model.UserRoleAdmin {
+		if actor.Role == model.UserRoleAdmin && !IsTenantAdmin(actor) {
 			return false, nil
 		}
 		return false, Forbidden("需要管理员权限")
 	}
-	switch actor.Role {
+	role := actor.Role
+	if IsTenantAdmin(actor) {
+		role = model.UserRoleTenantAdmin
+	}
+	switch role {
 	case model.UserRoleTenantAdmin:
 		if settingActorTenantID(actor) == tenant.ID {
 			return true, nil
@@ -509,4 +513,8 @@ var tenantAdminNavigation = []string{
 	"/admin/settings/appearance", "/admin/settings/registration", "/admin/settings/email",
 	"/admin/settings/google", "/admin/settings/credits", "/admin/settings/features",
 	"/admin/affiliate-settings", "/admin/studio/site-content",
+	"/admin/users", "/admin/login-logs", "/admin/announcements", "/admin/banner-announcements",
+	"/admin/redeem-batches", "/admin/payments", "/admin/studio/community", "/admin/partner-applications",
+	"/admin/affiliates", "/admin/credit-operations",
+	"/tenant-admin/billing", "/tenant-admin/prices", "/tenant-admin/domains", "/tenant-admin/customers", "/tenant-admin/staff",
 }

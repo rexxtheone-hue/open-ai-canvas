@@ -1,0 +1,200 @@
+.admin-agency-stack {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 24px;
+}
+
+.admin-agency-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    overflow: hidden;
+    border: 1px solid var(--admin-card-border);
+    border-radius: var(--r-lg);
+    background: var(--admin-layer-1);
+    box-shadow: var(--admin-card-shadow);
+}
+
+.admin-agency-stats .admin-stat-tile {
+    min-height: 100px;
+    background: var(--admin-layer-1);
+}
+
+.admin-agency-stats .admin-stat-tile-value {
+    overflow: hidden;
+    font-size: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-agency-stats .admin-stat-tile-detail {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-agency-minimum {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px 18px 18px;
+}
+
+.admin-agency-minimum-line {
+    color: var(--foreground);
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+
+.admin-agency-minimum-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+    color: color-mix(in srgb, var(--foreground) 55%, transparent);
+    font-size: 12px;
+}
+
+.admin-agency-section-title {
+    margin: 4px 0 -4px;
+    color: var(--foreground);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.admin-agency-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.admin-agency-cname {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 14px 16px;
+    border: 1px solid var(--admin-card-border);
+    border-radius: var(--r-lg);
+    background: var(--admin-layer-1);
+}
+
+.admin-agency-cname p {
+    margin: 0;
+    color: color-mix(in srgb, var(--foreground) 60%, transparent);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.admin-agency-copy {
+    display: inline-flex;
+    max-width: 100%;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border: 1px solid var(--admin-card-border);
+    border-radius: var(--admin-radius);
+    background: var(--admin-surface-2);
+    color: var(--foreground);
+    font-size: 12px;
+    word-break: break-all;
+    cursor: pointer;
+}
+
+.admin-agency-copy:hover {
+    border-color: color-mix(in srgb, var(--foreground) 25%, transparent);
+}
+
+.admin-agency-negative {
+    color: var(--admin-status-error);
+}
+
+.admin-agency-positive {
+    color: var(--admin-status-success);
+}
+
+.admin-agency-name-link {
+    color: var(--foreground);
+    font-weight: 600;
+    text-align: left;
+}
+
+.admin-agency-name-link:hover {
+    text-decoration: underline;
+}
+
+.admin-agency-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 16px;
+}
+
+.admin-agency-inline-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 8px 12px;
+    padding: 16px 18px;
+}
+
+.admin-agency-inline-form .ant-form-item {
+    margin-bottom: 0;
+}
+
+.admin-agency-result {
+    margin: 0 18px 16px;
+}
+
+.admin-agency-tabs .ant-tabs-nav {
+    margin-bottom: 16px;
+}
+
+.admin-agency-price-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-agency-price-cell small {
+    color: color-mix(in srgb, var(--foreground) 50%, transparent);
+    font-size: 11px;
+}
+
+@media (max-width: 1100px) {
+    .admin-agency-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admin-agency-stats .admin-stat-tile:nth-child(odd) {
+        border-left: 0;
+    }
+
+    .admin-agency-stats .admin-stat-tile:nth-child(n + 3) {
+        border-top: 1px solid color-mix(in srgb, var(--foreground) 9%, transparent);
+    }
+}
+
+@media (max-width: 560px) {
+    .admin-agency-stats,
+    .admin-agency-form-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-agency-stats .admin-stat-tile {
+        min-height: 84px;
+        border-left: 0;
+    }
+
+    .admin-agency-stats .admin-stat-tile + .admin-stat-tile {
+        border-top: 1px solid color-mix(in srgb, var(--foreground) 9%, transparent);
+    }
+
+    .admin-agency-inline-form > * {
+        width: 100%;
+    }
+}

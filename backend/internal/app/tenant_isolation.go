@@ -47,10 +47,17 @@ func AgencyAdminCanAccess(route string) bool {
 	if !strings.HasPrefix(route, "/admin") {
 		return true
 	}
-	// 代理商自己能改的设置（外观、注册等）另有 RequireTenantAdminOrAdmin 把关，这里一并放行。
-	for _, prefix := range append(agencyAdminRoutePrefixes, tenantAdminNavigation...) {
+	for _, prefix := range agencyAdminRoutePrefixes {
 		if strings.HasPrefix(route, prefix) {
 			return true
+		}
+	}
+	// 代理商管理员的白名单（staff_roles.go）是唯一来源：这里只看路径，方法由路由层的 TenantAdminRouteAllowed 把关。
+	for _, rules := range [][]staffRule{tenantAdminElevatedRules, tenantAdminSettingRules} {
+		for _, rule := range rules {
+			if strings.HasPrefix(route, rule.prefix) {
+				return true
+			}
 		}
 	}
 	return false

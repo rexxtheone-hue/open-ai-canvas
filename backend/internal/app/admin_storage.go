@@ -131,8 +131,12 @@ func (s *Service) OpenResourceRangeAsAdmin(actor *model.User, id string, rangeHe
 }
 
 func (s *Service) PrepareResourceDeliveryAsAdmin(actor *model.User, id string, options ResourceAccessOptions, rangeHeader string) (*ResourceDelivery, error) {
-	if err := s.requirePlatformOperator(actor); err != nil {
+	// 平台管理员可看任何作品文件；代理商管理员只能看自己客户的（见下方核对）。
+	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
+	}
+	if !isPlatformAccount(actor) && !IsTenantAdmin(actor) {
+		return nil, Forbidden("需要平台管理员权限")
 	}
 	resource, err := s.repo.Resource(strings.TrimSpace(id))
 	if err != nil {
@@ -140,6 +144,10 @@ func (s *Service) PrepareResourceDeliveryAsAdmin(actor *model.User, id string, o
 			return nil, NotFound("资源不存在")
 		}
 		return nil, err
+	}
+	// 代理商管理员只能看自己客户的作品文件。
+	if IsTenantAdmin(actor) && s.tenantIDForUserID(resource.UserID) != userTenantID(actor) {
+		return nil, NotFound("资源不存在")
 	}
 	resource.Provider = normalizedResourceProvider(resource.Provider)
 	if options.Purpose == "" {
