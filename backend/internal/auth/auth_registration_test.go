@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -76,7 +77,7 @@ func TestRegisterAcceptedTermsCreatesEmailUser(t *testing.T) {
 		code = codeFromEmailBody(body)
 		return nil
 	})
-	if err := svc.SendRegistrationEmailCode("member@example.com"); err != nil {
+	if err := svc.SendRegistrationEmailCode(context.Background(), "member@example.com"); err != nil {
 		t.Fatal(err)
 	}
 	result, err := svc.Register(RegisterRequest{Username: "member", Email: "member@example.com", EmailCode: code, Password: "password", AcceptedTerms: true})

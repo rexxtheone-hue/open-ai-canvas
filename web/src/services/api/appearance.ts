@@ -32,6 +32,8 @@ export type PublicAppearance = {
     authVideoConfigured: boolean;
     authVideoPosterConfigured: boolean;
     configured: boolean;
+    /** false 表示代理商网站：不显示平台内置标志、案例和图标。旧后端没有这个字段时按平台处理。 */
+    isPlatform?: boolean;
     revision: string;
     updatedAt?: string;
 };

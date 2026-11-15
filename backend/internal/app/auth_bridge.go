@@ -187,7 +187,7 @@ func (s *Service) RegistrationEnabled() (bool, error) {
 }
 
 func (s *Service) SendPasswordResetEmailCode(ctx context.Context, rawEmail string) error {
-	return s.authFor(ctx).SendPasswordResetEmailCode(rawEmail)
+	return s.authFor(ctx).SendPasswordResetEmailCode(ctx, rawEmail)
 }
 
 func (s *Service) ResetPassword(ctx context.Context, req PasswordResetRequest) error {
@@ -207,7 +207,7 @@ func (s *Service) EmailEnabled() (bool, error) {
 }
 
 func (s *Service) SendRegistrationEmailCode(ctx context.Context, rawEmail string) error {
-	return s.authFor(ctx).SendRegistrationEmailCode(rawEmail)
+	return s.authFor(ctx).SendRegistrationEmailCode(ctx, rawEmail)
 }
 
 func (s *Service) VerifyRegistrationEmailCode(ctx context.Context, email string, rawCode string) (*model.EmailVerificationCode, error) {

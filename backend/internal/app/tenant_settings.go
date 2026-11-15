@@ -85,26 +85,9 @@ func layeredSettingMeta(setting *model.SystemSetting, row *model.TenantSetting) 
 	return &merged
 }
 
-// TenantBranding 是品牌相关的最小视图，供邮件、页面标题等按网址换品牌使用。
-type TenantBranding struct {
-	Name        string `json:"name"`
-	AccentColor string `json:"accentColor"`
-	LogoURL     string `json:"logoUrl"`
-}
-
-// TenantBrand 返回请求所属网址的品牌名、主色与 Logo 地址；读取失败时回落到平台默认品牌。
-func (s *Service) TenantBrand(ctx context.Context) TenantBranding {
-	appearance, err := s.AppearanceFor(ctx)
-	if err != nil || appearance == nil {
-		skin := defaultClassicAppearanceSkin()
-		return TenantBranding{Name: defaultAppearanceBrandName, AccentColor: skin.Tokens.Light.AuthAccent, LogoURL: defaultAppearanceLogoURL}
-	}
-	return TenantBranding{Name: appearance.BrandName, AccentColor: appearance.ActiveSkin.Tokens.Light.AuthAccent, LogoURL: appearance.LogoURL}
-}
-
 // BrandNameFor 返回请求所属网址的品牌名；没有请求上下文的后台任务请用平台品牌。
 func (s *Service) BrandNameFor(ctx context.Context) string {
-	return s.TenantBrand(ctx).Name
+	return s.tenantBrand(ctx).Name
 }
 
 // ---- 外观 ----

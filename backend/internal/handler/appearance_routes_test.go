@@ -50,12 +50,12 @@ func TestAppearanceRoutesAreRegistered(t *testing.T) {
 }
 
 func TestWebAppManifestFollowsAppearanceLogo(t *testing.T) {
-	builtin := webAppManifest("OmniMuse", "AI 创作", false, "")
+	builtin := webAppManifest("OmniMuse", "AI 创作", false, "", true)
 	icons := builtin["icons"].([]gin.H)
 	if builtin["name"] != "OmniMuse" || builtin["display"] != "standalone" || builtin["start_url"] != "/" || len(icons) != 2 || icons[1]["sizes"] != "512x512" {
 		t.Fatalf("builtin manifest = %#v", builtin)
 	}
-	custom := webAppManifest("Acme", "", true, "/api/public/appearance/assets/logo?v=1")
+	custom := webAppManifest("Acme", "", true, "/api/public/appearance/assets/logo?v=1", true)
 	customIcons := custom["icons"].([]gin.H)
 	if custom["short_name"] != "Acme" || len(customIcons) != 1 || customIcons[0]["src"] != "/api/public/appearance/assets/logo?v=1" {
 		t.Fatalf("custom manifest = %#v", custom)

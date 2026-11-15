@@ -160,13 +160,22 @@ func TestTenantAppearanceOverrideOnlyAppliesOnItsOwnSite(t *testing.T) {
 		t.Fatal("an agency save must not touch the platform appearance")
 	}
 
-	for host, want := range map[string]string{platformHost: "Platform Brand", agencyAHost: "Agency A", agencyBHost: "Platform Brand"} {
+	// 代理商网站不显示平台的品牌和备案号；没有自己设置品牌的代理商用租户名称。
+	for host, want := range map[string]string{platformHost: "Platform Brand", agencyAHost: "Agency A"} {
 		public := f.mustCall(http.MethodGet, host, "", "/api/public/appearance", nil)
 		if got := nested(public, "appearance", "brandName"); got != want {
 			t.Fatalf("brand on %s = %v, want %s", host, got, want)
 		}
-		if got := nested(public, "appearance", "icpFilingNumber"); got != "平台备案-001" {
-			t.Fatalf("ICP filing on %s must stay the platform's, got %v", host, got)
+	}
+	if got := nested(f.mustCall(http.MethodGet, agencyBHost, "", "/api/public/appearance", nil), "appearance", "brandName"); got == "Platform Brand" || got == "" {
+		t.Fatalf("an agency without its own brand must not show the platform brand, got %v", got)
+	}
+	if got := nested(f.mustCall(http.MethodGet, platformHost, "", "/api/public/appearance", nil), "appearance", "icpFilingNumber"); got != "平台备案-001" {
+		t.Fatalf("platform ICP filing changed: %v", got)
+	}
+	for _, host := range []string{agencyAHost, agencyBHost} {
+		if got := nested(f.mustCall(http.MethodGet, host, "", "/api/public/appearance", nil), "appearance", "icpFilingNumber"); got != "" && got != nil {
+			t.Fatalf("ICP filing must not show on %s, got %v", host, got)
 		}
 	}
 	if got := nested(f.mustCall(http.MethodGet, agencyAHost, "", "/api/public/appearance", nil), "appearance", "seoTitle"); got != "Agency A Studio" {
@@ -175,8 +184,8 @@ func TestTenantAppearanceOverrideOnlyAppliesOnItsOwnSite(t *testing.T) {
 
 	// 代理商恢复默认只删自己的覆盖，平台品牌保持不变。
 	f.mustCall(http.MethodDelete, agencyAHost, "s-a", "/api/admin/settings/appearance", nil)
-	if got := nested(f.mustCall(http.MethodGet, agencyAHost, "", "/api/public/appearance", nil), "appearance", "brandName"); got != "Platform Brand" {
-		t.Fatalf("after reset the agency follows the platform again, got %v", got)
+	if got := nested(f.mustCall(http.MethodGet, agencyAHost, "", "/api/public/appearance", nil), "appearance", "brandName"); got == "Platform Brand" || got == "Agency A" {
+		t.Fatalf("after reset the agency falls back to its tenant name, never the platform brand, got %v", got)
 	}
 	if got := nested(f.mustCall(http.MethodGet, platformHost, "", "/api/public/appearance", nil), "appearance", "brandName"); got != "Platform Brand" {
 		t.Fatalf("agency reset must not reset the platform, got %v", got)

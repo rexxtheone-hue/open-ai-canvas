@@ -124,11 +124,15 @@ function Pricing() {
 
 /** 官网落地页：未登录的访客打开根路径时看到；已登录的直接进入 Studio。 */
 export default function LandingPage() {
-    const brandName = useAppearanceStore((state) => state.appearance.brandName) || "OmniMuse";
+    // 代理商网站显示中性版本：不用平台的案例封面、价格政策问答和卖点，只保留通用介绍和品牌名。
+    const isPlatform = useAppearanceStore((state) => state.appearance.isPlatform !== false);
+    const brandName = useAppearanceStore((state) => state.appearance.brandName) || (isPlatform ? "OmniMuse" : "");
     const [menuOpen, setMenuOpen] = useState(false);
-    const coversQuery = useQuery({ queryKey: ["studio", "tool-covers"], queryFn: async () => (await listStudioToolCovers()).covers, staleTime: 10 * 60_000 });
+    const coversQuery = useQuery({ queryKey: ["studio", "tool-covers"], queryFn: async () => (await listStudioToolCovers()).covers, staleTime: 10 * 60_000, enabled: isPlatform });
     const settingsQuery = useQuery({ queryKey: ["landing", "auth-settings"], queryFn: getAuthSettings, staleTime: 10 * 60_000 });
-    const covers = coversQuery.data || {};
+    const covers = isPlatform ? coversQuery.data || {} : {};
+    // 代理商网站只保留与平台价格政策无关的问答（第一条和最后一条）。
+    const faqs = isPlatform ? FAQS : FAQS.filter((_, index) => index === 0 || index === FAQS.length - 1);
     const bonus = Math.floor((settingsQuery.data?.signupBonusMicrocredits ?? 0) / 1_000_000);
     const signupLabel = bonus > 0 ? `免费注册，送 ${bonus} 积分` : "免费注册";
 
@@ -144,7 +148,7 @@ export default function LandingPage() {
     ];
 
     return (
-        <div className="landing">
+        <div className={`landing${isPlatform ? "" : " is-neutral"}`}>
             <header className="landing-bar">
                 <div className="landing-wrap landing-bar-inner">
                     <a className="landing-brand" href="#top" aria-label={brandName}>
@@ -192,28 +196,32 @@ export default function LandingPage() {
                                     看看能做什么
                                 </a>
                             </div>
-                            <ul className="landing-hero-points">
-                                <li>
-                                    <Check aria-hidden />
-                                    马币计价，按次扣积分
-                                </li>
-                                <li>
-                                    <Check aria-hidden />
-                                    生成失败自动退积分
-                                </li>
-                                <li>
-                                    <Check aria-hidden />
-                                    会员作品可商用
-                                </li>
-                            </ul>
+                            {isPlatform ? (
+                                <ul className="landing-hero-points">
+                                    <li>
+                                        <Check aria-hidden />
+                                        马币计价，按次扣积分
+                                    </li>
+                                    <li>
+                                        <Check aria-hidden />
+                                        生成失败自动退积分
+                                    </li>
+                                    <li>
+                                        <Check aria-hidden />
+                                        会员作品可商用
+                                    </li>
+                                </ul>
+                            ) : null}
                         </div>
-                        <div className="landing-hero-reel" aria-hidden>
-                            {HERO_TILES.map((id) => (
-                                <div key={id} className="landing-tile">
-                                    <LandingMedia src={covers[id]} label="" />
-                                </div>
-                            ))}
-                        </div>
+                        {isPlatform ? (
+                            <div className="landing-hero-reel" aria-hidden>
+                                {HERO_TILES.map((id) => (
+                                    <div key={id} className="landing-tile">
+                                        <LandingMedia src={covers[id]} label="" />
+                                    </div>
+                                ))}
+                            </div>
+                        ) : null}
                     </div>
                 </section>
 
@@ -237,9 +245,11 @@ export default function LandingPage() {
                         <div className="landing-cases">
                             {CASES.map((item) => (
                                 <Link key={item.genre} className="landing-case" to={register(`/studio/director?genre=${item.genre}`)}>
-                                    <div className="landing-case-media">
-                                        <LandingMedia src={covers[item.cover]} label={item.title} />
-                                    </div>
+                                    {isPlatform ? (
+                                        <div className="landing-case-media">
+                                            <LandingMedia src={covers[item.cover]} label={item.title} />
+                                        </div>
+                                    ) : null}
                                     <div className="landing-case-body">
                                         <h3>{item.title}</h3>
                                         <p>{item.text}</p>
@@ -282,9 +292,11 @@ export default function LandingPage() {
                         <div className="landing-tools">
                             {TOOLS.map((tool) => (
                                 <div key={tool.cover} className="landing-tool">
-                                    <div className="landing-tool-media">
-                                        <LandingMedia src={covers[tool.cover]} label={tool.title} />
-                                    </div>
+                                    {isPlatform ? (
+                                        <div className="landing-tool-media">
+                                            <LandingMedia src={covers[tool.cover]} label={tool.title} />
+                                        </div>
+                                    ) : null}
                                     <h3>{tool.title}</h3>
                                     <p>{tool.text}</p>
                                 </div>
@@ -309,7 +321,7 @@ export default function LandingPage() {
                             <h2>常见问题</h2>
                         </div>
                         <div className="landing-faq">
-                            {FAQS.map((item) => (
+                            {faqs.map((item) => (
                                 <details key={item.q}>
                                     <summary>
                                         {item.q}

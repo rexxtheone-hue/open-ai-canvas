@@ -8,6 +8,7 @@ import type { AiTextMessage } from "@/services/api/image-contracts";
 import { useConfigStore, useEffectiveConfig, modelOptionLabel } from "@/stores/use-config-store";
 import { useEditorStoreContext } from "@/components/editor/editor-context";
 import { summarizeTimeline } from "@/lib/timeline/timeline-summary";
+import { withSiteBrand } from "@/stores/use-appearance-store";
 import {
     buildAiEditingSystemPrompt,
     parseAiCommandPlan,
@@ -153,7 +154,7 @@ export function EditorAiAssistant() {
                     ...effective,
                     model: modelValue,
                     textModel: modelValue,
-                    systemPrompt: buildAiEditingSystemPrompt(summarizeTimeline(project)),
+                    systemPrompt: withSiteBrand(buildAiEditingSystemPrompt(summarizeTimeline(project))),
                 },
                 history,
                 (delta) => appendToEntry(assistantId, delta),

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -149,19 +150,21 @@ func (s *Service) EmailEnabled() (bool, error) {
 var ErrEmailNotConfigured = errors.New("email delivery is not configured")
 
 // SendNoticeEmail 用后台配置的 SMTP 发一封品牌样式的通知邮件；邮件未启用时返回 ErrEmailNotConfigured。
-func (s *Service) SendNoticeEmail(recipient string, content EmailContent) error {
-	_, setting, err := s.flowEmailSetting()
+// tenantID 是收件人所属租户，决定邮件品牌、发件人和链接。
+func (s *Service) SendNoticeEmail(ctx context.Context, tenantID, recipient string, content EmailContent) error {
+	_, setting, _, err := s.readEmailSettingForTenant(tenantID)
 	if err != nil {
 		return err
 	}
 	if !setting.Enabled || setting.Host == "" || setting.Port <= 0 || setting.FromEmail == "" {
 		return ErrEmailNotConfigured
 	}
-	setting = resolveEmailSender(setting, s.host.BrandName())
-	return s.deliverEmail(setting, recipient, renderEmail(setting.FromName, content))
+	brand := s.host.EmailBrand(ctx, tenantID)
+	setting, brand = brandEmail(setting, brand)
+	return s.deliverEmail(setting, recipient, renderEmail(brand, content))
 }
 
-func (s *Service) SendRegistrationEmailCode(rawEmail string) error {
+func (s *Service) SendRegistrationEmailCode(ctx context.Context, rawEmail string) error {
 	p, err := s.verificationPolicy()
 	if err != nil {
 		return err
@@ -221,8 +224,9 @@ func (s *Service) SendRegistrationEmailCode(rawEmail string) error {
 	if err := s.repo.Create(&record); err != nil {
 		return err
 	}
-	setting = resolveEmailSender(setting, s.host.BrandName())
-	if err := s.deliverEmail(setting, email, registrationEmail(setting.FromName, code)); err != nil {
+	brand := s.host.EmailBrand(ctx, "")
+	setting, brand = brandEmail(setting, brand)
+	if err := s.deliverEmail(setting, email, registrationEmail(brand, code)); err != nil {
 		cleanupErr := s.repo.DeleteEmailVerificationCode(record.ID)
 		if cleanupErr != nil {
 			return errors.Join(
@@ -440,6 +444,32 @@ func validateRegistrationEmailDomain(email string, allowedDomains []string) erro
 func resolveEmailSender(value EmailSettingValue, brandName string) EmailSettingValue {
 	if value.FromName == "" || value.FromName == DefaultBrandName || value.FromName == legacyBrandName {
 		value.FromName = brandName
+	}
+	return value
+}
+
+// brandEmail 返回发件设置和正文用的品牌。平台保持原样：正文里的品牌名跟随（可能自定义的）发件人名。
+func brandEmail(value EmailSettingValue, brand EmailBrand) (EmailSettingValue, EmailBrand) {
+	value = applyEmailBrand(value, brand)
+	if brand.IsPlatform {
+		brand.Name = value.FromName
+	}
+	return value, brand
+}
+
+// applyEmailBrand 按租户品牌决定发件人。平台沿用后台配置的发件人名；
+// 代理商一律用自己的发件人名（未配置时用品牌名），发件地址未配置时退回平台 SMTP 地址。
+func applyEmailBrand(value EmailSettingValue, brand EmailBrand) EmailSettingValue {
+	if brand.IsPlatform {
+		value = resolveEmailSender(value, brand.Name)
+	} else {
+		value.FromName = strings.TrimSpace(brand.Name)
+	}
+	if name := strings.TrimSpace(brand.FromName); name != "" && !strings.ContainsAny(name, "\r\n") {
+		value.FromName = name
+	}
+	if address := NormalizeEmail(brand.FromEmail); address != "" && ValidateEmail(address) == nil {
+		value.FromEmail = address
 	}
 	return value
 }

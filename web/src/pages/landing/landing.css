@@ -865,3 +865,19 @@
         text-align: center;
     }
 }
+
+/* 代理商网站的中性版本：没有作品墙，主视觉居中。 */
+.landing.is-neutral .landing-hero-inner {
+    grid-template-columns: 1fr;
+}
+.landing.is-neutral .landing-hero-copy {
+    max-width: 760px;
+    margin-inline: auto;
+    text-align: center;
+}
+.landing.is-neutral .landing-hero-copy > p {
+    margin-inline: auto;
+}
+.landing.is-neutral .landing-hero-actions {
+    justify-content: center;
+}

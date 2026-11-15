@@ -193,8 +193,9 @@ func (s *Service) StartVerification(ctx context.Context, actor *model.User, req 
 		if err != nil {
 			return nil, err
 		}
-		setting = resolveEmailSender(setting, s.host.BrandName())
-		if err := s.deliverEmail(setting, email, identityVerificationEmail(setting.FromName, emailCode)); err != nil {
+		brand := s.host.EmailBrand(ctx, userTenantID(actor))
+		setting, brand = brandEmail(setting, brand)
+		if err := s.deliverEmail(setting, email, identityVerificationEmail(brand, emailCode)); err != nil {
 			return nil, kernel.NewAppError(503, "邮件发送失败，请稍后重试")
 		}
 	}

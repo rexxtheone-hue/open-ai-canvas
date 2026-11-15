@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/hmac"
 	"errors"
 	"log"
@@ -23,7 +24,7 @@ type PasswordResetRequest struct {
 	Password  string `json:"password"`
 }
 
-func (s *Service) SendPasswordResetEmailCode(rawEmail string) error {
+func (s *Service) SendPasswordResetEmailCode(ctx context.Context, rawEmail string) error {
 	email := NormalizeEmail(rawEmail)
 	if err := ValidateEmail(email); err != nil {
 		return err
@@ -76,8 +77,9 @@ func (s *Service) SendPasswordResetEmailCode(rawEmail string) error {
 	if err := s.repo.Create(&record); err != nil {
 		return err
 	}
-	setting = resolveEmailSender(setting, s.host.BrandName())
-	if err := s.deliverEmail(setting, email, passwordResetEmail(setting.FromName, code)); err != nil {
+	brand := s.host.EmailBrand(ctx, "")
+	setting, brand = brandEmail(setting, brand)
+	if err := s.deliverEmail(setting, email, passwordResetEmail(brand, code)); err != nil {
 		if cleanupErr := s.repo.DeleteEmailVerificationCode(record.ID); cleanupErr != nil {
 			log.Printf("password reset email cleanup failed: recipient=%s error=%v", maskedEmail(email), cleanupErr)
 		}

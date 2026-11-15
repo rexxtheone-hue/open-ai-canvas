@@ -22,6 +22,8 @@ type Host interface {
 	DecryptSecret(value string) (string, error)
 	SettingsEncryptionKey() ([]byte, error)
 	BrandName() string
+	// EmailBrand 返回邮件品牌与发件人：tenantID 非空时按该租户，否则按 ctx 里的请求租户。
+	EmailBrand(ctx context.Context, tenantID string) EmailBrand
 	EnsureSignupBonus(userID string) error
 	// SignupBonusMicrocredits 是新用户注册赠送的积分，注册页用来展示「注册即送」。
 	SignupBonusMicrocredits() int64
@@ -52,6 +54,9 @@ func (nopHost) AllowRequest(context.Context, string, int, time.Duration) (bool, 
 }
 func (nopHost) RequestRetryAfter(context.Context, string, time.Duration) time.Duration {
 	return 0
+}
+func (nopHost) EmailBrand(context.Context, string) EmailBrand {
+	return EmailBrand{Name: DefaultBrandName, IsPlatform: true}
 }
 
 type Service struct {
@@ -125,4 +130,8 @@ func (h brandHost) BrandName() string {
 		return DefaultBrandName
 	}
 	return h.name
+}
+
+func (h brandHost) EmailBrand(context.Context, string) EmailBrand {
+	return EmailBrand{Name: h.BrandName(), IsPlatform: true}
 }

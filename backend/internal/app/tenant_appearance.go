@@ -1,0 +1,113 @@
+package app
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"regexp"
+	"strings"
+	"time"
+
+	"yingce/backend/internal/model"
+)
+
+// PublicAppearanceFor 返回请求网址所属租户的公开外观。平台原样返回；代理商换成租户品牌，
+// 并去掉平台专属的内容（平台 Logo、更新公告、购买链接、备案号等），不让平台品牌出现在代理商网站上。
+func (s *Service) PublicAppearanceFor(ctx context.Context) (*PublicAppearanceSetting, error) {
+	setting, err := s.Appearance()
+	if err != nil {
+		return nil, err
+	}
+	tenant := TenantFromContext(ctx)
+	brand := s.tenantBrandFor(tenant)
+	if brand.IsPlatform {
+		return setting, nil
+	}
+	result := agencyPublicAppearance(*setting, tenant, brand, s.appearanceBrandName())
+	merged, err := s.AppearanceFor(ctx)
+	if err != nil || merged == nil {
+		return result, nil
+	}
+	// 代理商自己改过的栏位（和平台值不同）保留代理商的；没改过的才换成中性内容。
+	keep := func(dst *string, tenantValue, platformValue string) {
+		if tenantValue != platformValue && tenantValue != "" {
+			*dst = tenantValue
+		}
+	}
+	keep(&result.BrandName, merged.BrandName, setting.BrandName)
+	keep(&result.AuthHeroTitle, merged.AuthHeroTitle, setting.AuthHeroTitle)
+	keep(&result.AuthHeroDescription, merged.AuthHeroDescription, setting.AuthHeroDescription)
+	keep(&result.SEOTitle, merged.SEOTitle, setting.SEOTitle)
+	keep(&result.SEODescription, merged.SEODescription, setting.SEODescription)
+	keep(&result.SEOKeywords, merged.SEOKeywords, setting.SEOKeywords)
+	keep(&result.FooterCopyright, merged.FooterCopyright, setting.FooterCopyright)
+	keep(&result.RedeemPurchaseURL, merged.RedeemPurchaseURL, setting.RedeemPurchaseURL)
+	if merged.LogoURL != setting.LogoURL && merged.LogoConfigured {
+		result.LogoURL, result.LogoConfigured = merged.LogoURL, true
+	}
+	if merged.DarkLogoURL != setting.DarkLogoURL && merged.DarkLogoConfigured {
+		result.DarkLogoURL, result.DarkLogoConfigured = merged.DarkLogoURL, true
+	}
+	if merged.AuthVideoURL != setting.AuthVideoURL && merged.AuthVideoConfigured {
+		result.AuthVideoURL, result.AuthVideoConfigured = merged.AuthVideoURL, true
+	}
+	if merged.AuthVideoPosterURL != setting.AuthVideoPosterURL && merged.AuthVideoPosterConfigured {
+		result.AuthVideoPosterURL, result.AuthVideoPosterConfigured = merged.AuthVideoPosterURL, true
+	}
+	if merged.SkinID != setting.SkinID {
+		result.SkinID, result.ActiveSkin = merged.SkinID, merged.ActiveSkin
+	}
+	return result, nil
+}
+
+var appearanceSlugCleaner = regexp.MustCompile(`[^a-z0-9-]+`)
+
+func agencyPublicAppearance(value PublicAppearanceSetting, tenant model.Tenant, brand TenantBrand, platformBrand string) *PublicAppearanceSetting {
+	defaults := defaultAppearanceSetting()
+	name := brand.Name
+	value.IsPlatform = false
+	value.BrandName = name
+	value.BrandSlug = strings.Trim(appearanceSlugCleaner.ReplaceAllString(strings.ToLower(tenant.Slug), "-"), "-")
+	if value.BrandSlug == "" {
+		value.BrandSlug = "studio"
+	}
+	value.Updates = UpdateAnnouncement{Releases: []UpdateRelease{}}
+	value.LogoURL, value.DarkLogoURL = brand.LogoURL, brand.LogoURL
+	value.LogoConfigured, value.DarkLogoConfigured = brand.LogoURL != "", brand.LogoURL != ""
+	value.AuthHeroTitle = defaults.AuthHeroTitle
+	value.AuthHeroDescription = ""
+	if value.AuthVideoConfigured || value.AuthVideoPosterConfigured {
+		value.AuthVideoURL, value.AuthVideoPosterURL = defaultAppearanceVideoURL, defaultAppearancePosterURL
+		value.AuthVideoConfigured, value.AuthVideoPosterConfigured = false, false
+	}
+	value.SEOTitle = name
+	value.SEODescription = name + "，AI 创作工作台：视频、图片、配音与广告，一站完成。"
+	value.SEOKeywords = ""
+	value.FooterCopyright = fmt.Sprintf("© %d %s. All rights reserved.", time.Now().Year(), name)
+	value.ICPFilingEnabled, value.ICPFilingNumber = false, ""
+	value.RedeemPurchaseURL = ""
+	value.Canvas = scrubBrand(value.Canvas, platformBrand, name)
+	return &value
+}
+
+// scrubBrand 把结构里所有字符串中的平台品牌名（不分大小写）换成租户品牌名，兜住后台自定义文案里写死的品牌。
+func scrubBrand[T any](value T, platformBrand, tenantBrand string) T {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return value
+	}
+	patterns := []string{regexp.QuoteMeta(platformDefaultBrand)}
+	if platformBrand = strings.TrimSpace(platformBrand); platformBrand != "" && !strings.EqualFold(platformBrand, platformDefaultBrand) {
+		patterns = append(patterns, regexp.QuoteMeta(platformBrand))
+	}
+	replacement, _ := json.Marshal(tenantBrand)
+	inner := strings.Trim(string(replacement), `"`)
+	scrubbed := regexp.MustCompile(`(?i)`+strings.Join(patterns, "|")).ReplaceAllLiteralString(string(encoded), inner)
+	var result T
+	if err := json.Unmarshal([]byte(scrubbed), &result); err != nil {
+		return value
+	}
+	return result
+}
+
+const platformDefaultBrand = defaultAppearanceBrandName

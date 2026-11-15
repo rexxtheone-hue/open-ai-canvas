@@ -140,15 +140,25 @@ func (s *Service) ChangeProfilePassword(actor *model.User, cookie string, req Pr
 	return profileWriteError(s.repo.ChangeProfilePassword(user, session, hash, time.Now()))
 }
 
-func (s *Service) profileEmailSetting() (EmailSettingValue, error) {
+func (s *Service) profileEmailSetting(ctx context.Context, user *model.User) (EmailSettingValue, EmailBrand, error) {
+	brand := s.host.EmailBrand(ctx, userTenantID(user))
 	_, setting, err := s.flowEmailSetting()
 	if err != nil {
-		return setting, err
+		return setting, brand, err
 	}
 	if !setting.Enabled || setting.Host == "" || setting.Port < 1 || setting.FromEmail == "" {
-		return setting, kernel.Forbidden("邮件服务未启用，暂时无法更换邮箱")
+		return setting, brand, kernel.Forbidden("邮件服务未启用，暂时无法更换邮箱")
 	}
-	return resolveEmailSender(setting, s.host.BrandName()), nil
+	setting, brand = brandEmail(setting, brand)
+	return setting, brand, nil
+}
+
+// userTenantID 返回用户所属租户；旧数据没有租户时为空，由 Host 按请求租户处理。
+func userTenantID(user *model.User) string {
+	if user == nil {
+		return ""
+	}
+	return user.TenantID
 }
 
 func (s *Service) SendProfileEmailCode(ctx context.Context, actor *model.User, cookie string, req ProfileEmailCodeRequest) (*VerificationTicket, error) {
@@ -159,7 +169,7 @@ func (s *Service) SendProfileEmailCode(ctx context.Context, actor *model.User, c
 	if err := authorizeProfileChange(user, session, req.CurrentPassword); err != nil {
 		return nil, err
 	}
-	setting, err := s.profileEmailSetting()
+	setting, brand, err := s.profileEmailSetting(ctx, user)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +205,7 @@ func (s *Service) SendProfileEmailCode(ctx context.Context, actor *model.User, c
 		}
 		return nil, err
 	}
-	if err := s.deliverEmail(setting, email, emailChangeCodeEmail(setting.FromName, code)); err != nil {
+	if err := s.deliverEmail(setting, email, emailChangeCodeEmail(brand, code)); err != nil {
 		return nil, kernel.NewAppError(503, "邮件发送失败，请稍后重试")
 	}
 	if err := s.repo.SetAuthVerificationReady(v.ID); err != nil {
@@ -212,7 +222,7 @@ func (s *Service) ChangeProfileEmail(actor *model.User, cookie string, req Profi
 	if err := authorizeProfileChange(user, session, req.CurrentPassword); err != nil {
 		return nil, err
 	}
-	setting, err := s.profileEmailSetting()
+	setting, brand, err := s.profileEmailSetting(context.Background(), user)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +256,7 @@ func (s *Service) ChangeProfileEmail(actor *model.User, cookie string, req Profi
 	result := &ProfileEmailChangeResult{Changed: true, NotificationStatus: "not_needed"}
 	if user.Email != "" {
 		result.NotificationStatus = "sent"
-		if err := s.deliverEmail(setting, user.Email, emailChangedEmail(setting.FromName)); err != nil {
+		if err := s.deliverEmail(setting, user.Email, emailChangedEmail(brand)); err != nil {
 			result.NotificationStatus = "failed"
 		}
 	}

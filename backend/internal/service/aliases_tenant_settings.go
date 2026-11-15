@@ -7,4 +7,3 @@ var (
 	RequireTenantAdminOrAdmin = app.RequireTenantAdminOrAdmin
 )
 
-type TenantBranding = app.TenantBranding

@@ -40,8 +40,12 @@ export const DEFAULT_PUBLIC_APPEARANCE: PublicAppearance = {
     authVideoConfigured: false,
     authVideoPosterConfigured: false,
     configured: false,
+    isPlatform: true,
     revision: "builtin",
 };
+
+/** 代理商网站没有品牌名时的中性兜底，不能退回平台品牌。 */
+const NEUTRAL_BRAND_NAME = "Studio";
 
 type AppearanceStore = {
     appearance: PublicAppearance;
@@ -56,14 +60,15 @@ export const useAppearanceStore = create<AppearanceStore>((set) => ({
 }));
 
 export function normalizePublicAppearance(value?: Partial<PublicAppearance> | null): PublicAppearance {
+    const isPlatform = value?.isPlatform !== false;
     const brandName = translateKnownText(String(value?.brandName || "").trim());
     const brandSlug = normalizeBrandSlug(value?.brandSlug);
     const authHeroTitle = normalizeAppearanceCopy(value?.authHeroTitle, DEFAULT_PUBLIC_APPEARANCE.authHeroTitle);
     const authHeroDescription = normalizeAppearanceCopy(value?.authHeroDescription, DEFAULT_PUBLIC_APPEARANCE.authHeroDescription, true);
     const customVideo = Boolean(value?.authVideoConfigured);
-    const logoUrl = safeAppearanceURL(value?.logoUrl, DEFAULT_PUBLIC_APPEARANCE.logoUrl);
+    const logoUrl = safeAppearanceURL(value?.logoUrl, isPlatform ? DEFAULT_PUBLIC_APPEARANCE.logoUrl : "");
     const darkLogoUrl = safeAppearanceURL(value?.darkLogoUrl, logoUrl);
-    const resolvedBrandName = brandName || DEFAULT_PUBLIC_APPEARANCE.brandName;
+    const resolvedBrandName = brandName || (isPlatform ? DEFAULT_PUBLIC_APPEARANCE.brandName : NEUTRAL_BRAND_NAME);
     // 后端默认文案里嵌着原品牌名，品牌名被翻译时同步替换。
     const rawBrandName = String(value?.brandName || "").trim();
     const withBrand = (text: string) => (rawBrandName && brandName !== rawBrandName ? translateServerText(text).replaceAll(rawBrandName, brandName) : text);
@@ -78,7 +83,7 @@ export function normalizePublicAppearance(value?: Partial<PublicAppearance> | nu
         ...value,
         schemaVersion: 10,
         updates: normalizeUpdateAnnouncement(value?.updates),
-        canvas: translateCanvasCopy({ ...DEFAULT_CANVAS_APPEARANCE, ...value?.canvas }),
+        canvas: brandCanvasCopy(translateCanvasCopy({ ...DEFAULT_CANVAS_APPEARANCE, ...value?.canvas }), isPlatform, resolvedBrandName),
         brandName: resolvedBrandName,
         brandSlug,
         authHeroTitle,
@@ -103,8 +108,15 @@ export function normalizePublicAppearance(value?: Partial<PublicAppearance> | nu
         authVideoConfigured: customVideo,
         authVideoPosterConfigured: Boolean(value?.authVideoPosterConfigured),
         configured: Boolean(value?.configured),
+        isPlatform,
         revision: String(value?.revision || DEFAULT_PUBLIC_APPEARANCE.revision),
     };
+}
+
+// 代理商网站的画布助手默认名是平台品牌，换成当前品牌。
+function brandCanvasCopy(canvas: CanvasAppearance, isPlatform: boolean, brandName: string): CanvasAppearance {
+    if (isPlatform) return canvas;
+    return Object.fromEntries(Object.entries(canvas).map(([key, value]) => [key, typeof value === "string" ? value.replace(/omnimuse/gi, brandName) : value])) as CanvasAppearance;
 }
 
 function translateCanvasCopy(canvas: CanvasAppearance): CanvasAppearance {
@@ -145,17 +157,18 @@ export function applyAppearanceMetadata(appearance: PublicAppearance, targetDocu
         favicon.rel = "icon";
         targetDocument.head.appendChild(favicon);
     }
-    // 没有上传自定义 Logo 时用内置的圆角 App 图标，比透明标志在标签页里更清楚。
-    favicon.href = appearance.logoConfigured ? appearanceLogoURL(appearance, mode) : BUILTIN_FAVICON_URL;
+    // 没有上传自定义 Logo 时用内置的圆角 App 图标，比透明标志在标签页里更清楚；代理商网站不用平台图标。
+    const builtinAllowed = appearance.isPlatform !== false;
+    favicon.href = appearance.logoConfigured ? appearanceLogoURL(appearance, mode) : builtinAllowed ? BUILTIN_FAVICON_URL : "data:,";
     let touchIcon = targetDocument.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]');
     if (!touchIcon) {
         touchIcon = targetDocument.createElement("link");
         touchIcon.rel = "apple-touch-icon";
         targetDocument.head.appendChild(touchIcon);
     }
-    touchIcon.href = appearance.logoConfigured ? appearanceLogoURL(appearance, "light") : BUILTIN_TOUCH_ICON_URL;
+    touchIcon.href = appearance.logoConfigured ? appearanceLogoURL(appearance, "light") : builtinAllowed ? BUILTIN_TOUCH_ICON_URL : "data:,";
     const origin = targetDocument.defaultView?.location?.origin || "";
-    setMeta(targetDocument, "property", "og:image", appearance.logoConfigured ? "" : `${origin}${BUILTIN_SOCIAL_IMAGE_URL}`);
+    setMeta(targetDocument, "property", "og:image", appearance.logoConfigured || !builtinAllowed ? "" : `${origin}${BUILTIN_SOCIAL_IMAGE_URL}`);
 
     const location = targetDocument.defaultView?.location;
     if (location && (location.protocol === "http:" || location.protocol === "https:")) {
@@ -187,8 +200,14 @@ export function appearanceLogoURL(appearance: PublicAppearance, theme: "light" |
     return theme === "dark" ? appearance.darkLogoUrl || appearance.logoUrl : appearance.logoUrl || appearance.darkLogoUrl;
 }
 
+/** 代理商网站上把写死在提示词、文案里的平台品牌名换成当前品牌；平台网站原样返回。 */
+export function withSiteBrand(text: string, appearance: PublicAppearance = useAppearanceStore.getState().appearance) {
+    if (appearance.isPlatform !== false) return text;
+    return text.replace(/omnimuse/gi, appearance.brandName);
+}
+
 export function brandStudioLabel(appearance: PublicAppearance) {
-    if (appearance.brandName === DEFAULT_PUBLIC_APPEARANCE.brandName && appearance.brandSlug === DEFAULT_PUBLIC_APPEARANCE.brandSlug) return "OMNIMUSE · AI CREATIVE STUDIO";
+    if (appearance.isPlatform !== false && appearance.brandName === DEFAULT_PUBLIC_APPEARANCE.brandName && appearance.brandSlug === DEFAULT_PUBLIC_APPEARANCE.brandSlug) return "OMNIMUSE · AI CREATIVE STUDIO";
     return appearance.brandSlug.replace(/-+/g, " ").toLocaleUpperCase();
 }
 

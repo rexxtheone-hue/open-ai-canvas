@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -43,10 +44,10 @@ func TestPasswordResetChangesPasswordConsumesCodeAndRevokesSessions(t *testing.T
 		deliveredCode = codeFromEmailBody(body)
 		return nil
 	})
-	if err := svc.SendPasswordResetEmailCode(" Creator@Example.com "); err != nil {
+	if err := svc.SendPasswordResetEmailCode(context.Background(), " Creator@Example.com "); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.SendPasswordResetEmailCode(user.Email); err != nil {
+	if err := svc.SendPasswordResetEmailCode(context.Background(), user.Email); err != nil {
 		t.Fatalf("repeat send should keep the public response generic: %v", err)
 	}
 	if len(deliveredCode) != 6 {
@@ -110,7 +111,7 @@ func TestPasswordResetSendDoesNotRevealAccountEligibility(t *testing.T) {
 		return nil
 	})
 	for _, email := range []string{"missing@example.com", "oauth@example.com", "disabled@example.com"} {
-		if err := svc.SendPasswordResetEmailCode(email); err != nil {
+		if err := svc.SendPasswordResetEmailCode(context.Background(), email); err != nil {
 			t.Fatalf("SendPasswordResetEmailCode(%q) error = %v", email, err)
 		}
 	}
@@ -177,7 +178,7 @@ func TestPasswordResetDeliveryFailureRemovesUnusableCode(t *testing.T) {
 		t.Fatal(err)
 	}
 	svc.SetMailSender(func(_ EmailSettingValue, _ string, _ string, _ string) error { return errors.New("smtp unavailable") })
-	if err := svc.SendPasswordResetEmailCode(user.Email); err != nil {
+	if err := svc.SendPasswordResetEmailCode(context.Background(), user.Email); err != nil {
 		t.Fatalf("delivery failure should keep the public response generic: %v", err)
 	}
 	var count int64
@@ -246,10 +247,10 @@ func assertRegistrationAndPasswordResetEmailBrand(t *testing.T, fromName, wantNa
 		deliveries = append(deliveries, delivery{fromName: setting.FromName, recipient: recipient, subject: subject, body: body})
 		return nil
 	})
-	if err := svc.SendRegistrationEmailCode("new-member@example.com"); err != nil {
+	if err := svc.SendRegistrationEmailCode(context.Background(), "new-member@example.com"); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.SendPasswordResetEmailCode(resetUser.Email); err != nil {
+	if err := svc.SendPasswordResetEmailCode(context.Background(), resetUser.Email); err != nil {
 		t.Fatal(err)
 	}
 	if len(deliveries) != 2 {
