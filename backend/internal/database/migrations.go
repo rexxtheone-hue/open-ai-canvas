@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const CurrentSchemaVersion int64 = 76
+const CurrentSchemaVersion int64 = 77
 
 const baselineSchemaChecksum = "sha256:open-ai-canvas-schema-v1-20260830"
 const schemaMigrationAppliedAtIndexChecksum = "sha256:schema-migrations-applied-at-index-v2-20260830"
@@ -265,6 +265,36 @@ var schemaMigrations = []migration{
 		}
 		return tx.Migrator().AddColumn(&model.CreditLot{}, "ExpiryReminderStage")
 	}},
+	{version: 77, name: "tenants_foundation", checksum: "sha256:tenants-foundation-v77-20261115", apply: migrateTenantsFoundation},
+}
+
+// migrateTenantsFoundation 建立租户与网址表，并把现有用户全部归到平台租户；只新增、不删除，旧版程序照常可用。
+func migrateTenantsFoundation(tx *gorm.DB) error {
+	if err := tx.AutoMigrate(&model.Tenant{}, &model.TenantDomain{}); err != nil {
+		return fmt.Errorf("创建租户表：%w", err)
+	}
+	if !tx.Migrator().HasColumn(&model.User{}, "TenantID") {
+		if err := tx.Migrator().AddColumn(&model.User{}, "TenantID"); err != nil {
+			return fmt.Errorf("用户表增加租户栏位：%w", err)
+		}
+	}
+	if err := tx.Exec("UPDATE users SET tenant_id = ? WHERE tenant_id IS NULL OR tenant_id = ''", model.PlatformTenantID).Error; err != nil {
+		return fmt.Errorf("现有用户归入平台租户：%w", err)
+	}
+	if !tx.Migrator().HasIndex(&model.User{}, "TenantID") {
+		if err := tx.Migrator().CreateIndex(&model.User{}, "TenantID"); err != nil {
+			return fmt.Errorf("用户租户索引：%w", err)
+		}
+	}
+	var count int64
+	if err := tx.Model(&model.Tenant{}).Where("id = ?", model.PlatformTenantID).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	now := time.Now()
+	return tx.Create(&model.Tenant{ID: model.PlatformTenantID, Slug: model.PlatformTenantID, Name: "OmniMuse", Status: model.TenantStatusActive, IsPlatform: true, CreatedAt: now, UpdatedAt: now}).Error
 }
 
 func migratePrefixedIDSequenceReconcile(tx *gorm.DB) error {

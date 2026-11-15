@@ -118,6 +118,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	r.Use(corsMiddleware)
+	r.Use(handler.TenantMiddleware(svc))
 	handler.ConfigureRuntime(svc)
 	api := r.Group("/api")
 	status := newSystemStatus(db, svc)

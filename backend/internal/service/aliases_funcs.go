@@ -3,6 +3,9 @@ package service
 import "yingce/backend/internal/app"
 
 var (
+	WithTenant                                 = app.WithTenant
+	TenantFromContext                          = app.TenantFromContext
+	UserBelongsToTenant                        = app.UserBelongsToTenant
 	ErrPlaybackNotReady                        = app.ErrPlaybackNotReady
 	ErrNotBuiltinSkill                         = app.ErrNotBuiltinSkill
 	AllowedPrivateUpstreamHost                 = app.AllowedPrivateUpstreamHost

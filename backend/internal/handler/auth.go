@@ -643,6 +643,10 @@ func currentUser(c *gin.Context, svc *service.Service) (*model.User, error) {
 	if err != nil {
 		return nil, err
 	}
+	// 登录状态只在注册它的那个租户网址有效，避免把 A 家的登录带到 B 家。
+	if !service.UserBelongsToTenant(user, requestTenant(c)) {
+		return nil, service.Unauthorized("登录状态已失效")
+	}
 	return service.ElevateStaffForRoute(user, c.Request.Method, c.FullPath()), nil
 }
 

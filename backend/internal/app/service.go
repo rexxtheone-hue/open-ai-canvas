@@ -28,6 +28,7 @@ import (
 type Service struct {
 	repo                     *repository.Repository
 	dataDir                  string
+	tenantCache              sync.Map // host -> tenantCacheEntry
 	cancelMu                 sync.Mutex
 	registrationMu           sync.Mutex
 	emailCodeMu              sync.Mutex

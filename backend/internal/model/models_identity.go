@@ -4,6 +4,7 @@ import "time"
 
 type User struct {
 	ID              string     `json:"id" gorm:"primaryKey;size:36"`
+	TenantID        string     `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	Username        string     `json:"username" gorm:"uniqueIndex;size:80"`
 	Email           string     `json:"email,omitempty" gorm:"size:160"`
 	Phone           string     `json:"phone,omitempty" gorm:"size:24"`
