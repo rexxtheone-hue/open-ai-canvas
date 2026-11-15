@@ -17,6 +17,8 @@ export function BrandLogo({ className, fallback, alt = "", theme = "auto" }: Bra
     const currentTheme = useActiveTheme();
     const source = appearance.logoConfigured ? appearanceLogoURL(appearance, theme === "auto" ? currentTheme : theme) : BUILTIN_LOGO_URL;
     const [failedSource, setFailedSource] = useState<string | null>(null);
+    // 代理商网站没有上传 Logo 时不能露出平台内置标志。
+    if (!appearance.logoConfigured && appearance.isPlatform === false) return <>{fallback}</>;
     if (!appearance.logoConfigured && failedSource === source) return <>{fallback}</>;
     // A configured custom logo must never fall through to the built-in brand
     // when its file becomes unavailable. Keep its footprint neutral instead.

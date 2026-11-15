@@ -10,10 +10,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func webAppManifest(brandName, description string, logoConfigured bool, logoURL string) gin.H {
+func webAppManifest(brandName, description string, logoConfigured bool, logoURL string, isPlatform bool) gin.H {
 	icons := []gin.H{
 		{"src": "/brand/omnimuse-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
 		{"src": "/brand/omnimuse-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+	}
+	// 代理商网站不能用平台内置图标；没有自己的 Logo 时不声明图标，由浏览器用网页截图。
+	if !isPlatform {
+		icons = []gin.H{}
 	}
 	// 后台换了 Logo 就只用新 Logo，不混入内置品牌图标；尺寸未知时声明 any。
 	if logoConfigured && logoURL != "" {
@@ -50,7 +54,7 @@ func RegisterAppearanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 	r.GET("/public/appearance/updates/:id", serveUpdateMedia(false))
 	r.GET("/admin/settings/appearance/updates/:id", serveUpdateMedia(true))
 	r.GET("/public/appearance", func(c *gin.Context) {
-		setting, err := svc.Appearance()
+		setting, err := svc.PublicAppearanceFor(c.Request.Context())
 		if err != nil {
 			failService(c, err)
 			return
@@ -61,14 +65,14 @@ func RegisterAppearanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 
 	// PWA 清单跟随外观设置：首屏 HTML 保持品牌中性，安装到手机桌面时才取品牌名和图标。
 	r.GET("/public/manifest.webmanifest", func(c *gin.Context) {
-		setting, err := svc.Appearance()
+		setting, err := svc.PublicAppearanceFor(c.Request.Context())
 		if err != nil {
 			failService(c, err)
 			return
 		}
 		c.Header("Cache-Control", "no-cache")
 		c.Header("Content-Type", "application/manifest+json; charset=utf-8")
-		c.JSON(http.StatusOK, webAppManifest(setting.BrandName, setting.SEODescription, setting.LogoConfigured, setting.LogoURL))
+		c.JSON(http.StatusOK, webAppManifest(setting.BrandName, setting.SEODescription, setting.LogoConfigured, setting.LogoURL, setting.IsPlatform))
 	})
 
 	r.GET("/public/appearance/assets/:slot", func(c *gin.Context) {

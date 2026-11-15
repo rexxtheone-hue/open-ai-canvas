@@ -2,6 +2,9 @@ package model
 
 import "time"
 
+// UserRoleTenantAdmin 是代理商自己的管理员：只能管理所属租户的内容，不能进入平台后台。
+const UserRoleTenantAdmin UserRole = "tenant_admin"
+
 type User struct {
 	ID              string     `json:"id" gorm:"primaryKey;size:36"`
 	TenantID        string     `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`

@@ -2,8 +2,11 @@ package auth
 
 import (
 	"encoding/base64"
+	"fmt"
 	"html"
 	"mime"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,12 +43,77 @@ type EmailContent struct {
 
 const emailCodeTTLText = "This code expires in 10 minutes."
 
-func registrationEmail(brand, code string) EmailMessage {
+// EmailBrand 是邮件的品牌与发件人，由 Host.EmailBrand 按租户提供（代理商邮件里不出现平台品牌）。
+type EmailBrand struct {
+	Name string
+	// AccentColor 是按钮、验证码框的主色（#rrggbb）；为空时用平台原有配色。
+	AccentColor string
+	// SiteURL 是页脚链接的站点地址（租户主网址）；为空时不显示链接。
+	SiteURL string
+	// FromName / FromEmail 是发件人；FromEmail 为空时用平台 SMTP 发件地址。
+	FromName   string
+	FromEmail  string
+	IsPlatform bool
+}
+
+type emailPalette struct {
+	dot, button, codeBackground, codeBorder, codeLabel string
+}
+
+// 平台原有配色，保持平台邮件外观不变。
+var defaultEmailPalette = emailPalette{dot: "#d65cff", button: "#c13cff", codeBackground: "#f7effc", codeBorder: "#ecd2fb", codeLabel: "#8a4bab"}
+
+func (b EmailBrand) palette() emailPalette {
+	accent, ok := parseHexColor(b.AccentColor)
+	if !ok {
+		return defaultEmailPalette
+	}
+	hex := func(c [3]float64) string {
+		return fmt.Sprintf("#%02x%02x%02x", int(c[0]+0.5), int(c[1]+0.5), int(c[2]+0.5))
+	}
+	mix := func(weight float64, with float64) [3]float64 {
+		return [3]float64{accent[0]*(1-weight) + with*weight, accent[1]*(1-weight) + with*weight, accent[2]*(1-weight) + with*weight}
+	}
+	return emailPalette{dot: hex(accent), button: hex(accent), codeBackground: hex(mix(0.92, 255)), codeBorder: hex(mix(0.78, 255)), codeLabel: hex(mix(0.3, 0))}
+}
+
+func parseHexColor(value string) ([3]float64, bool) {
+	value = strings.TrimPrefix(strings.TrimSpace(value), "#")
+	if len(value) == 3 {
+		value = string([]byte{value[0], value[0], value[1], value[1], value[2], value[2]})
+	}
+	if len(value) != 6 {
+		return [3]float64{}, false
+	}
+	parsed, err := strconv.ParseUint(value, 16, 32)
+	if err != nil {
+		return [3]float64{}, false
+	}
+	return [3]float64{float64(parsed >> 16 & 0xff), float64(parsed >> 8 & 0xff), float64(parsed & 0xff)}, true
+}
+
+func safeEmailSiteURL(raw string) string {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.Host == "" {
+		return ""
+	}
+	return strings.TrimRight(parsed.String(), "/")
+}
+
+func emailSiteLabel(site string) string {
+	if parsed, err := url.Parse(site); err == nil && parsed.Host != "" {
+		return parsed.Host
+	}
+	return site
+}
+
+func registrationEmail(brand EmailBrand, code string) EmailMessage {
+	name := brand.Name
 	return renderEmail(brand, EmailContent{
-		Subject:   code + " is your " + brand + " verification code",
-		Preheader: "Use this code to finish creating your " + brand + " account.",
+		Subject:   code + " is your " + name + " verification code",
+		Preheader: "Use this code to finish creating your " + name + " account.",
 		Heading:   "Verify your email",
-		Intro:     []string{"Welcome to " + brand + "! Enter the code below to confirm your email address and finish creating your account."},
+		Intro:     []string{"Welcome to " + name + "! Enter the code below to confirm your email address and finish creating your account."},
 		Code:      code,
 		CodeNote:  emailCodeTTLText,
 		Body: []string{
@@ -55,12 +123,13 @@ func registrationEmail(brand, code string) EmailMessage {
 	})
 }
 
-func passwordResetEmail(brand, code string) EmailMessage {
+func passwordResetEmail(brand EmailBrand, code string) EmailMessage {
+	name := brand.Name
 	return renderEmail(brand, EmailContent{
-		Subject:   code + " is your " + brand + " password reset code",
-		Preheader: "Use this code to reset your " + brand + " password.",
+		Subject:   code + " is your " + name + " password reset code",
+		Preheader: "Use this code to reset your " + name + " password.",
 		Heading:   "Reset your password",
-		Intro:     []string{"We received a request to reset the password for your " + brand + " account. Enter the code below to choose a new password."},
+		Intro:     []string{"We received a request to reset the password for your " + name + " account. Enter the code below to choose a new password."},
 		Code:      code,
 		CodeNote:  emailCodeTTLText,
 		Body: []string{
@@ -70,24 +139,26 @@ func passwordResetEmail(brand, code string) EmailMessage {
 	})
 }
 
-func identityVerificationEmail(brand, code string) EmailMessage {
+func identityVerificationEmail(brand EmailBrand, code string) EmailMessage {
+	name := brand.Name
 	return renderEmail(brand, EmailContent{
-		Subject:   code + " is your " + brand + " verification code",
+		Subject:   code + " is your " + name + " verification code",
 		Preheader: "Use this code to confirm it's you.",
 		Heading:   "Confirm it's you",
-		Intro:     []string{"Enter the code below in " + brand + " to confirm it's you and continue."},
+		Intro:     []string{"Enter the code below in " + name + " to confirm it's you and continue."},
 		Code:      code,
 		CodeNote:  emailCodeTTLText + " It can only be used once.",
 		Notice:    "Didn't request this code? Someone may have entered your email address by mistake, and you can ignore this email. If you didn't try to sign in, we recommend changing your password. Never share this code with anyone. Our team will never ask you for it.",
 	})
 }
 
-func emailChangeCodeEmail(brand, code string) EmailMessage {
+func emailChangeCodeEmail(brand EmailBrand, code string) EmailMessage {
+	name := brand.Name
 	return renderEmail(brand, EmailContent{
 		Subject:   code + " is your code to confirm your new email",
-		Preheader: "Confirm this address for your " + brand + " account.",
+		Preheader: "Confirm this address for your " + name + " account.",
 		Heading:   "Confirm your new email address",
-		Intro:     []string{"You asked to use this email address for your " + brand + " account. Enter the code below to confirm the change."},
+		Intro:     []string{"You asked to use this email address for your " + name + " account. Enter the code below to confirm the change."},
 		Code:      code,
 		CodeNote:  emailCodeTTLText,
 		Body: []string{
@@ -97,13 +168,14 @@ func emailChangeCodeEmail(brand, code string) EmailMessage {
 	})
 }
 
-func emailChangedEmail(brand string) EmailMessage {
+func emailChangedEmail(brand EmailBrand) EmailMessage {
+	name := brand.Name
 	return renderEmail(brand, EmailContent{
-		Subject:   "The email address on your " + brand + " account was changed",
+		Subject:   "The email address on your " + name + " account was changed",
 		Preheader: "Your account email was changed and you've been signed out everywhere.",
 		Heading:   "Your email address was changed",
 		Intro: []string{
-			"The email address on your " + brand + " account was changed successfully. From now on, account notices and sign-in codes will go to your new address.",
+			"The email address on your " + name + " account was changed successfully. From now on, account notices and sign-in codes will go to your new address.",
 			"For your security, you've been signed out on all devices. Sign in again with your new email address to continue.",
 		},
 		Notice: "Didn't make this change? Your account may have been accessed by someone else. Reset your password right away and contact us so we can help secure your account.",
@@ -146,7 +218,9 @@ func wrapBase64(value string) string {
 }
 
 // renderEmail 生成纯文本和 HTML 两个版本。HTML 只用内联样式和表格布局，兼容 Gmail、Outlook 和手机邮箱。
-func renderEmail(brand string, content EmailContent) EmailMessage {
+func renderEmail(brand EmailBrand, content EmailContent) EmailMessage {
+	palette := brand.palette()
+	name := brand.Name
 	var text strings.Builder
 	text.WriteString(content.Heading + "\n\n")
 	for _, line := range content.Intro {
@@ -174,7 +248,7 @@ func renderEmail(brand string, content EmailContent) EmailMessage {
 	if content.Notice != "" {
 		text.WriteString(content.Notice + "\n\n")
 	}
-	text.WriteString("- The " + brand + " team\n")
+	text.WriteString("- The " + name + " team\n")
 
 	esc := html.EscapeString
 	var b strings.Builder
@@ -185,15 +259,15 @@ func renderEmail(brand string, content EmailContent) EmailMessage {
 	}
 	b.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f6;"><tr><td align="center" style="padding:32px 16px;">`)
 	b.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">`)
-	b.WriteString(`<tr><td style="background:#0b0b0d;border-radius:16px 16px 0 0;padding:22px 32px;"><span style="font-size:20px;font-weight:700;letter-spacing:0.02em;color:#ffffff;">` + esc(brand) + `</span><span style="display:inline-block;width:8px;height:8px;margin-left:6px;border-radius:50%;background:#d65cff;"></span></td></tr>`)
+	b.WriteString(`<tr><td style="background:#0b0b0d;border-radius:16px 16px 0 0;padding:22px 32px;"><span style="font-size:20px;font-weight:700;letter-spacing:0.02em;color:#ffffff;">` + esc(name) + `</span><span style="display:inline-block;width:8px;height:8px;margin-left:6px;border-radius:50%;background:` + palette.dot + `;"></span></td></tr>`)
 	b.WriteString(`<tr><td style="background:#ffffff;padding:36px 32px 28px;border-radius:0 0 16px 16px;">`)
 	b.WriteString(`<h1 style="margin:0 0 16px;font-size:24px;line-height:1.3;font-weight:700;color:#111114;">` + esc(content.Heading) + `</h1>`)
 	for _, line := range content.Intro {
 		b.WriteString(`<p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#3a3a42;">` + esc(line) + `</p>`)
 	}
 	if content.Code != "" {
-		b.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;"><tr><td align="center" style="background:#f7effc;border:1px solid #ecd2fb;border-radius:12px;padding:22px 16px;">`)
-		b.WriteString(`<div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#8a4bab;margin-bottom:8px;">Your verification code</div>`)
+		b.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;"><tr><td align="center" style="background:` + palette.codeBackground + `;border:1px solid ` + palette.codeBorder + `;border-radius:12px;padding:22px 16px;">`)
+		b.WriteString(`<div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:` + palette.codeLabel + `;margin-bottom:8px;">Your verification code</div>`)
 		b.WriteString(`<div style="font-family:'SFMono-Regular',Menlo,Consolas,monospace;font-size:36px;font-weight:700;letter-spacing:0.28em;color:#111114;">` + esc(content.Code) + `</div>`)
 		if content.CodeNote != "" {
 			b.WriteString(`<div style="font-size:13px;color:#6b6b75;margin-top:10px;">` + esc(content.CodeNote) + `</div>`)
@@ -212,7 +286,7 @@ func renderEmail(brand string, content EmailContent) EmailMessage {
 		b.WriteString(`</table>`)
 	}
 	if content.ButtonText != "" && content.ButtonURL != "" {
-		b.WriteString(`<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 24px;"><tr><td style="border-radius:999px;background:#c13cff;"><a href="` + esc(content.ButtonURL) + `" style="display:inline-block;padding:13px 28px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:999px;">` + esc(content.ButtonText) + `</a></td></tr></table>`)
+		b.WriteString(`<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 24px;"><tr><td style="border-radius:999px;background:` + palette.button + `;"><a href="` + esc(content.ButtonURL) + `" style="display:inline-block;padding:13px 28px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:999px;">` + esc(content.ButtonText) + `</a></td></tr></table>`)
 	}
 	for _, line := range content.Body {
 		b.WriteString(`<p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#3a3a42;">` + esc(line) + `</p>`)
@@ -220,9 +294,13 @@ func renderEmail(brand string, content EmailContent) EmailMessage {
 	if content.Notice != "" {
 		b.WriteString(`<p style="margin:8px 0 0;padding:14px 16px;background:#f7f7f9;border-radius:10px;font-size:13px;line-height:1.6;color:#6b6b75;">` + esc(content.Notice) + `</p>`)
 	}
-	b.WriteString(`<p style="margin:24px 0 0;font-size:15px;color:#3a3a42;">The ` + esc(brand) + ` team</p>`)
+	b.WriteString(`<p style="margin:24px 0 0;font-size:15px;color:#3a3a42;">The ` + esc(name) + ` team</p>`)
 	b.WriteString(`</td></tr>`)
-	b.WriteString(`<tr><td align="center" style="padding:20px 24px;font-size:12px;line-height:1.6;color:#8b8b95;">You're receiving this email because of activity on your ` + esc(brand) + ` account. This is an automated message, so please don't reply.</td></tr>`)
+	b.WriteString(`<tr><td align="center" style="padding:20px 24px;font-size:12px;line-height:1.6;color:#8b8b95;">You're receiving this email because of activity on your ` + esc(name) + ` account. This is an automated message, so please don't reply.`)
+	if site := safeEmailSiteURL(brand.SiteURL); site != "" {
+		b.WriteString(`<br><a href="` + esc(site) + `" style="color:#8b8b95;text-decoration:underline;">` + esc(emailSiteLabel(site)) + `</a>`)
+	}
+	b.WriteString(`</td></tr>`)
 	b.WriteString(`</table></td></tr></table></body></html>`)
 	return EmailMessage{Subject: content.Subject, Text: text.String(), HTML: b.String()}
 }

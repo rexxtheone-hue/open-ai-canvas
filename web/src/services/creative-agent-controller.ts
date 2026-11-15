@@ -18,6 +18,7 @@ import { skillRuntime } from "./skill-runtime";
 import { ensureCanvasNodeAsset } from "./project-asset-sync";
 import { withRemoteUserDataSyncExclusive } from "./user-data-sync";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
+import { withSiteBrand } from "@/stores/use-appearance-store";
 import { creativeVideoSpecificationError } from "@/lib/creation/creative-agent-state";
 import { updateCreativePlan } from "@/lib/creation/creative-plan";
 import { generationErrorMessage } from "@/lib/generation-error";
@@ -204,7 +205,7 @@ export class CreativeAgentController {
         const canvas = this.options.canvas();
         const imageReferences = this.state.references.filter((reference) => reference.kind === "image" && reference.storageKey);
         const protocol: ResponseInputMessage[] = [
-            { role: "system", content: `${CREATIVE_AGENT_SYSTEM_PROMPT}\n${creativeScenarioPrompt(this.state.scene)}\n用户系统提示：${config.systemPrompt || ""}` },
+            { role: "system", content: `${withSiteBrand(CREATIVE_AGENT_SYSTEM_PROMPT)}\n${creativeScenarioPrompt(this.state.scene)}\n用户系统提示：${config.systemPrompt || ""}` },
             ...this.state.messages.slice(-20).map((message) => ({ role: message.role, content: message.text })),
             { role: "user", content: [{ type: "text", text: JSON.stringify({ brief: this.state.brief, proposal: this.state.proposal, availableModels: catalogue, references: this.state.references, canvas: canvas ? buildCanvasContext(canvas.read()) : { available: false, instruction: "首页不能操作画布" }, currentRequest: prepared.prompt }) }, ...imageReferences.map((reference) => ({ type: "image_url" as const, image_url: { url: reference.storageKey! } }))] },
         ];

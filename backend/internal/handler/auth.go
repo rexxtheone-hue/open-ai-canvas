@@ -67,7 +67,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		if !enforceRateLimit(c, "registration-email-account:"+passwordResetRateLimitSubject(req.Email), 10, time.Hour) {
 			return
 		}
-		if err := svc.SendRegistrationEmailCode(req.Email); err != nil {
+		if err := svc.SendRegistrationEmailCode(c.Request.Context(), req.Email); err != nil {
 			failService(c, err)
 			return
 		}
@@ -89,7 +89,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		if !enforceRateLimit(c, "password-reset-code-account:"+passwordResetRateLimitSubject(req.Email), policy.Request.EmailCodePerHour, time.Hour) {
 			return
 		}
-		if err := svc.SendPasswordResetEmailCode(req.Email); err != nil {
+		if err := svc.SendPasswordResetEmailCode(c.Request.Context(), req.Email); err != nil {
 			failService(c, err)
 			return
 		}

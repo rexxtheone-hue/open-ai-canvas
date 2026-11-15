@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -71,7 +72,8 @@ func (s *Service) remindUserExpiringCreditLots(userID string, now time.Time) err
 			items = append(items, item.lot)
 			stage = max(stage, item.stage)
 		}
-		if err := s.auth.SendNoticeEmail(email, creditLotReminderEmail(items, now, s.studioLink(), stage)); err != nil {
+		tenant := s.tenantByID(user.TenantID)
+		if err := s.auth.SendNoticeEmail(context.Background(), tenant.ID, email, creditLotReminderEmail(items, now, s.studioLink(tenant), stage)); err != nil {
 			return err
 		}
 	}
@@ -83,12 +85,9 @@ func (s *Service) remindUserExpiringCreditLots(userID string, now time.Time) err
 	return nil
 }
 
-func (s *Service) studioLink() string {
-	base, err := s.publicResourceBaseURL()
-	if err != nil || base == nil {
-		return ""
-	}
-	return strings.TrimRight(base.String(), "/") + "/studio"
+// studioLink 指向用户所属租户的网址：代理商用户收到的是代理商主网址，平台用户仍是平台网址。
+func (s *Service) studioLink(tenant model.Tenant) string {
+	return s.tenantLink(tenant, "/studio")
 }
 
 var creditReminderZone = func() *time.Location {

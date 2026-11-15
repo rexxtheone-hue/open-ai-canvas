@@ -103,6 +103,7 @@ type PublicAppearanceSetting struct {
 	DarkLogoConfigured        bool                `json:"darkLogoConfigured"`
 	AuthVideoConfigured       bool                `json:"authVideoConfigured"`
 	AuthVideoPosterConfigured bool                `json:"authVideoPosterConfigured"`
+	IsPlatform                bool                `json:"isPlatform"` // false = 代理商网站，前端显示中性版本
 	Configured                bool                `json:"configured"`
 	Revision                  string              `json:"revision"`
 	UpdatedAt                 time.Time           `json:"updatedAt,omitempty"`
@@ -719,6 +720,7 @@ func publicAppearanceSetting(setting *model.SystemSetting, value AppearanceSetti
 		ICPFilingEnabled:    value.ICPFilingEnabled && value.ICPFilingNumber != "",
 		ICPFilingNumber:     value.ICPFilingNumber,
 		RedeemPurchaseURL:   safeAppearancePurchaseURL(value.RedeemPurchaseURL),
+		IsPlatform:          true,
 		Configured:          setting != nil,
 		Revision:            revision,
 	}

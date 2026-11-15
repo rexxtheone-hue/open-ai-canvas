@@ -234,7 +234,7 @@ func (s *Service) CreatePaymentOrder(ctx context.Context, actor *model.User, req
 		return &view, nil
 	}
 	baseURL := strings.TrimRight(values["publicBaseUrl"], "/")
-	checkoutName, checkoutDetail := checkoutLabels(product, planName, planMonths, credits)
+	checkoutName, checkoutDetail := checkoutLabels(s.tenantBrandFor(s.tenantByID(actor.TenantID)).Name, product, planName, planMonths, credits)
 	checkout, err := provider.CreateOrder(ctx, values, payment.CreateRequest{
 		MerchantOrderNo: order.MerchantOrderNo, Description: checkoutName, Detail: checkoutDetail, AmountFen: order.AmountFen,
 		Currency: order.Currency, ExpiresAt: order.ExpiresAt, Interval: subscriptionInterval(order.ProviderID, order.PlanMonths),
@@ -781,25 +781,25 @@ func (s *Service) SetStudioAutoRenew(ctx context.Context, actor *model.User, ena
 	return s.StudioMembership(actor.ID)
 }
 
-// checkoutLabels 是支付页上显示的英文商品名和说明，海外卡和 Stripe 收据都看这里。
-func checkoutLabels(product *model.TopupProduct, planName string, planMonths int, credits int64) (string, string) {
+// checkoutLabels 是支付页上显示的英文商品名和说明，海外卡和 Stripe 收据都看这里；品牌名取付款用户所属租户。
+func checkoutLabels(brand string, product *model.TopupProduct, planName string, planMonths int, credits int64) (string, string) {
 	amount := formatCreditCount(credits)
 	if planMonths > 0 {
 		billing, cycle := "Monthly", "month"
 		if planMonths == 12 {
 			billing, cycle = "Annual", "year"
 		}
-		return fmt.Sprintf("OmniMuse %s - %s plan", planName, billing),
+		return fmt.Sprintf("%s %s - %s plan", brand, planName, billing),
 			fmt.Sprintf("%s credits every month. Renews every %s, cancel anytime.", amount, cycle)
 	}
 	if planName != "" {
-		return fmt.Sprintf("OmniMuse %s membership", planName), fmt.Sprintf("Includes %s credits.", amount)
+		return fmt.Sprintf("%s %s membership", brand, planName), fmt.Sprintf("Includes %s credits.", amount)
 	}
 	detail := "One-time credit top-up. Credits never expire."
 	if product.CreditValidMonths > 0 {
 		detail = fmt.Sprintf("One-time credit top-up. Credits are valid for %d months.", product.CreditValidMonths)
 	}
-	return fmt.Sprintf("OmniMuse %s credits", amount), detail
+	return fmt.Sprintf("%s %s credits", brand, amount), detail
 }
 
 func formatCreditCount(microcredits int64) string {
