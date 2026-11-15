@@ -18,7 +18,7 @@ func rejectedLoginAudit(svc *service.Service, method string) gin.HandlerFunc {
 		if c.Writer.Status() < 400 || c.GetBool("login_audit_handled") {
 			return
 		}
-		if err := svc.RecordRejectedLogin(method, loginRequestContext(c), c.Writer.Status()); err != nil {
+		if err := svc.RecordRejectedLogin(c.Request.Context(), method, loginRequestContext(c), c.Writer.Status()); err != nil {
 			log.Printf("rejected login audit write failed: method=%s status=%d error=%v", method, c.Writer.Status(), err)
 		}
 	}

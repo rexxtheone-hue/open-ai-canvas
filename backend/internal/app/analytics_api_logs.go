@@ -57,13 +57,14 @@ func (s *Service) decorateAPICallLogs(logs []model.ApiCallLog) error {
 	for _, channel := range channels {
 		channelNames[channel.ID] = channel.Name
 	}
-	users, err := s.repo.Users()
+	// 只读取这些日志涉及的用户，不把所有租户的账号载入内存。
+	logUserIDs := make([]string, 0, len(logs))
+	for _, log := range logs {
+		logUserIDs = append(logUserIDs, log.UserID)
+	}
+	userByID, err := s.repo.UsersByIDs(uniqueNonEmpty(logUserIDs))
 	if err != nil {
 		return err
-	}
-	userByID := make(map[string]model.User, len(users))
-	for _, user := range users {
-		userByID[user.ID] = user
 	}
 	billingOrderIDs := make([]string, 0, len(logs))
 	seenBillingOrderIDs := make(map[string]struct{}, len(logs))

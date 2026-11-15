@@ -57,7 +57,7 @@ type AdminStorageStats struct {
 }
 
 func (s *Service) AdminResourcePage(actor *model.User, query AdminResourceQuery) (*AdminResourcePage, error) {
-	if err := s.RequireAdmin(actor); err != nil {
+	if err := s.requirePlatformOperator(actor); err != nil {
 		return nil, err
 	}
 	filter, page, limit, err := normalizeAdminResourceQuery(query)
@@ -97,7 +97,7 @@ func (s *Service) AdminResourcePage(actor *model.User, query AdminResourceQuery)
 }
 
 func (s *Service) AdminStorageStats(actor *model.User) (*AdminStorageStats, error) {
-	if err := s.RequireAdmin(actor); err != nil {
+	if err := s.requirePlatformOperator(actor); err != nil {
 		return nil, err
 	}
 	summary, err := s.repo.ResourceStorageSummary()
@@ -131,7 +131,7 @@ func (s *Service) OpenResourceRangeAsAdmin(actor *model.User, id string, rangeHe
 }
 
 func (s *Service) PrepareResourceDeliveryAsAdmin(actor *model.User, id string, options ResourceAccessOptions, rangeHeader string) (*ResourceDelivery, error) {
-	if err := s.RequireAdmin(actor); err != nil {
+	if err := s.requirePlatformOperator(actor); err != nil {
 		return nil, err
 	}
 	resource, err := s.repo.Resource(strings.TrimSpace(id))

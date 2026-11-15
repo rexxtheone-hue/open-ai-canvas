@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const CurrentSchemaVersion int64 = 81
+const CurrentSchemaVersion int64 = 82
 
 const baselineSchemaChecksum = "sha256:open-ai-canvas-schema-v1-20260830"
 const schemaMigrationAppliedAtIndexChecksum = "sha256:schema-migrations-applied-at-index-v2-20260830"
@@ -270,6 +270,7 @@ var schemaMigrations = []migration{
 	{version: 79, name: "tenant_settings", checksum: "sha256:tenant-settings-v79-20261115", apply: migrateTenantSettings},
 	{version: 80, name: "tenant_scoped_tables", checksum: "sha256:tenant-scoped-tables-v80-20261115", apply: migrateTenantScopedTables},
 	{version: 81, name: "tenant_wholesale_billing", checksum: tenantBillingChecksum, apply: migrateTenantBilling},
+	{version: 82, name: "tenant_rls_policies", checksum: tenantRLSPoliciesChecksum, apply: migrateTenantRLSPolicies},
 }
 
 // migrateTenantScopedAccounts 让用户名、邮箱、手机号、第三方身份改为「每个租户各自唯一」，

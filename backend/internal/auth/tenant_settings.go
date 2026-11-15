@@ -51,15 +51,23 @@ func (s *Service) RegistrationEnabledForTenant(tenantID string) (bool, error) {
 
 // RegistrationAgreementForTenant 同 RegistrationAgreement；标题未配置时用传入的品牌名兜底。
 func (s *Service) RegistrationAgreementForTenant(tenantID, brandName string) (string, string) {
-	_, value, _, err := s.readRegistrationSettingForTenant(tenantID)
+	_, value, row, err := s.readRegistrationSettingForTenant(tenantID)
 	if err != nil {
 		return "", ""
 	}
 	title := strings.Trim(strings.TrimSpace(value.AgreementTitle), "《》")
+	if !isPlatformTenantID(tenantID) && (row == nil || !strings.Contains(row.ValueJSON, `"agreementTitle"`)) && s.mentionsPlatformBrand(title) {
+		// 代理商没有自己设置时，平台填写的「OmniMuse服务协议」这类标题不能出现在代理商网站。
+		title = ""
+	}
 	if title == "" {
 		brand := strings.TrimSpace(brandName)
 		if brand == "" {
-			brand = DefaultBrandName
+			if isPlatformTenantID(tenantID) {
+				brand = DefaultBrandName
+			} else {
+				return "服务协议", value.AgreementContent
+			}
 		}
 		title = brand + "服务协议"
 	}
@@ -243,4 +251,17 @@ func (s *Service) flowGoogleSetting() (*model.SystemSetting, googleSettingValue,
 
 func (s *Service) flowRegistrationEnabled() (bool, error) {
 	return s.RegistrationEnabledForTenant(s.flowTenantID())
+}
+
+// mentionsPlatformBrand 判断文字里是否带有平台品牌名（默认品牌、旧品牌或平台外观里改过的品牌名）。
+func (s *Service) mentionsPlatformBrand(text string) bool {
+	if text == "" {
+		return false
+	}
+	for _, brand := range []string{DefaultBrandName, legacyBrandName, strings.TrimSpace(s.host.BrandName())} {
+		if brand != "" && strings.Contains(strings.ToLower(text), strings.ToLower(brand)) {
+			return true
+		}
+	}
+	return false
 }

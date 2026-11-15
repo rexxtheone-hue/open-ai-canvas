@@ -152,6 +152,7 @@ func newService(repo *repository.Repository, dataDir string) *Service {
 	service.taskWorkerCoordinator = newTaskWorkerCoordinator(service)
 	service.taskLifecycleCoordinator = newTaskLifecycleCoordinator(service)
 	service.skills = skills.New(service.repo, service.dataDir, service.runWorkerLoop)
+	service.skills.SetBuiltinAuthorResolver(func(tenantID string) string { return service.tenantBrandFor(service.tenantByID(tenantID)).Name })
 	service.tools = tools.New(service.repo)
 	service.prompts = prompts.New(service.repo, promptAdminGate{svc: service})
 	service.auth = auth.New(service.repo, authHost{svc: service}, nil)

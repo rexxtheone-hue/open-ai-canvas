@@ -62,7 +62,7 @@ func RegisterCanvasShareRoutes(r *gin.RouterGroup, svc *service.Service) {
 		if !enforceRateLimit(c, "public-canvas:"+c.ClientIP(), 120, time.Minute) {
 			return
 		}
-		share, err := svc.PublicCanvasShare(c.Param("token"))
+		share, err := svc.PublicCanvasShareForHost(c.Request.Context(), c.Param("token"))
 		if err != nil {
 			fail(c, http.StatusNotFound, errors.New("分享链接无效或已失效"))
 			return
@@ -78,7 +78,7 @@ func RegisterCanvasShareRoutes(r *gin.RouterGroup, svc *service.Service) {
 			return
 		}
 		opts := resourceAccessOptions(c)
-		delivery, err := svc.PrepareSharedCanvasResourceDelivery(c.Param("token"), c.Param("resourceId"), opts, c.GetHeader("Range"))
+		delivery, err := svc.PrepareSharedCanvasResourceDeliveryForHost(c.Request.Context(), c.Param("token"), c.Param("resourceId"), opts, c.GetHeader("Range"))
 		if err != nil {
 			fail(c, http.StatusNotFound, errors.New("分享资源不存在"))
 			return

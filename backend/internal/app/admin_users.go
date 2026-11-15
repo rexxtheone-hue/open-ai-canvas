@@ -197,7 +197,7 @@ func (s *Service) UpdateUser(actor *model.User, userID string, req UpdateUserReq
 		nextStatus = req.Status
 	}
 	if user.Role == model.UserRoleAdmin && nextRole != model.UserRoleAdmin {
-		count, err := s.repo.ActiveAdminCountExcluding(user.ID)
+		count, err := s.repo.ActiveAdminCountExcluding(userTenantID(user), user.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -206,7 +206,7 @@ func (s *Service) UpdateUser(actor *model.User, userID string, req UpdateUserReq
 		}
 	}
 	if user.Role == model.UserRoleAdmin && nextStatus != model.UserStatusActive {
-		count, err := s.repo.ActiveAdminCountExcluding(user.ID)
+		count, err := s.repo.ActiveAdminCountExcluding(userTenantID(user), user.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -273,7 +273,7 @@ func (s *Service) DeleteUser(actor *model.User, userID string) error {
 		return err
 	}
 	if user.Role == model.UserRoleAdmin {
-		count, err := s.repo.ActiveAdminCountExcluding(user.ID)
+		count, err := s.repo.ActiveAdminCountExcluding(userTenantID(user), user.ID)
 		if err != nil {
 			return err
 		}
@@ -338,7 +338,7 @@ func (s *Service) BulkDisableUsers(actor *model.User, req BulkDisableUsersReques
 	for _, userID := range userIDs {
 		events = append(events, model.AdminAuditEvent{ID: newID(), TenantID: userTenantID(actor), ActorUserID: actor.ID, Action: "user.bulk_disable", TargetType: "user", TargetID: userID, Summary: "批量停用用户并清除登录态", MetadataJSON: string(metadata), CreatedAt: now})
 	}
-	users, err := s.repo.BulkDisableUsers(actor.ID, userIDs, events, now)
+	users, err := s.repo.BulkDisableUsers(userTenantID(actor), actor.ID, userIDs, events, now)
 	if errors.Is(err, repository.ErrBulkUserNotFound) {
 		return nil, BadAuthRequest("部分用户不存在，请刷新列表后重试")
 	}

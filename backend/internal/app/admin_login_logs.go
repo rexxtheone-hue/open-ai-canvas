@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"net"
 	"strings"
@@ -83,6 +84,7 @@ func (s *Service) AdminLoginLog(actor *model.User, id string) (*model.LoginLog, 
 	return event, err
 }
 
-func (s *Service) RecordRejectedLogin(method string, context LoginContext, status int) error {
-	return s.authDomain().RecordRejectedLogin(method, context, status)
+// RecordRejectedLogin 记在请求所属租户名下，未知账号的失败登录也归这个网站。
+func (s *Service) RecordRejectedLogin(ctx context.Context, method string, loginContext LoginContext, status int) error {
+	return s.authFor(ctx).RecordRejectedLogin(method, loginContext, status)
 }

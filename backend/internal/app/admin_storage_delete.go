@@ -35,7 +35,7 @@ type AdminResourceDeleteResult struct {
 }
 
 func (s *Service) DeleteAdminResources(actor *model.User, req AdminResourceDeleteRequest) (*AdminResourceDeleteResult, error) {
-	if err := s.RequireAdmin(actor); err != nil {
+	if err := s.requirePlatformOperator(actor); err != nil {
 		return nil, err
 	}
 	resourceIDs, err := normalizeAdminResourceDeleteIDs(req.ResourceIDs)

@@ -23,6 +23,8 @@ type SkillListFilter struct {
 	Sort                  string
 	Limit                 int
 	Offset                int
+	// TenantID 非空时，别人公开的技能只显示同一租户作者的；内置技能所有租户共用。
+	TenantID string
 }
 
 type SkillMetrics struct {
@@ -71,6 +73,14 @@ func (r *Repository) Skills(filter SkillListFilter) ([]model.Skill, int64, error
 			Where("skills.owner_id = ? OR skills.is_private = ?", filter.UserID, false)
 	default:
 		query = query.Where("skills.is_private = ?", false)
+	}
+	if filter.TenantID != "" {
+		if TenantIDOrPlatform(filter.TenantID) == model.PlatformTenantID {
+			// 找不到账号的作者（旧数据、系统作者）按平台处理，与 skills.userTenant 一致。
+			query = query.Where("skills.source_type = ? OR skills.owner_id = ? OR skills.owner_id NOT IN (?)", "builtin", filter.UserID, r.db.Model(&model.User{}).Select("id").Where("tenant_id <> ?", model.PlatformTenantID))
+		} else {
+			query = query.Where("skills.source_type = ? OR skills.owner_id = ? OR skills.owner_id IN (?)", "builtin", filter.UserID, scopeTenant(r.db.Model(&model.User{}).Select("id"), filter.TenantID))
+		}
 	}
 	if filter.Search != "" {
 		pattern := "%" + strings.ToLower(filter.Search) + "%"

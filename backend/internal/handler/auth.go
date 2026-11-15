@@ -241,7 +241,7 @@ func googleCallbackHandler(svc *service.Service) gin.HandlerFunc {
 		}
 		reauthentication, stateErr := svc.GoogleReauthenticationState(c.Request.Context(), c.Query("state"))
 		if stateErr != nil {
-			if err := svc.RecordRejectedLogin("google", loginRequestContext(c), 400); err != nil {
+			if err := svc.RecordRejectedLogin(c.Request.Context(), "google", loginRequestContext(c), 400); err != nil {
 				log.Printf("OAuth rejected login audit write failed: error=%v", err)
 			}
 			c.Redirect(http.StatusFound, "/login?oauth_error="+url.QueryEscape("无法读取身份验证状态，请重试"))
@@ -271,7 +271,7 @@ func linuxDOCallbackHandler(svc *service.Service) gin.HandlerFunc {
 		}
 		reauthentication, stateErr := svc.LinuxDOReauthenticationState(c.Request.Context(), c.Query("state"))
 		if stateErr != nil {
-			if err := svc.RecordRejectedLogin("linuxdo", loginRequestContext(c), 400); err != nil {
+			if err := svc.RecordRejectedLogin(c.Request.Context(), "linuxdo", loginRequestContext(c), 400); err != nil {
 				log.Printf("OAuth rejected login audit write failed: error=%v", err)
 			}
 			c.Redirect(http.StatusFound, "/login?oauth_error="+url.QueryEscape("无法读取身份验证状态，请重试"))
@@ -647,7 +647,7 @@ func currentUser(c *gin.Context, svc *service.Service) (*model.User, error) {
 	if !service.UserBelongsToTenant(user, requestTenant(c)) {
 		return nil, service.Unauthorized("登录状态已失效")
 	}
-	return service.ElevateStaffForRoute(user, c.Request.Method, c.FullPath()), nil
+	return service.RestrictAgencyAdminForRoute(service.ElevateStaffForRoute(user, c.Request.Method, c.FullPath()), c.FullPath()), nil
 }
 
 func sessionCookie(c *gin.Context) string {

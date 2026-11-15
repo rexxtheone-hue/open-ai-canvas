@@ -172,6 +172,7 @@ func (s *Service) Skills(userID string, req SkillListRequest) (*SkillList, error
 		Sort:                 req.Sort,
 		Limit:                req.PageSize,
 		Offset:               (req.Page - 1) * req.PageSize,
+		TenantID:             s.userTenant(userID),
 	})
 	if err != nil {
 		return nil, err
@@ -196,7 +197,7 @@ func (s *Service) Skills(userID string, req SkillListRequest) (*SkillList, error
 }
 
 func (s *Service) AddedSkills(userID string) ([]AddedSkillReference, error) {
-	rows, _, err := s.repo.Skills(repository.SkillListFilter{UserID: userID, Scope: "mine", Sort: "updated", Limit: -1})
+	rows, _, err := s.repo.Skills(repository.SkillListFilter{UserID: userID, Scope: "mine", Sort: "updated", Limit: -1, TenantID: s.userTenant(userID)})
 	if err != nil {
 		return nil, err
 	}
@@ -383,6 +384,10 @@ func (s *Service) skillItems(userID string, skills []model.Skill, includeInstruc
 	for _, state := range states {
 		stateBySkillID[state.SkillID] = state
 	}
+	agencyAuthor := ""
+	if tenantID := s.userTenant(userID); tenantID != model.PlatformTenantID && s.builtinAuthor != nil {
+		agencyAuthor = strings.TrimSpace(s.builtinAuthor(tenantID))
+	}
 	items := make([]SkillItem, 0, len(skills))
 	for _, skill := range skills {
 		showcaseMedia, err := parseShowcaseMedia(skill.ShowcaseMediaJSON)
@@ -399,6 +404,9 @@ func (s *Service) skillItems(userID string, skills []model.Skill, includeInstruc
 		}
 		if ownerAvatars[skill.OwnerID] != "" {
 			ownerAvatarURL = ownerAvatars[skill.OwnerID]
+		}
+		if skill.SourceType == "builtin" && agencyAuthor != "" && owner.ID == "" {
+			ownerName = agencyAuthor
 		}
 		state := stateBySkillID[skill.ID]
 		metric := metrics[skill.ID]
@@ -439,6 +447,10 @@ func (s *Service) visibleSkill(userID string, id string) (*model.Skill, error) {
 	}
 	if skill.IsPrivate && skill.OwnerID != userID {
 		return nil, kernel.Forbidden("该技能未公开")
+	}
+	// 别的租户作者公开的技能在本站当作不存在。
+	if skill.SourceType != "builtin" && skill.OwnerID != userID && s.userTenant(skill.OwnerID) != s.userTenant(userID) {
+		return nil, kernel.BadAuthRequest("技能不存在或已删除")
 	}
 	return skill, nil
 }
