@@ -179,7 +179,7 @@ func (s *Service) SendProfileEmailCode(ctx context.Context, actor *model.User, c
 	}
 	secret := RandomToken()
 	now := time.Now()
-	v := &model.AuthVerification{ID: kernel.NewID(), TokenHash: HashToken(secret), Purpose: "profile_email", Method: "email", UserID: user.ID, SessionID: session.ID, CredentialHash: repository.ProfileCredentialHash(user.PasswordHash), Email: email, CreatedAt: now, ExpiresAt: now.Add(10 * time.Minute)}
+	v := &model.AuthVerification{ID: kernel.NewID(), TenantID: user.TenantID, TokenHash: HashToken(secret), Purpose: "profile_email", Method: "email", UserID: user.ID, SessionID: session.ID, CredentialHash: repository.ProfileCredentialHash(user.PasswordHash), Email: email, CreatedAt: now, ExpiresAt: now.Add(10 * time.Minute)}
 	v.EmailHash, err = s.verificationHash(v.ID + ":email:" + email + ":" + code)
 	if err != nil {
 		return nil, err

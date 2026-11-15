@@ -29,7 +29,7 @@ func (s *Service) AdminUsers(actor *model.User, query AdminListQuery) (*AdminUse
 		return nil, err
 	}
 	page, limit := normalizeAdminPage(query.Page, query.Limit)
-	users, total, err := s.repo.AdminUsers(query.Keyword, model.UserRole(query.Type), model.UserStatus(query.Status), limit, (page-1)*limit)
+	users, total, err := s.repo.ForTenant(UserTenantID(actor)).AdminUsers(query.Keyword, model.UserRole(query.Type), model.UserStatus(query.Status), limit, (page-1)*limit)
 	if err != nil {
 		return nil, err
 	}
@@ -123,13 +123,15 @@ func (s *Service) CreateAdminUser(actor *model.User, req CreateAdminUserRequest)
 	if req.Status != model.UserStatusActive && req.Status != model.UserStatusDisabled {
 		return nil, BadAuthRequest("\u7528\u6237\u72b6\u6001\u65e0\u6548")
 	}
-	if _, err := s.repo.UserByUsername(username); err == nil {
+	// 管理员只在自己所属的租户里开设账号。
+	tenantRepo := s.repo.ForTenant(UserTenantID(actor))
+	if _, err := tenantRepo.UserByUsername(username); err == nil {
 		return nil, BadAuthRequest("\u7528\u6237\u540d\u5df2\u5b58\u5728")
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
 	if email != "" {
-		if _, err := s.repo.UserByEmail(email); err == nil {
+		if _, err := tenantRepo.UserByEmail(email); err == nil {
 			return nil, BadAuthRequest("\u90ae\u7bb1\u5df2\u88ab\u6ce8\u518c")
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, err
@@ -142,6 +144,7 @@ func (s *Service) CreateAdminUser(actor *model.User, req CreateAdminUserRequest)
 	now := time.Now()
 	user := &model.User{
 		ID:           newID(),
+		TenantID:     UserTenantID(actor),
 		Username:     username,
 		Email:        email,
 		DisplayName:  displayName,
@@ -219,7 +222,7 @@ func (s *Service) UpdateUser(actor *model.User, userID string, req UpdateUserReq
 		if err := validateEmail(email); err != nil {
 			return nil, err
 		}
-		existing, err := s.repo.UserByEmail(email)
+		existing, err := s.repo.ForTenant(UserTenantID(user)).UserByEmail(email)
 		if err == nil && existing.ID != user.ID {
 			return nil, BadAuthRequest("邮箱已被注册")
 		}

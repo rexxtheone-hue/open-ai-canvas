@@ -78,6 +78,14 @@ func TenantFromContext(ctx context.Context) model.Tenant {
 	return model.Tenant{ID: model.PlatformTenantID, Slug: model.PlatformTenantID, Status: model.TenantStatusActive, IsPlatform: true}
 }
 
+// UserTenantID 返回账号所属的租户；旧数据没有租户时视为平台。
+func UserTenantID(user *model.User) string {
+	if user == nil || user.TenantID == "" {
+		return model.PlatformTenantID
+	}
+	return user.TenantID
+}
+
 // UserBelongsToTenant 判断已登录用户是否属于这个网址的租户；旧数据没有租户时视为平台用户。
 func UserBelongsToTenant(user *model.User, tenant model.Tenant) bool {
 	if user == nil {

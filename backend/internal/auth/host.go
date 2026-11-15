@@ -55,12 +55,17 @@ func (nopHost) RequestRetryAfter(context.Context, string, time.Duration) time.Du
 }
 
 type Service struct {
-	repo           *repository.Repository
-	host           Host
-	mailSender     func(EmailSettingValue, string, string, string) error
-	emailCodeMu    sync.Mutex
-	registrationMu sync.Mutex
-	sms            SMSDelivery
+	repo       *repository.Repository
+	host       Host
+	mailSender func(EmailSettingValue, string, string, string) error
+	// locks 在同一服务按租户派生的副本之间共用。
+	locks *serviceLocks
+	sms   SMSDelivery
+}
+
+type serviceLocks struct {
+	emailCode    sync.Mutex
+	registration sync.Mutex
 }
 
 type SMSDelivery interface {
@@ -74,7 +79,33 @@ func New(repo *repository.Repository, host Host, mailSender func(EmailSettingVal
 	if host == nil {
 		host = nopHost{}
 	}
-	return &Service{repo: repo, host: host, mailSender: mailSender}
+	return &Service{repo: repo, host: host, mailSender: mailSender, locks: &serviceLocks{}}
+}
+
+// ForTenant 返回只在指定租户内查找、创建账号的副本；邮件、短信与锁和原服务共用。
+func (s *Service) ForTenant(tenantID string) *Service {
+	return &Service{repo: s.repo.ForTenant(tenantID), host: s.host, mailSender: s.mailSender, locks: s.locks, sms: s.sms}
+}
+
+// tenantID 是新账号、验证码要记上的租户；未绑定租户时视为平台。
+func (s *Service) tenantID() string {
+	if id := s.repo.TenantID(); id != "" {
+		return id
+	}
+	return model.PlatformTenantID
+}
+
+// firstUserBootstrap 判断是否处于「首个注册者成为管理员」的初始化阶段；只对平台生效，
+// 代理商网站的管理员由平台开设，第一个注册的人也只是普通用户。
+func (s *Service) firstUserBootstrap() (bool, error) {
+	if s.tenantID() != model.PlatformTenantID {
+		return false, nil
+	}
+	count, err := s.repo.UserCount()
+	if err != nil {
+		return false, err
+	}
+	return count == 0, nil
 }
 
 func (s *Service) SetMailSender(fn func(EmailSettingValue, string, string, string) error) {

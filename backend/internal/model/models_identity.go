@@ -2,10 +2,11 @@ package model
 
 import "time"
 
+// User 的用户名、邮箱、手机号都只在同一租户内唯一（邮箱与手机号的部分唯一索引见迁移 v78）。
 type User struct {
 	ID              string     `json:"id" gorm:"primaryKey;size:36"`
-	TenantID        string     `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
-	Username        string     `json:"username" gorm:"uniqueIndex;size:80"`
+	TenantID        string     `json:"-" gorm:"size:36;not null;default:'omnimuse';index;uniqueIndex:idx_users_tenant_username,priority:1"`
+	Username        string     `json:"username" gorm:"size:80;uniqueIndex:idx_users_tenant_username,priority:2"`
 	Email           string     `json:"email,omitempty" gorm:"size:160"`
 	Phone           string     `json:"phone,omitempty" gorm:"size:24"`
 	EmailVerifiedAt *time.Time `json:"emailVerifiedAt,omitempty"`
@@ -38,8 +39,9 @@ type AuthSession struct {
 type UserIdentity struct {
 	ID               string    `json:"id" gorm:"primaryKey;size:36"`
 	UserID           string    `json:"userId" gorm:"index;size:36"`
-	Provider         string    `json:"provider" gorm:"size:32;uniqueIndex:idx_user_identity_provider_subject,priority:1"`
-	Subject          string    `json:"subject" gorm:"size:160;uniqueIndex:idx_user_identity_provider_subject,priority:2"`
+	TenantID         string    `json:"-" gorm:"size:36;not null;default:'omnimuse';uniqueIndex:idx_user_identity_tenant_provider_subject,priority:1"`
+	Provider         string    `json:"provider" gorm:"size:32;uniqueIndex:idx_user_identity_tenant_provider_subject,priority:2"`
+	Subject          string    `json:"subject" gorm:"size:160;uniqueIndex:idx_user_identity_tenant_provider_subject,priority:3"`
 	ProviderUsername string    `json:"providerUsername" gorm:"size:160"`
 	AvatarURL        string    `json:"avatarUrl"`
 	CreatedAt        time.Time `json:"createdAt"`
@@ -50,6 +52,7 @@ type OAuthState struct {
 	ReauthUserID    string `json:"-" gorm:"size:36"`
 	ReauthSessionID string `json:"-" gorm:"size:36"`
 	ID              string `json:"id" gorm:"primaryKey;size:36"`
+	TenantID        string `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	Provider        string `json:"provider" gorm:"index;size:32"`
 	StateHash       string `json:"-" gorm:"uniqueIndex;size:64"`
 	CodeVerifier    string `json:"-" gorm:"size:160"`
@@ -65,6 +68,7 @@ type OAuthState struct {
 type EmailVerificationCode struct {
 	Attempts  int        `json:"-"`
 	ID        string     `json:"id" gorm:"primaryKey;size:36"`
+	TenantID  string     `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	Email     string     `json:"email" gorm:"index;size:160"`
 	CodeHash  string     `json:"-" gorm:"size:64"`
 	Purpose   string     `json:"purpose" gorm:"index;size:32"`

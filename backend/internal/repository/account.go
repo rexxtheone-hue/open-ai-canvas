@@ -107,14 +107,14 @@ func (r *Repository) ChangeProfilePassword(expected *model.User, session *model.
 
 func (r *Repository) ChangeProfileEmail(expected *model.User, session *model.AuthSession, v *model.AuthVerification, now time.Time) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		if err := lockRegistrationEmail(tx, v.Email); err != nil {
+		if err := r.lockRegistrationEmail(tx, v.Email); err != nil {
 			return err
 		}
 		if err := profileAuthorization(tx, expected, session, now, expected.PasswordHash == ""); err != nil {
 			return err
 		}
 		now = time.Now()
-		if err := New(tx).CheckEmailAvailable(v.Email, expected.ID); err != nil {
+		if err := r.withDB(tx).CheckEmailAvailable(v.Email, expected.ID); err != nil {
 			return err
 		}
 		result := tx.Model(&model.AuthVerification{}).Where("id = ? AND user_id = ? AND session_id = ? AND purpose = ? AND credential_hash = ? AND email = ? AND ready = ? AND used_at IS NULL AND expires_at > ? AND attempts <= 5", v.ID, expected.ID, session.ID, "profile_email", ProfileCredentialHash(expected.PasswordHash), v.Email, true, now).Update("used_at", now)
@@ -172,7 +172,7 @@ func (r *Repository) LinuxDOReauthenticationState(stateHash string) (bool, error
 
 func (r *Repository) OAuthReauthenticationState(provider, stateHash string) (bool, error) {
 	var state model.OAuthState
-	err := r.db.First(&state, "provider = ? AND state_hash = ?", provider, stateHash).Error
+	err := r.tenantScope(r.db).First(&state, "provider = ? AND state_hash = ?", provider, stateHash).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, nil
 	}

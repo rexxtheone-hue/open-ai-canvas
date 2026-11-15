@@ -136,20 +136,30 @@ func (s *Service) authDomain() *auth.Service {
 	return domain
 }
 
-func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
-	return s.authDomain().PublicAuthSettings()
+// authFor 返回绑定到请求所属租户的认证服务：账号查找、注册、验证码都只在这个租户内。
+func (s *Service) authFor(ctx context.Context) *auth.Service {
+	return s.authDomain().ForTenant(TenantFromContext(ctx).ID)
 }
 
-func (s *Service) Register(req RegisterRequest) (*AuthSessionResult, error) {
-	return s.authDomain().Register(req)
+// authForUser 返回绑定到账号所属租户的认证服务，用于已登录用户的资料与绑定操作。
+func (s *Service) authForUser(user *model.User) *auth.Service {
+	return s.authDomain().ForTenant(UserTenantID(user))
 }
 
-func (s *Service) Login(req LoginRequest) (*AuthSessionResult, error) {
-	return s.authDomain().Login(req)
+func (s *Service) PublicAuthSettings(ctx context.Context) (*PublicAuthSettings, error) {
+	return s.authFor(ctx).PublicAuthSettings()
 }
 
-func (s *Service) LoginRateLimitSubject(account string) (string, error) {
-	return s.authDomain().LoginRateLimitSubject(account)
+func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthSessionResult, error) {
+	return s.authFor(ctx).Register(req)
+}
+
+func (s *Service) Login(ctx context.Context, req LoginRequest) (*AuthSessionResult, error) {
+	return s.authFor(ctx).Login(req)
+}
+
+func (s *Service) LoginRateLimitSubject(ctx context.Context, account string) (string, error) {
+	return s.authFor(ctx).LoginRateLimitSubject(account)
 }
 
 func (s *Service) Logout(cookieValue string, contexts ...LoginContext) error {
@@ -176,12 +186,12 @@ func (s *Service) RegistrationEnabled() (bool, error) {
 	return s.authDomain().RegistrationEnabled()
 }
 
-func (s *Service) SendPasswordResetEmailCode(rawEmail string) error {
-	return s.authDomain().SendPasswordResetEmailCode(rawEmail)
+func (s *Service) SendPasswordResetEmailCode(ctx context.Context, rawEmail string) error {
+	return s.authFor(ctx).SendPasswordResetEmailCode(rawEmail)
 }
 
-func (s *Service) ResetPassword(req PasswordResetRequest) error {
-	return s.authDomain().ResetPassword(req)
+func (s *Service) ResetPassword(ctx context.Context, req PasswordResetRequest) error {
+	return s.authFor(ctx).ResetPassword(req)
 }
 
 func (s *Service) AdminEmailSetting(actor *model.User) (*PublicEmailSetting, error) {
@@ -196,12 +206,12 @@ func (s *Service) EmailEnabled() (bool, error) {
 	return s.authDomain().EmailEnabled()
 }
 
-func (s *Service) SendRegistrationEmailCode(rawEmail string) error {
-	return s.authDomain().SendRegistrationEmailCode(rawEmail)
+func (s *Service) SendRegistrationEmailCode(ctx context.Context, rawEmail string) error {
+	return s.authFor(ctx).SendRegistrationEmailCode(rawEmail)
 }
 
-func (s *Service) VerifyRegistrationEmailCode(email string, rawCode string) (*model.EmailVerificationCode, error) {
-	return s.authDomain().VerifyRegistrationEmailCode(email, rawCode)
+func (s *Service) VerifyRegistrationEmailCode(ctx context.Context, email string, rawCode string) (*model.EmailVerificationCode, error) {
+	return s.authFor(ctx).VerifyRegistrationEmailCode(email, rawCode)
 }
 
 func (s *Service) AdminLinuxDOSetting(actor *model.User) (*PublicLinuxDOSetting, error) {
@@ -220,32 +230,32 @@ func (s *Service) UpdateGoogleSetting(actor *model.User, req GoogleSettingReques
 	return s.authDomain().UpdateGoogleSetting(actor, req)
 }
 
-func (s *Service) BeginGoogleLogin(nextPath string, acceptedTerms bool, referralCode string) (string, error) {
-	return s.authDomain().BeginGoogleLogin(nextPath, acceptedTerms, referralCode)
+func (s *Service) BeginGoogleLogin(ctx context.Context, nextPath string, acceptedTerms bool, referralCode string) (string, error) {
+	return s.authFor(ctx).BeginGoogleLogin(nextPath, acceptedTerms, referralCode)
 }
 
-func (s *Service) CompleteGoogleLogin(stateValue string, code string, cookieValue string, contexts ...LoginContext) (*LinuxDOCallbackResult, error) {
-	return s.authDomain().CompleteGoogleLogin(stateValue, code, cookieValue, contexts...)
+func (s *Service) CompleteGoogleLogin(ctx context.Context, stateValue string, code string, cookieValue string, contexts ...LoginContext) (*LinuxDOCallbackResult, error) {
+	return s.authFor(ctx).CompleteGoogleLogin(stateValue, code, cookieValue, contexts...)
 }
 
 func (s *Service) BeginGoogleReauthentication(actor *model.User, cookie string) (string, error) {
-	return s.authDomain().BeginGoogleReauthentication(actor, cookie)
+	return s.authForUser(actor).BeginGoogleReauthentication(actor, cookie)
 }
 
-func (s *Service) GoogleReauthenticationState(stateValue string) (bool, error) {
-	return s.authDomain().GoogleReauthenticationState(stateValue)
+func (s *Service) GoogleReauthenticationState(ctx context.Context, stateValue string) (bool, error) {
+	return s.authFor(ctx).GoogleReauthenticationState(stateValue)
 }
 
 func (s *Service) LinuxDOEnabled() bool {
 	return s.authDomain().LinuxDOEnabled()
 }
 
-func (s *Service) BeginLinuxDOLogin(nextPath string, acceptedTerms bool) (string, error) {
-	return s.authDomain().BeginLinuxDOLogin(nextPath, acceptedTerms)
+func (s *Service) BeginLinuxDOLogin(ctx context.Context, nextPath string, acceptedTerms bool) (string, error) {
+	return s.authFor(ctx).BeginLinuxDOLogin(nextPath, acceptedTerms)
 }
 
-func (s *Service) CompleteLinuxDOLogin(stateValue string, code string, cookieValue string, contexts ...LoginContext) (*LinuxDOCallbackResult, error) {
-	return s.authDomain().CompleteLinuxDOLogin(stateValue, code, cookieValue, contexts...)
+func (s *Service) CompleteLinuxDOLogin(ctx context.Context, stateValue string, code string, cookieValue string, contexts ...LoginContext) (*LinuxDOCallbackResult, error) {
+	return s.authFor(ctx).CompleteLinuxDOLogin(stateValue, code, cookieValue, contexts...)
 }
 
 func (s *Service) AdminLibTVSetting(actor *model.User) (*PublicLibTVSetting, error) {

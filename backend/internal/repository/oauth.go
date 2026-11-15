@@ -10,7 +10,7 @@ import (
 
 func (r *Repository) UserIdentity(provider string, subject string) (*model.UserIdentity, error) {
 	var identity model.UserIdentity
-	if err := r.db.First(&identity, "provider = ? AND subject = ?", provider, subject).Error; err != nil {
+	if err := r.tenantScope(r.db).First(&identity, "provider = ? AND subject = ?", provider, subject).Error; err != nil {
 		return nil, err
 	}
 	return &identity, nil
@@ -25,13 +25,16 @@ func (r *Repository) UserIdentityForUser(userID string, provider string) (*model
 }
 
 func (r *Repository) CreateOAuthState(state *model.OAuthState) error {
+	if state.TenantID == "" && r.tenantID != "" {
+		state.TenantID = r.tenantID
+	}
 	return r.db.Create(state).Error
 }
 
 func (r *Repository) ConsumeOAuthState(provider string, stateHash string) (*model.OAuthState, error) {
 	var state model.OAuthState
 	err := r.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.First(&state, "provider = ? AND state_hash = ? AND used_at IS NULL AND expires_at > ?", provider, stateHash, time.Now()).Error; err != nil {
+		if err := r.tenantScope(tx).First(&state, "provider = ? AND state_hash = ? AND used_at IS NULL AND expires_at > ?", provider, stateHash, time.Now()).Error; err != nil {
 			return err
 		}
 		now := time.Now()
@@ -49,11 +52,15 @@ func (r *Repository) ConsumeOAuthState(provider string, stateHash string) (*mode
 }
 
 func (r *Repository) CreateOAuthUser(user *model.User, identity *model.UserIdentity) error {
+	r.stampTenant(user)
+	if identity.TenantID == "" {
+		identity.TenantID = user.TenantID
+	}
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		if err := lockRegistrationEmail(tx, user.Email); err != nil {
+		if err := r.lockRegistrationEmail(tx, user.Email); err != nil {
 			return err
 		}
-		if err := New(tx).CheckEmailAvailable(user.Email, ""); err != nil {
+		if err := r.withDB(tx).CheckEmailAvailable(user.Email, ""); err != nil {
 			return err
 		}
 		if err := tx.Create(user).Error; err != nil {

@@ -36,8 +36,8 @@ func (s *Service) SendPasswordResetEmailCode(rawEmail string) error {
 		return kernel.Forbidden("管理员尚未启用密码找回，请联系管理员")
 	}
 
-	s.emailCodeMu.Lock()
-	defer s.emailCodeMu.Unlock()
+	s.locks.emailCode.Lock()
+	defer s.locks.emailCode.Unlock()
 
 	user, err := s.repo.UserByEmail(email)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -66,6 +66,7 @@ func (s *Service) SendPasswordResetEmailCode(rawEmail string) error {
 	now := time.Now()
 	record := model.EmailVerificationCode{
 		ID:        kernel.NewID(),
+		TenantID:  s.tenantID(),
 		Email:     email,
 		CodeHash:  codeHash,
 		Purpose:   passwordResetEmailPurpose,

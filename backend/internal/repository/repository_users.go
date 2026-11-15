@@ -15,7 +15,7 @@ import (
 
 func (r *Repository) UserCount() (int64, error) {
 	var count int64
-	err := r.db.Model(&model.User{}).Count(&count).Error
+	err := r.tenantScope(r.db.Model(&model.User{})).Count(&count).Error
 	return count, err
 }
 
@@ -35,7 +35,7 @@ func (r *Repository) UpdateUserLoginTime(userID string, now time.Time) error {
 
 func (r *Repository) UserByAccount(account string) (*model.User, error) {
 	var user model.User
-	if err := r.db.Where("lower(username) = lower(?) OR lower(email) = lower(?)", account, account).First(&user).Error; err != nil {
+	if err := r.tenantScope(r.db.Where("(lower(username) = lower(?) OR lower(email) = lower(?))", account, account)).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -43,7 +43,7 @@ func (r *Repository) UserByAccount(account string) (*model.User, error) {
 
 func (r *Repository) UserByUsername(username string) (*model.User, error) {
 	var user model.User
-	if err := r.db.Where("lower(username) = lower(?)", username).First(&user).Error; err != nil {
+	if err := r.tenantScope(r.db.Where("lower(username) = lower(?)", username)).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -51,7 +51,7 @@ func (r *Repository) UserByUsername(username string) (*model.User, error) {
 
 func (r *Repository) UserByEmail(email string) (*model.User, error) {
 	var user model.User
-	if err := r.db.Where("email <> '' AND lower(email) = lower(?)", email).First(&user).Error; err != nil {
+	if err := r.tenantScope(r.db.Where("email <> '' AND lower(email) = lower(?)", email)).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -77,7 +77,7 @@ func (r *Repository) TotalCreditBalance() (int64, error) {
 func (r *Repository) AdminUsers(keyword string, role model.UserRole, status model.UserStatus, limit int, offset int) ([]model.User, int64, error) {
 	var users []model.User
 	var total int64
-	query := r.db.Model(&model.User{})
+	query := r.tenantScope(r.db.Model(&model.User{}))
 	if value := strings.TrimSpace(keyword); value != "" {
 		pattern := "%" + strings.ToLower(value) + "%"
 		query = query.Where("lower(username) LIKE ? OR lower(display_name) LIKE ? OR lower(email) LIKE ?", pattern, pattern, pattern)
@@ -135,7 +135,7 @@ func (r *Repository) DeleteUserAuthSessions(userID string) error {
 
 func (r *Repository) LatestEmailVerificationCode(email string, purpose string) (*model.EmailVerificationCode, error) {
 	var code model.EmailVerificationCode
-	if err := r.db.Where("email = ? AND purpose = ? AND used_at IS NULL", email, purpose).Order("created_at desc").First(&code).Error; err != nil {
+	if err := r.tenantScope(r.db.Where("email = ? AND purpose = ? AND used_at IS NULL", email, purpose)).Order("created_at desc").First(&code).Error; err != nil {
 		return nil, err
 	}
 	return &code, nil
@@ -150,11 +150,12 @@ func (r *Repository) DeleteEmailVerificationCode(id string) error {
 }
 
 func (r *Repository) CreateUserWithEmailVerification(user *model.User, verificationCodeID string, usedAt time.Time) error {
+	r.stampTenant(user)
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		if err := lockRegistrationEmail(tx, user.Email); err != nil {
+		if err := r.lockRegistrationEmail(tx, user.Email); err != nil {
 			return err
 		}
-		if err := New(tx).CheckEmailAvailable(user.Email, ""); err != nil {
+		if err := r.withDB(tx).CheckEmailAvailable(user.Email, ""); err != nil {
 			return err
 		}
 		result := tx.Model(&model.EmailVerificationCode{}).Where("id = ? AND used_at IS NULL AND expires_at > ?", verificationCodeID, usedAt).Update("used_at", usedAt)
@@ -180,7 +181,7 @@ func (r *Repository) ResetUserPasswordWithEmailVerification(userID string, email
 			return ErrEmailVerificationCodeInvalid
 		}
 
-		userResult := tx.Model(&model.User{}).
+		userResult := r.tenantScope(tx.Model(&model.User{})).
 			Where("id = ? AND email <> '' AND lower(email) = lower(?) AND status = ? AND password_hash <> ''", userID, email, model.UserStatusActive).
 			Updates(map[string]any{"password_hash": passwordHash, "updated_at": usedAt})
 		if userResult.Error != nil {
@@ -192,7 +193,7 @@ func (r *Repository) ResetUserPasswordWithEmailVerification(userID string, email
 		if err := tx.Delete(&model.AuthSession{}, "user_id = ?", userID).Error; err != nil {
 			return err
 		}
-		return tx.Model(&model.EmailVerificationCode{}).
+		return r.tenantScope(tx.Model(&model.EmailVerificationCode{})).
 			Where("email = ? AND purpose = ? AND used_at IS NULL", email, purpose).
 			Update("used_at", usedAt).Error
 	})

@@ -46,6 +46,7 @@ type AuthVerification struct {
 	SessionID      string `json:"-" gorm:"size:36"`
 	CredentialHash string `json:"-" gorm:"size:64"`
 	ID             string `gorm:"primaryKey;size:36"`
+	TenantID       string `gorm:"size:36;not null;default:'omnimuse';index"`
 	TokenHash      string `gorm:"size:64"`
 	Purpose        string `gorm:"size:24"`
 	Method         string `gorm:"size:24"`

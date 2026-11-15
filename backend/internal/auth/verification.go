@@ -139,7 +139,7 @@ func (s *Service) StartVerification(ctx context.Context, actor *model.User, req 
 		return nil, err
 	}
 	now := time.Now()
-	v := &model.AuthVerification{ID: kernel.NewID(), TokenHash: HashToken(hex.EncodeToString(secret)), Purpose: req.Purpose, Method: req.Method, UserID: userID, Email: email, Phone: phone, PolicyHash: p.hash(), CreatedAt: now, ExpiresAt: now.Add(10 * time.Minute)}
+	v := &model.AuthVerification{ID: kernel.NewID(), TenantID: s.tenantID(), TokenHash: HashToken(hex.EncodeToString(secret)), Purpose: req.Purpose, Method: req.Method, UserID: userID, Email: email, Phone: phone, PolicyHash: p.hash(), CreatedAt: now, ExpiresAt: now.Add(10 * time.Minute)}
 	var emailCode, smsCode string
 	if email != "" {
 		emailCode, err = randomNumericCode(6)

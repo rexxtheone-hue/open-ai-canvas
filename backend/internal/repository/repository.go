@@ -35,6 +35,8 @@ var ErrCanvasRevisionConflict = errors.New("画布已被更新，请刷新后重
 
 type Repository struct {
 	db *gorm.DB
+	// tenantID 非空时，账号相关的查询与写入只在这个租户内进行；为空时保持全站范围（后台任务、平台管理）。
+	tenantID string
 }
 
 type UserStorageUsage struct {
@@ -52,14 +54,47 @@ func New(db *gorm.DB) *Repository {
 }
 
 func (r *Repository) WithContext(ctx context.Context) *Repository {
-	return &Repository{db: r.db.WithContext(ctx)}
+	return &Repository{db: r.db.WithContext(ctx), tenantID: r.tenantID}
+}
+
+// ForTenant 返回只在指定租户内查找、创建账号的副本；tenantID 为空时返回全站范围的副本。
+func (r *Repository) ForTenant(tenantID string) *Repository {
+	if r == nil {
+		return nil
+	}
+	return &Repository{db: r.db, tenantID: tenantID}
+}
+
+func (r *Repository) TenantID() string {
+	if r == nil {
+		return ""
+	}
+	return r.tenantID
+}
+
+func (r *Repository) withDB(db *gorm.DB) *Repository {
+	return &Repository{db: db, tenantID: r.tenantID}
+}
+
+func (r *Repository) tenantScope(query *gorm.DB) *gorm.DB {
+	if r.tenantID == "" {
+		return query
+	}
+	return query.Where("tenant_id = ?", r.tenantID)
+}
+
+// stampTenant 让新账号属于当前租户；调用方已经指定租户时不覆盖。
+func (r *Repository) stampTenant(user *model.User) {
+	if user != nil && user.TenantID == "" && r.tenantID != "" {
+		user.TenantID = r.tenantID
+	}
 }
 
 // Transaction exposes a repository scoped to one database transaction. Domain
 // services use it when a canvas mutation and its receipt must commit together.
 func (r *Repository) Transaction(fn func(*Repository) error) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		return fn(New(tx))
+		return fn(r.withDB(tx))
 	})
 }
 

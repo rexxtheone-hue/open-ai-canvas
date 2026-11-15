@@ -78,11 +78,11 @@ func (s *Service) UpdateVerificationPolicy(actor *model.User, p VerificationPoli
 	return result, nil
 }
 func (s *Service) StartVerification(ctx context.Context, actor *model.User, req VerificationRequest) (*auth.VerificationTicket, error) {
-	return s.authDomain().StartVerification(ctx, actor, req)
+	return s.authFor(ctx).StartVerification(ctx, actor, req)
 }
-func (s *Service) LoginVerification(req VerificationConfirm) (*AuthSessionResult, error) {
-	return s.authDomain().LoginVerification(req)
+func (s *Service) LoginVerification(ctx context.Context, req VerificationConfirm) (*AuthSessionResult, error) {
+	return s.authFor(ctx).LoginVerification(req)
 }
 func (s *Service) BindVerification(actor *model.User, req VerificationConfirm) (*AuthUser, error) {
-	return s.authDomain().BindVerification(actor, req)
+	return s.authForUser(actor).BindVerification(actor, req)
 }

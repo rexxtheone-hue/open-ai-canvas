@@ -24,7 +24,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 	registerNotificationRoutes(r, svc)
 	registerAuthProfileRoutes(r, svc)
 	r.GET("/auth/settings", func(c *gin.Context) {
-		settings, err := svc.PublicAuthSettings()
+		settings, err := svc.PublicAuthSettings(c.Request.Context())
 		if err != nil {
 			failService(c, err)
 			return
@@ -43,7 +43,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 			return
 		}
 		req.LoginContext = loginRequestContext(c)
-		result, err := svc.Register(req)
+		result, err := svc.Register(c.Request.Context(), req)
 		if err != nil {
 			failService(c, err)
 			return
@@ -67,7 +67,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		if !enforceRateLimit(c, "registration-email-account:"+passwordResetRateLimitSubject(req.Email), 10, time.Hour) {
 			return
 		}
-		if err := svc.SendRegistrationEmailCode(req.Email); err != nil {
+		if err := svc.SendRegistrationEmailCode(c.Request.Context(), req.Email); err != nil {
 			failService(c, err)
 			return
 		}
@@ -89,7 +89,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		if !enforceRateLimit(c, "password-reset-code-account:"+passwordResetRateLimitSubject(req.Email), policy.Request.EmailCodePerHour, time.Hour) {
 			return
 		}
-		if err := svc.SendPasswordResetEmailCode(req.Email); err != nil {
+		if err := svc.SendPasswordResetEmailCode(c.Request.Context(), req.Email); err != nil {
 			failService(c, err)
 			return
 		}
@@ -109,7 +109,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		if !enforceRateLimit(c, "password-reset-account:"+passwordResetRateLimitSubject(req.Email), policy.Request.LoginAccountPerTenMinutes, 10*time.Minute) {
 			return
 		}
-		if err := svc.ResetPassword(req); err != nil {
+		if err := svc.ResetPassword(c.Request.Context(), req); err != nil {
 			failService(c, err)
 			return
 		}
@@ -126,7 +126,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		if !available || !enforceRateLimit(c, "login-ip:"+c.ClientIP(), policy.Request.LoginIPPerTenMinutes, 10*time.Minute) {
 			return
 		}
-		subject, err := svc.LoginRateLimitSubject(req.Username)
+		subject, err := svc.LoginRateLimitSubject(c.Request.Context(), req.Username)
 		if err != nil {
 			failService(c, err)
 			return
@@ -136,7 +136,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		req.LoginContext = loginRequestContext(c)
 		c.Set("login_audit_handled", true)
-		result, err := svc.Login(req)
+		result, err := svc.Login(c.Request.Context(), req)
 		if err != nil {
 			failService(c, err)
 			return
@@ -149,7 +149,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 			return
 		}
 		acceptedTerms := c.Query("acceptedTerms") == "true"
-		target, err := svc.BeginLinuxDOLogin(c.Query("next"), acceptedTerms)
+		target, err := svc.BeginLinuxDOLogin(c.Request.Context(), c.Query("next"), acceptedTerms)
 		if err != nil {
 			failService(c, err)
 			return
@@ -161,7 +161,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		if !enforceRateLimit(c, "google-start:"+c.ClientIP(), 20, 10*time.Minute) {
 			return
 		}
-		target, err := svc.BeginGoogleLogin(c.Query("next"), c.Query("acceptedTerms") == "true", c.Query("ref"))
+		target, err := svc.BeginGoogleLogin(c.Request.Context(), c.Query("next"), c.Query("acceptedTerms") == "true", c.Query("ref"))
 		if err != nil {
 			c.Redirect(http.StatusFound, "/login?oauth_error="+url.QueryEscape(err.Error()))
 			return
@@ -239,7 +239,7 @@ func googleCallbackHandler(svc *service.Service) gin.HandlerFunc {
 			c.Redirect(http.StatusFound, "/login?oauth_error="+url.QueryEscape("已取消 Google 登录"))
 			return
 		}
-		reauthentication, stateErr := svc.GoogleReauthenticationState(c.Query("state"))
+		reauthentication, stateErr := svc.GoogleReauthenticationState(c.Request.Context(), c.Query("state"))
 		if stateErr != nil {
 			if err := svc.RecordRejectedLogin("google", loginRequestContext(c), 400); err != nil {
 				log.Printf("OAuth rejected login audit write failed: error=%v", err)
@@ -248,7 +248,7 @@ func googleCallbackHandler(svc *service.Service) gin.HandlerFunc {
 			return
 		}
 		c.Set("login_audit_handled", true)
-		result, err := svc.CompleteGoogleLogin(c.Query("state"), c.Query("code"), sessionCookie(c), loginRequestContext(c))
+		result, err := svc.CompleteGoogleLogin(c.Request.Context(), c.Query("state"), c.Query("code"), sessionCookie(c), loginRequestContext(c))
 		if err != nil {
 			if reauthentication {
 				c.Redirect(http.StatusFound, "/settings?section=profile&reauth=error")
@@ -269,7 +269,7 @@ func linuxDOCallbackHandler(svc *service.Service) gin.HandlerFunc {
 		if !enforceRateLimit(c, "linuxdo-callback:"+c.ClientIP(), 30, 10*time.Minute) {
 			return
 		}
-		reauthentication, stateErr := svc.LinuxDOReauthenticationState(c.Query("state"))
+		reauthentication, stateErr := svc.LinuxDOReauthenticationState(c.Request.Context(), c.Query("state"))
 		if stateErr != nil {
 			if err := svc.RecordRejectedLogin("linuxdo", loginRequestContext(c), 400); err != nil {
 				log.Printf("OAuth rejected login audit write failed: error=%v", err)
@@ -278,7 +278,7 @@ func linuxDOCallbackHandler(svc *service.Service) gin.HandlerFunc {
 			return
 		}
 		c.Set("login_audit_handled", true)
-		result, err := svc.CompleteLinuxDOLogin(c.Query("state"), c.Query("code"), sessionCookie(c), loginRequestContext(c))
+		result, err := svc.CompleteLinuxDOLogin(c.Request.Context(), c.Query("state"), c.Query("code"), sessionCookie(c), loginRequestContext(c))
 		if err != nil {
 			if reauthentication {
 				c.Redirect(http.StatusFound, "/settings?section=profile&reauth=error")

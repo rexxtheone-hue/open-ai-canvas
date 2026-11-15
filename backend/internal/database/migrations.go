@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const CurrentSchemaVersion int64 = 77
+const CurrentSchemaVersion int64 = 78
 
 const baselineSchemaChecksum = "sha256:open-ai-canvas-schema-v1-20260830"
 const schemaMigrationAppliedAtIndexChecksum = "sha256:schema-migrations-applied-at-index-v2-20260830"
@@ -266,6 +266,54 @@ var schemaMigrations = []migration{
 		return tx.Migrator().AddColumn(&model.CreditLot{}, "ExpiryReminderStage")
 	}},
 	{version: 77, name: "tenants_foundation", checksum: "sha256:tenants-foundation-v77-20261115", apply: migrateTenantsFoundation},
+	{version: 78, name: "tenant_scoped_accounts", checksum: "sha256:tenant-scoped-accounts-v78-20261115", apply: migrateTenantScopedAccounts},
+}
+
+// migrateTenantScopedAccounts 让用户名、邮箱、手机号、第三方身份改为「每个租户各自唯一」，
+// 并给验证码、验证票据、OAuth 状态记上租户，防止在一个网站拿到的码到另一个网站使用。
+func migrateTenantScopedAccounts(tx *gorm.DB) error {
+	for _, table := range []any{&model.UserIdentity{}, &model.EmailVerificationCode{}, &model.AuthVerification{}, &model.OAuthState{}} {
+		if !tx.Migrator().HasTable(table) || tx.Migrator().HasColumn(table, "TenantID") {
+			continue
+		}
+		if err := tx.Migrator().AddColumn(table, "TenantID"); err != nil {
+			return fmt.Errorf("增加租户栏位：%w", err)
+		}
+	}
+	// 测试与旧库可能缺少部分表，按表分别处理。
+	statements := map[string][]string{
+		"users": {
+			"DROP INDEX IF EXISTS idx_users_username",
+			"DROP INDEX IF EXISTS idx_users_email_nonempty",
+			"DROP INDEX IF EXISTS idx_users_phone_nonempty",
+			"CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tenant_username ON users(tenant_id, username)",
+			"CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tenant_email_nonempty ON users(tenant_id, lower(email)) WHERE email <> ''",
+			"CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tenant_phone_nonempty ON users(tenant_id, phone) WHERE phone <> ''",
+		},
+		"user_identities": {
+			"DROP INDEX IF EXISTS idx_user_identity_provider_subject",
+			"CREATE UNIQUE INDEX IF NOT EXISTS idx_user_identity_tenant_provider_subject ON user_identities(tenant_id, provider, subject)",
+		},
+		"email_verification_codes": {"CREATE INDEX IF NOT EXISTS idx_email_verification_codes_tenant_id ON email_verification_codes(tenant_id)"},
+		"auth_verifications":       {"CREATE INDEX IF NOT EXISTS idx_auth_verifications_tenant_id ON auth_verifications(tenant_id)"},
+		"o_auth_states":            {"CREATE INDEX IF NOT EXISTS idx_o_auth_states_tenant_id ON o_auth_states(tenant_id)"},
+	}
+	if tx.Migrator().HasTable("user_identities") && tx.Migrator().HasTable("users") {
+		if err := tx.Exec("UPDATE user_identities SET tenant_id = COALESCE((SELECT users.tenant_id FROM users WHERE users.id = user_identities.user_id), ?)", model.PlatformTenantID).Error; err != nil {
+			return fmt.Errorf("第三方身份归入所属租户：%w", err)
+		}
+	}
+	for _, table := range []string{"users", "user_identities", "email_verification_codes", "auth_verifications", "o_auth_states"} {
+		if !tx.Migrator().HasTable(table) {
+			continue
+		}
+		for _, statement := range statements[table] {
+			if err := tx.Exec(statement).Error; err != nil {
+				return fmt.Errorf("租户内唯一索引：%w", err)
+			}
+		}
+	}
+	return nil
 }
 
 // migrateTenantsFoundation 建立租户与网址表，并把现有用户全部归到平台租户；只新增、不删除，旧版程序照常可用。

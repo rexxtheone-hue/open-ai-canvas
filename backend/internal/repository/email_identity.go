@@ -24,7 +24,7 @@ func (r *Repository) CheckEmailAvailable(email, ownID string) error {
 	}
 	canonical := "CASE WHEN " + value + " LIKE '%@gmail.com' OR " + value + " LIKE '%@googlemail.com' THEN replace((" + untagged + "),'.','') || '@gmail.com' ELSE " + value + " END"
 	var count int64
-	if err := r.db.Model(&model.User{}).Where("id <> ? AND ("+canonical+") = ?", ownID, emailidentity.Canonical(email)).Count(&count).Error; err != nil {
+	if err := r.tenantScope(r.db.Model(&model.User{})).Where("id <> ? AND ("+canonical+") = ?", ownID, emailidentity.Canonical(email)).Count(&count).Error; err != nil {
 		return err
 	}
 	if count > 0 {
@@ -35,9 +35,14 @@ func (r *Repository) CheckEmailAvailable(email, ownID string) error {
 
 // All public registration paths lock before checking and writing, including
 // registrations using different verification codes on different instances.
-func lockRegistrationEmail(tx *gorm.DB, email string) error {
+// 同一邮箱在不同租户可以各注册一次，所以锁的键带上租户。
+func (r *Repository) lockRegistrationEmail(tx *gorm.DB, email string) error {
+	key := "registration-email:" + emailidentity.Canonical(email)
+	if r.tenantID != "" {
+		key = "registration-email:" + r.tenantID + ":" + emailidentity.Canonical(email)
+	}
 	if tx.Dialector.Name() == "postgres" {
-		return tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?)::bigint)", "registration-email:"+emailidentity.Canonical(email)).Error
+		return tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?)::bigint)", key).Error
 	}
 	if tx.Dialector.Name() == "sqlite" {
 		return tx.Exec("UPDATE users SET updated_at = updated_at WHERE 1 = 0").Error
@@ -46,11 +51,12 @@ func lockRegistrationEmail(tx *gorm.DB, email string) error {
 }
 
 func (r *Repository) CreateRegisteredUser(user *model.User) error {
+	r.stampTenant(user)
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		if err := lockRegistrationEmail(tx, user.Email); err != nil {
+		if err := r.lockRegistrationEmail(tx, user.Email); err != nil {
 			return err
 		}
-		if err := New(tx).CheckEmailAvailable(user.Email, ""); err != nil {
+		if err := r.withDB(tx).CheckEmailAvailable(user.Email, ""); err != nil {
 			return err
 		}
 		return tx.Create(user).Error

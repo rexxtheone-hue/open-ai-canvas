@@ -173,11 +173,11 @@ func (s *Service) SendRegistrationEmailCode(rawEmail string) error {
 	if err := ValidateEmail(email); err != nil {
 		return err
 	}
-	count, err := s.repo.UserCount()
+	bootstrap, err := s.firstUserBootstrap()
 	if err != nil {
 		return err
 	}
-	if count == 0 {
+	if bootstrap {
 		return kernel.BadAuthRequest("首个管理员账号不需要邮箱验证码")
 	}
 	registrationEnabled, err := s.RegistrationEnabled()
@@ -200,8 +200,8 @@ func (s *Service) SendRegistrationEmailCode(rawEmail string) error {
 	if !setting.Enabled {
 		return kernel.Forbidden("平台尚未启用注册邮件，请联系管理员")
 	}
-	s.emailCodeMu.Lock()
-	defer s.emailCodeMu.Unlock()
+	s.locks.emailCode.Lock()
+	defer s.locks.emailCode.Unlock()
 	if latest, err := s.repo.LatestEmailVerificationCode(email, registrationEmailPurpose); err == nil && time.Since(latest.CreatedAt) < time.Minute {
 		seconds := max(1, int((time.Until(latest.CreatedAt.Add(time.Minute))+time.Second-1)/time.Second))
 		return &EmailCodeCooldownError{Seconds: seconds}
@@ -217,7 +217,7 @@ func (s *Service) SendRegistrationEmailCode(rawEmail string) error {
 		return err
 	}
 	now := time.Now()
-	record := model.EmailVerificationCode{ID: kernel.NewID(), Email: email, CodeHash: codeHash, Purpose: registrationEmailPurpose, ExpiresAt: now.Add(registrationCodeTTL), CreatedAt: now}
+	record := model.EmailVerificationCode{ID: kernel.NewID(), TenantID: s.tenantID(), Email: email, CodeHash: codeHash, Purpose: registrationEmailPurpose, ExpiresAt: now.Add(registrationCodeTTL), CreatedAt: now}
 	if err := s.repo.Create(&record); err != nil {
 		return err
 	}

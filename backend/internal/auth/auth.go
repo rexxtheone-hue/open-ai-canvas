@@ -78,11 +78,11 @@ type AuthUser struct {
 }
 
 func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
-	count, err := s.repo.UserCount()
+	bootstrap, err := s.firstUserBootstrap()
 	if err != nil {
 		return nil, err
 	}
-	if count == 0 {
+	if bootstrap {
 		// 首个管理员同样要看到服务协议，不能因为跳过注册校验就丢失协议字段。
 		agreementTitle, agreementContent := s.RegistrationAgreement()
 		return &PublicAuthSettings{FirstUser: true, RegistrationEnabled: true, LinuxDOEnabled: false, AgreementTitle: agreementTitle, AgreementContent: agreementContent, SignupBonusMicrocredits: s.host.SignupBonusMicrocredits()}, nil
@@ -159,16 +159,16 @@ func (s *Service) Register(req RegisterRequest) (*AuthSessionResult, error) {
 			return nil, err
 		}
 	}
-	s.registrationMu.Lock()
-	defer s.registrationMu.Unlock()
-	count, err := s.repo.UserCount()
+	s.locks.registration.Lock()
+	defer s.locks.registration.Unlock()
+	bootstrap, err := s.firstUserBootstrap()
 	if err != nil {
 		return nil, err
 	}
 	var verifiedCode *model.EmailVerificationCode
 	var verification *model.AuthVerification
 	phone := ""
-	if count > 0 {
+	if !bootstrap {
 		registrationEnabled, err := s.RegistrationEnabled()
 		if err != nil {
 			return nil, err
@@ -232,10 +232,11 @@ func (s *Service) Register(req RegisterRequest) (*AuthSessionResult, error) {
 		Role:         model.UserRoleUser,
 		Status:       model.UserStatusActive,
 		PasswordHash: passwordHash,
+		TenantID:     s.tenantID(),
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
-	if count == 0 {
+	if bootstrap {
 		user.Role = model.UserRoleAdmin
 	}
 	if verification != nil {

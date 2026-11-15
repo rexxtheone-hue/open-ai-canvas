@@ -64,12 +64,15 @@ func (r *Repository) CreateAuthVerification(v *model.AuthVerification, limits []
 		if err := reserveNotificationLimits(tx, limits, v.CreatedAt); err != nil {
 			return err
 		}
+		if v.TenantID == "" && r.tenantID != "" {
+			v.TenantID = r.tenantID
+		}
 		return tx.Create(v).Error
 	})
 }
 func (r *Repository) AuthVerification(id string) (*model.AuthVerification, error) {
 	var v model.AuthVerification
-	err := r.db.First(&v, "id = ?", id).Error
+	err := r.tenantScope(r.db).First(&v, "id = ?", id).Error
 	return &v, err
 }
 func (r *Repository) SetAuthVerificationReady(id string) error {
@@ -96,11 +99,12 @@ func consumeVerification(tx *gorm.DB, id string, now time.Time) error {
 	return nil
 }
 func (r *Repository) CreateUserWithVerification(user *model.User, id string) error {
+	r.stampTenant(user)
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		if err := lockRegistrationEmail(tx, user.Email); err != nil {
+		if err := r.lockRegistrationEmail(tx, user.Email); err != nil {
 			return err
 		}
-		if err := New(tx).CheckEmailAvailable(user.Email, ""); err != nil {
+		if err := r.withDB(tx).CheckEmailAvailable(user.Email, ""); err != nil {
 			return err
 		}
 		if err := consumeVerification(tx, id, time.Now()); err != nil {
@@ -113,10 +117,10 @@ func (r *Repository) CompleteAuthVerification(v *model.AuthVerification, bind bo
 	var user model.User
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		if bind && v.Email != "" {
-			if err := lockRegistrationEmail(tx, v.Email); err != nil {
+			if err := r.lockRegistrationEmail(tx, v.Email); err != nil {
 				return err
 			}
-			if err := New(tx).CheckEmailAvailable(v.Email, v.UserID); err != nil {
+			if err := r.withDB(tx).CheckEmailAvailable(v.Email, v.UserID); err != nil {
 				return err
 			}
 		}
@@ -155,7 +159,7 @@ func (r *Repository) CompleteAuthVerification(v *model.AuthVerification, bind bo
 }
 func (r *Repository) UserByPhone(phone string) (*model.User, error) {
 	var u model.User
-	err := r.db.First(&u, "phone = ?", phone).Error
+	err := r.tenantScope(r.db).First(&u, "phone = ?", phone).Error
 	return &u, err
 }
 

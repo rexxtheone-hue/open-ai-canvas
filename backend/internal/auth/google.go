@@ -114,11 +114,11 @@ func (s *Service) GoogleEnabled() bool {
 }
 
 func (s *Service) BeginGoogleLogin(nextPath string, acceptedTerms bool, referralCode string) (string, error) {
-	count, err := s.repo.UserCount()
+	bootstrap, err := s.firstUserBootstrap()
 	if err != nil {
 		return "", err
 	}
-	if count == 0 {
+	if bootstrap {
 		return "", kernel.Forbidden("请先创建本地管理员账号，再开放 Google 登录")
 	}
 	_, setting, err := s.readGoogleSetting()
@@ -285,7 +285,7 @@ func (s *Service) googleUser(profile googleProfile, state *model.OAuthState, eve
 		existing, err := s.repo.UserByEmail(email)
 		if err == nil && existing != nil && existing.EmailVerifiedAt != nil {
 			now := time.Now()
-			link := &model.UserIdentity{ID: kernel.NewID(), UserID: existing.ID, Provider: googleProvider, Subject: profile.Subject, ProviderUsername: profile.Email, AvatarURL: profile.Picture, CreatedAt: now, UpdatedAt: now}
+			link := &model.UserIdentity{ID: kernel.NewID(), UserID: existing.ID, TenantID: existing.TenantID, Provider: googleProvider, Subject: profile.Subject, ProviderUsername: profile.Email, AvatarURL: profile.Picture, CreatedAt: now, UpdatedAt: now}
 			if err := s.repo.Create(link); err != nil {
 				return nil, err
 			}
@@ -355,7 +355,7 @@ func (s *Service) createGoogleUser(profile googleProfile) (*model.User, *model.U
 		email = ""
 	}
 	displayName := kernel.FirstNonEmpty(strings.TrimSpace(profile.Name), local, username)
-	user := &model.User{ID: kernel.NewID(), Username: username, Email: email, EmailVerifiedAt: verifiedAt, DisplayName: NormalizeDisplayName(displayName, username), Role: model.UserRoleUser, Status: model.UserStatusActive}
+	user := &model.User{ID: kernel.NewID(), TenantID: s.tenantID(), Username: username, Email: email, EmailVerifiedAt: verifiedAt, DisplayName: NormalizeDisplayName(displayName, username), Role: model.UserRoleUser, Status: model.UserStatusActive}
 	identity := &model.UserIdentity{ID: kernel.NewID(), UserID: user.ID, Provider: googleProvider, Subject: profile.Subject, ProviderUsername: profile.Email, AvatarURL: profile.Picture}
 	return user, identity, nil
 }

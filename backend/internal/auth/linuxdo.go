@@ -142,11 +142,11 @@ func (s *Service) LinuxDOEnabled() bool {
 }
 
 func (s *Service) BeginLinuxDOLogin(nextPath string, acceptedTerms bool) (string, error) {
-	count, err := s.repo.UserCount()
+	bootstrap, err := s.firstUserBootstrap()
 	if err != nil {
 		return "", err
 	}
-	if count == 0 {
+	if bootstrap {
 		return "", kernel.Forbidden("请先创建本地管理员账号，再开放 Linux.do 登录")
 	}
 	_, setting, err := s.readLinuxDOSetting()
@@ -374,7 +374,7 @@ func (s *Service) createLinuxDOUser(subject string, providerUsername string, dis
 			return nil, nil, err
 		}
 	}
-	user := &model.User{ID: kernel.NewID(), Username: username, Email: email, DisplayName: NormalizeDisplayName(displayName, username), Role: model.UserRoleUser, Status: model.UserStatusActive}
+	user := &model.User{ID: kernel.NewID(), TenantID: s.tenantID(), Username: username, Email: email, DisplayName: NormalizeDisplayName(displayName, username), Role: model.UserRoleUser, Status: model.UserStatusActive}
 	identity := &model.UserIdentity{ID: kernel.NewID(), UserID: user.ID, Provider: "linuxdo", Subject: subject, ProviderUsername: providerUsername, AvatarURL: avatarURL}
 	return user, identity, nil
 }
