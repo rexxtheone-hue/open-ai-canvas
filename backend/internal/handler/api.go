@@ -10,6 +10,7 @@ import (
 
 // RegisterCanvasAPI 注册当前公开 HTTP API。main 把它挂在 /api。前后端一起发布，不做路径版本前缀。
 func RegisterCanvasAPI(api *gin.RouterGroup, svc *service.Service) {
+	api.Use(tenantAdminRouteGuard(svc))
 	RegisterOpenAPIRoutes(api)
 	RegisterAuthRoutes(api, svc)
 	RegisterAppearanceRoutes(api, svc)
@@ -22,6 +23,7 @@ func RegisterCanvasAPI(api *gin.RouterGroup, svc *service.Service) {
 	RegisterAdminAnalyticsRoutes(api, svc)
 	RegisterAdminStorageRoutes(api, svc)
 	RegisterTenantDomainRoutes(api, svc)
+	RegisterTenantProvisioningRoutes(api, svc)
 	RegisterAdminUpdateRoutes(api, svc)
 	RegisterAdminSystemPerformanceRoutes(api, svc)
 	RegisterAnnouncementRoutes(api, svc)

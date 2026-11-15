@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { DEFAULT_DRAWING_ENGINE, type CanvasDrawingEngineSetting } from "@/lib/canvas/canvas-drawing-engine";
 
 export type StaffRole = "operator" | "support" | "finance";
-export type UserRole = "admin" | "user" | StaffRole;
+export type UserRole = "admin" | "user" | "tenant_admin" | StaffRole;
 
 export const staffRoleLabels: Record<StaffRole, string> = { operator: "运营", support: "客服", finance: "财务" };
 
@@ -16,7 +16,13 @@ export const userRoleOptions: Array<{ label: string; value: UserRole }> = [
 ];
 
 export function userRoleLabel(role: string | undefined) {
+    if (role === "tenant_admin") return "代理商管理员";
     return userRoleOptions.find((option) => option.value === role)?.label || "普通用户";
+}
+
+/** 代理商管理员只在自己的网址后台管理本代理商的数据。 */
+export function isTenantAdminRole(role: string | undefined): role is "tenant_admin" {
+    return role === "tenant_admin";
 }
 
 export function isStaffRole(role: string | undefined): role is StaffRole {

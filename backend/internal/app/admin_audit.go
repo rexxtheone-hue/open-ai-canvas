@@ -125,6 +125,11 @@ func (s *Service) AdminUserTasks(actor *model.User, userID string, page int, lim
 	}
 	page, limit = normalizeAdminPage(page, limit)
 	tasks, total, err := s.repo.AdminUserTasks(userID, limit, (page-1)*limit)
+	if IsTenantAdmin(actor) {
+		for index := range tasks {
+			tasks[index].Provider, tasks[index].ProviderRequestID = "", ""
+		}
+	}
 	return &AdminTaskPage{Tasks: tasks, Total: total, Page: page, Limit: limit}, err
 }
 

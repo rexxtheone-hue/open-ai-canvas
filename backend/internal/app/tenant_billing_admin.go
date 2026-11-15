@@ -233,7 +233,7 @@ func (s *Service) requireTenantAdmin(actor *model.User, tenant model.Tenant) err
 	if actor == nil {
 		return Unauthorized("请先登录")
 	}
-	if tenant.IsPlatform || tenant.ID == "" || tenant.ID == model.PlatformTenantID || actor.TenantID != tenant.ID || actor.Role != model.UserRoleTenantAdmin {
+	if tenant.IsPlatform || tenant.ID == "" || tenant.ID == model.PlatformTenantID || actor.TenantID != tenant.ID || !IsTenantAdmin(actor) {
 		return Forbidden("需要代理商管理员权限")
 	}
 	return nil

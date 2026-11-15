@@ -6,8 +6,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PaginationBar } from "@/pages/admin/components/admin-ui";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { bulkDisableAdminUsers, deleteAdminUser, listAdminUsers, updateAdminUser, type AdminUser, type LocalUser } from "@/services/api/auth";
-import { userRoleOptions, useUserStore } from "@/stores/use-user-store";
-import { AdminBatchBar, AdminDataTable, AdminTableEmpty } from "../components/admin-ui";
+import { isTenantAdminRole, userRoleOptions, useUserStore } from "@/stores/use-user-store";
+import { exportOwnCustomers } from "@/services/api/tenant-admin";
+import { AdminBatchBar, AdminDataTable, AdminExportButton, AdminTableEmpty } from "../components/admin-ui";
 import { useTableUrlState } from "../lib/use-table-url-state";
 import { AdminUserDetailDrawer } from "../components/admin-user-detail-drawer";
 import { createUserColumns, userColumnOptions, type UserColumnKey } from "./users-columns";
@@ -20,6 +21,7 @@ const allColumnKeys = userColumnOptions.map((item) => item.key);
 
 export default function UsersPanel({ onUserChanged }: { onUserChanged?: (user: LocalUser) => void }) {
     const actor = useUserStore((state) => state.user);
+    const tenantView = isTenantAdminRole(actor?.role);
     const { message, modal } = App.useApp();
     const { state, update } = useTableUrlState();
     const debouncedFilter = useDebouncedValue(state.filter);
@@ -114,11 +116,12 @@ export default function UsersPanel({ onUserChanged }: { onUserChanged?: (user: L
 
     const columns = useMemo(() => createUserColumns({
         actorId: actor?.id,
+        readOnly: tenantView,
         visibleColumns,
         onView: (user) => setDetailUserId(user.id),
         onEdit: (user) => { setCreateUserOpen(false); setEditingUser(user); },
         onToggleStatus: toggleStatus,
-    }), [actor?.id, toggleStatus, visibleColumns]);
+    }), [actor?.id, tenantView, toggleStatus, visibleColumns]);
 
     const resetFilters = () => update({ filter: "", role: "all", status: "all", page: 1 });
 
@@ -183,7 +186,11 @@ export default function UsersPanel({ onUserChanged }: { onUserChanged?: (user: L
                 }
                 trailing={
                     <div className="flex items-center gap-2">
-                        <Button icon={<UserPlus className="size-4" />} onClick={() => { setEditingUser(null); setCreateUserOpen(true); }}>{"\u6dfb\u52a0\u7528\u6237"}</Button>
+                        {tenantView ? (
+                            <AdminExportButton label="\u5bfc\u51fa\u5ba2\u6237" exportFile={exportOwnCustomers} fileName={() => `customers-${new Date().toISOString().slice(0, 10)}.csv`} successMessage="\u5ba2\u6237\u540d\u5355\u5df2\u5bfc\u51fa" />
+                        ) : (
+                            <Button icon={<UserPlus className="size-4" />} onClick={() => { setEditingUser(null); setCreateUserOpen(true); }}>{"\u6dfb\u52a0\u7528\u6237"}</Button>
+                        )}
                         <Dropdown
                             trigger={["click"]}
                             popupRender={() => (
@@ -214,14 +221,14 @@ export default function UsersPanel({ onUserChanged }: { onUserChanged?: (user: L
                         </Dropdown>
                     </div>
                 }
-                batchActions={<AdminBatchBar count={selectedUserIds.length} onClear={() => setSelectedUserIds([])}><Button danger size="small" icon={<Ban className="size-3.5" />} loading={bulkDisabling} onClick={bulkDisable}>批量停用</Button></AdminBatchBar>}
+                batchActions={tenantView ? undefined : <AdminBatchBar count={selectedUserIds.length} onClear={() => setSelectedUserIds([])}><Button danger size="small" icon={<Ban className="size-3.5" />} loading={bulkDisabling} onClick={bulkDisable}>批量停用</Button></AdminBatchBar>}
                 skeletonColumns={Math.max(4, columns.length)}
                 table={{
                     className: "app-data-table admin-users-table",
                     size: "small",
                     rowKey: "id",
                     loading,
-                    rowSelection: {
+                    rowSelection: tenantView ? undefined : {
                         selectedRowKeys: selectedUserIds,
                         preserveSelectedRowKeys: false,
                         onChange: (keys) => setSelectedUserIds(keys.map(String)),

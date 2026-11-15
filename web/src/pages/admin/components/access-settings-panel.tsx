@@ -6,6 +6,7 @@ import { useBlocker } from "react-router";
 
 import { cn } from "@/lib/utils";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
+import { isTenantAdminRole, useUserStore } from "@/stores/use-user-store";
 import { getAdminLinuxDOSetting, getAdminRegistrationSetting, updateAdminLinuxDOSetting, updateAdminRegistrationSetting, type LinuxDOSetting, type RegistrationSetting } from "@/services/api/wallet";
 import { AdminStatusBadge, configuredSecretText, SettingsSectionCard } from "./admin-ui";
 import { Select } from "@/components/ui/base/select";
@@ -30,9 +31,27 @@ const DEFAULT_AGREEMENT_TEMPLATE = `一、服务说明与接受
 
 type LinuxDOFormValues = Omit<LinuxDOSetting, "hasClientSecret" | "updatedAt">;
 
+const disabledLinuxDOSetting: LinuxDOSetting = {
+    enabled: false,
+    clientId: "",
+    hasClientSecret: false,
+    authorizationUrl: "",
+    tokenUrl: "",
+    userInfoUrl: "",
+    redirectUrl: "",
+    scopes: [],
+    clientAuthMethod: "client_secret_post",
+    subjectField: "",
+    usernameField: "",
+    displayNameField: "",
+    emailField: "",
+    avatarField: "",
+};
+
 export default function AccessSettingsPanel() {
     const { message, modal } = App.useApp();
     const brandName = useAppearanceStore((state) => state.appearance.brandName) || "平台";
+    const tenantView = isTenantAdminRole(useUserStore((state) => state.user?.role));
     const [linuxdo, setLinuxdo] = useState<LinuxDOSetting | null>(null);
     const [registration, setRegistration] = useState<RegistrationSetting | null>(null);
     const [loading, setLoading] = useState(true);
@@ -59,7 +78,8 @@ export default function AccessSettingsPanel() {
             else setRefreshing(true);
             setLoadError("");
             try {
-                const [linuxdoData, registrationData] = await Promise.all([getAdminLinuxDOSetting(), getAdminRegistrationSetting()]);
+                // Linux.do 登录只在平台网站提供，代理商后台用一个关闭状态的占位。
+                const [linuxdoData, registrationData] = await Promise.all([tenantView ? Promise.resolve({ setting: disabledLinuxDOSetting }) : getAdminLinuxDOSetting(), getAdminRegistrationSetting()]);
                 if (requestVersion !== requestVersionRef.current) return;
                 setLinuxdo(linuxdoData.setting);
                 setRegistration(registrationData.setting);
@@ -81,7 +101,7 @@ export default function AccessSettingsPanel() {
                 }
             }
         },
-        [form, message],
+        [form, message, tenantView],
     );
 
     useEffect(() => {
@@ -303,7 +323,7 @@ export default function AccessSettingsPanel() {
                     </span>
                     <div>
                         <strong>{dirty ? "Linux.do 有未保存的调整" : "登录与注册设置"}</strong>
-                        <p>{dirty ? "完成接入信息后保存生效。" : `新用户注册${registration.enabled ? "已开放" : "已关闭"} · Linux.do ${linuxdo.enabled ? "已启用" : "未启用"}`}</p>
+                        <p>{dirty ? "完成接入信息后保存生效。" : tenantView ? `新用户注册${registration.enabled ? "已开放" : "已关闭"}` : `新用户注册${registration.enabled ? "已开放" : "已关闭"} · Linux.do ${linuxdo.enabled ? "已启用" : "未启用"}`}</p>
                     </div>
                 </div>
                 <div className="admin-access-command-actions">
@@ -350,6 +370,7 @@ export default function AccessSettingsPanel() {
                 </SettingsSectionCard>
             </div>
 
+            {!tenantView ? (
             <div id="admin-access-linuxdo" className="admin-settings-anchor">
                 <SettingsSectionCard
                     className="admin-access-section admin-access-linuxdo-section"
@@ -483,6 +504,7 @@ export default function AccessSettingsPanel() {
                     </Form>
                 </SettingsSectionCard>
             </div>
+            ) : null}
 
             <div id="admin-access-agreement" className="admin-settings-anchor">
                 <SettingsSectionCard

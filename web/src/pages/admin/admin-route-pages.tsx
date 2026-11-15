@@ -2,6 +2,7 @@ import { Button } from "antd";
 import { Plus, Settings2, UserRoundCog } from "lucide-react";
 import { lazy, useState } from "react";
 
+import { isTenantAdminRole, useUserStore } from "@/stores/use-user-store";
 import { useAdminContext } from "./admin-context";
 import { AdminPageFrame } from "./components/admin-shell";
 import { readAnnouncementPendingReview } from "./components/admin-announcement-safety";
@@ -79,10 +80,12 @@ export function BannerAnnouncementsPage() {
 export function CreditOperationsPage() {
     const { references } = useAdminContext();
     const [activeOperation, setActiveOperation] = useState<"policy" | "adjustment" | null>(null);
+    // 异常计费核对会动到批发池，只在平台后台处理。
+    const tenantView = isTenantAdminRole(useUserStore((state) => state.user?.role));
     return (
         <AdminPageFrame
             title="积分运营"
-            description="异常计费核对、积分策略与人工调账"
+            description={tenantView ? "积分策略与给客户人工调账" : "异常计费核对、积分策略与人工调账"}
             actions={
                 <>
                     <Button icon={<Settings2 className="size-4" />} onClick={() => setActiveOperation("policy")}>
@@ -94,7 +97,7 @@ export function CreditOperationsPage() {
                 </>
             }
         >
-            <CreditOperationsPanel users={references.users} activeOperation={activeOperation} onOperationChange={setActiveOperation} />
+            <CreditOperationsPanel users={references.users} activeOperation={activeOperation} onOperationChange={setActiveOperation} billingReview={!tenantView} />
         </AdminPageFrame>
     );
 }

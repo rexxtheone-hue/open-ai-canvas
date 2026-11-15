@@ -5,6 +5,7 @@ import {
     ArrowLeft,
     BadgeCheck,
     BarChart3,
+    Building2,
     BellRing,
     ChevronDown,
     CloudUpload,
@@ -13,6 +14,7 @@ import {
     Database,
     FileClock,
     HardDrive,
+    Globe,
     Home,
     Infinity as InfinityIcon,
     KeyRound,
@@ -25,6 +27,7 @@ import {
     Paintbrush,
     PanelLeftClose,
     PanelLeftOpen,
+    Percent,
     PlugZap,
     RadioTower,
     RefreshCw,
@@ -35,10 +38,13 @@ import {
     ShieldAlert,
     ShieldCheck,
     Sun,
+    Tags,
     TicketCheck,
     ToggleLeft,
     WandSparkles,
+    UserCog,
     UsersRound,
+    Wallet,
 } from "lucide-react";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Link, Navigate, NavLink, Outlet, useLocation } from "react-router";
@@ -48,7 +54,7 @@ import { BrandLogoFrame } from "@/components/brand/brand-logo";
 import { publishWorkspaceSidebarCollapsed, readWorkspaceSidebarCollapsed, subscribeWorkspaceSidebarCollapsed } from "@/components/layout/workspace-sidebar-state";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/stores/use-theme-store";
-import { isStaffRole, useUserStore, type StaffRole } from "@/stores/use-user-store";
+import { isStaffRole, isTenantAdminRole, useUserStore, type StaffRole } from "@/stores/use-user-store";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
 import { getIsolatedAdminAntTheme } from "../theme/admin-ant-theme";
 import { AdminTooltip } from "../ui/controls";
@@ -63,11 +69,24 @@ type AdminNavigationItem = {
     description: string;
     icon: ReactNode;
     requireFeature?: "frontendModelsEnabled";
-    /** 可见的员工角色；未列出时仅超级管理员可见。与后端 staffPermissions 保持一致。 */
-    staff?: StaffRole[];
+    /** 可见的员工角色；未列出时仅超级管理员可见。与后端 staffPermissions、tenantAdminElevatedRules 保持一致。 */
+    staff?: Array<StaffRole | "tenant_admin">;
+    /** 只有代理商管理员可见（平台超级管理员没有自己的批发池）。 */
+    tenantOnly?: boolean;
 };
 
+const tenantAdmin: Array<StaffRole | "tenant_admin"> = ["tenant_admin"];
+
 const adminNavigation: Array<{ label: string; items: AdminNavigationItem[] }> = [
+    {
+        label: "代理商经营",
+        items: [
+            { path: "/admin/agency/pool", label: "积分池", description: "批发余额、批次与最低消费", icon: <Wallet className="size-4" />, staff: tenantAdmin, tenantOnly: true },
+            { path: "/admin/agency/prices", label: "模型零售价", description: "倍率、固定价与隐藏模型", icon: <Tags className="size-4" />, staff: tenantAdmin, tenantOnly: true },
+            { path: "/admin/agency/domains", label: "我的网址", description: "网址与证书状态", icon: <Globe className="size-4" />, staff: tenantAdmin, tenantOnly: true },
+            { path: "/admin/agency/staff", label: "管理员", description: "本网址后台的同事", icon: <UserCog className="size-4" />, staff: tenantAdmin, tenantOnly: true },
+        ],
+    },
     {
         label: "监控与排查",
         items: [
@@ -89,17 +108,24 @@ const adminNavigation: Array<{ label: string; items: AdminNavigationItem[] }> = 
     {
         label: "用户与运营",
         items: [
-            { path: "/admin/users", label: "用户管理", description: "账号、角色与状态", icon: <UsersRound className="size-4" />, staff: ["operator", "support", "finance"] },
-            { path: "/admin/partners", label: "认证审核", description: "认证创作者、商家与推广者", icon: <BadgeCheck className="size-4" />, staff: ["operator", "support"] },
-            { path: "/admin/affiliates", label: "推广分佣", description: "推广者、佣金与提现", icon: <Share2 className="size-4" />, staff: ["finance", "operator"] },
-            { path: "/admin/login-logs", label: "用户登录日志", description: "登录、失败与主动退出", icon: <FileClock className="size-4" />, staff: ["support"] },
-            { path: "/admin/announcements", label: "系统公告", description: "发布、关闭与历史公告", icon: <BellRing className="size-4" />, staff: ["operator"] },
-            { path: "/admin/banner-announcements", label: "常驻通知", description: "首页顶部常驻滚动通知", icon: <Megaphone className="size-4" />, staff: ["operator"] },
+            { path: "/admin/users", label: "用户管理", description: "账号、角色与状态", icon: <UsersRound className="size-4" />, staff: ["operator", "support", "finance", "tenant_admin"] },
+            { path: "/admin/partners", label: "认证审核", description: "认证创作者、商家与推广者", icon: <BadgeCheck className="size-4" />, staff: ["operator", "support", "tenant_admin"] },
+            { path: "/admin/affiliates", label: "推广分佣", description: "推广者、佣金与提现", icon: <Share2 className="size-4" />, staff: ["finance", "operator", "tenant_admin"] },
+            { path: "/admin/login-logs", label: "用户登录日志", description: "登录、失败与主动退出", icon: <FileClock className="size-4" />, staff: ["support", "tenant_admin"] },
+            { path: "/admin/announcements", label: "系统公告", description: "发布、关闭与历史公告", icon: <BellRing className="size-4" />, staff: ["operator", "tenant_admin"] },
+            { path: "/admin/banner-announcements", label: "常驻通知", description: "首页顶部常驻滚动通知", icon: <Megaphone className="size-4" />, staff: ["operator", "tenant_admin"] },
             { path: "/admin/agent-lessons", label: "Agent 记忆", description: "按用户查看个人记忆", icon: <Sparkles className="size-4" />, staff: ["operator"] },
-            { path: "/admin/payments", label: "支付充值", description: "支付渠道、订单与对账", icon: <CreditCard className="size-4" />, staff: ["support", "finance"] },
-            { path: "/admin/studio", label: "AI Studio", description: "会员套餐与灵感社区", icon: <Sparkles className="size-4" />, staff: ["operator"] },
-            { path: "/admin/credit-operations", label: "积分运营", description: "人工调账与异常计费", icon: <Coins className="size-4" />, staff: ["support"] },
-            { path: "/admin/redemption-codes", label: "兑换码", description: "生成与查看兑换码批次", icon: <TicketCheck className="size-4" />, staff: ["finance", "support"] },
+            { path: "/admin/payments", label: "支付充值", description: "支付渠道、订单与对账", icon: <CreditCard className="size-4" />, staff: ["support", "finance", "tenant_admin"] },
+            { path: "/admin/studio", label: "AI Studio", description: "会员套餐与灵感社区", icon: <Sparkles className="size-4" />, staff: ["operator", "tenant_admin"] },
+            { path: "/admin/credit-operations", label: "积分运营", description: "人工调账与异常计费", icon: <Coins className="size-4" />, staff: ["support", "tenant_admin"] },
+            { path: "/admin/redemption-codes", label: "兑换码", description: "生成与查看兑换码批次", icon: <TicketCheck className="size-4" />, staff: ["finance", "support", "tenant_admin"] },
+        ],
+    },
+    {
+        label: "代理商",
+        items: [
+            { path: "/admin/agencies", label: "代理商", description: "开设、网址、批发池与月结", icon: <Building2 className="size-4" /> },
+            { path: "/admin/agency-discounts", label: "代理商折扣", description: "按模型设置拿货折扣", icon: <Percent className="size-4" /> },
         ],
     },
     {
@@ -107,13 +133,13 @@ const adminNavigation: Array<{ label: string; items: AdminNavigationItem[] }> = 
         items: [
             { path: "/admin/plugins", label: "插件管理", description: "平台可用性、上传与卸载", icon: <PlugZap className="size-4" /> },
             { path: "/admin/skill-curation", label: "技能分类", description: "平台策展与分类维护", icon: <PlugZap className="size-4" />, staff: ["operator"] },
-            { path: "/admin/settings/appearance", label: "站点及外观", description: "品牌、SEO、备案与皮肤", icon: <Palette className="size-4" /> },
-            { path: "/admin/settings/features", label: "功能开放", description: "工作台、插件与模型能力", icon: <ToggleLeft className="size-4" /> },
+            { path: "/admin/settings/appearance", label: "站点及外观", description: "品牌、SEO、备案与皮肤", icon: <Palette className="size-4" />, staff: tenantAdmin },
+            { path: "/admin/settings/features", label: "功能开放", description: "工作台、插件与模型能力", icon: <ToggleLeft className="size-4" />, staff: tenantAdmin },
             { path: "/admin/settings/drawing-engine", label: "绘图工具", description: "画布绘图节点默认引擎", icon: <Paintbrush className="size-4" /> },
             { path: "/admin/settings/billing-currency", label: "币种与汇率", description: "积分面值与成本汇率", icon: <Coins className="size-4" />, staff: ["finance"] },
             { path: "/admin/settings/runtime-policy", label: "资源与策略", description: "配额、并发、频控与超时", icon: <Settings2 className="size-4" /> },
-            { path: "/admin/settings/access", label: "登录与注册", description: "账号创建与第三方登录", icon: <ShieldCheck className="size-4" /> },
-            { path: "/admin/settings/email", label: "邮件服务", description: "注册验证码与 SMTP", icon: <Mail className="size-4" /> },
+            { path: "/admin/settings/access", label: "登录与注册", description: "账号创建与第三方登录", icon: <ShieldCheck className="size-4" />, staff: tenantAdmin },
+            { path: "/admin/settings/email", label: "邮件服务", description: "注册验证码与 SMTP", icon: <Mail className="size-4" />, staff: tenantAdmin },
             { path: "/admin/settings/storage", label: "存储服务", description: "对象存储与资源存储", icon: <HardDrive className="size-4" /> },
             { path: "/admin/settings/ark-private-assets", label: "方舟素材库", description: "Seedance 可信参考素材", icon: <CloudUpload className="size-4" /> },
             { path: "/admin/settings/response-interception", label: "模型响应拦截", description: "先启用策略，再配置替换规则", icon: <ShieldAlert className="size-4" /> },
@@ -127,7 +153,7 @@ const adminNavigation: Array<{ label: string; items: AdminNavigationItem[] }> = 
 function useAdminItemVisible() {
     const features = useUserStore((state) => state.features);
     const role = useUserStore((state) => state.user?.role);
-    return (item: AdminNavigationItem) => (!item.requireFeature || features[item.requireFeature]) && (role === "admin" || (isStaffRole(role) && Boolean(item.staff?.includes(role))));
+    return (item: AdminNavigationItem) => (!item.requireFeature || features[item.requireFeature]) && (role === "admin" ? !item.tenantOnly : (isStaffRole(role) || isTenantAdminRole(role)) && Boolean(item.staff?.includes(role)));
 }
 
 function isAdminNavigationPath(pathname: string, navigationPath: string) {
@@ -279,7 +305,7 @@ function StaffRouteGuard() {
     const role = useUserStore((state) => state.user?.role);
     const visible = useAdminItemVisible();
     const location = useLocation();
-    if (!isStaffRole(role)) return null;
+    if (!isStaffRole(role) && !isTenantAdminRole(role)) return null;
     const items = adminNavigation.flatMap((group) => group.items).filter(visible);
     if (items.some((item) => isAdminNavigationPath(location.pathname, item.path))) return null;
     return items[0] ? <Navigate to={items[0].path} replace /> : null;

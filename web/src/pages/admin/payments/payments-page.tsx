@@ -42,6 +42,7 @@ import "./payments-page.css";
 import { Select } from "@/components/ui/base/select";
 import { formatMoney, TOPUP_CURRENCIES } from "@/lib/money";
 import { listAdminStudioPlans, type StudioPlan } from "@/services/api/studio";
+import { isTenantAdminRole, useUserStore } from "@/stores/use-user-store";
 
 type ProviderFormValues = {
     enabled: boolean;
@@ -90,11 +91,14 @@ const reconciliationResult: Record<string, { label: string; tone: "neutral" | "s
 
 export default function AdminPaymentsPage() {
     const { message, modal } = App.useApp();
-    const [activeTab, setActiveTab] = useState("providers");
+    // 代理商管理员只管自己的充值商品与订单；支付渠道和对账属于平台。
+    const tenantView = isTenantAdminRole(useUserStore((state) => state.user?.role));
+    const [activeTab, setActiveTab] = useState(tenantView ? "products" : "providers");
     const [providers, setProviders] = useState<AdminPaymentProvider[]>([]);
     const [products, setProducts] = useState<TopupProduct[]>([]);
     const [plans, setPlans] = useState<StudioPlan[]>([]);
     useEffect(() => {
+        if (tenantView) return;
         listAdminStudioPlans().then((result) => setPlans(result.plans)).catch(() => setPlans([]));
     }, []);
     const [loading, setLoading] = useState(true);
@@ -169,7 +173,7 @@ export default function AdminPaymentsPage() {
     const loadBase = async () => {
         setLoading(true);
         try {
-            const [providerResult, productResult] = await Promise.all([listAdminPaymentProviders(), listAdminTopupProducts()]);
+            const [providerResult, productResult] = await Promise.all([tenantView ? Promise.resolve({ providers: [] as AdminPaymentProvider[] }) : listAdminPaymentProviders(), listAdminTopupProducts()]);
             setProviders(providerResult.providers);
             setProducts(productResult.products);
             setBillProviderId((current) => current || providerResult.providers.find((item) => item.configured)?.id || providerResult.providers[0]?.id || "");
@@ -225,7 +229,7 @@ export default function AdminPaymentsPage() {
     };
 
     useEffect(() => {
-        void Promise.all([loadBase(), loadOrders(1, orderPageSize), loadRuns(1, runPageSize)]);
+        void Promise.all([loadBase(), loadOrders(1, orderPageSize), tenantView ? Promise.resolve() : loadRuns(1, runPageSize)]);
         return () => {
             orderRequest.current?.abort();
             runRequest.current?.abort();
@@ -658,7 +662,7 @@ export default function AdminPaymentsPage() {
     return (
         <AdminPageFrame
             title="支付充值"
-            description="管理系统支付适配器、充值商品、支付订单与 T+1 对账"
+            description={tenantView ? "管理本网站的充值商品与客户支付订单" : "管理系统支付适配器、充值商品、支付订单与 T+1 对账"}
             actions={
                 <Button icon={<RefreshCw className="size-4" />} loading={loading || ordersLoading || runsLoading} onClick={() => void refresh()}>
                     刷新
@@ -832,7 +836,7 @@ export default function AdminPaymentsPage() {
                             </div>
                         ),
                     },
-                ]}
+                ].filter((item) => !tenantView || (item.key !== "providers" && item.key !== "reconciliation"))}
             />
 
             <AdminDrawer title="支付订单详情" size="min(680px, 100vw)" open={Boolean(selectedOrder)} onClose={() => setSelectedOrder(null)}>

@@ -15,6 +15,7 @@ var (
 	BadAuthRequest                             = app.BadAuthRequest
 	ElevateStaffForRoute                       = app.ElevateStaffForRoute
 	StaffNavigation                            = app.StaffNavigation
+	TenantAdminRouteAllowed                    = app.TenantAdminRouteAllowed
 	CapabilitySpecFromModelCapabilityConfig    = app.CapabilitySpecFromModelCapabilityConfig
 	ChannelAPIURL                              = app.ChannelAPIURL
 	ChannelAPIURLForProtocol                   = app.ChannelAPIURLForProtocol

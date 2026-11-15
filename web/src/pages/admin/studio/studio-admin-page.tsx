@@ -7,6 +7,7 @@ import { Switch } from "@/pages/admin/ui/controls";
 import { listAdminStudioCommunity, listAdminStudioPlans, saveAdminStudioPlan, updateAdminStudioPost, type StudioPlan, type StudioPlanInput, type StudioPost } from "@/services/api/studio";
 import { AdminPageFrame } from "../components/admin-shell";
 import { StudioToolCoversPanel } from "./studio-tool-covers";
+import { isTenantAdminRole, useUserStore } from "@/stores/use-user-store";
 import { StudioFeedbackPanel, StudioSiteContentPanel } from "./studio-help-admin";
 
 const EMPTY_PLAN: StudioPlanInput = { name: "", description: "", badge: "", durationDays: 30, monthlyCreditsMicrocredits: 0, activeTaskLimit: 10, commercialLicense: true, enabled: true, sortOrder: 0 };
@@ -14,6 +15,8 @@ const EMPTY_PLAN: StudioPlanInput = { name: "", description: "", badge: "", dura
 /** AI Studio 运营：会员套餐（售价在「支付充值」的商品里绑定）和灵感社区审核。 */
 export default function StudioAdminPage() {
     const { message } = App.useApp();
+    // 代理商管理员只管自己网站的社区、反馈与帮助条款；会员套餐和工具封面属于平台。
+    const tenantView = isTenantAdminRole(useUserStore((state) => state.user?.role));
     const [plans, setPlans] = useState<StudioPlan[]>([]);
     const [posts, setPosts] = useState<StudioPost[]>([]);
     const [loading, setLoading] = useState(false);
@@ -24,7 +27,7 @@ export default function StudioAdminPage() {
     const refresh = useCallback(async () => {
         setLoading(true);
         try {
-            const [planResult, postResult] = await Promise.all([listAdminStudioPlans(), listAdminStudioCommunity({ pageSize: 60 })]);
+            const [planResult, postResult] = await Promise.all([tenantView ? Promise.resolve({ plans: [] as StudioPlan[] }) : listAdminStudioPlans(), listAdminStudioCommunity({ pageSize: 60 })]);
             setPlans(planResult.plans);
             setPosts(postResult.posts);
         } catch (cause) {
@@ -32,7 +35,7 @@ export default function StudioAdminPage() {
         } finally {
             setLoading(false);
         }
-    }, [message]);
+    }, [message, tenantView]);
 
     useEffect(() => {
         void refresh();
@@ -104,7 +107,7 @@ export default function StudioAdminPage() {
     return (
         <AdminPageFrame
             title="AI Studio"
-            description="会员套餐与灵感社区。套餐的售价在「支付充值 → 充值商品」里绑定套餐后生效。"
+            description={tenantView ? "本网站的灵感社区、用户反馈与帮助条款" : "会员套餐与灵感社区。套餐的售价在「支付充值 → 充值商品」里绑定套餐后生效。"}
             actions={<Button icon={<RefreshCw className="size-4" />} loading={loading} onClick={() => void refresh()}>刷新</Button>}
         >
             <Tabs
@@ -123,7 +126,7 @@ export default function StudioAdminPage() {
                     { key: "covers", label: "工具封面", children: <StudioToolCoversPanel /> },
                     { key: "feedback", label: "用户反馈", children: <StudioFeedbackPanel /> },
                     { key: "site-content", label: "帮助与条款", children: <StudioSiteContentPanel /> },
-                ]}
+                ].filter((item) => !tenantView || (item.key !== "plans" && item.key !== "covers"))}
             />
             <Drawer title={editing === "new" ? "新增会员套餐" : "编辑会员套餐"} width={480} open={editing !== null} destroyOnHidden onClose={() => setEditing(null)} extra={<Button type="primary" loading={saving} onClick={() => void savePlan()}>保存</Button>}>
                 <Form form={form} layout="vertical" requiredMark="optional">

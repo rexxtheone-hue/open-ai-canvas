@@ -30,7 +30,7 @@ export function WorkspaceAccountCard({ onWallet, onNavigate, studio = false }: {
             {studio ? <Link to="/studio/profile" onClick={onNavigate}><UserRound /><span>我的主页</span><ArrowUpRight /></Link> : null}
             {studio && creditsEnabled ? <Link to="/studio/pricing" onClick={onNavigate}><Crown /><span>充值积分</span><ArrowUpRight /></Link> : null}
             {studio && creditsEnabled ? <button type="button" onClick={() => { onNavigate(); openWorkspaceWallet({ tab: "history" }); }}><History /><span>积分记录</span><ArrowUpRight /></button> : null}
-            {user.role === "admin" ? <Link to="/admin" onClick={onNavigate}><ShieldCheck /><span>管理员后台</span><ArrowUpRight /></Link> : null}
+            {user.role === "admin" || user.role === "tenant_admin" ? <Link to="/admin" onClick={onNavigate}><ShieldCheck /><span>管理员后台</span><ArrowUpRight /></Link> : null}
             <Button danger type="text" icon={<LogOut />} loading={loggingOut} onClick={() => void handleLogout()}>退出登录</Button>
         </nav>
     </section>;

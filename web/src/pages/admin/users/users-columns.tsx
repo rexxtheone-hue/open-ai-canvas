@@ -21,12 +21,15 @@ export const userColumnOptions: Array<{ key: UserColumnKey; label: string; locke
 
 export function createUserColumns({
     actorId,
+    readOnly = false,
     visibleColumns,
     onView,
     onEdit,
     onToggleStatus,
 }: {
     actorId?: string;
+    /** 代理商管理员只查看客户，不改账号与角色。 */
+    readOnly?: boolean;
     visibleColumns: Set<UserColumnKey>;
     onView: (user: AdminUser) => void;
     onEdit: (user: AdminUser) => void;
@@ -65,7 +68,7 @@ export function createUserColumns({
                 <AdminRowActions
                     primary={{ label: "详情", icon: <Eye className="size-3.5" />, onClick: () => onView(user) }}
                     visibleActionCount={1}
-                    actions={[
+                    actions={readOnly ? [] : [
                         {
                             key: "toggle-status",
                             label: user.status === "active" ? "停用用户" : "重新启用",

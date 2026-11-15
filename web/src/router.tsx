@@ -41,6 +41,13 @@ const SystemUpdatePage = lazy(() => import("@/pages/admin/settings/system-update
 const SystemPerformancePage = lazy(() => import("@/pages/admin/settings/system-performance-page"));
 const StoryboardPromptsPage = lazy(() => import("@/pages/admin/storyboard-prompts/storyboard-prompts-page"));
 const UsersPage = lazy(() => import("@/pages/admin/users/users-page"));
+const AgenciesPage = lazy(() => import("@/pages/admin/agencies/agencies-page"));
+const AgencyDetailPage = lazy(() => import("@/pages/admin/agencies/agency-detail-page"));
+const AgencyDiscountsPage = lazy(() => import("@/pages/admin/agencies/agency-discounts-page"));
+const AgencyPricesPage = lazy(() => import("@/pages/admin/agencies/agency-prices-page"));
+const AgencyPoolPage = lazy(() => import("@/pages/admin/agencies/agency-own-pages").then((module) => ({ default: module.AgencyPoolPage })));
+const AgencyDomainsPage = lazy(() => import("@/pages/admin/agencies/agency-own-pages").then((module) => ({ default: module.AgencyDomainsPage })));
+const AgencyStaffPage = lazy(() => import("@/pages/admin/agencies/agency-own-pages").then((module) => ({ default: module.AgencyStaffPage })));
 const AssetsPage = lazy(loadAssetsPage);
 const LoginPage = lazy(() => import("@/pages/auth/login"));
 const RegisterPage = lazy(() => import("@/pages/auth/register"));
@@ -300,6 +307,13 @@ export const router = createBrowserRouter([
                 children: [
                     { index: true, element: <AnalyticsPage /> },
                     { path: "users", element: <UsersPage /> },
+                    { path: "agencies", element: <AgenciesPage /> },
+                    { path: "agencies/:id", element: <AgencyDetailPage /> },
+                    { path: "agency-discounts", element: <AgencyDiscountsPage /> },
+                    { path: "agency/pool", element: <AgencyPoolPage /> },
+                    { path: "agency/prices", element: <AgencyPricesPage /> },
+                    { path: "agency/domains", element: <AgencyDomainsPage /> },
+                    { path: "agency/staff", element: <AgencyStaffPage /> },
                     { path: "partners", element: <AdminPartnersPage /> },
                     { path: "affiliates", element: <AdminAffiliatesPage /> },
                     { path: "login-logs", element: <LoginLogsPage /> },

@@ -141,6 +141,10 @@ func (s *Service) PrepareResourceDeliveryAsAdmin(actor *model.User, id string, o
 		}
 		return nil, err
 	}
+	// 代理商管理员只能看自己客户的作品文件。
+	if IsTenantAdmin(actor) && s.tenantIDForUserID(resource.UserID) != userTenantID(actor) {
+		return nil, NotFound("资源不存在")
+	}
 	resource.Provider = normalizedResourceProvider(resource.Provider)
 	if options.Purpose == "" {
 		options.Purpose = assets.PurposeDisplay

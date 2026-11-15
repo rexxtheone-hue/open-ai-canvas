@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Callout } from "@/pages/admin/ui/controls";
 import { App, Button, Drawer, Form, Input, InputNumber, Modal } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { BadgeCheck, Coins, Plus, RefreshCw, Search, Trash2, Undo2 } from "lucide-react";
@@ -30,7 +31,7 @@ const billingStatusLabels = {
     refunded: "已退款",
 } satisfies Record<BillingOrder["status"], string>;
 
-export default function CreditOperationsPanel({ users, activeOperation, onOperationChange }: { users: AdminReferenceData["users"]; activeOperation: CreditOperation; onOperationChange: (operation: CreditOperation) => void }) {
+export default function CreditOperationsPanel({ users, activeOperation, onOperationChange, billingReview = true }: { users: AdminReferenceData["users"]; activeOperation: CreditOperation; onOperationChange: (operation: CreditOperation) => void; billingReview?: boolean }) {
     const { message } = App.useApp();
     const [orders, setOrders] = useState<BillingOrder[]>([]);
     const [loading, setLoading] = useState(true);
@@ -92,8 +93,9 @@ export default function CreditOperationsPanel({ users, activeOperation, onOperat
     };
 
     useEffect(() => {
+        if (!billingReview) return;
         void reload(page, pageSize);
-    }, [debouncedKeyword, orderStatus, page, pageSize]);
+    }, [billingReview, debouncedKeyword, orderStatus, page, pageSize]);
 
     useEffect(() => {
         if (activeOperation !== "policy") return;
@@ -372,7 +374,12 @@ export default function CreditOperationsPanel({ users, activeOperation, onOperat
 
     return (
         <div className="admin-credit-operations flex min-h-0 flex-1 flex-col">
-            <section className="admin-credit-operations-table-region flex min-h-0 flex-1" aria-labelledby="credit-review-heading">
+            {!billingReview ? (
+                <Callout className="my-4" tone="info" title="给客户调整积分">
+                    点击右上角「人工调账」给客户加减积分，或在「积分策略」里设置注册赠送。客户生成时按你的零售价扣客户积分，批发池按实际用量扣减。
+                </Callout>
+            ) : null}
+            <section className={billingReview ? "admin-credit-operations-table-region flex min-h-0 flex-1" : "hidden"} aria-labelledby="credit-review-heading">
                 <h2 id="credit-review-heading" className="sr-only">
                     异常计费核对
                 </h2>
