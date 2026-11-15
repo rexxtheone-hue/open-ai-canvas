@@ -131,6 +131,7 @@ func (r *Repository) StudioLikedPosts(userID string, offset, limit int) ([]model
 }
 
 type StudioCreatorQuery struct {
+	TenantID  string
 	Search    string
 	Specialty string
 	Location  string
@@ -157,7 +158,7 @@ func (r *Repository) StudioCreators(query StudioCreatorQuery) ([]StudioCreatorRo
 	db := r.db.Table("studio_profiles AS p").
 		Select("p.*, COUNT(sp.id) AS works, COALESCE(SUM(sp.like_count), 0) AS likes, (SELECT COUNT(*) FROM studio_follows f WHERE f.followee_id = p.user_id) AS followers").
 		Joins("JOIN studio_posts sp ON sp.user_id = p.user_id AND sp.status = ?", model.StudioPostPublished).
-		Joins("JOIN users u ON u.id = p.user_id AND u.status <> ?", model.UserStatusDisabled).
+		Joins("JOIN users u ON u.id = p.user_id AND u.status <> ? AND u.tenant_id = ?", model.UserStatusDisabled, TenantIDOrPlatform(query.TenantID)).
 		Group("p.user_id")
 	if search := strings.ToLower(strings.TrimSpace(query.Search)); search != "" {
 		pattern := "%" + escapeLike(search) + "%"

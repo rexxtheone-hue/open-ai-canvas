@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"testing"
 
 	"yingce/backend/internal/model"
@@ -39,7 +40,7 @@ func TestStudioFeedbackAndSiteContent(t *testing.T) {
 		t.Fatalf("done feedback must leave the open list: %+v", list)
 	}
 
-	content, err := svc.StudioSiteContent()
+	content, err := svc.StudioSiteContent(context.Background())
 	if err != nil || content["terms"] != "" || len(content) != 3 {
 		t.Fatalf("unexpected empty content %+v %v", content, err)
 	}
@@ -52,7 +53,7 @@ func TestStudioFeedbackAndSiteContent(t *testing.T) {
 	if err := svc.SaveStudioSiteContent(&admin, "terms", " 服务条款 "); err != nil {
 		t.Fatal(err)
 	}
-	if content, _ = svc.StudioSiteContent(); content["terms"] != "服务条款" {
+	if content, _ = svc.StudioSiteContent(context.Background()); content["terms"] != "服务条款" {
 		t.Fatalf("terms not saved: %+v", content)
 	}
 }

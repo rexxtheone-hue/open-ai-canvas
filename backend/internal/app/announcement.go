@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -47,7 +48,7 @@ func (s *Service) AdminAnnouncementPage(actor *model.User, query AdminListQuery)
 		return nil, err
 	}
 	page, limit := normalizeAdminPage(query.Page, query.Limit)
-	announcements, total, err := s.repo.AdminAnnouncements(query.Keyword, model.AnnouncementStatus(query.Status), limit, (page-1)*limit)
+	announcements, total, err := s.repo.AdminAnnouncements(userTenantID(actor), query.Keyword, model.AnnouncementStatus(query.Status), limit, (page-1)*limit)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +76,7 @@ func (s *Service) CreateAnnouncement(actor *model.User, req CreateAnnouncementRe
 	}
 	now := time.Now()
 	announcement := &model.Announcement{
-		ID: newID(), Title: title, Content: content, ImageResourceID: imageResourceID, Level: level, Pinned: req.Pinned,
+		ID: newID(), TenantID: userTenantID(actor), Title: title, Content: content, ImageResourceID: imageResourceID, Level: level, Pinned: req.Pinned,
 		Status: model.AnnouncementStatusActive, CreatedBy: actor.ID, PublishedAt: now, CreatedAt: now, UpdatedAt: now,
 	}
 	if err := s.repo.CreateAnnouncementWithImage(announcement); err != nil {
@@ -94,7 +95,7 @@ func (s *Service) UpdateAnnouncement(actor *model.User, id string, req UpdateAnn
 	}
 	s.storageMu.Lock()
 	defer s.storageMu.Unlock()
-	announcement, err := s.repo.Announcement(strings.TrimSpace(id))
+	announcement, err := s.repo.Announcement(userTenantID(actor), strings.TrimSpace(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, BadAuthRequest("公告不存在")
@@ -171,7 +172,7 @@ func (s *Service) CloseAnnouncement(actor *model.User, id string) (*model.Announ
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	announcement, err := s.repo.Announcement(strings.TrimSpace(id))
+	announcement, err := s.repo.Announcement(userTenantID(actor), strings.TrimSpace(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, BadAuthRequest("公告不存在")
@@ -188,7 +189,7 @@ func (s *Service) CloseAnnouncement(actor *model.User, id string) (*model.Announ
 	if !updated {
 		return nil, BadAuthRequest("公告状态已变化，请刷新后重试")
 	}
-	closed, err := s.repo.Announcement(announcement.ID)
+	closed, err := s.repo.Announcement(userTenantID(actor), announcement.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +201,7 @@ func (s *Service) UserAnnouncements(user *model.User) (*UserAnnouncementFeed, er
 	if user == nil {
 		return nil, Unauthorized("请先登录")
 	}
-	announcements, unreadCount, err := s.repo.AnnouncementFeed(user.ID)
+	announcements, unreadCount, err := s.repo.AnnouncementFeed(userTenantID(user), user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +245,7 @@ func (s *Service) OpenAnnouncementImage(actor *model.User, announcementID string
 	if actor == nil {
 		return nil, Unauthorized("请先登录")
 	}
-	announcement, err := s.repo.Announcement(strings.TrimSpace(announcementID))
+	announcement, err := s.repo.Announcement(userTenantID(actor), strings.TrimSpace(announcementID))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, NotFound("公告不存在")
@@ -274,7 +275,7 @@ func (s *Service) PrepareAnnouncementImageDelivery(actor *model.User, announceme
 	if actor == nil {
 		return nil, Unauthorized("请先登录")
 	}
-	announcement, err := s.repo.Announcement(strings.TrimSpace(announcementID))
+	announcement, err := s.repo.Announcement(userTenantID(actor), strings.TrimSpace(announcementID))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, NotFound("公告不存在")
@@ -479,10 +480,10 @@ func (s *Service) MarkAnnouncementsRead(user *model.User, announcementIDs []stri
 			return 0, BadAuthRequest("公告 ID 无效")
 		}
 	}
-	if err := s.repo.MarkAnnouncementsRead(user.ID, ids, time.Now()); err != nil {
+	if err := s.repo.MarkAnnouncementsRead(userTenantID(user), user.ID, ids, time.Now()); err != nil {
 		return 0, err
 	}
-	_, unreadCount, err := s.repo.AnnouncementFeed(user.ID)
+	_, unreadCount, err := s.repo.AnnouncementFeed(userTenantID(user), user.ID)
 	return unreadCount, err
 }
 
@@ -534,8 +535,8 @@ type BannerAnnouncementPage struct {
 	Limit   int                        `json:"pageSize"`
 }
 
-func (s *Service) ActiveBannerAnnouncements() ([]model.BannerAnnouncement, error) {
-	banners, err := s.repo.ActiveBannerAnnouncements(time.Now())
+func (s *Service) ActiveBannerAnnouncements(ctx context.Context) ([]model.BannerAnnouncement, error) {
+	banners, err := s.repo.ActiveBannerAnnouncements(requestTenantID(ctx), time.Now())
 	if err != nil {
 		return nil, err
 	}
@@ -550,7 +551,7 @@ func (s *Service) AdminBannerAnnouncementPage(actor *model.User, query AdminList
 		return nil, err
 	}
 	page, limit := normalizeAdminPage(query.Page, query.Limit)
-	banners, total, err := s.repo.AdminBannerAnnouncements(query.Keyword, query.Status, limit, (page-1)*limit)
+	banners, total, err := s.repo.AdminBannerAnnouncements(userTenantID(actor), query.Keyword, query.Status, limit, (page-1)*limit)
 	if err != nil {
 		return nil, err
 	}
@@ -759,6 +760,7 @@ func (s *Service) CreateBannerAnnouncement(actor *model.User, req CreateBannerAn
 	now := time.Now()
 	banner := &model.BannerAnnouncement{
 		ID:         newID(),
+		TenantID:   userTenantID(actor),
 		Title:      title,
 		TitleRuns:  titleRuns,
 		NoticeType: noticeType,
@@ -781,7 +783,7 @@ func (s *Service) UpdateBannerAnnouncement(actor *model.User, id string, req Upd
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	banner, err := s.repo.BannerAnnouncement(strings.TrimSpace(id))
+	banner, err := s.repo.BannerAnnouncement(userTenantID(actor), strings.TrimSpace(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, BadAuthRequest("常驻通知不存在")
@@ -827,12 +829,12 @@ func (s *Service) DeleteBannerAnnouncement(actor *model.User, id string) error {
 	if err := s.RequireAdmin(actor); err != nil {
 		return err
 	}
-	_, err := s.repo.BannerAnnouncement(strings.TrimSpace(id))
+	_, err := s.repo.BannerAnnouncement(userTenantID(actor), strings.TrimSpace(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return BadAuthRequest("常驻通知不存在")
 		}
 		return err
 	}
-	return s.repo.DeleteBannerAnnouncement(strings.TrimSpace(id))
+	return s.repo.DeleteBannerAnnouncement(userTenantID(actor), strings.TrimSpace(id))
 }

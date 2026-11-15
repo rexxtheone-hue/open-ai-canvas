@@ -22,9 +22,9 @@ func (r *Repository) PartnerApplication(userID, kind string) (*model.PartnerAppl
 	return &item, err
 }
 
-func (r *Repository) PartnerApplicationByID(id string) (*model.PartnerApplication, error) {
+func (r *Repository) PartnerApplicationByID(tenantID, id string) (*model.PartnerApplication, error) {
 	var item model.PartnerApplication
-	err := r.db.First(&item, "id = ?", id).Error
+	err := scopeTenant(r.db, tenantID).First(&item, "id = ?", id).Error
 	return &item, err
 }
 
@@ -45,11 +45,11 @@ type PartnerApplicationRow struct {
 	Email                    string
 }
 
-func (r *Repository) AdminPartnerApplications(kind, status string, offset, limit int) ([]PartnerApplicationRow, int64, error) {
+func (r *Repository) AdminPartnerApplications(tenantID, kind, status string, offset, limit int) ([]PartnerApplicationRow, int64, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
-	db := r.db.Table("partner_applications AS a").Joins("JOIN users u ON u.id = a.user_id")
+	db := scopeTenant(r.db.Table("partner_applications AS a").Joins("JOIN users u ON u.id = a.user_id"), tenantID, "a.tenant_id")
 	if kind = strings.TrimSpace(kind); kind != "" {
 		db = db.Where("a.kind = ?", kind)
 	}
@@ -276,11 +276,11 @@ func (r *Repository) AffiliatePayout(id string) (*model.AffiliatePayout, error) 
 }
 
 // ResolveAffiliatePayout 财务处理现金提现：paid 结案；rejected 时释放佣金回到可提取余额。
-func (r *Repository) ResolveAffiliatePayout(id, status, note, reviewerID string) (*model.AffiliatePayout, error) {
+func (r *Repository) ResolveAffiliatePayout(tenantID, id, status, note, reviewerID string) (*model.AffiliatePayout, error) {
 	var payout model.AffiliatePayout
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		now := time.Now().UTC()
-		result := tx.Model(&model.AffiliatePayout{}).Where("id = ? AND status = ?", id, model.AffiliatePayoutRequested).
+		result := scopeTenant(tx.Model(&model.AffiliatePayout{}), tenantID).Where("id = ? AND status = ?", id, model.AffiliatePayoutRequested).
 			Updates(map[string]any{"status": status, "review_note": note, "reviewed_by": reviewerID, "reviewed_at": &now, "updated_at": now})
 		if result.Error != nil {
 			return result.Error
@@ -306,11 +306,11 @@ type AffiliateRow struct {
 	TotalCommission        int64
 }
 
-func (r *Repository) AdminAffiliates(search string, offset, limit int) ([]AffiliateRow, int64, error) {
+func (r *Repository) AdminAffiliates(tenantID, search string, offset, limit int) ([]AffiliateRow, int64, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
-	db := r.db.Table("affiliate_accounts AS a").Joins("JOIN users u ON u.id = a.user_id")
+	db := scopeTenant(r.db.Table("affiliate_accounts AS a").Joins("JOIN users u ON u.id = a.user_id"), tenantID, "a.tenant_id")
 	if search = strings.ToLower(strings.TrimSpace(search)); search != "" {
 		pattern := "%" + escapeLike(search) + "%"
 		db = db.Where("(LOWER(u.username) LIKE ? ESCAPE '\\' OR LOWER(u.display_name) LIKE ? ESCAPE '\\' OR LOWER(a.code) LIKE ? ESCAPE '\\')", pattern, pattern, pattern)
@@ -334,11 +334,12 @@ type AffiliatePayoutRow struct {
 	Code                  string
 }
 
-func (r *Repository) AdminAffiliatePayouts(status string, offset, limit int) ([]AffiliatePayoutRow, int64, error) {
+func (r *Repository) AdminAffiliatePayouts(tenantID, status string, offset, limit int) ([]AffiliatePayoutRow, int64, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
 	db := r.db.Table("affiliate_payouts AS p").Joins("JOIN users u ON u.id = p.affiliate_user_id").Joins("LEFT JOIN affiliate_accounts a ON a.user_id = p.affiliate_user_id")
+	db = scopeTenant(db, tenantID, "p.tenant_id")
 	if status = strings.TrimSpace(status); status != "" {
 		db = db.Where("p.status = ?", status)
 	}

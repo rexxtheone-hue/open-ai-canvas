@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
@@ -270,15 +271,16 @@ func (s *Service) UpdateStudioProfile(userID string, input StudioProfileInput) (
 }
 
 // StudioProfileByHandle 公开主页，未登录也能看（viewerID 为空）。
-func (s *Service) StudioProfileByHandle(viewerID, handle string) (StudioProfileView, error) {
-	profile, err := s.studioProfileForHandle(handle)
+func (s *Service) StudioProfileByHandle(ctx context.Context, viewerID, handle string) (StudioProfileView, error) {
+	profile, err := s.studioProfileForHandle(requestTenantID(ctx), handle)
 	if err != nil {
 		return StudioProfileView{}, err
 	}
 	return s.studioProfileView(viewerID, profile)
 }
 
-func (s *Service) studioProfileForHandle(handle string) (*model.StudioProfile, error) {
+// studioProfileForHandle 只找得到同一网站（租户）用户的主页。
+func (s *Service) studioProfileForHandle(tenantID, handle string) (*model.StudioProfile, error) {
 	handle = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(handle), "@"))
 	if !studioHandlePattern.MatchString(handle) {
 		return nil, NotFound("主页不存在")
@@ -291,15 +293,16 @@ func (s *Service) studioProfileForHandle(handle string) (*model.StudioProfile, e
 		return nil, NotFound("主页不存在")
 	}
 	user, err := s.repo.User(profile.UserID)
-	if err != nil || user == nil || user.Status == model.UserStatusDisabled {
+	if err != nil || user == nil || user.Status == model.UserStatusDisabled || userTenantID(user) != repository.TenantIDOrPlatform(tenantID) {
 		return nil, NotFound("主页不存在")
 	}
 	return profile, nil
 }
 
 // StudioProfilePosts 主页上的作品（tab=works）或点赞过的作品（tab=liked）。
-func (s *Service) StudioProfilePosts(viewerID, handle, tab string, offset, limit int) (StudioPostPage, error) {
-	profile, err := s.studioProfileForHandle(handle)
+func (s *Service) StudioProfilePosts(ctx context.Context, viewerID, handle, tab string, offset, limit int) (StudioPostPage, error) {
+	tenantID := requestTenantID(ctx)
+	profile, err := s.studioProfileForHandle(tenantID, handle)
 	if err != nil {
 		return StudioPostPage{}, err
 	}
@@ -318,11 +321,11 @@ func (s *Service) StudioProfilePosts(viewerID, handle, tab string, offset, limit
 		}
 		return page, nil
 	}
-	return s.studioCommunityPage(viewerID, StudioCommunityQuery{Sort: "latest", Offset: offset, Limit: limit}, profile.UserID, "")
+	return s.studioCommunityPage(tenantID, viewerID, StudioCommunityQuery{Sort: "latest", Offset: offset, Limit: limit}, profile.UserID, "")
 }
 
 func (s *Service) FollowStudioProfile(userID, handle string, following bool) (StudioProfileView, error) {
-	profile, err := s.studioProfileForHandle(handle)
+	profile, err := s.studioProfileForHandle(s.tenantIDForUserID(userID), handle)
 	if err != nil {
 		return StudioProfileView{}, err
 	}
@@ -429,7 +432,8 @@ type StudioCreatorPage struct {
 }
 
 // StudioCreators 创作者列表，未登录也能看。
-func (s *Service) StudioCreators(viewerID string, query StudioCreatorQuery) (StudioCreatorPage, error) {
+func (s *Service) StudioCreators(ctx context.Context, viewerID string, query StudioCreatorQuery) (StudioCreatorPage, error) {
+	tenantID := requestTenantID(ctx)
 	// 主页功能上线前发布过作品的用户还没有主页资料，先补上，否则不会出现在列表里。
 	missing, err := s.repo.StudioAuthorsWithoutProfile(50)
 	if err != nil {
@@ -442,7 +446,7 @@ func (s *Service) StudioCreators(viewerID string, query StudioCreatorQuery) (Stu
 	}
 	offset := max(query.Offset, 0)
 	rows, hasMore, err := s.repo.StudioCreators(repository.StudioCreatorQuery{
-		Search: query.Search, Specialty: query.Specialty, Location: query.Location, Sort: query.Sort, Verified: query.Verified, Offset: offset, Limit: query.Limit,
+		TenantID: tenantID, Search: query.Search, Specialty: query.Specialty, Location: query.Location, Sort: query.Sort, Verified: query.Verified, Offset: offset, Limit: query.Limit,
 	})
 	if err != nil {
 		return StudioCreatorPage{}, err
@@ -474,7 +478,7 @@ func (s *Service) StudioCreators(viewerID string, query StudioCreatorQuery) (Stu
 			card.Specialties = []string{}
 		}
 		card.AvatarURL = s.studioProfileImageURL(profile.UserID, profile.AvatarResourceID, assets.VariantOriginal)
-		posts, _, err := s.repo.StudioPosts(repository.StudioPostQuery{UserID: profile.UserID, Sort: "latest", Limit: 3})
+		posts, _, err := s.repo.StudioPosts(repository.StudioPostQuery{TenantID: tenantID, UserID: profile.UserID, Sort: "latest", Limit: 3})
 		if err != nil {
 			return StudioCreatorPage{}, err
 		}
@@ -501,8 +505,9 @@ type StudioProfilePreview struct {
 	ImagePath   string
 }
 
-func (s *Service) StudioProfilePreviewByHandle(handle string) (StudioProfilePreview, error) {
-	profile, err := s.studioProfileForHandle(handle)
+func (s *Service) StudioProfilePreviewByHandle(ctx context.Context, handle string) (StudioProfilePreview, error) {
+	tenantID := requestTenantID(ctx)
+	profile, err := s.studioProfileForHandle(tenantID, handle)
 	if err != nil {
 		return StudioProfilePreview{}, err
 	}
@@ -543,7 +548,7 @@ func (s *Service) StudioProfilePreviewByHandle(handle string) (StudioProfilePrev
 		preview.ImagePath = sign(profile.CoverResourceID)
 	}
 	if preview.ImagePath == "" {
-		posts, _, err := s.repo.StudioPosts(repository.StudioPostQuery{UserID: profile.UserID, Kind: "image", Sort: "latest", Limit: 1})
+		posts, _, err := s.repo.StudioPosts(repository.StudioPostQuery{TenantID: tenantID, UserID: profile.UserID, Kind: "image", Sort: "latest", Limit: 1})
 		if err != nil {
 			return StudioProfilePreview{}, err
 		}

@@ -66,10 +66,10 @@ func (r *Repository) CreateRedeemBatch(batch *model.RedeemBatch, codes []model.R
 	})
 }
 
-func (r *Repository) AdminRedeemBatches(keyword string, validity string, limit int, offset int) ([]model.RedeemBatch, int64, error) {
+func (r *Repository) AdminRedeemBatches(tenantID string, keyword string, validity string, limit int, offset int) ([]model.RedeemBatch, int64, error) {
 	var items []model.RedeemBatch
 	var total int64
-	query := r.db.Model(&model.RedeemBatch{})
+	query := scopeTenant(r.db.Model(&model.RedeemBatch{}), tenantID, "redeem_batches.tenant_id")
 	if value := strings.TrimSpace(keyword); value != "" {
 		pattern := "%" + strings.ToLower(value) + "%"
 		query = query.Where("lower(note) LIKE ? OR CAST(amount_microcredits AS TEXT) LIKE ? OR CAST(count AS TEXT) LIKE ?", pattern, pattern, pattern)
@@ -95,10 +95,10 @@ func (r *Repository) AdminRedeemBatches(keyword string, validity string, limit i
 	return items, total, nil
 }
 
-func (r *Repository) RedeemBatch(id string) (*model.RedeemBatch, error) {
+func (r *Repository) RedeemBatch(tenantID string, id string) (*model.RedeemBatch, error) {
 	var batch model.RedeemBatch
 	now := time.Now()
-	query := r.db.Model(&model.RedeemBatch{}).Select(`redeem_batches.*,
+	query := scopeTenant(r.db.Model(&model.RedeemBatch{}), tenantID, "redeem_batches.tenant_id").Select(`redeem_batches.*,
 		(SELECT COUNT(*) FROM redeem_codes rc WHERE rc.batch_id = redeem_batches.id AND rc.status = 'unused' AND (rc.expires_at IS NULL OR rc.expires_at > ?)) AS available_count,
 		(SELECT COUNT(*) FROM redeem_codes rc WHERE rc.batch_id = redeem_batches.id AND rc.status = 'redeemed') AS redeemed_count,
 		(SELECT COUNT(*) FROM redeem_codes rc WHERE rc.batch_id = redeem_batches.id AND rc.status = 'disabled') AS disabled_count,
@@ -133,11 +133,12 @@ func (r *Repository) AdminRedeemCodes(batchID string, status string, limit int, 
 	return items, total, err
 }
 
-func (r *Repository) RedeemCode(userID string, codeHash string, redeemedIP string) (*model.CreditAccount, error) {
+// RedeemCode 只认用户所属租户发出的兑换码，别家网站的码一律视为无效。
+func (r *Repository) RedeemCode(tenantID string, userID string, codeHash string, redeemedIP string) (*model.CreditAccount, error) {
 	var account model.CreditAccount
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		var code model.RedeemCode
-		if err := tx.First(&code, "code_hash = ?", codeHash).Error; err != nil {
+		if err := scopeTenant(tx, tenantID).First(&code, "code_hash = ?", codeHash).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrRedeemCodeInvalid
 			}

@@ -154,7 +154,7 @@ func (s *Service) RedeemCredits(user *model.User, code string, redeemedIP string
 	if len(code) != 32 {
 		return nil, BadAuthRequest("兑换码无效或已使用")
 	}
-	account, err := s.repo.RedeemCode(user.ID, hashRedeemCode(code), truncateRunes(strings.TrimSpace(redeemedIP), 64))
+	account, err := s.repo.RedeemCode(userTenantID(user), user.ID, hashRedeemCode(code), truncateRunes(strings.TrimSpace(redeemedIP), 64))
 	if errors.Is(err, repository.ErrRedeemCodeInvalid) {
 		return nil, BadAuthRequest("兑换码无效或已使用")
 	}
@@ -174,7 +174,7 @@ func (s *Service) AdminCreateRedeemBatch(actor *model.User, req CreateRedeemBatc
 	if req.ExpiresAt != nil && !req.ExpiresAt.After(time.Now()) {
 		return nil, BadAuthRequest("兑换码过期时间必须晚于当前时间")
 	}
-	batch := model.RedeemBatch{ID: newID(), AmountMicrocredits: req.AmountMicrocredits, Count: req.Count, Note: truncateRunes(strings.TrimSpace(req.Note), 500), CreatedBy: actor.ID, ExpiresAt: req.ExpiresAt}
+	batch := model.RedeemBatch{ID: newID(), TenantID: userTenantID(actor), AmountMicrocredits: req.AmountMicrocredits, Count: req.Count, Note: truncateRunes(strings.TrimSpace(req.Note), 500), CreatedBy: actor.ID, ExpiresAt: req.ExpiresAt}
 	codes := make([]string, 0, req.Count)
 	items := make([]model.RedeemCode, 0, req.Count)
 	for range req.Count {
@@ -184,7 +184,7 @@ func (s *Service) AdminCreateRedeemBatch(actor *model.User, req CreateRedeemBatc
 		}
 		codes = append(codes, plain)
 		items = append(items, model.RedeemCode{
-			ID: newID(), BatchID: batch.ID, CodeHash: hashRedeemCode(plain), CodeSuffix: plain[len(plain)-4:],
+			ID: newID(), TenantID: batch.TenantID, BatchID: batch.ID, CodeHash: hashRedeemCode(plain), CodeSuffix: plain[len(plain)-4:],
 			AmountMicrocredits: req.AmountMicrocredits, Status: model.RedeemCodeUnused, ExpiresAt: req.ExpiresAt,
 		})
 	}
@@ -212,7 +212,7 @@ func (s *Service) AdminRedeemCodePage(actor *model.User, batchID string, status 
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	batch, err := s.repo.RedeemBatch(strings.TrimSpace(batchID))
+	batch, err := s.repo.RedeemBatch(userTenantID(actor), strings.TrimSpace(batchID))
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +266,7 @@ func (s *Service) AdminRedeemBatchPage(actor *model.User, query AdminListQuery) 
 		return nil, err
 	}
 	page, limit := normalizeAdminPage(query.Page, query.Limit)
-	items, total, err := s.repo.AdminRedeemBatches(query.Keyword, query.Status, limit, (page-1)*limit)
+	items, total, err := s.repo.AdminRedeemBatches(userTenantID(actor), query.Keyword, query.Status, limit, (page-1)*limit)
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +284,7 @@ func (s *Service) AdminAdjustCredits(actor *model.User, userID string, req Admin
 	if note == "" {
 		return nil, BadAuthRequest("请填写调账原因")
 	}
-	if _, err := s.repo.User(userID); err != nil {
+	if _, err := s.adminTenantUser(actor, userID); err != nil {
 		return nil, err
 	}
 	account, err := s.repo.AdjustCredits(userID, actor.ID, req.AmountMicrocredits, truncateRunes(note, 500))
@@ -305,7 +305,7 @@ func (s *Service) AdminBillingOrderPage(actor *model.User, query AdminListQuery)
 		return nil, err
 	}
 	page, limit := normalizeAdminPage(query.Page, query.Limit)
-	items, total, err := s.repo.AdminBillingOrders(query.Status, query.Keyword, limit, (page-1)*limit)
+	items, total, err := s.repo.AdminBillingOrders(userTenantID(actor), query.Status, query.Keyword, limit, (page-1)*limit)
 	if err != nil {
 		return nil, err
 	}
@@ -376,6 +376,9 @@ func (s *Service) resolveBillingOrder(actor *model.User, id string, action strin
 	if err != nil {
 		return nil, err
 	}
+	if repository.TenantIDOrPlatform(order.TenantID) != userTenantID(actor) {
+		return nil, NotFound("计费订单不存在")
+	}
 	if order.Status != model.BillingStatusUncertain && order.Status != model.BillingStatusRunning && order.Status != model.BillingStatusReserved {
 		return nil, BadAuthRequest("当前订单不需要人工核对")
 	}
@@ -401,7 +404,7 @@ func (s *Service) AdminDisableRedeemBatch(actor *model.User, batchID string) (in
 	if err := s.RequireAdmin(actor); err != nil {
 		return 0, err
 	}
-	if _, err := s.repo.RedeemBatch(strings.TrimSpace(batchID)); err != nil {
+	if _, err := s.repo.RedeemBatch(userTenantID(actor), strings.TrimSpace(batchID)); err != nil {
 		return 0, err
 	}
 	count, err := s.repo.DisableRedeemBatch(batchID, time.Now())
@@ -419,6 +422,9 @@ func (s *Service) AdminDisableRedeemBatch(actor *model.User, batchID string) (in
 
 func (s *Service) AdminDisableRedeemCode(actor *model.User, batchID string, codeID string) error {
 	if err := s.RequireAdmin(actor); err != nil {
+		return err
+	}
+	if _, err := s.repo.RedeemBatch(userTenantID(actor), strings.TrimSpace(batchID)); err != nil {
 		return err
 	}
 	disabled, err := s.repo.DisableRedeemCode(batchID, codeID, time.Now())

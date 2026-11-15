@@ -11,6 +11,8 @@ import (
 )
 
 type AnalyticsFilter struct {
+	// TenantID 为空时统计全部租户（仅限内部）；后台统计必须填写。
+	TenantID   string
 	From       time.Time
 	To         time.Time
 	UserID     string
@@ -86,6 +88,9 @@ func (r *Repository) RecordUserActivity(userID string, event string, count int, 
 func (r *Repository) AnalyticsTasks(filter AnalyticsFilter) ([]model.Task, error) {
 	var tasks []model.Task
 	query := whereTimeRange(r.db.Select("id", "user_id", "type", "status", "operation", "provider", "model", "started_at", "completed_at", "created_at"), "created_at", filter.From, filter.To)
+	if filter.TenantID != "" {
+		query = scopeTenant(query, filter.TenantID)
+	}
 	if filter.UserID != "" {
 		query = query.Where("user_id = ?", filter.UserID)
 	}
@@ -149,6 +154,9 @@ func (r *Repository) PublicModelRecentLogs(channelIDs []string, limit int) ([]mo
 func (r *Repository) AnalyticsActivities(filter AnalyticsFilter) ([]model.UserDailyActivity, error) {
 	var activities []model.UserDailyActivity
 	query := r.db.Where("day >= ? AND day < ?", filter.From, filter.To)
+	if filter.TenantID != "" {
+		query = query.Where("user_id IN (?)", r.db.Model(&model.User{}).Select("id").Where("tenant_id = ?", TenantIDOrPlatform(filter.TenantID)))
+	}
 	if filter.UserID != "" {
 		query = query.Where("user_id = ?", filter.UserID)
 	}
@@ -353,6 +361,9 @@ func whereTimeRange(query *gorm.DB, column string, from, to time.Time) *gorm.DB 
 
 func (r *Repository) apiCallLogQuery(filter AnalyticsFilter) *gorm.DB {
 	query := whereTimeRange(r.db, "api_call_logs.created_at", filter.From, filter.To)
+	if filter.TenantID != "" {
+		query = scopeTenant(query, filter.TenantID, "api_call_logs.tenant_id")
+	}
 	if filter.UserID != "" {
 		query = query.Where("api_call_logs.user_id = ?", filter.UserID)
 	}
@@ -399,8 +410,8 @@ func (r *Repository) DeleteModelPricing(id string) error {
 	return r.db.Delete(&model.ModelPricing{}, "id = ?", id).Error
 }
 
-func (r *Repository) CurrentQueuedTaskCount() (int64, error) {
+func (r *Repository) CurrentQueuedTaskCount(tenantID string) (int64, error) {
 	var count int64
-	err := r.db.Model(&model.Task{}).Where("status IN ?", []model.TaskStatus{model.TaskStatusQueued, model.TaskStatusRunning}).Count(&count).Error
+	err := scopeTenant(r.db.Model(&model.Task{}), tenantID).Where("status IN ?", []model.TaskStatus{model.TaskStatusQueued, model.TaskStatusRunning}).Count(&count).Error
 	return count, err
 }

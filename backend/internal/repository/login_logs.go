@@ -10,7 +10,9 @@ import (
 )
 
 type LoginLogFilter struct {
-	Keyword string
+	// TenantID 为空时不按租户过滤（仅限内部）；后台列表必须填写。
+	TenantID string
+	Keyword  string
 	Event   string
 	Method  string
 	Result  string
@@ -23,6 +25,9 @@ func (r *Repository) AppendLoginLog(event *model.LoginLog) error { return r.db.C
 
 func (r *Repository) LoginLogs(filter LoginLogFilter, limit, offset int) ([]model.LoginLog, int64, error) {
 	query := r.db.Model(&model.LoginLog{})
+	if filter.TenantID != "" {
+		query = scopeTenant(query, filter.TenantID)
+	}
 	if filter.Keyword != "" {
 		term := "%" + filter.Keyword + "%"
 		query = query.Where("lower(username) LIKE lower(?) OR lower(display_name) LIKE lower(?) OR lower(account) LIKE lower(?) OR user_id = ?", term, term, term, filter.Keyword)
@@ -54,9 +59,9 @@ func (r *Repository) LoginLogs(filter LoginLogFilter, limit, offset int) ([]mode
 	return logs, total, err
 }
 
-func (r *Repository) LoginLog(id string) (*model.LoginLog, error) {
+func (r *Repository) LoginLog(tenantID, id string) (*model.LoginLog, error) {
 	var event model.LoginLog
-	if err := r.db.First(&event, "id = ?", id).Error; err != nil {
+	if err := scopeTenant(r.db, tenantID).First(&event, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &event, nil

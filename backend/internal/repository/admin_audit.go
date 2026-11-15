@@ -80,8 +80,8 @@ func (r *Repository) BulkDisableUsers(actorID string, userIDs []string, events [
 	return users, err
 }
 
-func (r *Repository) AdminAuditEvents(targetType string, targetID string, limit int, offset int) ([]model.AdminAuditEvent, int64, error) {
-	query := r.db.Model(&model.AdminAuditEvent{})
+func (r *Repository) AdminAuditEvents(tenantID string, targetType string, targetID string, limit int, offset int) ([]model.AdminAuditEvent, int64, error) {
+	query := scopeTenant(r.db.Model(&model.AdminAuditEvent{}), tenantID)
 	if targetType != "" {
 		query = query.Where("target_type = ?", targetType)
 	}

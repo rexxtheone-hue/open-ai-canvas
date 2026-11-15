@@ -12,6 +12,8 @@ import (
 )
 
 type StudioPostQuery struct {
+	// TenantID 为空时按平台租户处理；社区只展示同一网站（租户）的作品。
+	TenantID  string
 	Kind      string
 	Sort      string
 	Templates bool
@@ -27,7 +29,7 @@ type StudioPostQuery struct {
 }
 
 func (r *Repository) StudioPosts(query StudioPostQuery) ([]model.StudioPost, bool, error) {
-	db := r.db.Model(&model.StudioPost{})
+	db := scopeTenant(r.db.Model(&model.StudioPost{}), query.TenantID)
 	if !query.IncludeHidden {
 		db = db.Where("status = ?", model.StudioPostPublished)
 	}
@@ -73,9 +75,9 @@ func (r *Repository) StudioPosts(query StudioPostQuery) ([]model.StudioPost, boo
 	return posts, hasMore, nil
 }
 
-func (r *Repository) StudioPost(id string) (*model.StudioPost, error) {
+func (r *Repository) StudioPost(tenantID, id string) (*model.StudioPost, error) {
 	var post model.StudioPost
-	err := r.db.First(&post, "id = ?", id).Error
+	err := scopeTenant(r.db, tenantID).First(&post, "id = ?", id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}

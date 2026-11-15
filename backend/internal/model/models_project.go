@@ -437,6 +437,7 @@ type UserPromptCustomization struct {
 
 type Announcement struct {
 	ID              string             `json:"id" gorm:"primaryKey;size:36"`
+	TenantID        string             `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	Title           string             `json:"title" gorm:"size:120"`
 	Content         string             `json:"content" gorm:"type:text"`
 	ImageResourceID string             `json:"imageResourceId,omitempty" gorm:"index;size:36"`
@@ -469,8 +470,9 @@ type BannerTitleRun struct {
 }
 
 type BannerAnnouncement struct {
-	ID    string `json:"id" gorm:"primaryKey;size:36"`
-	Title string `json:"title" gorm:"size:120"` // 纯文本标题，由 TitleRuns 拼接得出，供列表展示和关键字检索
+	ID       string `json:"id" gorm:"primaryKey;size:36"`
+	TenantID string `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
+	Title    string `json:"title" gorm:"size:120"` // 纯文本标题，由 TitleRuns 拼接得出，供列表展示和关键字检索
 	// TitleRuns 是标题的样式分段，前端按段渲染；持久化在 title_runs 文本列，由仓储层显式编解码。
 	TitleRuns     []BannerTitleRun `json:"titleRuns,omitempty" gorm:"-"`
 	TitleRunsJSON string           `json:"-" gorm:"column:title_runs;type:text"`

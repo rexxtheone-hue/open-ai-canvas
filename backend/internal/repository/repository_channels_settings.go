@@ -93,12 +93,12 @@ func (r *Repository) DeleteSystemChannel(id string) error {
 	})
 }
 
-func (r *Repository) ApiCallLogs(userID string, admin bool, limit int) ([]model.ApiCallLog, error) {
+func (r *Repository) ApiCallLogs(tenantID string, userID string, admin bool, limit int) ([]model.ApiCallLog, error) {
 	var logs []model.ApiCallLog
 	if limit <= 0 || limit > 200 {
 		limit = 100
 	}
-	query := r.db.Order("created_at desc").Limit(limit)
+	query := scopeTenant(r.db, tenantID).Order("created_at desc").Limit(limit)
 	if !admin {
 		query = query.Where("user_id = ?", userID)
 	}

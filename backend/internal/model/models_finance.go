@@ -35,6 +35,7 @@ type CreditLedgerEntry struct {
 type BillingOrder struct {
 	BillingCostSnapshot `json:"-" gorm:"embedded"`
 	ID                  string `json:"id" gorm:"primaryKey;size:36"`
+	TenantID            string `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	UserID              string `json:"userId" gorm:"size:36;index;uniqueIndex:idx_billing_user_idempotency,priority:1"`
 	IdempotencyKey      string `json:"idempotencyKey" gorm:"size:160;uniqueIndex:idx_billing_user_idempotency,priority:2"`
 	TaskID              string `json:"taskId,omitempty" gorm:"index;size:36"`
@@ -87,6 +88,7 @@ type BillingOrder struct {
 
 type RedeemBatch struct {
 	ID                 string     `json:"id" gorm:"primaryKey;size:36"`
+	TenantID           string     `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	AmountMicrocredits int64      `json:"amountMicrocredits"`
 	Count              int        `json:"count"`
 	Note               string     `json:"note" gorm:"size:500"`
@@ -102,6 +104,7 @@ type RedeemBatch struct {
 
 type RedeemCode struct {
 	ID                 string           `json:"id" gorm:"primaryKey;size:36"`
+	TenantID           string           `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	BatchID            string           `json:"batchId" gorm:"index;size:36;index:idx_redeem_codes_batch_status,priority:1;index:idx_redeem_codes_batch_created,priority:1"`
 	CodeHash           string           `json:"-" gorm:"uniqueIndex;size:64"`
 	CodeSuffix         string           `json:"codeSuffix" gorm:"size:4"`

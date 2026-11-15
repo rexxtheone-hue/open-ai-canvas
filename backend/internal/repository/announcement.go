@@ -11,10 +11,10 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (r *Repository) AdminAnnouncements(keyword string, status model.AnnouncementStatus, limit int, offset int) ([]model.Announcement, int64, error) {
+func (r *Repository) AdminAnnouncements(tenantID string, keyword string, status model.AnnouncementStatus, limit int, offset int) ([]model.Announcement, int64, error) {
 	var announcements []model.Announcement
 	var total int64
-	query := r.db.Model(&model.Announcement{})
+	query := scopeTenant(r.db.Model(&model.Announcement{}), tenantID)
 	if value := strings.TrimSpace(keyword); value != "" {
 		pattern := "%" + strings.ToLower(value) + "%"
 		query = query.Where("lower(title) LIKE ? OR lower(content) LIKE ?", pattern, pattern)
@@ -31,14 +31,14 @@ func (r *Repository) AdminAnnouncements(keyword string, status model.Announcemen
 	return announcements, total, nil
 }
 
-func (r *Repository) AnnouncementFeed(userID string) ([]model.Announcement, int64, error) {
+func (r *Repository) AnnouncementFeed(tenantID string, userID string) ([]model.Announcement, int64, error) {
 	var announcements []model.Announcement
 	var unreadCount int64
 	err := r.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("status = ?", model.AnnouncementStatusActive).Order("pinned desc, published_at desc").Find(&announcements).Error; err != nil {
+		if err := scopeTenant(tx, tenantID).Where("status = ?", model.AnnouncementStatusActive).Order("pinned desc, published_at desc").Find(&announcements).Error; err != nil {
 			return err
 		}
-		return tx.Model(&model.Announcement{}).
+		return scopeTenant(tx.Model(&model.Announcement{}), tenantID, "announcements.tenant_id").
 			Joins("LEFT JOIN user_announcement_reads ON user_announcement_reads.announcement_id = announcements.id AND user_announcement_reads.user_id = ?", userID).
 			Where("announcements.status = ? AND user_announcement_reads.id IS NULL", model.AnnouncementStatusActive).
 			Count(&unreadCount).Error
@@ -46,9 +46,9 @@ func (r *Repository) AnnouncementFeed(userID string) ([]model.Announcement, int6
 	return announcements, unreadCount, err
 }
 
-func (r *Repository) Announcement(id string) (*model.Announcement, error) {
+func (r *Repository) Announcement(tenantID string, id string) (*model.Announcement, error) {
 	var announcement model.Announcement
-	if err := r.db.First(&announcement, "id = ?", id).Error; err != nil {
+	if err := scopeTenant(r.db, tenantID).First(&announcement, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &announcement, nil
@@ -61,12 +61,12 @@ func (r *Repository) CloseAnnouncement(id string, closedAt time.Time) (bool, err
 	return result.RowsAffected == 1, result.Error
 }
 
-func (r *Repository) MarkAnnouncementsRead(userID string, announcementIDs []string, readAt time.Time) error {
+func (r *Repository) MarkAnnouncementsRead(tenantID string, userID string, announcementIDs []string, readAt time.Time) error {
 	if len(announcementIDs) == 0 {
 		return nil
 	}
 	var activeIDs []string
-	if err := r.db.Model(&model.Announcement{}).Where("id IN ? AND status = ?", announcementIDs, model.AnnouncementStatusActive).Pluck("id", &activeIDs).Error; err != nil {
+	if err := scopeTenant(r.db.Model(&model.Announcement{}), tenantID).Where("id IN ? AND status = ?", announcementIDs, model.AnnouncementStatusActive).Pluck("id", &activeIDs).Error; err != nil {
 		return err
 	}
 	if len(activeIDs) == 0 {
@@ -79,9 +79,9 @@ func (r *Repository) MarkAnnouncementsRead(userID string, announcementIDs []stri
 	return r.db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "user_id"}, {Name: "announcement_id"}}, DoNothing: true}).Create(&reads).Error
 }
 
-func (r *Repository) ActiveBannerAnnouncements(now time.Time) ([]model.BannerAnnouncement, error) {
+func (r *Repository) ActiveBannerAnnouncements(tenantID string, now time.Time) ([]model.BannerAnnouncement, error) {
 	var banners []model.BannerAnnouncement
-	err := r.db.Model(&model.BannerAnnouncement{}).
+	err := scopeTenant(r.db.Model(&model.BannerAnnouncement{}), tenantID).
 		Where("status = ?", "active").
 		Where("starts_at IS NULL OR starts_at <= ?", now).
 		Where("ends_at IS NULL OR ends_at >= ?", now).
@@ -91,10 +91,10 @@ func (r *Repository) ActiveBannerAnnouncements(now time.Time) ([]model.BannerAnn
 	return banners, err
 }
 
-func (r *Repository) AdminBannerAnnouncements(keyword string, status string, limit int, offset int) ([]model.BannerAnnouncement, int64, error) {
+func (r *Repository) AdminBannerAnnouncements(tenantID string, keyword string, status string, limit int, offset int) ([]model.BannerAnnouncement, int64, error) {
 	var banners []model.BannerAnnouncement
 	var total int64
-	query := r.db.Model(&model.BannerAnnouncement{})
+	query := scopeTenant(r.db.Model(&model.BannerAnnouncement{}), tenantID)
 	if k := strings.TrimSpace(keyword); k != "" {
 		query = query.Where("title LIKE ?", "%"+k+"%")
 	}
@@ -111,9 +111,9 @@ func (r *Repository) AdminBannerAnnouncements(keyword string, status string, lim
 	return banners, total, nil
 }
 
-func (r *Repository) BannerAnnouncement(id string) (*model.BannerAnnouncement, error) {
+func (r *Repository) BannerAnnouncement(tenantID string, id string) (*model.BannerAnnouncement, error) {
 	var banner model.BannerAnnouncement
-	if err := r.db.First(&banner, "id = ?", id).Error; err != nil {
+	if err := scopeTenant(r.db, tenantID).First(&banner, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	banner.TitleRuns = bannerTitleRunsFromJSON(banner.TitleRunsJSON)
@@ -175,11 +175,11 @@ func (r *Repository) UpdateBannerAnnouncement(banner *model.BannerAnnouncement) 
 		"starts_at":   banner.StartsAt,
 		"ends_at":     banner.EndsAt,
 	}
-	return r.db.Model(&model.BannerAnnouncement{}).
+	return scopeTenant(r.db.Model(&model.BannerAnnouncement{}), banner.TenantID).
 		Where("id = ?", banner.ID).
 		Updates(updates).Error
 }
 
-func (r *Repository) DeleteBannerAnnouncement(id string) error {
-	return r.db.Where("id = ?", id).Delete(&model.BannerAnnouncement{}).Error
+func (r *Repository) DeleteBannerAnnouncement(tenantID string, id string) error {
+	return scopeTenant(r.db, tenantID).Where("id = ?", id).Delete(&model.BannerAnnouncement{}).Error
 }

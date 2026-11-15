@@ -34,7 +34,7 @@ func RegisterPaymentRoutes(r *gin.RouterGroup, svc *service.Service) {
 	})
 	r.GET("/payments/products", func(c *gin.Context) {
 		user, _ := currentUser(c, svc)
-		products, err := svc.TopupProducts(user)
+		products, err := svc.TopupProducts(c.Request.Context(), user)
 		if err != nil {
 			failService(c, err)
 			return

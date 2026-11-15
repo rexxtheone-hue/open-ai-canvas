@@ -36,6 +36,8 @@ func TestCloudAgentCanvasPatchesPersistDraftSubmissionAndAllTerminalStates(t *te
 				t.Fatal(err)
 			}
 			approveAgentMediaDraft(t, s, run.ID)
+			// 本测试手动推进 Agent；先停掉审批后的后台等待，避免它和手动推进抢同一个版本号。
+			s.closeApprovedCloudAgentMediaWaiters()
 			run, _ = s.repo.CloudAgent("user", run.ID)
 			state, _ := cloudAgentDecode(run)
 			taskID := state.MediaTaskID
@@ -275,6 +277,8 @@ func TestCloudAgentMissingCanvasStillCheckpointsMediaFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	approveAgentMediaDraft(t, s, run.ID)
+	// 本测试手动推进 Agent；先停掉审批后的后台等待，避免它和手动推进抢同一个版本号。
+	s.closeApprovedCloudAgentMediaWaiters()
 	run, _ = s.repo.CloudAgent("user", run.ID)
 	state, _ := cloudAgentDecode(run)
 	if err := db.Model(&model.Task{}).Where("id = ?", state.MediaTaskID).Update("status", model.TaskStatusFailed).Error; err != nil {

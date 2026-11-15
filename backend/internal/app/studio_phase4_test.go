@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -130,7 +131,7 @@ func TestStudioCommunityPublishLikeRemixAndPrivacy(t *testing.T) {
 		t.Fatalf("unexpected post %+v", post)
 	}
 
-	page, err := svc.StudioCommunity("viewer", StudioCommunityQuery{})
+	page, err := svc.StudioCommunity(context.Background(), "viewer", StudioCommunityQuery{})
 	if err != nil || len(page.Posts) != 1 {
 		t.Fatalf("community list: %+v %v", page, err)
 	}
@@ -169,7 +170,7 @@ func TestStudioCommunityPublishLikeRemixAndPrivacy(t *testing.T) {
 	if _, err := svc.UpdateStudioPostAdmin(admin, post.ID, StudioPostAdminInput{Hidden: &hidden, IsTemplate: &template}); err != nil {
 		t.Fatal(err)
 	}
-	if page, _ := svc.StudioCommunity("viewer", StudioCommunityQuery{}); len(page.Posts) != 0 {
+	if page, _ := svc.StudioCommunity(context.Background(), "viewer", StudioCommunityQuery{}); len(page.Posts) != 0 {
 		t.Fatal("hidden post must disappear from the community")
 	}
 	if _, err := svc.LikeStudioPost("viewer", post.ID, true); err == nil {

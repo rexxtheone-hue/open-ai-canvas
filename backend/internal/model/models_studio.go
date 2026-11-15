@@ -105,6 +105,7 @@ const (
 // StudioPost 是发布到灵感社区的作品。媒体只保存资源存储键，展示时按需签发公开访问地址。
 type StudioPost struct {
 	ID           string    `json:"id" gorm:"primaryKey;size:36"`
+	TenantID     string    `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	UserID       string    `json:"userId" gorm:"index;size:36"`
 	TaskID       string    `json:"taskId" gorm:"uniqueIndex;size:64"`
 	Kind         string    `json:"kind" gorm:"size:16;index"`
@@ -257,6 +258,7 @@ type StudioVoice struct {
 // StudioFeedback 是用户在 AI Studio 帮助菜单里提交的反馈，管理员在后台处理。
 type StudioFeedback struct {
 	ID        string    `json:"id" gorm:"primaryKey;size:36"`
+	TenantID  string    `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	UserID    string    `json:"userId" gorm:"index;size:36"`
 	Category  string    `json:"category" gorm:"size:16"`
 	Content   string    `json:"content" gorm:"type:text"`
@@ -270,6 +272,8 @@ type StudioFeedback struct {
 
 // StudioSiteContent 保存帮助中心的客服说明、服务条款和隐私政策，由管理员编辑。
 type StudioSiteContent struct {
+	// 每个租户各有一套帮助中心内容，主键是（租户, key）。
+	TenantID  string    `json:"-" gorm:"primaryKey;size:36;default:'omnimuse'"`
 	Key       string    `json:"key" gorm:"primaryKey;size:32"`
 	Content   string    `json:"content" gorm:"type:text"`
 	UpdatedAt time.Time `json:"updatedAt"`

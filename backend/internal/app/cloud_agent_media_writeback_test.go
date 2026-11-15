@@ -86,6 +86,8 @@ func TestCloudAgentMediaCompletionKeepsGenerationAndWritebackFailures(t *testing
 				t.Fatal(err)
 			}
 			approveAgentMediaDraft(t, s, run.ID)
+			// 本测试手动推进 Agent；先停掉审批后的后台等待，避免它和手动推进抢同一个版本号。
+			s.closeApprovedCloudAgentMediaWaiters()
 			run, state := agentInterjectionState(t, s, run.ID)
 			taskID := state.MediaTaskID
 			if taskID == "" {

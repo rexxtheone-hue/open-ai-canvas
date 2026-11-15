@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"yingce/backend/internal/model"
+
+	"gorm.io/gorm"
 )
 
 const tenantCacheTTL = 60 * time.Second
@@ -88,4 +90,41 @@ func UserBelongsToTenant(user *model.User, tenant model.Tenant) bool {
 		owner = model.PlatformTenantID
 	}
 	return owner == tenant.ID
+}
+
+// userTenantID 返回用户所属租户；后台和已登录接口按它隔离数据（登录只在所属租户网址有效，所以等于请求租户）。
+func userTenantID(user *model.User) string {
+	if user == nil || user.TenantID == "" {
+		return model.PlatformTenantID
+	}
+	return user.TenantID
+}
+
+// requestTenantID 返回请求所属租户的 ID，供未登录也能访问的公开接口使用。
+func requestTenantID(ctx context.Context) string {
+	return TenantFromContext(ctx).ID
+}
+
+// adminTenantUser 读取后台要操作的用户；不属于管理员所在租户时当作不存在。
+func (s *Service) adminTenantUser(actor *model.User, userID string) (*model.User, error) {
+	user, err := s.repo.User(userID)
+	if err != nil {
+		return nil, err
+	}
+	if userTenantID(user) != userTenantID(actor) {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return user, nil
+}
+
+// tenantIDForUserID 读取用户所属租户；用户不存在时当作平台租户。
+func (s *Service) tenantIDForUserID(userID string) string {
+	if userID == "" {
+		return model.PlatformTenantID
+	}
+	user, err := s.repo.User(userID)
+	if err != nil || user == nil {
+		return model.PlatformTenantID
+	}
+	return userTenantID(user)
 }

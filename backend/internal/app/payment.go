@@ -156,7 +156,7 @@ func (s *Service) CreatePaymentOrder(ctx context.Context, actor *model.User, req
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
-	product, err := s.repo.TopupProduct(productID)
+	product, err := s.repo.TenantTopupProduct(userTenantID(actor), productID)
 	if err != nil || !product.Enabled {
 		return nil, BadAuthRequest("充值商品不存在或已停用")
 	}
@@ -214,7 +214,7 @@ func (s *Service) CreatePaymentOrder(ctx context.Context, actor *model.User, req
 	}
 	now := time.Now()
 	order := &model.PaymentOrder{
-		ID: newID(), UserID: actor.ID, IdempotencyKey: idempotencyKey, MerchantOrderNo: newID(),
+		ID: newID(), TenantID: userTenantID(actor), UserID: actor.ID, IdempotencyKey: idempotencyKey, MerchantOrderNo: newID(),
 		ProductID: product.ID, ProductName: product.Name, ProviderID: provider.Descriptor().ID,
 		PluginID: provider.Descriptor().PluginID, PluginVersion: provider.Descriptor().PluginVersion, ProviderConfigID: config.ID, ProviderConfigVersion: config.Version,
 		AmountFen: product.AmountFen, Currency: productCurrency, CreditsMicrocredits: credits,
@@ -636,6 +636,7 @@ func (s *Service) AdminPaymentOrderPage(actor *model.User, query PaymentOrderQue
 	if err != nil {
 		return nil, err
 	}
+	filter.TenantID = userTenantID(actor)
 	orders, total, err := s.repo.AdminPaymentOrders(filter, limit, (page-1)*limit)
 	if err != nil {
 		return nil, err
@@ -663,7 +664,7 @@ func (s *Service) AdminQueryPaymentOrder(ctx context.Context, actor *model.User,
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	order, err := s.repo.PaymentOrder(id)
+	order, err := s.repo.TenantPaymentOrder(userTenantID(actor), id)
 	if err != nil {
 		return nil, err
 	}
@@ -674,7 +675,7 @@ func (s *Service) AdminQueryPaymentOrder(ctx context.Context, actor *model.User,
 	if err := s.queryPaymentOrder(ctx, order); err != nil {
 		return nil, err
 	}
-	order, err = s.repo.PaymentOrder(id)
+	order, err = s.repo.TenantPaymentOrder(userTenantID(actor), id)
 	if err != nil {
 		return nil, err
 	}
@@ -686,7 +687,7 @@ func (s *Service) AdminClosePaymentOrder(ctx context.Context, actor *model.User,
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	order, err := s.repo.PaymentOrder(id)
+	order, err := s.repo.TenantPaymentOrder(userTenantID(actor), id)
 	if err != nil {
 		return nil, err
 	}
@@ -697,7 +698,7 @@ func (s *Service) AdminClosePaymentOrder(ctx context.Context, actor *model.User,
 	if err := s.closePaymentOrder(ctx, order); err != nil {
 		return nil, err
 	}
-	order, err = s.repo.PaymentOrder(id)
+	order, err = s.repo.TenantPaymentOrder(userTenantID(actor), id)
 	if err != nil {
 		return nil, err
 	}

@@ -87,7 +87,7 @@ func RegisterStudioCommunityRoutes(r *gin.RouterGroup, svc *service.Service) {
 			ok(c, gin.H{"posts": []any{}})
 			return
 		}
-		page, err := svc.StudioCommunity(viewer, query)
+		page, err := svc.StudioCommunity(c.Request.Context(), viewer, query)
 		if err != nil {
 			failService(c, err)
 			return
@@ -116,7 +116,7 @@ func RegisterStudioCommunityRoutes(r *gin.RouterGroup, svc *service.Service) {
 		ok(c, view)
 	}))
 	r.GET("/studio/profiles/:handle", func(c *gin.Context) {
-		view, err := svc.StudioProfileByHandle(viewerID(c), c.Param("handle"))
+		view, err := svc.StudioProfileByHandle(c.Request.Context(), viewerID(c), c.Param("handle"))
 		if err != nil {
 			failService(c, err)
 			return
@@ -124,7 +124,7 @@ func RegisterStudioCommunityRoutes(r *gin.RouterGroup, svc *service.Service) {
 		ok(c, view)
 	})
 	r.GET("/studio/profiles/:handle/posts", func(c *gin.Context) {
-		page, err := svc.StudioProfilePosts(viewerID(c), c.Param("handle"), c.Query("tab"), queryInt(c, "offset"), queryInt(c, "pageSize"))
+		page, err := svc.StudioProfilePosts(c.Request.Context(), viewerID(c), c.Param("handle"), c.Query("tab"), queryInt(c, "offset"), queryInt(c, "pageSize"))
 		if err != nil {
 			failService(c, err)
 			return
@@ -132,7 +132,7 @@ func RegisterStudioCommunityRoutes(r *gin.RouterGroup, svc *service.Service) {
 		ok(c, page)
 	})
 	r.GET("/studio/creators", func(c *gin.Context) {
-		page, err := svc.StudioCreators(viewerID(c), service.StudioCreatorQuery{
+		page, err := svc.StudioCreators(c.Request.Context(), viewerID(c), service.StudioCreatorQuery{
 			Search: c.Query("q"), Specialty: c.Query("specialty"), Location: c.Query("location"), Sort: c.Query("sort"), Verified: c.Query("verified") == "1",
 			Offset: queryInt(c, "offset"), Limit: queryInt(c, "pageSize"),
 		})
@@ -144,7 +144,7 @@ func RegisterStudioCommunityRoutes(r *gin.RouterGroup, svc *service.Service) {
 	})
 	// 分享链接预览：nginx 把 WhatsApp、Facebook 等爬虫对 /u/:handle 的请求转到这里，返回带 Open Graph 标签的页面。
 	r.GET("/public/studio/profile-preview/:handle", func(c *gin.Context) {
-		preview, err := svc.StudioProfilePreviewByHandle(c.Param("handle"))
+		preview, err := svc.StudioProfilePreviewByHandle(c.Request.Context(), c.Param("handle"))
 		if err != nil {
 			c.Status(http.StatusNotFound)
 			return

@@ -134,5 +134,5 @@ func (s *Service) APICallLogs(actor *model.User, limit int) ([]model.ApiCallLog,
 	if actor == nil {
 		return nil, Unauthorized("请先登录")
 	}
-	return s.repo.ApiCallLogs(actor.ID, actor.Role == model.UserRoleAdmin, limit)
+	return s.repo.ApiCallLogs(userTenantID(actor), actor.ID, actor.Role == model.UserRoleAdmin, limit)
 }

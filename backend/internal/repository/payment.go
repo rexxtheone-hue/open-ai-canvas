@@ -33,9 +33,9 @@ type PaymentEvidence struct {
 	SubscriptionID  string
 }
 
-func (r *Repository) TopupProducts(includeDisabled bool) ([]model.TopupProduct, error) {
+func (r *Repository) TopupProducts(tenantID string, includeDisabled bool) ([]model.TopupProduct, error) {
 	var products []model.TopupProduct
-	query := r.db.Order("sort_order asc, amount_fen asc, created_at asc")
+	query := scopeTenant(r.db, tenantID).Order("sort_order asc, amount_fen asc, created_at asc")
 	if !includeDisabled {
 		query = query.Where("enabled = ?", true)
 	}
@@ -46,6 +46,12 @@ func (r *Repository) TopupProducts(includeDisabled bool) ([]model.TopupProduct, 
 func (r *Repository) TopupProduct(id string) (*model.TopupProduct, error) {
 	var product model.TopupProduct
 	return &product, r.db.First(&product, "id = ?", strings.TrimSpace(id)).Error
+}
+
+// TenantTopupProduct 只在指定租户的商品里查找，前台下单和后台读取都用它。
+func (r *Repository) TenantTopupProduct(tenantID, id string) (*model.TopupProduct, error) {
+	var product model.TopupProduct
+	return &product, scopeTenant(r.db, tenantID).First(&product, "id = ?", strings.TrimSpace(id)).Error
 }
 
 func (r *Repository) CreateTopupProduct(product *model.TopupProduct) error {
@@ -216,6 +222,12 @@ func (r *Repository) PaymentOrderByIdempotency(userID, idempotencyKey string) (*
 func (r *Repository) PaymentOrder(id string) (*model.PaymentOrder, error) {
 	var order model.PaymentOrder
 	return &order, r.db.First(&order, "id = ?", strings.TrimSpace(id)).Error
+}
+
+// TenantPaymentOrder 供后台按 ID 操作订单，只能看到本租户的订单。
+func (r *Repository) TenantPaymentOrder(tenantID, id string) (*model.PaymentOrder, error) {
+	var order model.PaymentOrder
+	return &order, scopeTenant(r.db, tenantID).First(&order, "id = ?", strings.TrimSpace(id)).Error
 }
 
 func (r *Repository) PaymentOrderByMerchant(providerID, merchantOrderNo string) (*model.PaymentOrder, error) {
@@ -502,6 +514,9 @@ func (r *Repository) AdminPaymentOrders(filter PaymentOrderFilter, limit, offset
 
 func (r *Repository) paymentOrderQuery(filter PaymentOrderFilter) *gorm.DB {
 	query := r.db.Model(&model.PaymentOrder{})
+	if filter.TenantID != "" {
+		query = scopeTenant(query, filter.TenantID)
+	}
 	if normalized := strings.TrimSpace(filter.Status); normalized != "" && normalized != "all" {
 		query = query.Where("status = ?", normalized)
 	}
