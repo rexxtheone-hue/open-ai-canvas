@@ -124,11 +124,11 @@ func TestTenantScopedTopupProductsAndPaymentOrders(t *testing.T) {
 	if products, _ := f.svc.TopupProducts(f.platformCtx, nil); len(products) != 1 || products[0].ID != "platform-pack" {
 		t.Fatalf("platform storefront = %v", ids(products))
 	}
-	if products, _ := f.svc.TopupProducts(f.agencyCtx, nil); len(products) != 1 || products[0].ID != product.ID {
-		t.Fatalf("agency storefront = %v", ids(products))
+	if products, _ := f.svc.TopupProducts(f.agencyCtx, nil); len(products) != 0 {
+		t.Fatalf("agency storefront stays empty until the agency connects its own gateway: %v", ids(products))
 	}
-	if products, _ := f.svc.TopupProducts(context.Background(), f.agencyUser); len(products) != 1 || products[0].ID != product.ID {
-		t.Fatalf("signed-in agency user sees agency products: %v", ids(products))
+	if products, _ := f.svc.TopupProducts(context.Background(), f.agencyUser); len(products) != 0 {
+		t.Fatalf("signed-in agency user sees no online packs yet: %v", ids(products))
 	}
 	if products, _ := f.svc.AdminTopupProducts(f.platformAdmin); len(products) != 1 {
 		t.Fatalf("platform admin products = %v", ids(products))
@@ -381,5 +381,27 @@ func TestTenantScopedPartnersLogsAndAdminUsers(t *testing.T) {
 	}
 	if len(overview.Users) != 0 {
 		t.Fatalf("platform analytics must not rank agency users: %+v", overview.Users)
+	}
+}
+
+func TestAgencySitesHaveNoOnlineTopupUntilTheyConnectTheirOwnGateway(t *testing.T) {
+	if agencyOnlinePaymentEnabled("agency-a") || !agencyOnlinePaymentEnabled(model.PlatformTenantID) || !agencyOnlinePaymentEnabled("") {
+		t.Fatal("only the platform site may take online payments for now")
+	}
+	svc, db := newStudioTestService(t)
+	db.Create(&model.Tenant{ID: "agency-a", Slug: "agency-a", Status: model.TenantStatusActive})
+	customer := &model.User{ID: "agency-customer", TenantID: "agency-a", Username: "agency-customer", Role: model.UserRoleUser, Status: model.UserStatusActive}
+	db.Create(customer)
+	db.Create(&model.TopupProduct{ID: "agency-pack", TenantID: "agency-a", Name: "pack", AmountFen: 9900, CreditsMicrocredits: 1_000_000, Enabled: true, Currency: "MYR", SaleStrategy: model.TopupSaleStrategyUnlimited})
+	products, err := svc.TopupProducts(context.Background(), customer)
+	if err != nil || len(products) != 0 {
+		t.Fatalf("agency storefront must be empty, got %d %v", len(products), err)
+	}
+	providers, err := svc.PaymentProviders(customer)
+	if err != nil || len(providers) != 0 {
+		t.Fatalf("agency customers must see no payment providers, got %d %v", len(providers), err)
+	}
+	if _, err := svc.CreatePaymentOrder(context.Background(), customer, CreatePaymentOrderRequest{ProductID: "agency-pack", ProviderID: "stripe-checkout", IdempotencyKey: "k1"}); err == nil {
+		t.Fatal("agency customers must not be able to create payment orders")
 	}
 }

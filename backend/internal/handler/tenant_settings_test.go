@@ -274,7 +274,6 @@ func TestTenantAdminRejectedOnPlatformOnlyEndpointsAndOtherSites(t *testing.T) {
 		{http.MethodGet, "/api/admin/settings/linuxdo"},
 		{http.MethodGet, "/api/admin/settings/libtv"},
 		{http.MethodGet, "/api/admin/settings/response-interception"},
-		{http.MethodPatch, "/api/admin/users/user-a"},
 	} {
 		if code, _ := f.call(endpoint.method, agencyAHost, "s-a", endpoint.path, map[string]any{}); code != http.StatusForbidden {
 			t.Fatalf("%s %s must be platform-only, got %d", endpoint.method, endpoint.path, code)

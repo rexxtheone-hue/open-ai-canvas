@@ -221,14 +221,14 @@ export default function UsersPanel({ onUserChanged }: { onUserChanged?: (user: L
                         </Dropdown>
                     </div>
                 }
-                batchActions={tenantView ? undefined : <AdminBatchBar count={selectedUserIds.length} onClear={() => setSelectedUserIds([])}><Button danger size="small" icon={<Ban className="size-3.5" />} loading={bulkDisabling} onClick={bulkDisable}>批量停用</Button></AdminBatchBar>}
+                batchActions={<AdminBatchBar count={selectedUserIds.length} onClear={() => setSelectedUserIds([])}><Button danger size="small" icon={<Ban className="size-3.5" />} loading={bulkDisabling} onClick={bulkDisable}>批量停用</Button></AdminBatchBar>}
                 skeletonColumns={Math.max(4, columns.length)}
                 table={{
                     className: "app-data-table admin-users-table",
                     size: "small",
                     rowKey: "id",
                     loading,
-                    rowSelection: tenantView ? undefined : {
+                    rowSelection: {
                         selectedRowKeys: selectedUserIds,
                         preserveSelectedRowKeys: false,
                         onChange: (keys) => setSelectedUserIds(keys.map(String)),
@@ -245,7 +245,7 @@ export default function UsersPanel({ onUserChanged }: { onUserChanged?: (user: L
 
             <AdminUserDetailDrawer userId={detailUserId} previousUserId={previousUserId} nextUserId={nextUserId} onNavigate={setDetailUserId} onClose={() => setDetailUserId(null)} />
             <AdminUserCreateDrawer open={createUserOpen} onClose={() => setCreateUserOpen(false)} onCreated={addUser} />
-            <AdminUserEditDrawer user={editingUser} actorId={actor?.id} onClose={() => setEditingUser(null)} onSaved={replaceUser} />
+            <AdminUserEditDrawer user={editingUser} actorId={actor?.id} hideRole={tenantView} onClose={() => setEditingUser(null)} onSaved={replaceUser} />
         </>
     );
 }

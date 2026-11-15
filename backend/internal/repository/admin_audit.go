@@ -51,7 +51,7 @@ func (r *Repository) BulkDisableUsers(tenantID, actorID string, userIDs []string
 		}
 		var remainingAdmins int64
 		if err := scopeTenant(tx.Model(&model.User{}), tenantID).
-			Where("role = ? AND status = ? AND id NOT IN ?", model.UserRoleAdmin, model.UserStatusActive, userIDs).
+			Where("role IN ? AND status = ? AND id NOT IN ?", []model.UserRole{model.UserRoleAdmin, model.UserRoleTenantAdmin}, model.UserStatusActive, userIDs).
 			Count(&remainingAdmins).Error; err != nil {
 			return err
 		}

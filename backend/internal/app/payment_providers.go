@@ -67,6 +67,9 @@ func (s *Service) PaymentProviders(actor *model.User) ([]PaymentProviderView, er
 		return nil, err
 	}
 	items := make([]PaymentProviderView, 0)
+	if !agencyOnlinePaymentEnabled(userTenantID(actor)) {
+		return items, nil
+	}
 	for _, descriptor := range s.paymentRegistry.Descriptors() {
 		view, config, err := s.paymentProviderView(descriptor)
 		if err != nil {
@@ -328,4 +331,10 @@ func validatePaymentPublicBaseURL(value string) error {
 		return errors.New("服务器公网地址必须是有效的 HTTP(S) 根地址")
 	}
 	return nil
+}
+
+// agencyOnlinePaymentEnabled 判断这个租户的网站能否在线充值。平台可以；代理商要等对接了自己的收款网关
+// （tenant_payment_integrations）并接入支付流程后才开放，在那之前一律关闭，避免代理商客户的钱进平台账户。
+func agencyOnlinePaymentEnabled(tenantID string) bool {
+	return tenantID == "" || tenantID == model.PlatformTenantID
 }

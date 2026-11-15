@@ -649,7 +649,6 @@ func (f *sweepFixture) assertOwnersSeeSeeds(t *testing.T) {
 		{agencyBHost, "s-user-b", "/api/studio/chats/zb-studio_chat_session", "ZZB"},
 		{agencyBHost, "", "/api/studio/community", "ZZB"},
 		{agencyBHost, "", "/api/studio/profiles/zzbhandle", "ZZB"},
-		{agencyBHost, "", "/api/payments/products", "ZZB"},
 		{agencyBHost, "", "/api/public/canvas-shares/" + sweepShareTokenB, "ZZB"},
 		{platformHost, "s-platform-admin", "/api/admin/users", "ZZP"},
 		{platformHost, "s-platform-admin", "/api/admin/api-logs/zp-api_call_log", "ZZP"},

@@ -114,6 +114,36 @@ func TestTenantAdminUsesWhitelistedAdminPagesScopedToItsTenant(t *testing.T) {
 	if code, _ := f.call(http.MethodPatch, agencyAHost, "s-a", "/api/admin/users/user-a", map[string]any{"role": "admin"}); code != http.StatusForbidden {
 		t.Fatalf("agency admin must not change roles, got %d", code)
 	}
+	// 代理商管理员可以停用、恢复、修改自己的客户，但不能动别家客户、不能动管理员账号。
+	f.mustCall(http.MethodPatch, agencyAHost, "s-a", "/api/admin/users/user-a", map[string]any{"displayName": "Renamed A", "status": "disabled"})
+	var customer model.User
+	f.db.First(&customer, "id = ?", "user-a")
+	if customer.Status != model.UserStatusDisabled || customer.DisplayName != "Renamed A" || customer.Role != model.UserRoleUser {
+		t.Fatalf("agency admin must be able to update its own customer: %+v", customer)
+	}
+	f.mustCall(http.MethodPatch, agencyAHost, "s-a", "/api/admin/users/user-a", map[string]any{"status": "active"})
+	if code, _ := f.call(http.MethodPatch, agencyAHost, "s-a", "/api/admin/users/user-b", map[string]any{"status": "disabled"}); code == http.StatusOK {
+		t.Fatal("agency admin must not update another tenant's customer")
+	}
+	if code, _ := f.call(http.MethodDelete, agencyAHost, "s-a", "/api/admin/users/user-b", nil); code == http.StatusOK {
+		t.Fatal("agency admin must not disable another tenant's customer")
+	}
+	if code, _ := f.call(http.MethodPost, agencyAHost, "s-a", "/api/admin/users/bulk-disable", map[string]any{"userIds": []string{"user-b"}}); code == http.StatusOK {
+		t.Fatal("agency admin must not bulk-disable another tenant's customer")
+	}
+	f.db.Create(&model.User{ID: "helper-a", TenantID: "agency-a", Username: "helper-a", Role: model.UserRoleTenantAdmin, Status: model.UserStatusActive})
+	if code, _ := f.call(http.MethodPatch, agencyAHost, "s-a", "/api/admin/users/helper-a", map[string]any{"status": "disabled"}); code != http.StatusForbidden {
+		t.Fatalf("agency admin accounts are managed on the staff page, got %d", code)
+	}
+	if code, body := f.call(http.MethodPost, agencyAHost, "s-a", "/api/admin/users/bulk-disable", map[string]any{"userIds": []string{"user-a"}}); code != http.StatusOK {
+		t.Fatalf("bulk-disable own customer: %d %v", code, body)
+	}
+	f.db.First(&customer, "id = ?", "user-a")
+	if customer.Status != model.UserStatusDisabled {
+		t.Fatal("agency admin bulk-disable of its own customer must work")
+	}
+	f.mustCall(http.MethodPatch, agencyAHost, "s-a", "/api/admin/users/user-a", map[string]any{"status": "active"})
+	f.db.Create(&model.AuthSession{ID: "s-user-a", UserID: "user-a", TokenHash: auth.HashToken("t"), ExpiresAt: time.Now().Add(time.Hour)})
 	// 普通客户不会因为白名单被当成管理员。
 	if code, _ := f.call(http.MethodGet, agencyAHost, "s-user-a", "/api/admin/users", nil); code != http.StatusForbidden {
 		t.Fatalf("a customer must not open admin pages, got %d", code)

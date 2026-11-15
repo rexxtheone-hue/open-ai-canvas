@@ -183,12 +183,22 @@ func (s *Service) CreateAdminUser(actor *model.User, req CreateAdminUserRequest)
 }
 
 func (s *Service) UpdateUser(actor *model.User, userID string, req UpdateUserRequest) (*model.User, error) {
-	if err := s.requireSuperAdmin(actor); err != nil {
+	agency, err := s.requireCustomerManager(actor)
+	if err != nil {
 		return nil, err
 	}
 	user, err := s.adminTenantUser(actor, userID)
 	if err != nil {
 		return nil, err
+	}
+	if agency {
+		if user.Role != model.UserRoleUser {
+			return nil, Forbidden("只能管理客户账号，管理员请在「管理员」页面管理")
+		}
+		if req.Role != "" && req.Role != model.UserRoleUser {
+			return nil, Forbidden("不能修改客户的角色")
+		}
+		req.Role = ""
 	}
 	if actor.ID == user.ID && req.Status == model.UserStatusDisabled {
 		return nil, BadAuthRequest("不能禁用当前管理员账号")
@@ -270,7 +280,8 @@ func (s *Service) UpdateUser(actor *model.User, userID string, req UpdateUserReq
 }
 
 func (s *Service) DeleteUser(actor *model.User, userID string) error {
-	if err := s.requireSuperAdmin(actor); err != nil {
+	agency, err := s.requireCustomerManager(actor)
+	if err != nil {
 		return err
 	}
 	if actor.ID == userID {
@@ -279,6 +290,9 @@ func (s *Service) DeleteUser(actor *model.User, userID string) error {
 	user, err := s.adminTenantUser(actor, userID)
 	if err != nil {
 		return err
+	}
+	if agency && user.Role != model.UserRoleUser {
+		return Forbidden("只能管理客户账号，管理员请在「管理员」页面管理")
 	}
 	if user.Role == model.UserRoleAdmin {
 		count, err := s.repo.ActiveAdminCountExcluding(userTenantID(user), user.ID)
@@ -305,7 +319,8 @@ func (s *Service) DeleteUser(actor *model.User, userID string) error {
 }
 
 func (s *Service) BulkDisableUsers(actor *model.User, req BulkDisableUsersRequest) (*BulkDisableUsersResult, error) {
-	if err := s.requireSuperAdmin(actor); err != nil {
+	agency, err := s.requireCustomerManager(actor)
+	if err != nil {
 		return nil, err
 	}
 	seen := make(map[string]struct{}, len(req.UserIDs))
@@ -335,6 +350,8 @@ func (s *Service) BulkDisableUsers(actor *model.User, req BulkDisableUsersReques
 	for _, id := range userIDs {
 		if target, ok := targets[id]; ok && userTenantID(&target) != userTenantID(actor) {
 			return nil, BadAuthRequest("部分用户不存在，请刷新列表后重试")
+		} else if ok && agency && target.Role != model.UserRoleUser {
+			return nil, Forbidden("只能停用客户账号，管理员请在「管理员」页面管理")
 		}
 	}
 	metadata, err := json.Marshal(map[string]any{"userIds": userIDs, "count": len(userIDs)})
@@ -360,4 +377,15 @@ func (s *Service) BulkDisableUsers(actor *model.User, req BulkDisableUsersReques
 		return nil, err
 	}
 	return &BulkDisableUsersResult{Users: users, DisabledCount: len(users)}, nil
+}
+
+// requireCustomerManager 允许平台超级管理员，以及代理商管理员管理自己网址的客户账号（返回 agency=true 时只能动普通客户）。
+func (s *Service) requireCustomerManager(actor *model.User) (agency bool, err error) {
+	if err := s.requireSuperAdmin(actor); err == nil {
+		return false, nil
+	}
+	if IsTenantAdmin(actor) && !isPlatformAccount(actor) {
+		return true, nil
+	}
+	return false, s.requireSuperAdmin(actor)
 }

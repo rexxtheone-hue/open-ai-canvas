@@ -135,6 +135,9 @@ func (s *Service) CreatePaymentOrder(ctx context.Context, actor *model.User, req
 	if actor == nil {
 		return nil, Unauthorized("请先登录")
 	}
+	if !agencyOnlinePaymentEnabled(userTenantID(actor)) {
+		return nil, Forbidden("暂未开放在线充值，请联系客服充值")
+	}
 	if err := s.RequireFeature(FeatureCredits); err != nil {
 		return nil, err
 	}

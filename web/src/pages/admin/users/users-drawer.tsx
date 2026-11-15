@@ -7,7 +7,7 @@ import { userRoleOptions } from "@/stores/use-user-store";
 
 type UserFormValues = Pick<LocalUser, "displayName" | "email" | "role" | "status"> & { password?: string };
 
-export function AdminUserEditDrawer({ user, actorId, onClose, onSaved }: { user: AdminUser | null; actorId?: string; onClose: () => void; onSaved: (user: LocalUser) => void }) {
+export function AdminUserEditDrawer({ user, actorId, hideRole = false, onClose, onSaved }: { user: AdminUser | null; actorId?: string; hideRole?: boolean; onClose: () => void; onSaved: (user: LocalUser) => void }) {
     const { message, modal } = App.useApp();
     const [saving, setSaving] = useState(false);
     const [form] = Form.useForm<UserFormValues>();
@@ -48,7 +48,7 @@ export function AdminUserEditDrawer({ user, actorId, onClose, onSaved }: { user:
             const result = await updateAdminUser(user.id, {
                 displayName: values.displayName.trim(),
                 email: values.email?.trim() || "",
-                role: values.role,
+                ...(hideRole ? {} : { role: values.role }),
                 status: values.status,
                 ...(values.password?.trim() ? { password: values.password } : {}),
             });
@@ -90,9 +90,11 @@ export function AdminUserEditDrawer({ user, actorId, onClose, onSaved }: { user:
                 <Form.Item name="password" label="重置密码" extra="留空表示不修改；保存后该用户已有登录会话会失效。" rules={[{ min: 8, message: "密码至少 8 位" }]}>
                     <Input.Password placeholder="输入新密码以手动重置" autoComplete="new-password" />
                 </Form.Item>
-                <Form.Item name="role" label="角色" extra={editingSelf ? "不能在此修改当前管理员自己的角色。" : "角色变更会立即影响后台访问权限。"}>
-                    <Select disabled={editingSelf} options={userRoleOptions} />
-                </Form.Item>
+                {hideRole ? null : (
+                    <Form.Item name="role" label="角色" extra={editingSelf ? "不能在此修改当前管理员自己的角色。" : "角色变更会立即影响后台访问权限。"}>
+                        <Select disabled={editingSelf} options={userRoleOptions} />
+                    </Form.Item>
+                )}
                 <Form.Item name="status" label="账号状态" extra={editingSelf ? "不能停用当前登录账号。" : "停用后会清除登录态，但保留身份、任务和积分流水。"}>
                     <Select
                         disabled={editingSelf}

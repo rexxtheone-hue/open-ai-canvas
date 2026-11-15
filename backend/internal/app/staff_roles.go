@@ -52,6 +52,8 @@ var staffPermissions = map[model.UserRole][]staffRule{
 // 设置类接口（外观、注册、邮件等）不在这里：它们走 RequireTenantAdminOrAdmin，按原角色判断。
 var tenantAdminElevatedRules = []staffRule{
 	readOnly("/admin/users"), readOnly("/admin/references"),
+	// 代理商管理员可以停用、恢复、修改自己的客户账号（app 层只允许动普通客户）。
+	only("PATCH", "/admin/users/"), only("DELETE", "/admin/users/"), only("POST", "/admin/users/bulk-disable"),
 	only("POST", "/admin/users/:id/credits/adjust"), readOnly("/admin/resources/:id/file"),
 	readOnly("/admin/login-logs"),
 	anyMethod("/admin/announcements"), anyMethod("/admin/announcement-images"), anyMethod("/admin/banner-announcements"),

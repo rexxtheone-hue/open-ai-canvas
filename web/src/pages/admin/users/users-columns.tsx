@@ -28,7 +28,7 @@ export function createUserColumns({
     onToggleStatus,
 }: {
     actorId?: string;
-    /** 代理商管理员只查看客户，不改账号与角色。 */
+    /** 代理商管理员只能管理普通客户；管理员账号在「管理员」页面管理。 */
     readOnly?: boolean;
     visibleColumns: Set<UserColumnKey>;
     onView: (user: AdminUser) => void;
@@ -68,7 +68,7 @@ export function createUserColumns({
                 <AdminRowActions
                     primary={{ label: "详情", icon: <Eye className="size-3.5" />, onClick: () => onView(user) }}
                     visibleActionCount={1}
-                    actions={readOnly ? [] : [
+                    actions={readOnly && user.role !== "user" ? [] : [
                         {
                             key: "toggle-status",
                             label: user.status === "active" ? "停用用户" : "重新启用",

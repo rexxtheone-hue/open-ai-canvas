@@ -22,6 +22,10 @@ func (s *Service) TopupProducts(ctx context.Context, actor *model.User) ([]model
 	if actor != nil {
 		tenantID = userTenantID(actor)
 	}
+	// 代理商还没接上自己的收款网关前，网站上不显示在线充值（钱不能进平台账户）。
+	if !agencyOnlinePaymentEnabled(tenantID) {
+		return []model.TopupProduct{}, nil
+	}
 	products, err := s.repo.TopupProducts(tenantID, false)
 	if err != nil {
 		return nil, err
