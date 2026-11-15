@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const CurrentSchemaVersion int64 = 77
+const CurrentSchemaVersion int64 = 81
 
 const baselineSchemaChecksum = "sha256:open-ai-canvas-schema-v1-20260830"
 const schemaMigrationAppliedAtIndexChecksum = "sha256:schema-migrations-applied-at-index-v2-20260830"
@@ -266,6 +266,7 @@ var schemaMigrations = []migration{
 		return tx.Migrator().AddColumn(&model.CreditLot{}, "ExpiryReminderStage")
 	}},
 	{version: 77, name: "tenants_foundation", checksum: "sha256:tenants-foundation-v77-20261115", apply: migrateTenantsFoundation},
+	{version: 81, name: "tenant_wholesale_billing", checksum: tenantBillingChecksum, apply: migrateTenantBilling},
 }
 
 // migrateTenantsFoundation 建立租户与网址表，并把现有用户全部归到平台租户；只新增、不删除，旧版程序照常可用。

@@ -29,6 +29,8 @@ type Service struct {
 	repo                     *repository.Repository
 	dataDir                  string
 	tenantCache              sync.Map // host -> tenantCacheEntry
+	// tenantNoticeEmailHook 只给测试用，替换代理商提醒邮件的发送。
+	tenantNoticeEmailHook func(recipient string, content auth.EmailContent) error
 	cancelMu                 sync.Mutex
 	registrationMu           sync.Mutex
 	emailCodeMu              sync.Mutex

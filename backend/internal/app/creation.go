@@ -66,6 +66,9 @@ func creationError(err error) error {
 	if errors.Is(err, repository.ErrInsufficientCredits) {
 		return BadAuthRequest("积分不足，请充值后重试")
 	}
+	if errors.Is(err, repository.ErrTenantPoolInsufficient) {
+		return BadAuthRequest(tenantPoolUnavailableMessage)
+	}
 	if errors.Is(err, repository.ErrActiveTaskLimit) {
 		return BadAuthRequest("同时排队或运行的任务已达到上限")
 	}

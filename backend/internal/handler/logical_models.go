@@ -49,7 +49,7 @@ func RegisterLogicalModelRoutes(r *gin.RouterGroup, svc *service.Service) {
 			fail(c, http.StatusBadRequest, errors.New("模型报价请求格式错误"))
 			return
 		}
-		quote, err := svc.QuoteLogicalModel(c.Param("id"), intent)
+		quote, err := svc.QuoteLogicalModel(c.Param("id"), intent, requestTenant(c).ID)
 		if err != nil {
 			failService(c, err)
 			return

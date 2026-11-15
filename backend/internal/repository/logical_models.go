@@ -373,6 +373,13 @@ func (r *Repository) SwitchTaskLogicalRoute(taskID string, expectedRouteID strin
 			updates["input_token_price_microcredits"] = replacement.InputTokenPriceMicrocredits
 			updates["output_token_price_microcredits"] = replacement.OutputTokenPriceMicrocredits
 			updates["cached_token_price_microcredits"] = replacement.CachedTokenPriceMicrocredits
+			tenantUpdates, err := adjustTenantPoolForRouteSwitchTx(tx, order, replacement, routeID)
+			if err != nil {
+				return err
+			}
+			for key, value := range tenantUpdates {
+				updates[key] = value
+			}
 		}
 		billingUpdated := tx.Model(&model.BillingOrder{}).
 			Where("id = ? AND task_id = ? AND status IN ?", billingOrderID, taskID, []model.BillingStatus{model.BillingStatusReserved, model.BillingStatusRunning}).

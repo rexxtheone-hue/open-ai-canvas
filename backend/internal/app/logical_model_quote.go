@@ -21,6 +21,8 @@ type ChannelModelQuoteRequest struct {
 	ChannelID string             `json:"channelId"`
 	ModelKey  string             `json:"modelKey"`
 	Intent    ModelRequestIntent `json:"intent"`
+	// TenantID 由服务端按网址填入；代理商网址上报的是代理商零售价。
+	TenantID string `json:"-"`
 }
 
 // QuoteChannelModel uses the same admission/defaults/SKU selection as task
@@ -46,6 +48,9 @@ func (s *Service) QuoteChannelModel(req ChannelModelQuoteRequest) (*LogicalModel
 	if err != nil {
 		return nil, err
 	}
+	if err := s.tenantQuoteOrder(req.TenantID, order); err != nil {
+		return nil, err
+	}
 	return quoteFromOrder("", order, estimate), nil
 }
 
@@ -69,7 +74,12 @@ func quoteFromOrder(logicalModelID string, order *model.BillingOrder, estimate t
 	return quote
 }
 
-func (s *Service) QuoteLogicalModel(logicalModelID string, intent ModelRequestIntent) (*LogicalModelQuote, error) {
+// QuoteLogicalModel 的 tenantID 可选：代理商网址上报零售价。
+func (s *Service) QuoteLogicalModel(logicalModelID string, intent ModelRequestIntent, tenantID ...string) (*LogicalModelQuote, error) {
+	requestTenantID := ""
+	if len(tenantID) > 0 {
+		requestTenantID = tenantID[0]
+	}
 	if err := validateQuoteIntent(intent); err != nil {
 		return nil, err
 	}
@@ -104,6 +114,9 @@ func (s *Service) QuoteLogicalModel(logicalModelID string, intent ModelRequestIn
 		order, billingErr := s.newBillingOrderWithPriceTier("", "", "quote", routed.ChannelModel.ChannelID, routed.ChannelModel.ModelKey, capability, "model_quote", quantity, tokenEstimate, priceTierID, resolvedIntent)
 		if billingErr != nil {
 			return nil, billingErr
+		}
+		if err := s.tenantQuoteOrder(requestTenantID, order); err != nil {
+			return nil, err
 		}
 		return quoteFromOrder(routed.LogicalModel.ID, order, tokenEstimate), nil
 	}
@@ -143,6 +156,20 @@ func (s *Service) QuoteLogicalModel(logicalModelID string, intent ModelRequestIn
 	}
 	if amount < 0 {
 		return nil, BadAuthRequest("当前模型尚未配置有效的用户价格")
+	}
+	if tenant, tenantErr := s.agencyTenant(requestTenantID); tenantErr != nil {
+		return nil, tenantErr
+	} else if tenant != nil {
+		rule, ruleErr := s.tenantRetailRuleFor(tenant.ID, routed.ChannelModel.ID, "")
+		if ruleErr != nil {
+			return nil, ruleErr
+		}
+		if rule.Hidden {
+			return nil, BadAuthRequest("当前模型暂时不可用，请重新选择")
+		}
+		if amount, err = tenantRetailAmount(rule, amount, routed.LogicalModel.BillingMode, quantity); err != nil {
+			return nil, err
+		}
 	}
 	quote := &LogicalModelQuote{
 		LogicalModelID:     routed.LogicalModel.ID,

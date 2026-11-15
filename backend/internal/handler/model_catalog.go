@@ -18,6 +18,7 @@ func RegisterModelCatalogRoutes(r *gin.RouterGroup, svc *service.Service) {
 			fail(c, http.StatusBadRequest, errors.New("模型报价请求格式错误"))
 			return
 		}
+		req.TenantID = requestTenant(c).ID
 		quote, err := svc.QuoteChannelModel(req)
 		if err != nil {
 			failService(c, err)
@@ -26,7 +27,7 @@ func RegisterModelCatalogRoutes(r *gin.RouterGroup, svc *service.Service) {
 		ok(c, gin.H{"quote": quote})
 	})
 	r.GET("/model-catalog", func(c *gin.Context) {
-		catalog, err := svc.ModelCatalog(nil)
+		catalog, err := svc.ModelCatalogForTenant(requestTenant(c).ID, nil)
 		if err != nil {
 			failService(c, err)
 			return
@@ -40,7 +41,7 @@ func RegisterModelCatalogRoutes(r *gin.RouterGroup, svc *service.Service) {
 			fail(c, http.StatusBadRequest, errors.New("模型能力请求格式错误"))
 			return
 		}
-		catalog, err := svc.ModelCatalog(&intent)
+		catalog, err := svc.ModelCatalogForTenant(requestTenant(c).ID, &intent)
 		if err != nil {
 			failService(c, err)
 			return

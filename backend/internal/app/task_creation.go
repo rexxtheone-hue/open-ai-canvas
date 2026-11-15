@@ -225,7 +225,7 @@ func (s *Service) CreateTask(userID string, req CreateTaskRequest) (*model.Task,
 		return nil, BadAuthRequest("所选模型已停用、归档或配置已更新，请重新选择")
 	}
 	if err != nil {
-		return nil, err
+		return nil, tenantBillingError(err)
 	}
 	s.recordActivity(userID, "task", 1)
 	_ = s.log(userID, task.ID, "info", "任务已进入队列", "")

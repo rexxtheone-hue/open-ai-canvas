@@ -432,6 +432,15 @@ func (s *Service) AdminDisableRedeemCode(actor *model.User, batchID string, code
 }
 
 func (s *Service) taskBillingOrder(userID string, task *model.Task, input map[string]any) (*model.BillingOrder, error) {
+	order, err := s.platformTaskBillingOrder(userID, task, input)
+	if err != nil || order == nil {
+		return order, err
+	}
+	return order, s.applyTenantBilling(order, userID)
+}
+
+// platformTaskBillingOrder 按平台价生成任务订单；代理商零售价由 taskBillingOrder 再套上。
+func (s *Service) platformTaskBillingOrder(userID string, task *model.Task, input map[string]any) (*model.BillingOrder, error) {
 	enabled, err := s.FeatureEnabled(FeatureCredits)
 	if err != nil {
 		return nil, err
@@ -574,11 +583,14 @@ func (s *Service) ReserveProxyBillingWithBody(userID string, channelID string, m
 	if err != nil {
 		return nil, err
 	}
+	if err := s.applyTenantBilling(order, userID); err != nil {
+		return nil, err
+	}
 	if err := s.repo.ReserveBillingOrder(order); err != nil {
 		if errors.Is(err, repository.ErrInsufficientCredits) {
 			return nil, BadAuthRequest("积分不足，请先使用兑换码充值")
 		}
-		return nil, err
+		return nil, tenantBillingError(err)
 	}
 	return order, nil
 }
