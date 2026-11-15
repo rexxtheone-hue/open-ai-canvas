@@ -109,7 +109,7 @@ func (s *Service) UpdateGoogleSetting(actor *model.User, req GoogleSettingReques
 }
 
 func (s *Service) GoogleEnabled() bool {
-	_, setting, err := s.readGoogleSetting()
+	_, setting, err := s.flowGoogleSetting()
 	return err == nil && setting.Enabled
 }
 
@@ -121,7 +121,7 @@ func (s *Service) BeginGoogleLogin(nextPath string, acceptedTerms bool, referral
 	if bootstrap {
 		return "", kernel.Forbidden("请先创建本地管理员账号，再开放 Google 登录")
 	}
-	_, setting, err := s.readGoogleSetting()
+	_, setting, err := s.flowGoogleSetting()
 	if err != nil {
 		return "", err
 	}
@@ -146,7 +146,7 @@ func (s *Service) BeginGoogleReauthentication(actor *model.User, cookie string) 
 		}
 		return "", err
 	}
-	_, setting, err := s.readGoogleSetting()
+	_, setting, err := s.flowGoogleSetting()
 	if err != nil {
 		return "", err
 	}
@@ -207,7 +207,7 @@ func (s *Service) CompleteGoogleLogin(stateValue string, code string, cookieValu
 		return nil, err
 	}
 	logFailure = state.ReauthUserID == "" && state.ReauthSessionID == ""
-	_, setting, err := s.readGoogleSetting()
+	_, setting, err := s.flowGoogleSetting()
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +303,7 @@ func (s *Service) googleUser(profile googleProfile, state *model.OAuthState, eve
 	if policy.SMSAndEmailRegistration {
 		return nil, kernel.Forbidden("平台要求短信和邮箱验证，请先通过注册页面创建账号；第三方登录不能绕过双重验证")
 	}
-	registrationEnabled, err := s.RegistrationEnabled()
+	registrationEnabled, err := s.flowRegistrationEnabled()
 	if err != nil {
 		return nil, err
 	}

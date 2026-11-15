@@ -87,7 +87,7 @@ func (s *Service) PublicAuthSettings() (*PublicAuthSettings, error) {
 		agreementTitle, agreementContent := s.RegistrationAgreement()
 		return &PublicAuthSettings{FirstUser: true, RegistrationEnabled: true, LinuxDOEnabled: false, AgreementTitle: agreementTitle, AgreementContent: agreementContent, SignupBonusMicrocredits: s.host.SignupBonusMicrocredits()}, nil
 	}
-	registrationEnabled, err := s.RegistrationEnabled()
+	registrationEnabled, err := s.flowRegistrationEnabled()
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func (s *Service) Register(req RegisterRequest) (*AuthSessionResult, error) {
 	var verification *model.AuthVerification
 	phone := ""
 	if !bootstrap {
-		registrationEnabled, err := s.RegistrationEnabled()
+		registrationEnabled, err := s.flowRegistrationEnabled()
 		if err != nil {
 			return nil, err
 		}

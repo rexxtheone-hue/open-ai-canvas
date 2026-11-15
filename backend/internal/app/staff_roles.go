@@ -101,6 +101,9 @@ func (s *Service) requireSuperAdmin(actor *model.User) error {
 
 // StaffNavigation 返回当前账号在后台可见的入口前缀，前端据此过滤菜单。
 func StaffNavigation(role model.UserRole) []string {
+	if role == model.UserRoleTenantAdmin {
+		return append([]string(nil), tenantAdminNavigation...)
+	}
 	rules := staffPermissions[role]
 	prefixes := make([]string, 0, len(rules))
 	for _, rule := range rules {

@@ -308,7 +308,7 @@ func (s *Service) CompleteLinuxDOLogin(stateValue string, code string, cookieVal
 		if policy.SMSAndEmailRegistration {
 			return nil, kernel.Forbidden("平台要求短信和邮箱验证，请先通过注册页面创建账号；第三方登录不能绕过双重验证")
 		}
-		registrationEnabled, settingErr := s.RegistrationEnabled()
+		registrationEnabled, settingErr := s.flowRegistrationEnabled()
 		if settingErr != nil {
 			return nil, settingErr
 		}

@@ -50,7 +50,7 @@ func RegisterAppearanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 	r.GET("/public/appearance/updates/:id", serveUpdateMedia(false))
 	r.GET("/admin/settings/appearance/updates/:id", serveUpdateMedia(true))
 	r.GET("/public/appearance", func(c *gin.Context) {
-		setting, err := svc.Appearance()
+		setting, err := svc.AppearanceFor(c.Request.Context())
 		if err != nil {
 			failService(c, err)
 			return
@@ -61,7 +61,7 @@ func RegisterAppearanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 
 	// PWA 清单跟随外观设置：首屏 HTML 保持品牌中性，安装到手机桌面时才取品牌名和图标。
 	r.GET("/public/manifest.webmanifest", func(c *gin.Context) {
-		setting, err := svc.Appearance()
+		setting, err := svc.AppearanceFor(c.Request.Context())
 		if err != nil {
 			failService(c, err)
 			return
@@ -72,7 +72,7 @@ func RegisterAppearanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 	})
 
 	r.GET("/public/appearance/assets/:slot", func(c *gin.Context) {
-		delivery, err := svc.PrepareAppearanceAssetDelivery(c.Param("slot"), resourceAccessOptions(c), c.GetHeader("Range"))
+		delivery, err := svc.PrepareAppearanceAssetDeliveryFor(c.Request.Context(), c.Param("slot"), resourceAccessOptions(c), c.GetHeader("Range"))
 		if err != nil {
 			failService(c, err)
 			return
@@ -86,7 +86,7 @@ func RegisterAppearanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 			failService(c, err)
 			return
 		}
-		setting, err := svc.AdminAppearance(actor)
+		setting, err := svc.AdminAppearanceFor(c.Request.Context(), actor)
 		if err != nil {
 			failService(c, err)
 			return
@@ -100,7 +100,7 @@ func RegisterAppearanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 			failService(c, err)
 			return
 		}
-		current, err := svc.AdminAppearance(actor)
+		current, err := svc.AdminAppearanceFor(c.Request.Context(), actor)
 		if err != nil {
 			failService(c, err)
 			return
@@ -111,7 +111,7 @@ func RegisterAppearanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 			fail(c, http.StatusBadRequest, err)
 			return
 		}
-		setting, err := svc.UpdateAppearance(actor, req)
+		setting, err := svc.UpdateAppearanceFor(c.Request.Context(), actor, req)
 		if err != nil {
 			failService(c, err)
 			return
@@ -125,7 +125,7 @@ func RegisterAppearanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 			failService(c, err)
 			return
 		}
-		setting, err := svc.ResetAppearance(actor)
+		setting, err := svc.ResetAppearanceFor(c.Request.Context(), actor)
 		if err != nil {
 			failService(c, err)
 			return
@@ -157,7 +157,7 @@ func RegisterAppearanceRoutes(r *gin.RouterGroup, svc *service.Service) {
 			fail(c, http.StatusBadRequest, err)
 			return
 		}
-		resource, err := svc.UploadAppearanceAsset(actor, c.Param("slot"), file)
+		resource, err := svc.UploadAppearanceAssetFor(c.Request.Context(), actor, c.Param("slot"), file)
 		if err != nil {
 			failService(c, err)
 			return

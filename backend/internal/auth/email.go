@@ -138,7 +138,7 @@ func (s *Service) UpdateEmailSetting(actor *model.User, req EmailSettingRequest)
 }
 
 func (s *Service) EmailEnabled() (bool, error) {
-	_, value, err := s.readEmailSetting()
+	_, value, err := s.flowEmailSetting()
 	if err != nil {
 		return false, err
 	}
@@ -150,7 +150,7 @@ var ErrEmailNotConfigured = errors.New("email delivery is not configured")
 
 // SendNoticeEmail 用后台配置的 SMTP 发一封品牌样式的通知邮件；邮件未启用时返回 ErrEmailNotConfigured。
 func (s *Service) SendNoticeEmail(recipient string, content EmailContent) error {
-	_, setting, err := s.readEmailSetting()
+	_, setting, err := s.flowEmailSetting()
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func (s *Service) SendRegistrationEmailCode(rawEmail string) error {
 	if bootstrap {
 		return kernel.BadAuthRequest("首个管理员账号不需要邮箱验证码")
 	}
-	registrationEnabled, err := s.RegistrationEnabled()
+	registrationEnabled, err := s.flowRegistrationEnabled()
 	if err != nil {
 		return err
 	}
@@ -190,7 +190,7 @@ func (s *Service) SendRegistrationEmailCode(rawEmail string) error {
 	if err := s.repo.CheckEmailAvailable(email, ""); err != nil {
 		return err
 	}
-	_, setting, err := s.readEmailSetting()
+	_, setting, err := s.flowEmailSetting()
 	if err != nil {
 		return err
 	}
@@ -413,7 +413,7 @@ func validEmailDomain(value string) bool {
 }
 
 func (s *Service) validateRegistrationEmailDomain(email string) error {
-	_, setting, err := s.readEmailSetting()
+	_, setting, err := s.flowEmailSetting()
 	if err != nil {
 		return err
 	}

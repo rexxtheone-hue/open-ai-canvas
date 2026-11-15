@@ -53,7 +53,7 @@ func (s *Service) checkVerificationPolicy(p VerificationPolicy, purpose, method 
 		return kernel.Forbidden("此验证方式未开启，请刷新页面")
 	}
 	if purpose == "register" {
-		enabled, err := s.RegistrationEnabled()
+		enabled, err := s.flowRegistrationEnabled()
 		if err != nil {
 			return err
 		}
@@ -189,7 +189,7 @@ func (s *Service) StartVerification(ctx context.Context, actor *model.User, req 
 		}
 	}
 	if email != "" {
-		_, setting, err := s.readEmailSetting()
+		_, setting, err := s.flowEmailSetting()
 		if err != nil {
 			return nil, err
 		}

@@ -11,7 +11,7 @@ import (
 func RegisterFeatureAvailabilityRoutes(r *gin.RouterGroup, svc *service.Service) {
 	r.GET("/public/welcome", func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
-		setting, err := svc.FeatureAvailability()
+		setting, err := svc.FeatureAvailabilityFor(c.Request.Context())
 		if err != nil {
 			failService(c, err)
 			return
@@ -24,7 +24,7 @@ func RegisterFeatureAvailabilityRoutes(r *gin.RouterGroup, svc *service.Service)
 			failService(c, err)
 			return
 		}
-		setting, err := svc.FeatureAvailability()
+		setting, err := svc.FeatureAvailabilityFor(c.Request.Context())
 		if err != nil {
 			failService(c, err)
 			return
@@ -38,7 +38,7 @@ func RegisterFeatureAvailabilityRoutes(r *gin.RouterGroup, svc *service.Service)
 			failService(c, err)
 			return
 		}
-		setting, err := svc.AdminFeatureAvailability(user)
+		setting, err := svc.AdminFeatureAvailabilityFor(c.Request.Context(), user)
 		if err != nil {
 			failService(c, err)
 			return
@@ -52,7 +52,7 @@ func RegisterFeatureAvailabilityRoutes(r *gin.RouterGroup, svc *service.Service)
 			failService(c, err)
 			return
 		}
-		current, err := svc.AdminFeatureAvailability(user)
+		current, err := svc.AdminFeatureAvailabilityFor(c.Request.Context(), user)
 		if err != nil {
 			failService(c, err)
 			return
@@ -63,7 +63,7 @@ func RegisterFeatureAvailabilityRoutes(r *gin.RouterGroup, svc *service.Service)
 			fail(c, http.StatusBadRequest, err)
 			return
 		}
-		setting, err := svc.UpdateFeatureAvailability(user, req)
+		setting, err := svc.UpdateFeatureAvailabilityFor(c.Request.Context(), user, req)
 		if err != nil {
 			failService(c, err)
 			return
@@ -80,7 +80,7 @@ func RequireFeature(svc *service.Service, feature string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		if err := svc.RequireFeature(feature); err != nil {
+		if err := svc.RequireFeatureFor(c.Request.Context(), feature); err != nil {
 			failService(c, err)
 			c.Abort()
 			return

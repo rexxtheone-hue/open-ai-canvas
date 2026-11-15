@@ -24,7 +24,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 	registerNotificationRoutes(r, svc)
 	registerAuthProfileRoutes(r, svc)
 	r.GET("/auth/settings", func(c *gin.Context) {
-		settings, err := svc.PublicAuthSettings(c.Request.Context())
+		settings, err := svc.PublicAuthSettingsFor(c.Request.Context())
 		if err != nil {
 			failService(c, err)
 			return
@@ -198,7 +198,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 			failService(c, err)
 			return
 		}
-		features, err := svc.FeatureAvailability()
+		features, err := svc.FeatureAvailabilityFor(c.Request.Context())
 		if err != nil {
 			failService(c, err)
 			return

@@ -28,7 +28,7 @@ func (s *Service) SendPasswordResetEmailCode(rawEmail string) error {
 	if err := ValidateEmail(email); err != nil {
 		return err
 	}
-	_, setting, err := s.readEmailSetting()
+	_, setting, err := s.flowEmailSetting()
 	if err != nil {
 		return err
 	}

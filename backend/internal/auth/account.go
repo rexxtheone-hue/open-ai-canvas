@@ -141,7 +141,7 @@ func (s *Service) ChangeProfilePassword(actor *model.User, cookie string, req Pr
 }
 
 func (s *Service) profileEmailSetting() (EmailSettingValue, error) {
-	_, setting, err := s.readEmailSetting()
+	_, setting, err := s.flowEmailSetting()
 	if err != nil {
 		return setting, err
 	}

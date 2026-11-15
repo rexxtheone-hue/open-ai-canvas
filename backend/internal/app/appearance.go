@@ -180,37 +180,8 @@ func (s *Service) UpdateAppearance(actor *model.User, value AppearanceSetting) (
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
-	value.SchemaVersion = appearanceSchemaVersion
-	canvas, canvasErr := normalizeCanvasAppearance(value.Canvas)
-	if canvasErr != nil {
-		return nil, canvasErr
-	}
-	value.Canvas = canvas
-	updates, updatesErr := normalizeUpdateAnnouncement(value.Updates)
-	if updatesErr != nil {
-		return nil, updatesErr
-	}
-	value.Updates = updates
-	value.BrandName = strings.TrimSpace(value.BrandName)
-	value.BrandSlug = strings.ToLower(strings.TrimSpace(value.BrandSlug))
-	value.AuthHeroTitle = normalizeAppearanceCopy(value.AuthHeroTitle)
-	value.AuthHeroDescription = normalizeAppearanceCopy(value.AuthHeroDescription)
-	value.LogoResourceID = strings.TrimSpace(value.LogoResourceID)
-	value.DarkLogoResourceID = strings.TrimSpace(value.DarkLogoResourceID)
-	value.AuthVideoResourceID = strings.TrimSpace(value.AuthVideoResourceID)
-	value.AuthVideoPosterResourceID = strings.TrimSpace(value.AuthVideoPosterResourceID)
-	value.SkinID = strings.TrimSpace(value.SkinID)
-	if len(value.SkinThemes) == 0 {
-		value.SkinThemes = defaultAppearanceSkinThemes()
-	}
-	value.SkinThemes = normalizeAppearanceSkinThemes(value.SkinThemes)
-	value.SEOTitle = normalizeAppearanceSingleLine(value.SEOTitle)
-	value.SEODescription = normalizeAppearanceCopy(value.SEODescription)
-	value.SEOKeywords = normalizeAppearanceSingleLine(value.SEOKeywords)
-	value.FooterCopyright = normalizeAppearanceSingleLine(value.FooterCopyright)
-	value.ICPFilingNumber = normalizeAppearanceSingleLine(value.ICPFilingNumber)
-	value.RedeemPurchaseURL = strings.TrimSpace(value.RedeemPurchaseURL)
-	if err := validateAppearanceSetting(value); err != nil {
+	value, err := normalizeAppearanceInput(value)
+	if err != nil {
 		return nil, err
 	}
 
@@ -261,6 +232,44 @@ func (s *Service) UpdateAppearance(actor *model.User, value AppearanceSetting) (
 	return s.AdminAppearance(actor)
 }
 
+// normalizeAppearanceInput 整理并校验管理员提交的外观配置（平台与代理商共用）。
+func normalizeAppearanceInput(value AppearanceSetting) (AppearanceSetting, error) {
+	value.SchemaVersion = appearanceSchemaVersion
+	canvas, canvasErr := normalizeCanvasAppearance(value.Canvas)
+	if canvasErr != nil {
+		return value, canvasErr
+	}
+	value.Canvas = canvas
+	updates, updatesErr := normalizeUpdateAnnouncement(value.Updates)
+	if updatesErr != nil {
+		return value, updatesErr
+	}
+	value.Updates = updates
+	value.BrandName = strings.TrimSpace(value.BrandName)
+	value.BrandSlug = strings.ToLower(strings.TrimSpace(value.BrandSlug))
+	value.AuthHeroTitle = normalizeAppearanceCopy(value.AuthHeroTitle)
+	value.AuthHeroDescription = normalizeAppearanceCopy(value.AuthHeroDescription)
+	value.LogoResourceID = strings.TrimSpace(value.LogoResourceID)
+	value.DarkLogoResourceID = strings.TrimSpace(value.DarkLogoResourceID)
+	value.AuthVideoResourceID = strings.TrimSpace(value.AuthVideoResourceID)
+	value.AuthVideoPosterResourceID = strings.TrimSpace(value.AuthVideoPosterResourceID)
+	value.SkinID = strings.TrimSpace(value.SkinID)
+	if len(value.SkinThemes) == 0 {
+		value.SkinThemes = defaultAppearanceSkinThemes()
+	}
+	value.SkinThemes = normalizeAppearanceSkinThemes(value.SkinThemes)
+	value.SEOTitle = normalizeAppearanceSingleLine(value.SEOTitle)
+	value.SEODescription = normalizeAppearanceCopy(value.SEODescription)
+	value.SEOKeywords = normalizeAppearanceSingleLine(value.SEOKeywords)
+	value.FooterCopyright = normalizeAppearanceSingleLine(value.FooterCopyright)
+	value.ICPFilingNumber = normalizeAppearanceSingleLine(value.ICPFilingNumber)
+	value.RedeemPurchaseURL = strings.TrimSpace(value.RedeemPurchaseURL)
+	if err := validateAppearanceSetting(value); err != nil {
+		return value, err
+	}
+	return value, nil
+}
+
 func (s *Service) ResetAppearance(actor *model.User) (*AdminAppearanceSetting, error) {
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
@@ -286,6 +295,11 @@ func (s *Service) UploadAppearanceAsset(actor *model.User, slot string, header *
 	if err := s.RequireAdmin(actor); err != nil {
 		return nil, err
 	}
+	return s.uploadAppearanceAssetUnchecked(actor, slot, header)
+}
+
+// uploadAppearanceAssetUnchecked 不做身份校验，调用方负责。
+func (s *Service) uploadAppearanceAssetUnchecked(actor *model.User, slot string, header *multipart.FileHeader) (*model.Resource, error) {
 	mimeType, err := validateAppearanceUpload(slot, header)
 	if err != nil {
 		return nil, err
@@ -340,6 +354,10 @@ func (s *Service) PrepareAppearanceAssetDelivery(slot string, options ResourceAc
 	if err != nil {
 		return nil, err
 	}
+	return s.prepareAppearanceAssetDeliveryFrom(value, slot, options, rangeHeader)
+}
+
+func (s *Service) prepareAppearanceAssetDeliveryFrom(value AppearanceSetting, slot string, options ResourceAccessOptions, rangeHeader string) (*ResourceDelivery, error) {
 	resourceID := appearanceResourceID(value, slot)
 	if resourceID == "" {
 		return nil, NotFound("未配置该外观资源")

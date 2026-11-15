@@ -119,11 +119,16 @@ func (s *Service) signupBonusMicrocredits() int64 {
 }
 
 func (s *Service) ensureSignupBonus(userID string) error {
-	enabled, err := s.FeatureEnabled(FeatureCredits)
+	// 注册赠送按新账号所属的租户计算；平台账号与查不到的账号照旧用平台设置。
+	tenantID := ""
+	if user, err := s.repo.User(userID); err == nil && user != nil && user.TenantID != model.PlatformTenantID {
+		tenantID = user.TenantID
+	}
+	enabled, err := s.platformDomain().FeatureEnabledForTenant(tenantID, FeatureCredits)
 	if err != nil || !enabled {
 		return err
 	}
-	policy, err := s.creditPolicy()
+	policy, _, err := s.creditPolicyForTenant(tenantID)
 	if err != nil || policy.SignupBonusMicrocredits == 0 {
 		return err
 	}

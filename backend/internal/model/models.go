@@ -55,6 +55,8 @@ const (
 	UserRoleOperator UserRole = "operator"
 	UserRoleSupport  UserRole = "support"
 	UserRoleFinance  UserRole = "finance"
+	// 代理商管理员：只能在自己租户的网址上改白名单内的设置，不是后台员工角色。
+	UserRoleTenantAdmin UserRole = "tenant_admin"
 
 	UserStatusActive   UserStatus = "active"
 	UserStatusDisabled UserStatus = "disabled"
