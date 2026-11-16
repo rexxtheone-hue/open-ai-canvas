@@ -187,7 +187,7 @@ export default function UsersPanel({ onUserChanged }: { onUserChanged?: (user: L
                 trailing={
                     <div className="flex items-center gap-2">
                         {tenantView ? (
-                            <AdminExportButton label="\u5bfc\u51fa\u5ba2\u6237" exportFile={exportOwnCustomers} fileName={() => `customers-${new Date().toISOString().slice(0, 10)}.csv`} successMessage="\u5ba2\u6237\u540d\u5355\u5df2\u5bfc\u51fa" />
+                            <AdminExportButton label="导出客户" exportFile={exportOwnCustomers} fileName={() => `customers-${new Date().toISOString().slice(0, 10)}.csv`} successMessage="客户名单已导出" />
                         ) : (
                             <Button icon={<UserPlus className="size-4" />} onClick={() => { setEditingUser(null); setCreateUserOpen(true); }}>{"\u6dfb\u52a0\u7528\u6237"}</Button>
                         )}

@@ -159,6 +159,7 @@ export function AdminDataTable<RecordType extends object>({
     skeletonColumns = 6,
     skeletonRows = 8,
     className,
+    fitContent = false,
 }: {
     toolbar?: ReactNode;
     toolbarActive?: boolean;
@@ -174,12 +175,15 @@ export function AdminDataTable<RecordType extends object>({
     skeletonColumns?: number;
     skeletonRows?: number;
     className?: string;
+    /** 同一页叠放多个表格时用：高度随内容，空表不出现横向滚动条。 */
+    fitContent?: boolean;
 }) {
     const dataSource = table.dataSource as readonly RecordType[] | undefined;
     const showSkeleton = Boolean(table.loading) && !dataSource?.length;
+    const emptyOnly = fitContent && !table.loading && !dataSource?.length && Boolean(empty);
 
     return (
-        <div className="admin-data-table">
+        <div className={cn("admin-data-table", fitContent && "is-fit-content")}>
             {toolbar ? (
                 <ListToolbar active={toolbarActive} filters={toolbarFilters} filtersAlwaysVisible={toolbarFiltersAlwaysVisible} activeFilters={toolbarActiveFilters} onReset={onReset} trailing={trailing}>
                     {toolbar}
@@ -188,7 +192,7 @@ export function AdminDataTable<RecordType extends object>({
             {batchActions}
             <div className={cn("admin-table-frame", footer && "has-pagination")}>
                 <div className={cn("admin-table-surface", className)}>
-                    <div className="admin-table-scroll">{showSkeleton ? <AdminTableSkeleton rows={skeletonRows} columns={skeletonColumns} /> : <Table {...table} locale={{ ...table.locale, emptyText: empty ?? table.locale?.emptyText }} />}</div>
+                    <div className="admin-table-scroll">{emptyOnly ? empty : showSkeleton ?<AdminTableSkeleton rows={skeletonRows} columns={skeletonColumns} /> : <Table {...table} locale={{ ...table.locale, emptyText: empty ?? table.locale?.emptyText }} />}</div>
                 </div>
                 {footer ? <div className="admin-table-pagination">{footer}</div> : null}
             </div>

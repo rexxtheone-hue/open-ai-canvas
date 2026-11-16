@@ -1094,3 +1094,16 @@
         animation-iteration-count: 1 !important;
     }
 }
+
+[data-admin-root] .admin-data-table.is-fit-content,
+[data-admin-root] .admin-data-table.is-fit-content .admin-table-frame,
+[data-admin-root] .admin-data-table.is-fit-content .admin-table-surface {
+    flex: none;
+}
+
+[data-admin-root] .admin-data-table.is-fit-content .admin-table-scroll {
+    height: auto;
+    flex: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+}

@@ -112,6 +112,7 @@ function Pricing() {
     const navigate = useNavigate();
     const productsQuery = useQuery({ queryKey: ["landing", "topup-products"], queryFn: async () => (await listTopupProducts()).products, staleTime: 5 * 60_000 });
     if (productsQuery.isLoading) return <p className="landing-muted">正在读取充值包…</p>;
+    if (productsQuery.isSuccess && !productsQuery.data.length) return <p className="landing-muted">暂未开放在线充值，请联系客服充值。</p>;
     if (!productsQuery.data?.length) {
         return (
             <p className="landing-muted">

@@ -47,6 +47,12 @@ export default function StudioPricingPage() {
                     </div>
                 ) : null}
                 {products.length ? <TopupOffers products={products} onBuy={buy} pendingId={checkout.isPending ? checkout.variables?.id : undefined} /> : null}
+                {productsQuery.isSuccess && !products.length ? (
+                    <div className="studio-empty" role="status">
+                        <strong>暂未开放在线充值</strong>
+                        <span>请联系客服充值，到账后积分会直接加到你的账户。</span>
+                    </div>
+                ) : null}
                 <section className="studio-pricing-faq">
                     <div className="studio-pricing-faq-head">
                         <h2>常见问题</h2>

@@ -80,7 +80,7 @@ export function LotsTable({ lots, loading }: { lots: TenantCreditLot[]; loading?
         },
         { title: "备注", width: 200, render: (_, lot) => <span className="line-clamp-2">{lot.note || "—"}</span> },
     ];
-    return <AdminDataTable table={{ rowKey: "id", loading, columns, dataSource: lots, pagination: false, size: "small", scroll: { x: 1290 } }} empty={<AdminTableEmpty title="还没有充值批次" description="每次充值都会形成一个批次，入账后 12 个月有效，先到期的先扣。" />} />;
+    return <AdminDataTable fitContent table={{ rowKey: "id", loading, columns, dataSource: lots, pagination: false, size: "small", scroll: { x: 1290 } }} empty={<AdminTableEmpty title="还没有充值批次" description="每次充值都会形成一个批次，入账后 12 个月有效，先到期的先扣。" />} />;
 }
 
 export function LedgerTable({ items, total, page, pageSize, loading, onPageChange }: { items: TenantLedgerEntry[]; total: number; page: number; pageSize: number; loading?: boolean; onPageChange: (page: number, pageSize: number) => void }) {
@@ -99,7 +99,7 @@ export function LedgerTable({ items, total, page, pageSize, loading, onPageChang
         { title: "备注", width: 220, render: (_, entry) => <span className="line-clamp-2">{entry.note || "—"}</span> },
     ];
     return (
-        <AdminDataTable
+        <AdminDataTable fitContent
             table={{ rowKey: "id", loading, columns, dataSource: items, pagination: false, size: "small", scroll: { x: 1020 } }}
             empty={<AdminTableEmpty title="暂无流水" />}
             footer={<PaginationBar alwaysShow current={page} pageSize={pageSize} total={total} onChange={onPageChange} />}
@@ -116,7 +116,7 @@ export function DebtsTable({ debts, loading }: { debts: TenantDebt[]; loading?: 
         { title: "状态", width: 110, render: (_, debt) => <AdminStatusBadge label={debt.status === "open" ? "未结清" : "已结清"} tone={debt.status === "open" ? "error" : "success"} /> },
         { title: "结清时间", width: 150, render: (_, debt) => formatTime(debt.settledAt) },
     ];
-    return <AdminDataTable table={{ rowKey: "id", loading, columns, dataSource: debts, pagination: false, size: "small", scroll: { x: 780 } }} empty={<AdminTableEmpty title="没有欠款" />} />;
+    return <AdminDataTable fitContent table={{ rowKey: "id", loading, columns, dataSource: debts, pagination: false, size: "small", scroll: { x: 780 } }} empty={<AdminTableEmpty title="没有欠款" />} />;
 }
 
 export function SettlementsTable({ items, loading, showTenant, tenantNames }: { items: TenantMonthlyUsage[]; loading?: boolean; showTenant?: boolean; tenantNames?: Record<string, string> }) {
@@ -129,7 +129,7 @@ export function SettlementsTable({ items, loading, showTenant, tenantNames }: { 
         { title: "记为欠款", width: 140, align: "right", render: (_, item) => (item.debtMicrocredits ? <span className="admin-agency-negative">{formatPoolCredits(item.debtMicrocredits)}</span> : "—") },
         { title: "结算时间", width: 150, render: (_, item) => formatTime(item.createdAt) },
     ];
-    return <AdminDataTable table={{ rowKey: "id", loading, columns, dataSource: items, pagination: false, size: "small", scroll: { x: showTenant ? 1070 : 890 } }} empty={<AdminTableEmpty title="还没有月度结算" description="每月 1 日 00:30（吉隆坡时间）结算上个月。" />} />;
+    return <AdminDataTable fitContent table={{ rowKey: "id", loading, columns, dataSource: items, pagination: false, size: "small", scroll: { x: showTenant ? 1070 : 890 } }} empty={<AdminTableEmpty title="还没有月度结算" description="每月 1 日 00:30（吉隆坡时间）结算上个月。" />} />;
 }
 
 export function SSLBadge({ status }: { status: string }) {
@@ -202,7 +202,7 @@ export function DomainsTable({ domains, loading, actions }: { domains: TenantDom
         { title: "添加时间", width: 150, render: (_, domain) => formatTime(domain.createdAt) },
         ...(actions ? [{ title: "操作", width: 260, render: (_: unknown, domain: TenantDomain) => actions(domain) }] : []),
     ];
-    return <AdminDataTable table={{ rowKey: "id", loading, columns, dataSource: domains, pagination: false, size: "small", scroll: { x: actions ? 1100 : 840 } }} empty={<AdminTableEmpty title="还没有网址" description="平台设置了默认域名时会自动生成 <短名>.<默认域名>。" />} />;
+    return <AdminDataTable fitContent table={{ rowKey: "id", loading, columns, dataSource: domains, pagination: false, size: "small", scroll: { x: actions ? 1100 : 840 } }} empty={<AdminTableEmpty title="还没有网址" description="平台设置了默认域名时会自动生成 <短名>.<默认域名>。" />} />;
 }
 
 export function AdminsTable({ users, loading, currentUserId, onToggle }: { users: TenantAdminUser[]; loading?: boolean; currentUserId?: string; onToggle?: (user: TenantAdminUser, next: "active" | "disabled") => Promise<void> }) {
@@ -262,7 +262,7 @@ export function AdminsTable({ users, loading, currentUserId, onToggle }: { users
               ]
             : []),
     ];
-    return <AdminDataTable table={{ rowKey: "id", loading, columns, dataSource: users, pagination: false, size: "small", scroll: { x: onToggle ? 960 : 840 } }} empty={<AdminTableEmpty title="还没有管理员" />} />;
+    return <AdminDataTable fitContent table={{ rowKey: "id", loading, columns, dataSource: users, pagination: false, size: "small", scroll: { x: onToggle ? 960 : 840 } }} empty={<AdminTableEmpty title="还没有管理员" />} />;
 }
 
 type AdminFormValues = { username: string; email: string; displayName?: string; password?: string; sendInvite: boolean };
