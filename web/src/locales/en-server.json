@@ -6182,5 +6182,7 @@
   "；范围：{0}-{1}": "; range: {0}-{1}",
   "；请在任务中心查看任务详情，不会自动重试收费生成": "; see the task details in the task center; paid generation will not be retried automatically",
   "；请按本回合 model_list 返回的能力参数修正后重试": "; correct the request using the capability parameters returned by this turn's model_list and try again",
-  "；默认值：": "; default value: "
+  "；默认值：": "; default value: ",
+  "Seedance 2.5 Flash 快速版多模态视频：支持图片、视频、音频混合参考与视频编辑，480p / 720p，4–30 秒，按 Token 计费。": "Seedance 2.5 Flash fast multimodal video: mix image, video and audio references, with video editing; 480p / 720p, 4–30s, billed per token.",
+  "Google Gemini Omni Flash 1.2：正式版，人物与场景前后一致性更好，口型与多人对话更自然，镜头运动更可控。文生视频、首尾帧、最多 10 张参考图和 3 段参考视频，支持视频编辑、续写与多轮续接，720P / 1080P / 4K，3–15 秒。": "Google Gemini Omni Flash 1.2: the stable release, with better character and scene consistency, more natural lip sync and multi-person dialogue, and more controllable camera motion. Text-to-video, first/last frame, up to 10 reference images and 3 reference videos, supports video editing, extension and multi-round extension, 720P / 1080P / 4K, 3–15s."
 }
