@@ -31,3 +31,12 @@ func (r *Repository) SaveStudioSiteContent(item model.StudioSiteContent) error {
 	item.TenantID = TenantIDOrPlatform(item.TenantID)
 	return r.db.Save(&item).Error
 }
+
+// HelpAssistantTasks 给帮助助手看的最近生成任务，带失败原因；不含画布对话等文本任务。
+func (r *Repository) HelpAssistantTasks(userID string, limit int) ([]model.Task, error) {
+	var tasks []model.Task
+	err := r.db.Select("id", "type", "status", "operation", "model", "prompt", "error", "authorized_charge_microcredits", "created_at", "completed_at").
+		Where("user_id = ? AND type <> ?", userID, "canvas_text").
+		Order("created_at desc").Limit(limit).Find(&tasks).Error
+	return tasks, err
+}

@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
 
 	"yingce/backend/internal/model"
 	"yingce/backend/internal/service"
@@ -134,6 +135,43 @@ func RegisterStudioAgentRoutes(r *gin.RouterGroup, svc *service.Service) {
 		}
 		item, err := svc.SubmitStudioFeedback(user.ID, req.Category, req.Content, req.Contact, req.Page)
 		respond(c, gin.H{"id": item.ID}, err)
+	}))
+	// 帮助助手：SSE 推送 delta（正文增量）、done（最终答案）或 error。
+	r.POST("/studio/help-assistant", withUser(func(c *gin.Context, user *model.User) {
+		var req service.HelpAssistantRequest
+		if !bind(c, &req) {
+			return
+		}
+		var mu sync.Mutex
+		started := false
+		start := func() {
+			if started {
+				return
+			}
+			started = true
+			c.Header("Content-Type", "text/event-stream; charset=utf-8")
+			c.Header("Cache-Control", "no-cache, no-transform")
+			c.Header("X-Accel-Buffering", "no")
+			c.Status(http.StatusOK)
+		}
+		answer, err := svc.HelpAssistantChat(c.Request.Context(), user, req, func(delta string) {
+			mu.Lock()
+			defer mu.Unlock()
+			start()
+			writeTaskTextSSE(c, "delta", 0, gin.H{"content": delta})
+		})
+		mu.Lock()
+		defer mu.Unlock()
+		if err != nil && !started {
+			failService(c, err)
+			return
+		}
+		start()
+		if err != nil {
+			writeTaskTextSSE(c, "error", 0, gin.H{"message": err.Error()})
+			return
+		}
+		writeTaskTextSSE(c, "done", 0, gin.H{"content": answer})
 	}))
 	// 帮助与条款是公开内容，访客也能阅读。
 	r.GET("/studio/site-content", func(c *gin.Context) {

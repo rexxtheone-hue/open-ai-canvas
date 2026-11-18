@@ -7,6 +7,7 @@ import "@fontsource-variable/space-grotesk/index.css";
 
 import { WorkspaceAccountMenu } from "@/components/layout/workspace-account-menu";
 import { StudioGiftCenter, StudioHelpMenu } from "./studio-help";
+import { StudioAssistantButton, StudioHelpAssistant } from "./studio-help-assistant";
 import { WorkspaceWalletHost } from "@/components/layout/workspace-wallet-modal";
 import { CreditSymbol } from "@/constant/credits";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
@@ -273,6 +274,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                     <StudioHelpMenu />
                     {user ? (
                         <>
+                            <StudioAssistantButton />
                             <StudioGiftCenter />
                             {creditsEnabled ? (
                                 <button type="button" className="studio-credit-pill" aria-label={`打开积分中心，可用 ${balance} 积分`} onClick={() => openWorkspaceWallet()}>
@@ -301,6 +303,7 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                 {user && creditsEnabled ? <StudioCreditExpiryNotice userId={user.id} /> : null}
                 <div className="studio-content">{children}</div>
             </div>
+            {user ? <StudioHelpAssistant /> : null}
             <WorkspaceWalletHost />
         </div>
     );
