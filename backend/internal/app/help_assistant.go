@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"sort"
 	"strings"
 	"sync"
@@ -80,20 +81,9 @@ func (s *Service) HelpAssistantChat(ctx context.Context, user *model.User, req H
 	if err != nil {
 		return "", err
 	}
-	headers, err := ParseOutboundHeadersJSON(channel.HeadersJSON)
+	config, err := s.resolveProviderConfig(providerConfig{ChannelID: channel.ID, ChannelModelKey: channelModel.ModelKey})
 	if err != nil {
 		return "", err
-	}
-	config := providerConfig{
-		ChannelID:       channel.ID,
-		APIFormat:       channel.APIFormat,
-		InterfaceType:   string(channelModel.Protocol),
-		BaseURL:         channel.BaseURL,
-		APIKey:          channel.APIKey,
-		SecretKey:       channel.SecretKey,
-		Headers:         headers,
-		Model:           firstNonEmpty(channelModel.ProviderModelKey, channelModel.ModelKey),
-		ChannelModelKey: channelModel.ModelKey,
 	}
 	callCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
@@ -123,7 +113,7 @@ func (s *Service) HelpAssistantChat(ctx context.Context, user *model.User, req H
 		}
 		result, err := runAgentToolTask(callCtx, input)
 		if err != nil {
-			return "", fmt.Errorf("帮助助手暂时无法回答，请稍后再试：%w", err)
+			return "", WrapAppError(http.StatusBadGateway, "帮助助手暂时无法回答，请稍后再试", err)
 		}
 		text, _ := result["text"].(string)
 		calls := helpAssistantCalls(result["toolCalls"])
