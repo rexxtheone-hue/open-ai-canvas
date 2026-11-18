@@ -1983,6 +1983,9 @@ html.studio-active .ant-select-dropdown .ant-select-item-option-selected { backg
 .studio-assistant-msg.is-assistant > :last-child { margin-bottom: 0; }
 .studio-assistant-msg p { margin: 0 0 8px; }
 .studio-assistant-msg ol, .studio-assistant-msg ul { margin: 0 0 8px; padding-left: 20px; }
+.studio-assistant-msg ol { list-style: decimal; }
+.studio-assistant-msg ul { list-style: disc; }
+.studio-assistant-msg li::marker { color: var(--studio-muted); }
 .studio-assistant-msg li { margin: 2px 0; }
 .studio-assistant-msg h1, .studio-assistant-msg h2, .studio-assistant-msg h3 { margin: 10px 0 6px; font-size: 14px; font-weight: 650; }
 .studio-assistant-msg code { padding: 1px 5px; border-radius: 6px; background: var(--studio-hover); font-size: 12.5px; }
