@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { App, Button, Input, Segmented, Select, Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+import "./studio-help-admin.css";
 
 import { getStudioSiteContent, listAdminStudioAssistantLogs, listAdminStudioFeedback, saveAdminStudioSiteContent, setAdminStudioFeedbackStatus, type StudioAssistantLog, type StudioFeedback, type StudioSiteContentKey } from "@/services/api/studio-agents";
 
@@ -159,7 +163,7 @@ export function StudioAssistantLogsPanel() {
                     expandedRowRender: (item) => (
                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                             {item.error ? <div style={{ color: "#ff4d4f" }}>错误：{item.error}</div> : null}
-                            <div style={{ whiteSpace: "pre-wrap" }}>{item.answer || "（没有回答）"}</div>
+                            <div className="assistant-log-answer">{item.answer ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.answer}</ReactMarkdown> : "（没有回答）"}</div>
                         </div>
                     ),
                 }}
