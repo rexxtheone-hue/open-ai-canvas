@@ -268,3 +268,28 @@ export function setAdminStudioFeedbackStatus(id: string, status: "open" | "done"
 export function saveAdminStudioSiteContent(key: StudioSiteContentKey, content: string) {
     return http.put<{ saved: boolean }>(`/admin/studio/site-content/${key}`, { content });
 }
+
+export type StudioAssistantLog = {
+    id: string;
+    userId: string;
+    username: string;
+    conversationId: string;
+    page: string;
+    locale: string;
+    question: string;
+    answer: string;
+    tools: string;
+    ticket: boolean;
+    error: string;
+    model: string;
+    durationMs: number;
+    createdAt: string;
+};
+
+export type StudioAssistantLogStats = { questions: number; users: number; failed: number; tickets: number };
+
+export type StudioAssistantLogQuery = { q?: string; conversationId?: string; kind?: "all" | "failed" | "ticket"; days?: number; page?: number; pageSize?: number };
+
+export function listAdminStudioAssistantLogs(params: StudioAssistantLogQuery, signal?: AbortSignal) {
+    return http.get<{ items: StudioAssistantLog[]; total: number; stats: StudioAssistantLogStats }>("/admin/studio/assistant-logs", { params, signal });
+}

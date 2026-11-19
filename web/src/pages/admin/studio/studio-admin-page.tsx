@@ -8,7 +8,7 @@ import { listAdminStudioCommunity, listAdminStudioPlans, saveAdminStudioPlan, up
 import { AdminPageFrame } from "../components/admin-shell";
 import { StudioToolCoversPanel } from "./studio-tool-covers";
 import { isTenantAdminRole, useUserStore } from "@/stores/use-user-store";
-import { StudioFeedbackPanel, StudioSiteContentPanel } from "./studio-help-admin";
+import { StudioAssistantLogsPanel, StudioFeedbackPanel, StudioSiteContentPanel } from "./studio-help-admin";
 
 const EMPTY_PLAN: StudioPlanInput = { name: "", description: "", badge: "", durationDays: 30, monthlyCreditsMicrocredits: 0, activeTaskLimit: 10, commercialLicense: true, enabled: true, sortOrder: 0 };
 
@@ -107,7 +107,7 @@ export default function StudioAdminPage() {
     return (
         <AdminPageFrame
             title="AI Studio"
-            description={tenantView ? "本网站的灵感社区、用户反馈与帮助条款" : "会员套餐与灵感社区。套餐的售价在「支付充值 → 充值商品」里绑定套餐后生效。"}
+            description={tenantView ? "本网站的灵感社区、用户反馈、AI 助手记录与帮助条款" : "会员套餐与灵感社区。套餐的售价在「支付充值 → 充值商品」里绑定套餐后生效。"}
             actions={<Button icon={<RefreshCw className="size-4" />} loading={loading} onClick={() => void refresh()}>刷新</Button>}
         >
             <Tabs
@@ -125,6 +125,7 @@ export default function StudioAdminPage() {
                     { key: "community", label: "灵感社区", children: <Table rowKey="id" size="middle" loading={loading} columns={postColumns} dataSource={posts} pagination={false} /> },
                     { key: "covers", label: "工具封面", children: <StudioToolCoversPanel /> },
                     { key: "feedback", label: "用户反馈", children: <StudioFeedbackPanel /> },
+                    { key: "assistant-logs", label: "AI 助手记录", children: <StudioAssistantLogsPanel /> },
                     { key: "site-content", label: "帮助与条款", children: <StudioSiteContentPanel /> },
                 ].filter((item) => !tenantView || (item.key !== "plans" && item.key !== "covers"))}
             />

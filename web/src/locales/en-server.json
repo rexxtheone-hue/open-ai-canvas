@@ -4738,6 +4738,7 @@
   "等待渠道槽位期间取消，上游请求未发出": "Canceled while waiting for a channel slot; upstream request was not sent",
   "等待转写服务": "Waiting for transcription service",
   "等待队列调度": "Waiting for queue scheduling",
+  "筛选类型无效": "Invalid filter type",
   "签名不是有效 Base64：{0}": "Signature is not valid Base64: {0}",
   "签名查单金额 {0} {1}，本地金额 {2} {3}": "Signed order lookup amount {0} {1}, local amount {2} {3}",
   "简介最多 300 个字": "Bio can be up to 300 characters",

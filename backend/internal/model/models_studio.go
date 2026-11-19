@@ -91,10 +91,10 @@ type UserMembership struct {
 	PeriodEndsAt               *time.Time `json:"periodEndsAt,omitempty" gorm:"index"`
 	GrantsRemaining            int        `json:"grantsRemaining"`
 	// 自动续费订阅：SubscriptionOrderID 是开通订阅的首个订单，续费和取消都通过它找到支付渠道。
-	SubscriptionID      string `json:"subscriptionId,omitempty" gorm:"size:120;index"`
-	SubscriptionOrderID string `json:"subscriptionOrderId,omitempty" gorm:"size:36"`
-	SubscriptionStatus  string `json:"subscriptionStatus,omitempty" gorm:"size:16"`
-	UpdatedAt                  time.Time  `json:"updatedAt"`
+	SubscriptionID      string    `json:"subscriptionId,omitempty" gorm:"size:120;index"`
+	SubscriptionOrderID string    `json:"subscriptionOrderId,omitempty" gorm:"size:36"`
+	SubscriptionStatus  string    `json:"subscriptionStatus,omitempty" gorm:"size:16"`
+	UpdatedAt           time.Time `json:"updatedAt"`
 }
 
 const (
@@ -268,6 +268,25 @@ type StudioFeedback struct {
 	Seq       int64     `json:"-" gorm:"index"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// StudioAssistantLog 是 AI 助手的一轮问答记录，管理员在后台查看用户问了什么、答得怎么样。
+type StudioAssistantLog struct {
+	ID             string    `json:"id" gorm:"primaryKey;size:36"`
+	TenantID       string    `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
+	UserID         string    `json:"userId" gorm:"index;size:36"`
+	ConversationID string    `json:"conversationId" gorm:"index;size:64"`
+	Page           string    `json:"page" gorm:"size:300"`
+	Locale         string    `json:"locale" gorm:"size:16"`
+	Question       string    `json:"question" gorm:"type:text"`
+	Answer         string    `json:"answer" gorm:"type:text"`
+	Tools          string    `json:"tools" gorm:"size:300"`
+	Ticket         bool      `json:"ticket" gorm:"index"`
+	Error          string    `json:"error" gorm:"size:500"`
+	Model          string    `json:"model" gorm:"size:120"`
+	DurationMs     int64     `json:"durationMs"`
+	Seq            int64     `json:"-" gorm:"index"`
+	CreatedAt      time.Time `json:"createdAt" gorm:"index"`
 }
 
 // StudioSiteContent 保存帮助中心的客服说明、服务条款和隐私政策，由管理员编辑。

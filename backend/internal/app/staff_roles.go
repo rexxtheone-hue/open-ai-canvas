@@ -26,6 +26,7 @@ var staffPermissions = map[model.UserRole][]staffRule{
 	model.UserRoleOperator: append([]staffRule{
 		anyMethod("/admin/announcements"), anyMethod("/admin/announcement-images"), anyMethod("/admin/banner-announcements"),
 		anyMethod("/admin/studio/community"), anyMethod("/admin/studio/feedback"), anyMethod("/admin/studio/site-content"),
+		readOnly("/admin/studio/assistant-logs"),
 		anyMethod("/admin/studio/tool-covers"), readOnly("/admin/studio/plans"),
 		anyMethod("/admin/workbench/tools"), anyMethod("/admin/agent-lessons"), anyMethod("/admin/skill-curation"),
 		anyMethod("/admin/partner-applications"), readOnly("/admin/affiliates"),
@@ -60,7 +61,7 @@ var tenantAdminElevatedRules = []staffRule{
 	anyMethod("/admin/redeem-batches"),
 	anyMethod("/admin/payments/products"), readOnly("/admin/payments/orders"),
 	only("POST", "/admin/payments/orders/:id/query"), only("POST", "/admin/payments/orders/:id/close"),
-	anyMethod("/admin/studio/community"), anyMethod("/admin/studio/feedback"),
+	anyMethod("/admin/studio/community"), anyMethod("/admin/studio/feedback"), readOnly("/admin/studio/assistant-logs"),
 	anyMethod("/admin/partner-applications"), anyMethod("/admin/affiliates"), anyMethod("/admin/affiliate-payouts"),
 }
 

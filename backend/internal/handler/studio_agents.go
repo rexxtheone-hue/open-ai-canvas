@@ -182,6 +182,15 @@ func RegisterStudioAgentRoutes(r *gin.RouterGroup, svc *service.Service) {
 		items, err := svc.AdminStudioFeedback(user, c.Query("status"))
 		respond(c, gin.H{"items": items}, err)
 	}))
+	r.GET("/admin/studio/assistant-logs", withUser(func(c *gin.Context, user *model.User) {
+		var query service.StudioAssistantLogQuery
+		if err := c.ShouldBindQuery(&query); err != nil {
+			fail(c, http.StatusBadRequest, err)
+			return
+		}
+		result, err := svc.AdminStudioAssistantLogs(user, query)
+		respond(c, result, err)
+	}))
 	r.PATCH("/admin/studio/feedback/:id", withUser(func(c *gin.Context, user *model.User) {
 		var req struct {
 			Status string `json:"status"`

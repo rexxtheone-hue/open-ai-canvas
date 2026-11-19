@@ -37,7 +37,7 @@ var agencyAdminRoutePrefixes = []string{
 	"/admin/analytics", "/admin/api-logs", "/admin/login-logs", "/admin/billing-orders",
 	"/admin/payments/orders", "/admin/payments/products", "/admin/redeem-batches",
 	"/admin/announcements", "/admin/announcement-images", "/admin/banner-announcements",
-	"/admin/studio/community", "/admin/studio/feedback", "/admin/studio/site-content",
+	"/admin/studio/community", "/admin/studio/feedback", "/admin/studio/site-content", "/admin/studio/assistant-logs",
 	"/admin/partner-applications", "/admin/affiliates", "/admin/affiliate-payouts",
 }
 

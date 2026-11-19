@@ -5,13 +5,13 @@ import { currentLocale, translateServerText } from "@/lib/i18n/runtime";
 export type HelpAssistantMessage = { role: "user" | "assistant"; content: string };
 
 /** 向帮助助手提问：边生成边回调 onText（累计全文），结束返回最终答案。 */
-export async function askHelpAssistant(messages: HelpAssistantMessage[], page: string, onText: (text: string) => void, signal?: AbortSignal) {
+export async function askHelpAssistant(messages: HelpAssistantMessage[], page: string, conversationId: string, onText: (text: string) => void, signal?: AbortSignal) {
     const base = String(apiBaseURL).replace(/\/+$/, "");
     const response = await fetch(`${base}/studio/help-assistant`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
         credentials: "include",
-        body: JSON.stringify({ messages, page, locale: currentLocale }),
+        body: JSON.stringify({ messages, page, locale: currentLocale, conversationId }),
         signal,
     });
     if (!response.ok) {

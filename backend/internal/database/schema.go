@@ -128,6 +128,7 @@ func Models() []any {
 		&model.StudioUpload{},
 		&model.StudioVoice{},
 		&model.StudioFeedback{},
+		&model.StudioAssistantLog{},
 		&model.StudioSiteContent{},
 		&model.StudioFolder{},
 		&model.StudioLabel{},

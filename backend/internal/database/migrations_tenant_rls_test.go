@@ -45,7 +45,7 @@ func TestTenantRLSMigrationIsNoOpOnSQLite(t *testing.T) {
 		t.Fatal(err)
 	}
 	status, err := ReadSchemaStatus(db)
-	if err != nil || !status.Ready || status.Current != 82 {
+	if err != nil || !status.Ready || status.Current != CurrentSchemaVersion {
 		t.Fatalf("status = %+v, %v", status, err)
 	}
 	if err := migrateTenantRLSPolicies(db); err != nil {

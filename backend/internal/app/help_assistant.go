@@ -35,6 +35,8 @@ type HelpAssistantRequest struct {
 	Messages []HelpAssistantMessage `json:"messages"`
 	Page     string                 `json:"page"`
 	Locale   string                 `json:"locale"`
+	// ConversationID 由前端在每次「新对话」时生成，用来在后台把同一段对话的多轮问答归在一起。
+	ConversationID string `json:"conversationId"`
 }
 
 type helpAssistantModelSetting struct {
@@ -65,7 +67,7 @@ func (q *helpAssistantQuota) take(userID string) bool {
 	return true
 }
 
-// HelpAssistantChat 回答一轮提问；onDelta 收到正文增量（工具调用轮次的正文不会推送）。
+// HelpAssistantChat 回答一轮提问；onDelta 收到正文增量（工具调用轮次的正文不会推送）。每轮问答都记进对话记录。
 func (s *Service) HelpAssistantChat(ctx context.Context, user *model.User, req HelpAssistantRequest, onDelta func(string)) (string, error) {
 	if user == nil {
 		return "", BadAuthRequest("请先登录")
@@ -77,10 +79,24 @@ func (s *Service) HelpAssistantChat(ctx context.Context, user *model.User, req H
 	if !helpQuota.take(user.ID) {
 		return "", BadAuthRequest("今天的提问次数已用完，明天再来，或点「反馈」联系客服")
 	}
+	startedAt := time.Now()
+	run := &helpAssistantRun{}
+	answer, err := s.helpAssistantAnswer(ctx, user, req, messages, onDelta, run)
+	s.recordHelpAssistantLog(user, req, messages, answer, err, run, time.Since(startedAt))
+	return answer, err
+}
+
+type helpAssistantRun struct {
+	model string
+	tools []string
+}
+
+func (s *Service) helpAssistantAnswer(ctx context.Context, user *model.User, req HelpAssistantRequest, messages []map[string]interface{}, onDelta func(string), run *helpAssistantRun) (string, error) {
 	channel, channelModel, err := s.helpAssistantModel()
 	if err != nil {
 		return "", err
 	}
+	run.model = channelModel.ModelKey
 	config, err := s.resolveProviderConfig(providerConfig{ChannelID: channel.ID, ChannelModelKey: channelModel.ModelKey})
 	if err != nil {
 		return "", err
@@ -128,6 +144,7 @@ func (s *Service) HelpAssistantChat(ctx context.Context, user *model.User, req H
 		assistant["tool_calls"] = toolCalls
 		messages = append(messages, assistant)
 		for _, call := range calls {
+			run.tools = append(run.tools, call.Function.Name)
 			output := s.runHelpAssistantTool(ctx, user, req, call.Function.Name, call.Function.Arguments)
 			messages = append(messages, map[string]interface{}{"role": "tool", "tool_call_id": call.ID, "content": output})
 		}

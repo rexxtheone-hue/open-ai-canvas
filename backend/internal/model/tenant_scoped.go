@@ -63,6 +63,11 @@ func (f *StudioFeedback) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
+func (l *StudioAssistantLog) BeforeCreate(tx *gorm.DB) error {
+	stampTenantFromUser(tx, &l.TenantID, l.UserID)
+	return nil
+}
+
 func (a *PartnerApplication) BeforeSave(tx *gorm.DB) error {
 	stampTenantFromUser(tx, &a.TenantID, a.UserID)
 	return nil
