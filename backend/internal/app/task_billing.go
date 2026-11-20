@@ -131,6 +131,8 @@ func billingFailureUncertain(err error) bool {
 		return false
 	}
 	message := strings.ToLower(err.Error())
+	// 腾讯 TokenHub 的上游错误会写明 timeout=false，表示不是超时，不能当成超时处理。
+	message = strings.NewReplacer("timeout=false", "", "timeout: false", "", `"timeout":false`, "").Replace(message)
 	for _, marker := range []string{"524", "timeout", "超时", "deadline exceeded", "context canceled", "connection reset", "unexpected eof", "broken pipe"} {
 		if strings.Contains(message, marker) {
 			return true
