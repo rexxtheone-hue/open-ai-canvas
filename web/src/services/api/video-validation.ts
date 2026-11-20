@@ -17,6 +17,7 @@ export function videoReferenceTotalError(profile: VideoCapabilityConfig, videos:
     if (refs.maxTotalVideoDurationSeconds && videoSeconds > refs.maxTotalVideoDurationSeconds + 0.1) return `参考视频合计 ${videoSeconds.toFixed(1)} 秒，当前模型最多 ${refs.maxTotalVideoDurationSeconds} 秒，请剪短或删掉一段`;
     if (refs.maxTotalAudioDurationSeconds && audioSeconds > refs.maxTotalAudioDurationSeconds + 0.1) return `参考音频合计 ${audioSeconds.toFixed(1)} 秒，当前模型最多 ${refs.maxTotalAudioDurationSeconds} 秒，请剪短或删掉一段`;
     if (refs.maxCombinedVideoDurationSeconds && videoSeconds > 0 && videoSeconds + outputSeconds > refs.maxCombinedVideoDurationSeconds + 0.1) return `参考视频 ${videoSeconds.toFixed(1)} 秒加输出 ${outputSeconds} 秒超过当前模型的 ${refs.maxCombinedVideoDurationSeconds} 秒上限，请缩短输出时长或参考视频`;
+    if (refs.videoWithinOutputDuration && videoSeconds > 0 && outputSeconds > 0 && videoSeconds > outputSeconds + 0.1) return `参考视频合计 ${videoSeconds.toFixed(1)} 秒，不能超过生成时长 ${outputSeconds} 秒，请剪短参考视频或加长生成时长`;
     return "";
 }
 

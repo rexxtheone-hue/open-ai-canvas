@@ -243,6 +243,8 @@ type VideoReferenceConfig struct {
 	MaxTotalAudioDuration int `json:"maxTotalAudioDurationSeconds,omitempty"`
 	// 有参考视频时，参考视频合计时长加输出时长的上限（万相 3.0 为 30 秒）。
 	MaxCombinedVideoDuration int `json:"maxCombinedVideoDurationSeconds,omitempty"`
+	// 参考视频合计时长不能超过输出时长（腾讯 WAND 等按参考视频秒数另收输入费、平台按输出秒数计价的模型）。
+	VideoWithinOutput bool `json:"videoWithinOutputDuration,omitempty"`
 	MinVideoDuration         int `json:"minVideoDurationSeconds,omitempty"`
 	MinAudioDuration         int `json:"minAudioDurationSeconds,omitempty"`
 	// 允许的文件格式（扩展名，如 mp3、wav、jpg）；空表示不限。

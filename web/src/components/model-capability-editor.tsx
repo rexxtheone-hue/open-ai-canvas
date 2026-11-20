@@ -98,6 +98,7 @@ export function ModelCapabilityEditor({ value, onChange, protocol, capability = 
                         <NumberField label="单个视频最长秒数" value={profile.references.maxVideoDurationSeconds} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxVideoDurationSeconds: value || 0 })} />
                         <NumberField label="视频合计最长秒数（0 不限）" value={profile.references.maxTotalVideoDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxTotalVideoDurationSeconds: value || 0 })} />
                         <NumberField label="参考视频 + 输出合计秒数（0 不限）" value={profile.references.maxCombinedVideoDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxCombinedVideoDurationSeconds: value || 0 })} />
+                        <ParameterField label="参考视频不超过生成时长" description="参考视频合计秒数必须小于等于本次生成时长；适用于按参考视频秒数另收费的模型。" supported={Boolean(profile.references.videoWithinOutputDuration)} disabled={disabled} onChange={(videoWithinOutputDuration) => updateReferences({ videoWithinOutputDuration })} />
                         <ReferenceMediaLimitFields kind="video" references={profile.references} disabled={disabled} onChange={updateReferences} />
                     </ReferenceCard>
                     <ReferenceCard title="通用限制" description="所有视频请求共用的基础约束">
@@ -327,6 +328,7 @@ export function ModelCapabilityEditor({ value, onChange, protocol, capability = 
                             <NumberField label="单个视频最长秒数" value={profile.references.maxVideoDurationSeconds} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxVideoDurationSeconds: value || 0 })} />
                         <NumberField label="视频合计最长秒数（0 不限）" value={profile.references.maxTotalVideoDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxTotalVideoDurationSeconds: value || 0 })} />
                         <NumberField label="参考视频 + 输出合计秒数（0 不限）" value={profile.references.maxCombinedVideoDurationSeconds || 0} min={0} disabled={disabled} onChange={(value) => updateReferences({ maxCombinedVideoDurationSeconds: value || 0 })} />
+                        <ParameterField label="参考视频不超过生成时长" description="参考视频合计秒数必须小于等于本次生成时长；适用于按参考视频秒数另收费的模型。" supported={Boolean(profile.references.videoWithinOutputDuration)} disabled={disabled} onChange={(videoWithinOutputDuration) => updateReferences({ videoWithinOutputDuration })} />
                             <ReferenceMediaLimitFields kind="video" references={profile.references} disabled={disabled} onChange={updateReferences} />
                         </div>
                     </CapabilityBlock>

@@ -25,3 +25,16 @@ func TestVideoReferenceTotalError(t *testing.T) {
 		t.Fatalf("zero limits mean unlimited, got %q", message)
 	}
 }
+
+func TestVideoReferenceWithinOutputDuration(t *testing.T) {
+	refs := VideoReferenceConfig{VideoWithinOutput: true}
+	if videoReferenceTotalError(refs, []providerMedia{{DurationMs: 6000}}, nil, 5) == "" {
+		t.Fatal("6s reference must not exceed a 5s output")
+	}
+	if message := videoReferenceTotalError(refs, []providerMedia{{DurationMs: 3000}, {DurationMs: 2050}}, nil, 5); message != "" {
+		t.Fatalf("5.05s reference within a 5s output should pass, got %q", message)
+	}
+	if message := videoReferenceTotalError(VideoReferenceConfig{}, []providerMedia{{DurationMs: 9000}}, nil, 5); message != "" {
+		t.Fatalf("rule is off by default, got %q", message)
+	}
+}

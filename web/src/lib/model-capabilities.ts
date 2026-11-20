@@ -122,6 +122,8 @@ export type VideoCapabilityConfig = {
         maxTotalAudioDurationSeconds?: number;
         /** 有参考视频时，参考视频合计时长加输出时长的上限。 */
         maxCombinedVideoDurationSeconds?: number;
+        /** 参考视频合计时长不能超过输出时长。 */
+        videoWithinOutputDuration?: boolean;
         minVideoDurationSeconds?: number;
         minAudioDurationSeconds?: number;
         /** 允许的文件格式（扩展名，如 mp3、wav、jpg）；空表示不限。 */

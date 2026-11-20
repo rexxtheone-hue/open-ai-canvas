@@ -350,7 +350,11 @@ export default function StudioToolPage({ toolId }: { toolId: string }) {
     const isFrameTool = !specialtySpec && tool.presetMode === "image_to_video";
     const isTextOnly = !specialtySpec && tool.presetMode === "text_to_video";
     // 模型接受参考视频但没写时长上限时，按常见的 15 秒处理。
-    const trimLimit = kind === "video" && resolvedModel && limits.maxVideos > 0 ? modelCapabilityConfigFor(config, resolvedModel).video?.references.maxVideoDurationSeconds || 15 : 0;
+    const referenceProfile = kind === "video" && resolvedModel && limits.maxVideos > 0 ? modelCapabilityConfigFor(config, resolvedModel).video?.references : undefined;
+    const baseTrimLimit = referenceProfile ? referenceProfile.maxVideoDurationSeconds || 15 : 0;
+    // 参考视频不能超过生成时长的模型，裁剪上限跟着当前选择的时长走。
+    const outputSeconds = Number(state.video.seconds) || 0;
+    const trimLimit = referenceProfile?.videoWithinOutputDuration && outputSeconds > 0 ? Math.min(baseTrimLimit, outputSeconds) : baseTrimLimit;
     useEffect(() => {
         setStudioVideoTrimLimit(trimLimit);
         return () => setStudioVideoTrimLimit(0);

@@ -1065,6 +1065,9 @@ func videoReferenceTotalError(refs VideoReferenceConfig, videos, audios []provid
 	if refs.MaxCombinedVideoDuration > 0 && videoMs > 0 && videoMs+int64(outputSeconds)*1000 > int64(refs.MaxCombinedVideoDuration)*1000+100 {
 		return fmt.Sprintf("参考视频 %.1f 秒加输出 %d 秒超过当前模型的 %d 秒上限，请缩短输出时长或参考视频", float64(videoMs)/1000, outputSeconds, refs.MaxCombinedVideoDuration)
 	}
+	if refs.VideoWithinOutput && videoMs > 0 && outputSeconds > 0 && videoMs > int64(outputSeconds)*1000+100 {
+		return fmt.Sprintf("参考视频合计 %.1f 秒，不能超过生成时长 %d 秒，请剪短参考视频或加长生成时长", float64(videoMs)/1000, outputSeconds)
+	}
 	return ""
 }
 

@@ -2010,6 +2010,7 @@
   "参考视频": "Reference video",
   "参考视频 MIME 类型无效，请重新读取或上传视频": "Invalid reference video MIME type; please re-read or re-upload the video",
   "参考视频。": "Reference video.",
+  "参考视频合计 {0} 秒，不能超过生成时长 {1} 秒，请剪短参考视频或加长生成时长": "Reference videos total {0}s, which exceeds the {1}s output duration. Trim the reference video or choose a longer duration.",
   "参考视频或待编辑视频。": "Reference video or video to edit.",
   "参考视频文件超过当前模型大小限制": "The reference video file exceeds the current model's size limit",
   "参考视频时长参数无效，durationMs 必须为非负整数且不能溢出": "Invalid reference video duration; durationMs must be a non-negative integer and must not overflow",
