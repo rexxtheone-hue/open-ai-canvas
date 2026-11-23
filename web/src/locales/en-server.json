@@ -4940,6 +4940,7 @@
   "脱口秀手艺": "Stand-up comedy craft",
   "腾讯 TokenHub 渠道地址无效": "Invalid Tencent TokenHub channel URL",
   "腾讯 WAND Vega Video 1.5 Pro：文生视频、首尾帧、全能参考（最多 30 张图、10 段视频、10 段音频），480P–4K，4–15 秒。带参考视频时，参考视频合计不能超过生成时长。": "Tencent WAND Vega Video 1.5 Pro: text-to-video, first and last frames, and omni reference (up to 30 images, 10 videos, and 10 audio clips). 480P–4K, 4–15 seconds. Reference videos in total cannot be longer than the output.",
+  "腾讯 WAND Vega Video 1.5 Pro：文生视频、首尾帧、全能参考（最多 30 张图、10 段视频、10 段音频），480P–4K，4–30 秒。带参考视频时，参考视频合计不能超过生成时长。": "Tencent WAND Vega Video 1.5 Pro: text-to-video, first and last frames, and omni reference (up to 30 images, 10 videos, and 10 audio clips). 480P–4K, 4–30 seconds. Reference videos in total cannot be longer than the output.",
   "腾讯 WAND Vega Video 1.5 Pro：文生视频、首尾帧、全能参考（最多 9 张图、3 段视频、3 段音频），480P–4K，4–15 秒。带参考视频时，参考视频合计不能超过生成时长。": "Tencent WAND Vega Video 1.5 Pro: text-to-video, first/last frame and all-in-one references (up to 9 images, 3 videos, 3 audio clips), 480P–4K, 4–15s. With reference videos, their total length cannot exceed the output duration.",
   "腾讯云 COS": "Tencent Cloud COS",
   "腾讯云 COS {0}服务暂时不可用，请稍后重试": "Tencent Cloud COS {0} service is temporarily unavailable; please try again later",
