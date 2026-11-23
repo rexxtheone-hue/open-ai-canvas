@@ -32,7 +32,7 @@ func TestTencentKlingAudiosRegisterAsVoices(t *testing.T) {
 			creates++
 			var body map[string]any
 			_ = json.NewDecoder(r.Body).Decode(&body)
-			if body["voice_url"] == "" || body["voice_name"] == "" {
+			if name, _ := body["voice_name"].(string); body["voice_url"] == "" || name == "" || len([]rune(name)) > 20 {
 				t.Errorf("create body = %#v", body)
 			}
 			_, _ = w.Write([]byte(`{"code":0,"message":"SUCCEED","data":{"task_id":"vt-1","task_status":"submitted"}}`))
@@ -88,6 +88,9 @@ func TestTencentKlingAudiosRegisterAsVoices(t *testing.T) {
 func TestWithKlingVoiceMentions(t *testing.T) {
 	if got := withKlingVoiceMentions("@1 说你好", 1); got != "@1 说你好" {
 		t.Fatalf("existing mention kept: %q", got)
+	}
+	if got := withKlingVoiceMentions("她说你好 @音频1，他回答 @Audio2", 2); got != "她说你好 @1，他回答 @2" {
+		t.Fatalf("studio audio labels converted: %q", got)
 	}
 	if got := withKlingVoiceMentions("1080p 画面 @image_1", 2); !strings.HasSuffix(got, "人物说话使用音色 @1、@2。") {
 		t.Fatalf("mentions appended: %q", got)

@@ -24,7 +24,20 @@ const (
 	tencentKlingMaxVoices     = 3
 )
 
-var tencentKlingVoiceMention = regexp.MustCompile(`@[1-3](?:[^0-9]|$)`)
+var (
+	tencentKlingVoiceMention = regexp.MustCompile(`@[1-3](?:[^0-9]|$)`)
+	// Studio 和画布把音频写成 @音频1 / @Audio1，可灵只认 @1。
+	tencentKlingAudioLabel = regexp.MustCompile(`(?i)@\s*(?:音频|audio)\s*([1-3])`)
+)
+
+// klingVoiceName 生成音色名称；上游限制 20 个字符以内。
+func klingVoiceName(resourceID string) string {
+	id := strings.TrimSpace(resourceID)
+	if len(id) > 16 {
+		id = id[:16]
+	}
+	return "v-" + id
+}
 
 func tencentKlingVoiceProject(channelID string) string {
 	return "tencent-kling-voice:" + channelID
@@ -93,7 +106,7 @@ func (s *Service) ensureTencentKlingVoice(ctx context.Context, userID string, co
 		return "", s.failArkPrivateAssetBinding(binding, fmt.Errorf("生成参考音频临时地址失败：%w", err))
 	}
 	result, err := callTencentWandAsset(ctx, config, "/v1/wand/kling/custom-voices", map[string]any{
-		"voice_name": "voice-" + resource.ID,
+		"voice_name": klingVoiceName(resource.ID),
 		"voice_url":  resourceURL,
 	})
 	if err != nil {
@@ -208,6 +221,7 @@ func (s *Service) prepareTencentKlingVoiceReferences(ctx context.Context, userID
 }
 
 func withKlingVoiceMentions(prompt string, voices int) string {
+	prompt = tencentKlingAudioLabel.ReplaceAllString(prompt, "@$1")
 	if voices <= 0 || tencentKlingVoiceMention.MatchString(prompt) {
 		return prompt
 	}
