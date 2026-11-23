@@ -562,7 +562,7 @@ func videoFrameImageURLs(input canvasGenerationInput, imageURLs []string) ([]str
 
 func mediaReferenceURL(media providerMedia) (string, error) {
 	value := strings.TrimSpace(media.URL)
-	if isPublicMediaURL(value) || strings.HasPrefix(value, "asset://") || strings.HasPrefix(value, "data:") {
+	if isPublicMediaURL(value) || strings.HasPrefix(value, "asset://") || strings.HasPrefix(value, tencentKlingVoicePrefix) || strings.HasPrefix(value, "data:") {
 		return value, nil
 	}
 	value = strings.TrimSpace(media.DataURL)

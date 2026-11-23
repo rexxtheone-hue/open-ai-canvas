@@ -82,6 +82,9 @@ func callTencentWandAsset(ctx context.Context, config providerConfig, path strin
 		}
 		return nil, errors.New(message)
 	}
+	if code, ok := payload["code"].(float64); ok && code != 0 {
+		return nil, fmt.Errorf("%s (%d)", defaultString(strings.TrimSpace(fmt.Sprint(payload["message"])), "腾讯接口返回错误"), int(code))
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("腾讯素材接口请求失败：HTTP %d", resp.StatusCode)
 	}

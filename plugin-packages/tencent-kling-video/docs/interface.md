@@ -6,7 +6,7 @@
 - 能力：`video`。
 - 默认 Base URL：`https://tokenhub-intl.tencentcloudmaas.com`。
 - 鉴权驱动：`bearer`（`Authorization: Bearer <API Key>`）。
-- 创建：没有图片和视频时 `POST /v1/wand/kling/text-to-video`，否则 `POST /v1/wand/kling/omni-video`。成功返回 `{"code":0,"data":{"id":"...","status":"submitted"}}`。
+- 创建：没有图片、视频和音色时 `POST /v1/wand/kling/text-to-video`，否则 `POST /v1/wand/kling/omni-video`。成功返回 `{"code":0,"data":{"id":"...","status":"submitted"}}`。
 - 查询：`GET /v1/wand/kling/tasks/{id}`，返回 `data` 数组。
 - 请求都使用 `originPath`，路径从域名根开始拼接。
 
@@ -22,8 +22,12 @@
 | `duration` | `settings.duration` | 整数 3–30 秒；未指定时不发送，上游默认 5 |
 | `aspectRatio` | `settings.aspect_ratio` | 21:9、16:9、9:16、1:1；未指定、auto 或自适应时不发送 |
 | `resolution` | `settings.resolution` | 小写发送：720p、1080p；纯数字补 p。v4-flash 只有 720p |
+| `audios` | `contents[]` 中 `{"type":"voice","voice_id":...,"id":"1"}` | 最多 3 个；网址必须是宿主登记后的 `kling-voice://<voice_id>`，否则拒绝。`id` 按顺序为 1、2、3，提示词用 `@1` 引用 |
 
-`audios` 不支持，提交时直接拒绝。
+## 音色登记（宿主完成）
+
+1. `POST /v1/wand/kling/custom-voices` `{"voice_name":...,"voice_url":<参考音频公网网址>}`，返回 `data.task_id`。
+2. 轮询 `GET /v1/wand/kling/custom-voices/{task_id}`，`data.task_status = succeed` 时取 `data.task_result.voices[0].voice_id`；`failed` 时原因在 `data.task_status_msg`。
 
 ## Provider 扩展键
 
@@ -55,7 +59,7 @@
   "name": "腾讯云 Kling 视频",
   "version": "1.0.0",
   "author": "Rexx",
-  "description": "腾讯云 TokenHub Kling 视频协议插件（/v1/wand/kling/text-to-video 与 omni-video，异步轮询），支持 kling-video-v4 / v4-flash 文生视频、首尾帧和全能参考（图片、参考视频）。",
+  "description": "腾讯云 TokenHub Kling 视频协议插件（/v1/wand/kling/text-to-video 与 omni-video，异步轮询），支持 kling-video-v4 / v4-flash 文生视频、首尾帧和全能参考（图片、参考视频、音色）。",
   "permissions": [
     "generation.run",
     "media.read"
@@ -135,7 +139,7 @@
           },
           {
             "assert": {
-              "$eq": [
+              "$lte": [
                 {
                   "$len": {
                     "$coalesce": [
@@ -146,10 +150,55 @@
                     ]
                   }
                 },
+                3
+              ]
+            },
+            "message": "该模型最多使用 3 段参考音频（音色）。"
+          },
+          {
+            "assert": {
+              "$eq": [
+                {
+                  "$len": {
+                    "$filter": {
+                      "from": {
+                        "$coalesce": [
+                          {
+                            "$ref": "request.audios"
+                          },
+                          []
+                        ]
+                      },
+                      "as": "media",
+                      "where": {
+                        "$not": {
+                          "$eq": [
+                            {
+                              "$len": {
+                                "$split": [
+                                  {
+                                    "$coalesce": [
+                                      {
+                                        "$ref": "media.url"
+                                      },
+                                      ""
+                                    ]
+                                  },
+                                  "kling-voice://"
+                                ]
+                              }
+                            },
+                            2
+                          ]
+                        }
+                      }
+                    }
+                  }
+                },
                 0
               ]
             },
-            "message": "该模型不支持参考音频，请移除音频后再试。"
+            "message": "参考音频需要先创建为可灵音色，请上传音频文件后重试。"
           }
         ],
         "parameters": [
@@ -180,6 +229,13 @@
             "required": false,
             "mapping": "contents[type=feature_video]",
             "description": "参考视频，最多 5 个，单段与合计 3–30 秒，仅公网网址。"
+          },
+          {
+            "name": "audios",
+            "type": "media[]",
+            "required": false,
+            "mapping": "contents[type=voice]",
+            "description": "参考音频由宿主先登记为可灵音色（kling-voice://<voice_id>），最多 3 个；提示词用 @1、@2、@3 指定说话音色。"
           },
           {
             "name": "duration",
@@ -238,6 +294,16 @@
                             []
                           ]
                         }
+                      },
+                      {
+                        "$len": {
+                          "$coalesce": [
+                            {
+                              "$ref": "request.audios"
+                            },
+                            []
+                          ]
+                        }
                       }
                     ]
                   },
@@ -271,6 +337,16 @@
                           "$coalesce": [
                             {
                               "$ref": "request.videos"
+                            },
+                            []
+                          ]
+                        }
+                      },
+                      {
+                        "$len": {
+                          "$coalesce": [
+                            {
+                              "$ref": "request.audios"
                             },
                             []
                           ]
@@ -421,6 +497,45 @@
                                 "$ref": "media.dataUrl"
                               }
                             ]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "$map": {
+                        "from": {
+                          "$ref": "request.audios"
+                        },
+                        "as": "media",
+                        "in": {
+                          "type": "voice",
+                          "voice_id": {
+                            "$at": [
+                              {
+                                "$split": [
+                                  {
+                                    "$coalesce": [
+                                      {
+                                        "$ref": "media.url"
+                                      },
+                                      ""
+                                    ]
+                                  },
+                                  "kling-voice://"
+                                ]
+                              },
+                              1
+                            ]
+                          },
+                          "id": {
+                            "$toString": {
+                              "$add": [
+                                {
+                                  "$ref": "mediaIndex"
+                                },
+                                1
+                              ]
+                            }
                           }
                         }
                       }

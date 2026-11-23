@@ -251,6 +251,9 @@ func (s *Service) processCanvasGenerationTask(ctx context.Context, userID string
 		if err := s.prepareTencentWandAssetReferences(ctx, userID, &input); err != nil {
 			return nil, err
 		}
+		if err := s.prepareTencentKlingVoiceReferences(ctx, userID, &input); err != nil {
+			return nil, err
+		}
 	}
 	if input.Mode == "video" && input.VideoCapability != nil {
 		if err := validateVideoTask(input.VideoCapability, input); err != nil {

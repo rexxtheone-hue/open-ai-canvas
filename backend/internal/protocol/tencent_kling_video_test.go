@@ -101,13 +101,31 @@ func TestTencentKlingVideoOmniContents(t *testing.T) {
 	}
 }
 
-func TestTencentKlingVideoRejectsAudio(t *testing.T) {
+func TestTencentKlingVideoVoices(t *testing.T) {
 	adapter := loadTencentKlingVideoAdapter(t)
-	_, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{
+	if _, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{
 		Model: "kling-video-v4", Prompt: "p", Audios: []MediaReference{{URL: "https://cdn.example/a.mp3"}},
+	}}); err == nil {
+		t.Fatal("unregistered audio must be rejected")
+	}
+	create, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{
+		Model: "kling-video-v4", Prompt: "@1 says hi", Audios: []MediaReference{{URL: "kling-voice://111"}, {URL: "kling-voice://222"}},
 	}})
-	if err == nil {
-		t.Fatal("audio input must be rejected")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if create.Path != "/v1/wand/kling/omni-video" {
+		t.Fatalf("voices need omni-video, path = %s", create.Path)
+	}
+	contents, _ := create.Body.(map[string]any)["contents"].([]any)
+	if len(contents) != 3 {
+		t.Fatalf("contents = %#v", contents)
+	}
+	for index, want := range []struct{ id, voice string }{{"1", "111"}, {"2", "222"}} {
+		element := contents[index+1].(map[string]any)
+		if element["type"] != "voice" || element["voice_id"] != want.voice || element["id"] != want.id {
+			t.Fatalf("voice element = %#v", element)
+		}
 	}
 }
 
