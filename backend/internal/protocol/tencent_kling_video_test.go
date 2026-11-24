@@ -148,3 +148,68 @@ func TestTencentKlingVideoParsesTaskLifecycle(t *testing.T) {
 		t.Fatalf("failed = %#v, err = %v", failed, err)
 	}
 }
+
+func TestTencentKlingVideoV3Routing(t *testing.T) {
+	adapter := loadTencentKlingVideoAdapter(t)
+	build := func(request GenerationRequest) (string, map[string]any) {
+		t.Helper()
+		create, err := adapter.BuildCreate(context.Background(), RequestContext{Request: request})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return create.Path, create.Body.(map[string]any)
+	}
+
+	path, body := build(GenerationRequest{Model: "kling-video-v3", Prompt: "p", Resolution: "2160p", AspectRatio: "9:16", GenerateAudio: true})
+	settings := body["settings"].(map[string]any)
+	if path != "/v1/wand/kling/text-to-video" || settings["resolution"] != "4k" || settings["audio"] != "native" || settings["aspect_ratio"] != "9:16" {
+		t.Fatalf("v3 text: %s %#v", path, body)
+	}
+
+	path, body = build(GenerationRequest{Model: "kling-video-v3", Prompt: "p", Images: []MediaReference{{URL: "https://cdn.example/a.jpg"}, {URL: "https://cdn.example/b.jpg"}}})
+	contents := body["contents"].([]any)
+	settings = body["settings"].(map[string]any)
+	if path != "/v1/wand/kling/image-to-video" || len(contents) != 3 || contents[1].(map[string]any)["type"] != "first_frame" || contents[2].(map[string]any)["type"] != "last_frame" || settings["audio"] != "off" {
+		t.Fatalf("v3 i2v: %s %#v", path, body)
+	}
+	if _, exists := settings["aspect_ratio"]; exists {
+		t.Fatalf("image-to-video must not send aspect_ratio: %#v", settings)
+	}
+
+	path, body = build(GenerationRequest{Model: "kling-video-v3-turbo", Prompt: "p", GenerateAudio: true})
+	if _, exists := body["settings"].(map[string]any)["audio"]; path != "/v1/wand/kling/text-to-video" || exists {
+		t.Fatalf("turbo must not send audio: %s %#v", path, body)
+	}
+	if _, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: "kling-video-v3-turbo", Prompt: "p", Images: []MediaReference{{URL: "https://cdn.example/a.jpg"}, {URL: "https://cdn.example/b.jpg"}}}}); err == nil {
+		t.Fatal("turbo must reject a last frame")
+	}
+	if _, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: "kling-video-v3", Prompt: "p", Videos: []MediaReference{{URL: "https://cdn.example/m.mp4"}}}}); err == nil {
+		t.Fatal("v3 must reject reference videos")
+	}
+
+	path, body = build(GenerationRequest{Model: "kling-video-v3-omni", Prompt: "p"})
+	settings = body["settings"].(map[string]any)
+	if path != "/v1/wand/kling/omni-video" || settings["aspect_ratio"] != "16:9" || settings["audio"] != "off" {
+		t.Fatalf("omni text: %s %#v", path, body)
+	}
+
+	path, body = build(GenerationRequest{Model: "kling-video-v3-omni", Prompt: "p", GenerateAudio: true, Videos: []MediaReference{{URL: "https://cdn.example/m.mp4"}}})
+	settings = body["settings"].(map[string]any)
+	if _, exists := settings["aspect_ratio"]; settings["audio"] != "off" || exists {
+		t.Fatalf("omni with video must force audio off: %#v", settings)
+	}
+
+	_, body = build(GenerationRequest{Model: "kling-video-v3-omni", Prompt: "@1 hi", GenerateAudio: true, Audios: []MediaReference{{URL: "kling-voice://111"}}})
+	if body["settings"].(map[string]any)["audio"] != "native" {
+		t.Fatalf("omni with voice must send native: %#v", body)
+	}
+	for _, request := range []GenerationRequest{
+		{Model: "kling-video-v3-omni", Prompt: "p", Audios: []MediaReference{{URL: "kling-voice://1"}}},
+		{Model: "kling-video-v3-omni", Prompt: "p", GenerateAudio: true, Audios: []MediaReference{{URL: "kling-voice://1"}, {URL: "kling-voice://2"}, {URL: "kling-voice://3"}}},
+		{Model: "kling-video-v3-omni", Prompt: "p", GenerateAudio: true, Audios: []MediaReference{{URL: "kling-voice://1"}}, Videos: []MediaReference{{URL: "https://cdn.example/m.mp4"}}},
+	} {
+		if _, err := adapter.BuildCreate(context.Background(), RequestContext{Request: request}); err == nil {
+			t.Fatalf("v3 omni must reject %#v", request)
+		}
+	}
+}
