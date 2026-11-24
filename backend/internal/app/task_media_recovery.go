@@ -351,7 +351,10 @@ func (s *Service) RecoverTaskMedia(userID, id string) (*model.Task, error) {
 	if err != nil {
 		return nil, err
 	}
-	if checkpoint.ManualAttempts >= 3 {
+	// 管理员排查保存问题时不受次数上限限制，间隔限制仍然有效。
+	owner, ownerErr := s.repo.User(userID)
+	isAdmin := ownerErr == nil && owner.Role == model.UserRoleAdmin
+	if checkpoint.ManualAttempts >= 3 && !isAdmin {
 		return nil, BadAuthRequest("已达到重试保存上限，请联系管理员核对渠道结果")
 	}
 	if time.Since(checkpoint.LastManualAt) < time.Minute {
