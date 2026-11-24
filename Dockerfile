@@ -22,10 +22,18 @@ ENV CANVAS_BUILD_TIME=${BUILD_TIME}
 # 生产镜像只构建云端工作台前端；Agent Runtime 在后端 Worker 中运行。
 RUN bun --bun ./node_modules/vite/bin/vite.js build
 
+# 命令行工具：交叉编译各平台单文件程序，由网站在 /cli/ 下提供下载（install.sh / install.ps1）。
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS cli-build
+WORKDIR /src/cli
+COPY cli ./
+ARG BUILD_VERSION
+RUN set -eu; mkdir -p /out;     for target in windows/amd64 windows/arm64 darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do       os=${target%/*}; arch=${target#*/}; ext=""; [ "$os" = windows ] && ext=".exe";       CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=${BUILD_VERSION:-dev}" -o /out/omnimuse-$os-$arch$ext .;     done
+
 # 运行镜像：nginx 托管静态前端，并在 Compose 中把 /api 转发到后端服务。
 FROM nginx:1.27-alpine
 
 COPY --from=web-build /app/web/dist /opt/canvas-release
+COPY --from=cli-build /out /opt/canvas-release/cli
 COPY docker/canvas-web-entrypoint.sh /usr/local/bin/canvas-web-entrypoint
 RUN chmod +x /usr/local/bin/canvas-web-entrypoint
 COPY nginx.conf /etc/nginx/conf.d/default.conf

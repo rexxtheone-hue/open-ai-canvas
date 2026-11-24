@@ -1,1 +1,2 @@
 plugin-packages/*.sh text eol=lf
+web/public/install.sh text eol=lf

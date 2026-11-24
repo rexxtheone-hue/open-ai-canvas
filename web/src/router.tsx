@@ -83,6 +83,7 @@ const StudioSettingsPage = lazy(() => import("@/pages/studio/studio-settings"));
 const StudioCanvasLibraryPage = lazy(() => import("@/pages/studio/studio-canvas-library"));
 const StudioSkillsPage = lazy(() => import("@/pages/studio/studio-skills"));
 const StudioPortraitsPage = lazy(() => import("@/pages/studio/studio-portraits"));
+const OAuthAuthorizePage = lazy(() => import("@/pages/oauth/authorize"));
 const PortraitVerifiedPage = lazy(() => import("@/pages/studio/studio-portraits").then((module) => ({ default: module.PortraitVerifiedPage })));
 const AdminPartnersPage = lazy(() => import("@/pages/admin/partners/partners-page"));
 const AdminAffiliatesPage = lazy(() => import("@/pages/admin/partners/affiliates-page"));
@@ -166,6 +167,7 @@ export const router = createBrowserRouter([
     { path: "/share/canvas/:token", element: fullScreenDeferred(<SharedCanvasPage />), errorElement: <RouteErrorPage /> },
     { path: "/u/:handle", element: fullScreenDeferred(<StudioPublicProfilePage />), errorElement: <RouteErrorPage /> },
     { path: "/portrait-verified", element: fullScreenDeferred(<PortraitVerifiedPage />), errorElement: <RouteErrorPage /> },
+    { path: "/oauth/authorize", element: <RequireAuth>{fullScreenDeferred(<OAuthAuthorizePage />)}</RequireAuth>, errorElement: <RouteErrorPage /> },
     ...(import.meta.env.DEV ? devRoutes() : []),
     {
         element: <AuthenticatedWorkspaceLayout />,
