@@ -564,6 +564,11 @@ export function resolveResourceUrl(storageKey?: string, fallback = "") {
     return id ? resourceFileUrl(id) : fallback;
 }
 
+// thumbnailVariantUrl 返回长边约 480px 的缩略图，用于素材网格；不支持的格式由后端回退原图。
+export function thumbnailVariantUrl(id: string) {
+    return `${resourceFileUrl(id)}?variant=thumbnail`;
+}
+
 // playbackVariantUrl 返回浏览器兼容播放副本 URL（H.265→H.264 转码结果）。
 // 副本就绪前由后端回退原件，调用方再按需降级。
 export function playbackVariantUrl(id: string) {

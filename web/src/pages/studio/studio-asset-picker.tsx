@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AudioLines, Check, Clapperboard, Image as ImageIcon, Loader2, Pause, Play, Trash2, Upload, UserRound, X } from "./studio-icons";
 
 import type { CreationAttachment } from "@/pages/create/creation-assets";
-import { resolveResourceUrl, resourceIdFromStorageKey } from "@/services/api/resources";
+import { resolveResourceUrl, resourceIdFromStorageKey, thumbnailVariantUrl } from "@/services/api/resources";
 import { listStudioWorks, type StudioKind, type StudioWork } from "@/services/api/studio";
 import { deleteStudioUpload, listStudioUploads, type StudioUpload } from "@/services/api/studio-agents";
 import { useStudioAssets } from "./studio-character-picker";
@@ -106,14 +106,14 @@ export function StudioAssetPicker({ open, kinds, initialKind, max = 1, title = "
 
     const items = useMemo(() => {
         if (kind === "character") {
-            return (charactersQuery.data || []).filter((item) => item.imageResourceIds.length).map((character) => ({ key: `c:${character.id}`, label: character.name, preview: studioCharacterCover(character), previewKind: "image" as const, attachment: studioCharacterAttachments(character, 1)[0] }));
+            return (charactersQuery.data || []).filter((item) => item.imageResourceIds.length).map((character) => ({ key: `c:${character.id}`, label: character.name, preview: character.imageResourceIds[0] ? thumbnailVariantUrl(character.imageResourceIds[0]) : studioCharacterCover(character), previewKind: "image" as const, attachment: studioCharacterAttachments(character, 1)[0] }));
         }
         if (source === "uploads") {
             // 上传里也有 AI Canvas「资产」的素材（两个产品共用素材库），名字后标出来源。
             // Studio 上传和 Canvas 资产共用一个素材库，两种都可以在这里删除。
-            return (uploadsQuery.data || []).map((item) => ({ uploadId: item.id, key: `u:${item.id}`, label: item.source === "canvas" ? `${item.name || "Canvas 资产"} · Canvas` : item.name, preview: resolveResourceUrl(`resource:${item.resourceId}`, ""), previewKind: item.kind, attachment: uploadAttachment(item) }));
+            return (uploadsQuery.data || []).map((item) => ({ uploadId: item.id, key: `u:${item.id}`, label: item.source === "canvas" ? `${item.name || "Canvas 资产"} · Canvas` : item.name, preview: item.kind === "image" ? thumbnailVariantUrl(item.resourceId) : resolveResourceUrl(`resource:${item.resourceId}`, ""), previewKind: item.kind, attachment: uploadAttachment(item) }));
         }
-        return (worksQuery.data || []).map((work: StudioWork) => ({ key: `w:${work.id}`, label: work.prompt, preview: studioMediaSrc(work.media[0]), previewKind: work.media[0].kind, attachment: studioAttachmentFromMedia(work, work.media[0]) }));
+        return (worksQuery.data || []).map((work: StudioWork) => ({ key: `w:${work.id}`, label: work.prompt, preview: work.media[0].kind === "image" && resourceIdFromStorageKey(work.media[0].storageKey) ? thumbnailVariantUrl(resourceIdFromStorageKey(work.media[0].storageKey)!) : studioMediaSrc(work.media[0]), previewKind: work.media[0].kind, attachment: studioAttachmentFromMedia(work, work.media[0]) }));
     }, [charactersQuery.data, kind, source, uploadsQuery.data, worksQuery.data]);
 
     const loading = kind === "character" ? charactersQuery.isLoading : source === "uploads" ? uploadsQuery.isLoading : worksQuery.isLoading;

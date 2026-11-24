@@ -104,6 +104,11 @@ func (s *Service) prepareResourceDelivery(userID string, resource *model.Resourc
 		return nil, err
 	}
 	delivery := &ResourceDelivery{Resource: resource, Access: access}
+	if options.Variant == assets.VariantThumbnail && !options.DescribeOnly {
+		if stream := s.openResourceThumbnail(userID, resource); stream != nil {
+			return &ResourceDelivery{Resource: stream.Resource, Access: thumbnailResourceAccess(resource, access), Stream: stream}, nil
+		}
+	}
 	if options.DescribeOnly || access.Delivery == assets.DeliveryCDN || access.Delivery == assets.DeliveryOrigin {
 		return delivery, nil
 	}
