@@ -355,7 +355,7 @@
   "Kling v3 Omni 最多使用 2 个音色。": "Kling v3 Omni supports at most 2 voices.",
   "Kling v3 Omni：文生视频、首尾帧、全能参考（最多 7 张图、1 段参考视频、2 个音色），可生成原生音频，720p / 1080p / 4K，3–15 秒。使用音色需打开生成音频，且不能同时带参考视频。": "Kling v3 Omni: text-to-video, first/last frame and omni reference (up to 7 images, 1 reference video, 2 voices), with optional native audio, 720p / 1080p / 4K, 3–15 seconds. Voices need audio generation turned on and cannot be combined with a reference video.",
   "Kling v3 Turbo 只支持 1 张首帧图片。": "Kling v3 Turbo supports only 1 first-frame image.",
-  "Kling v3 Turbo：v3 快速版，文生视频、首帧图生视频，720p / 1080p，3–15 秒。": "Kling v3 Turbo: faster version of v3, text-to-video and first-frame image-to-video, 720p / 1080p, 3–15 seconds.",
+  "Kling v3 Turbo：v3 快速版，文生视频、首帧图生视频，自带音频，720p / 1080p，3–15 秒。": "Kling v3 Turbo: faster version of v3, text-to-video and first-frame image-to-video, with built-in audio, 720p / 1080p, 3–15 seconds.",
   "Kling v3 最多 2 张图片（首帧和尾帧）。": "Kling v3 accepts at most 2 images (first frame and last frame).",
   "Kling v3：文生视频、首尾帧，可生成原生音频，720p / 1080p / 4K，3–15 秒。": "Kling v3: text-to-video and first/last frame, with optional native audio, 720p / 1080p / 4K, 3–15 seconds.",
   "Kling v4 Flash：文生视频、首尾帧、全能参考（最多 10 张图、5 段参考视频、3 段音频作为音色），720p，3–30 秒，支持 21:9。带参考视频时，参考视频合计不能超过生成时长。": "Kling v4 Flash: text-to-video, first and last frames, and omni reference (up to 10 images, 5 reference videos, and 3 audio clips used as voices). 720p, 3–30 seconds, 21:9 supported. Reference videos in total cannot be longer than the output.",
