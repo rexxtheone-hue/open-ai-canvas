@@ -8,8 +8,8 @@ import { translateKnownText, translateServerText } from "@/lib/i18n/runtime";
 
 /** 内置品牌：OmniMuse 标志、浏览器图标和分享预览图，放在 public/brand。 */
 export const BUILTIN_LOGO_URL = "/brand/omnimuse-mark.png";
-const BUILTIN_FAVICON_URL = "/brand/favicon.ico";
-const BUILTIN_TOUCH_ICON_URL = "/brand/apple-touch-icon.png";
+const BUILTIN_FAVICON_URL = "/brand/favicon.ico?v=2";
+const BUILTIN_TOUCH_ICON_URL = "/brand/apple-touch-icon.png?v=2";
 const BUILTIN_SOCIAL_IMAGE_URL = "/brand/og-image.jpg";
 
 export const DEFAULT_PUBLIC_APPEARANCE: PublicAppearance = {

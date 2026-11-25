@@ -12,8 +12,8 @@ import (
 
 func webAppManifest(brandName, description string, logoConfigured bool, logoURL string, isPlatform bool) gin.H {
 	icons := []gin.H{
-		{"src": "/brand/omnimuse-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
-		{"src": "/brand/omnimuse-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+		{"src": "/brand/omnimuse-icon-192.png?v=2", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+		{"src": "/brand/omnimuse-icon-512.png?v=2", "sizes": "512x512", "type": "image/png", "purpose": "any"},
 	}
 	// 代理商网站不能用平台内置图标；没有自己的 Logo 时不声明图标，由浏览器用网页截图。
 	if !isPlatform {
