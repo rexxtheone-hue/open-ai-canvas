@@ -35,6 +35,25 @@ var studioProfilePreviewPage = template.Must(template.New("preview").Parse(`<!do
 <meta name="twitter:description" content="{{.Description}}">
 </head><body><h1>{{.Title}}</h1><p>{{.Description}}</p><a href="{{.URL}}">{{.URL}}</a></body></html>`))
 
+// sitePreviewPage 是官网首页给分享链接爬虫看的页面：WhatsApp、Facebook 等不执行 JS，只读这里的标题、描述和预览图。
+var sitePreviewPage = template.Must(template.New("site-preview").Parse(`<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>{{.Title}}</title>
+<meta name="description" content="{{.Description}}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{.Brand}}">
+<meta property="og:title" content="{{.Title}}">
+<meta property="og:description" content="{{.Description}}">
+<meta property="og:url" content="{{.URL}}">
+{{if .Image}}<meta property="og:image" content="{{.Image}}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="{{.Image}}">{{end}}
+<meta name="twitter:card" content="{{if .Image}}summary_large_image{{else}}summary{{end}}">
+<meta name="twitter:title" content="{{.Title}}">
+<meta name="twitter:description" content="{{.Description}}">
+</head><body><h1>{{.Title}}</h1><p>{{.Description}}</p><a href="{{.URL}}">{{.URL}}</a></body></html>`))
+
 // requestOrigin 是访问者看到的站点地址（经过反向代理时取转发头）。
 func requestOrigin(c *gin.Context) string {
 	proto := strings.TrimSpace(strings.Split(c.GetHeader("X-Forwarded-Proto"), ",")[0])
@@ -143,6 +162,32 @@ func RegisterStudioCommunityRoutes(r *gin.RouterGroup, svc *service.Service) {
 		ok(c, page)
 	})
 	// 分享链接预览：nginx 把 WhatsApp、Facebook 等爬虫对 /u/:handle 的请求转到这里，返回带 Open Graph 标签的页面。
+	r.GET("/public/site-preview", func(c *gin.Context) {
+		appearance, err := svc.PublicAppearanceFor(c.Request.Context())
+		if err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		origin := requestOrigin(c)
+		brand := strings.TrimSpace(appearance.BrandName)
+		page := map[string]string{"Brand": brand, "URL": origin + "/"}
+		if appearance.IsPlatform {
+			page["Title"] = brand + " · AI video and image studio"
+			page["Description"] = "Make product ads, UGC presenter videos, property tours and short dramas from one sentence. Seedance, Veo, Kling and Nano Banana in one account, priced in MYR."
+			page["Image"] = origin + "/brand/og-image.jpg?v=3"
+		} else {
+			// 代理商网站只用自己的品牌名，不出现平台的卖点和预览图。
+			page["Title"] = brand
+			page["Description"] = "AI video and image creation"
+		}
+		var body bytes.Buffer
+		if err := sitePreviewPage.Execute(&body, page); err != nil {
+			fail(c, http.StatusInternalServerError, err)
+			return
+		}
+		c.Header("Cache-Control", "private, no-cache")
+		c.Data(http.StatusOK, "text/html; charset=utf-8", body.Bytes())
+	})
 	r.GET("/public/studio/profile-preview/:handle", func(c *gin.Context) {
 		preview, err := svc.StudioProfilePreviewByHandle(c.Request.Context(), c.Param("handle"))
 		if err != nil {
