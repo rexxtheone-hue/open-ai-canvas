@@ -513,8 +513,8 @@ export default function LandingPage() {
     const signupLabel = bonus > 0 ? `免费注册，送 ${bonus} 积分` : "免费注册";
     const heroClips = HERO_REEL.map((clip) => ({ src: covers[clip.slot] || covers[clip.fallback] || "", label: clip.label })).filter((clip) => clip.src);
     const siteGallery = GALLERY_SLOTS.flatMap(({ slot, ratio }) => (covers[slot] ? [{ src: covers[slot], ratio }] : []));
-    // 官网作品墙凑满 24 格：后台设置的排前面，不够的用平台作品图补上。
-    const gallery = [...siteGallery, ...GALLERY_IMAGES.slice(0, Math.max(0, 24 - siteGallery.length))];
+    // 后台设置了官网作品墙就只用这些（登录页作品墙的图取自同一批素材，混用会重复）；一张都没设置时才用内置作品图。
+    const gallery = siteGallery.length ? siteGallery : GALLERY_IMAGES;
 
     useEffect(() => {
         document.title = `${brandName} · AI 视频和图片创作`;

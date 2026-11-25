@@ -113,11 +113,9 @@
     font-size: 18px;
     font-weight: 600;
 }
-/* 官网顶栏的标志统一成纯白，和白色字标一致。 */
 .landing-logo {
     width: 28px;
     height: 28px;
-    filter: brightness(0) invert(1);
 }
 .landing-nav {
     display: flex;

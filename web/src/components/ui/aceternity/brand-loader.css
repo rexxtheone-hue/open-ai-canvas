@@ -24,18 +24,16 @@
 .brand-loader-mark {
     position: relative;
     display: grid;
-    width: 64px;
-    height: 64px;
+    width: 96px;
+    height: 96px;
     place-items: center;
 }
 
-/* 上传的品牌标志一律显示成纯白 */
 .brand-loader-mark img,
 .brand-loader-mark .brand-loader-mark-image {
-    width: 64px;
-    height: 64px;
+    width: 96px;
+    height: 96px;
     object-fit: contain;
-    filter: brightness(0) invert(1);
 }
 
 .brand-loader-timecode {
@@ -134,8 +132,8 @@
     .brand-loader-mark,
     .brand-loader-mark img,
     .brand-loader-mark .brand-loader-mark-image {
-        width: 56px;
-        height: 56px;
+        width: 80px;
+        height: 80px;
     }
     .brand-loader-name {
         font-size: 20px;
