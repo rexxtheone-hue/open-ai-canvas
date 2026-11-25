@@ -103,21 +103,23 @@ const STEP_KIND: Record<GenerateStep, StudioKind> = { assets: "image", boards: "
 
 const BOARD_IMAGE_MODELS = [/gpt image 2\.5/i, /nano banana/i];
 const BOARD_VIDEO_MODELS = [/^seedance 2\.0$/i, /seedance 2\.5/i, /seedance/i];
+// 短剧广告要角色开口说话、对嘴型，用 Seedance 2.5 正式版。
+const DRAMA_VIDEO_MODELS = [/^seedance 2\.5$/i, /seedance 2\.5/i, /seedance/i];
 
 /** 分镜板用擅长排版和文字的图片模型；整段视频必须支持全能参考（分镜板作参考图，不是首帧）。 */
-function directorBoardModel(config: AiConfig, kind: "image" | "video") {
+function directorBoardModel(config: AiConfig, kind: "image" | "video", dialogue = false) {
     const options = selectableModelsByCapability(config, kind).filter((model) => kind === "image" || !videoModeUnavailableReason(modelCapabilityConfigFor(config, model).video, "reference_to_video"));
-    for (const pattern of kind === "image" ? BOARD_IMAGE_MODELS : BOARD_VIDEO_MODELS) {
+    for (const pattern of kind === "image" ? BOARD_IMAGE_MODELS : dialogue ? DRAMA_VIDEO_MODELS : BOARD_VIDEO_MODELS) {
         const hit = options.find((model) => pattern.test(modelDisplayName(config, model) || model));
         if (hit) return hit;
     }
     return options[0] || "";
 }
 
-type BoardToolRequest = { prompt: string; ratio: string; seconds?: number; attachments?: Parameters<typeof studioAgentToolState>[1]["attachments"]; brand?: Parameters<typeof studioAgentToolState>[1]["brand"] };
+type BoardToolRequest = { prompt: string; ratio: string; seconds?: number; attachments?: Parameters<typeof studioAgentToolState>[1]["attachments"]; brand?: Parameters<typeof studioAgentToolState>[1]["brand"]; dialogue?: boolean };
 
 function boardToolState(config: AiConfig, kind: "image" | "video", request: BoardToolRequest) {
-    const model = directorBoardModel(config, kind);
+    const model = directorBoardModel(config, kind, request.dialogue);
     const result = studioAgentToolState(config, { ...request, kind, model: model || undefined, tool: "director" });
     if (kind === "video") result.state = { ...result.state, video: { ...result.state.video, mode: "reference_to_video" } };
     return result;
@@ -339,7 +341,7 @@ export default function StudioDirectorWorkspace() {
                     ? [{ id: `board:${segment.anchor.id}`, name: "分镜板", type: board.media[0].mimeType || "image/png", url: studioMediaSrc(board.media[0]), dataUrl: studioMediaSrc(board.media[0]), storageKey: board.media[0].storageKey, previewUrl: studioMediaSrc(board.media[0]), width: board.media[0].width, height: board.media[0].height }]
                     : [];
             const prompt = step === "boards" ? directorBoardPrompt(segment, characters, { style, ratio: current.ratio }) : directorBoardVideoPrompt(segment, { style, ratio: current.ratio, dialogue: (current.brief as { genre?: string } | undefined)?.genre === "drama-ad" });
-            const { state, model } = boardToolState(config, kind, { prompt, ratio: step === "boards" ? "16:9" : current.ratio, seconds: segment.seconds, attachments, brand });
+            const { state, model } = boardToolState(config, kind, { prompt, ratio: step === "boards" ? "16:9" : current.ratio, seconds: segment.seconds, attachments, brand, dialogue: (current.brief as { genre?: string } | undefined)?.genre === "drama-ad" });
             const reason = studioBlockReason(config, state, model, { loggedIn: Boolean(user), creditsEnabled: false, availableCredits: null, cost: null });
             if (reason) {
                 error ||= reason;
