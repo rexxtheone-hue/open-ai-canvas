@@ -13,7 +13,7 @@ import MinimaxLogo from "@lobehub/icons/es/Minimax/components/Mono";
 import OpenAILogo from "@lobehub/icons/es/OpenAI/components/Mono";
 import ViduLogo from "@lobehub/icons/es/Vidu/components/Mono";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Check, Copy, Languages, Menu, SquareTerminal, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, Hand, ImageIcon, Languages, Menu, MousePointer2, Plus, SquareTerminal, Type, Video, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
 import { Link, useNavigate } from "react-router";
 
@@ -299,6 +299,74 @@ function CopyLine({ label, value }: { label: string; value: string }) {
     );
 }
 
+/** 画布示意里的节点：位置按画布宽高的百分比，连线从左边节点的右侧连到右边节点的左侧。 */
+const CANVAS_NODES = [
+    { id: "prompt", kind: "text", label: "提示词", slots: [], x: 5, y: 12, w: 22, ratio: "" },
+    { id: "source", kind: "image", label: "参考图 · 猫山王", slots: ["site-gallery-11"], x: 9, y: 50, w: 14, ratio: "3 / 4" },
+    { id: "cake", kind: "video", label: "视频 · Seedance 2.5", slots: ["site-gallery-1"], x: 48, y: 8, w: 12, ratio: "9 / 16" },
+    { id: "shake", kind: "video", label: "视频 · Seedance 2.5", slots: ["site-imagetool-create-image", "site-gallery-2"], x: 70, y: 30, w: 20, ratio: "1 / 1" },
+] as const;
+const CANVAS_EDGES = [
+    ["prompt", "cake"],
+    ["prompt", "shake"],
+    ["source", "cake"],
+    ["source", "shake"],
+] as const;
+const CANVAS_PROMPT = "用这颗猫山王做两条广告：一条榴莲千层切面特写，一条榴莲奶昔产品大片。";
+
+/** 无限画布：参考图连到多个生成结果，示意多步骤串联和版本对比。 */
+function CanvasSection({ index, covers }: { index: string; covers: Record<string, string> }) {
+    const node = (id: string) => CANVAS_NODES.find((item) => item.id === id)!;
+    return (
+        <section id="canvas" className="landing-section">
+            <div className="landing-wrap">
+                <SectionHead index={index} title="一张画布，串起整套素材" text="在无限画布上串联多个步骤：分镜、批量出图、图生视频、对比不同版本。作品库和 Studio 共用。" action={{ to: register("/studio/canvas"), label: "打开无限画布" }} />
+                <div className="landing-canvas" aria-hidden>
+                    <svg className="landing-canvas-edges" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        {CANVAS_EDGES.map(([from, to]) => {
+                            const a = node(from);
+                            const b = node(to);
+                            const x1 = a.x + a.w;
+                            const y1 = a.y + (a.kind === "text" ? 12 : 22);
+                            const x2 = b.x;
+                            const y2 = b.y + (b.kind === "video" && b.ratio === "9 / 16" ? 30 : 24);
+                            const mid = (x1 + x2) / 2;
+                            return <path key={`${from}-${to}`} d={`M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`} vectorEffect="non-scaling-stroke" />;
+                        })}
+                    </svg>
+                    {CANVAS_NODES.map((item) => {
+                        const Icon = item.kind === "video" ? Video : item.kind === "image" ? ImageIcon : Type;
+                        const src = item.slots.map((slot) => covers[slot]).find(Boolean);
+                        return (
+                            <div key={item.id} className="landing-canvas-node" style={{ left: `${item.x}%`, top: `${item.y}%`, width: `${item.w}%` }}>
+                                <span className="landing-meta">
+                                    <Icon />
+                                    {item.label}
+                                </span>
+                                {item.kind === "text" ? (
+                                    <p className="landing-canvas-text">{CANVAS_PROMPT}</p>
+                                ) : (
+                                    <div className="landing-canvas-media" style={{ aspectRatio: item.ratio }}>
+                                        <LandingMedia src={src} label="" />
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                    <div className="landing-canvas-toolbar">
+                        <MousePointer2 />
+                        <Hand />
+                        <span />
+                        <Plus />
+                        <ImageIcon />
+                        <Video />
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+}
+
 /** 在 Claude、ChatGPT 里直接出片：MCP 地址、命令行安装和对话、终端示意。 */
 function AgentsSection({ index, brandName, origin, covers }: { index: string; brandName: string; origin: string; covers: Record<string, string> }) {
     return (
@@ -458,6 +526,7 @@ export default function LandingPage() {
         { href: "#cases", label: "应用场景" },
         { href: "#video", label: "视频" },
         { href: "#image", label: "图片" },
+        { href: "#canvas", label: "画布" },
         { href: "#agents", label: "MCP / CLI" },
         { href: "#models", label: "模型" },
         { href: "#camera", label: "运镜" },
@@ -593,12 +662,14 @@ export default function LandingPage() {
                             </div>
                         </section>
 
-                        <AgentsSection index="04 · MCP / CLI" brandName={brandName} origin={origin} covers={covers} />
+                        <CanvasSection index="04 · 画布" covers={covers} />
+
+                        <AgentsSection index="05 · MCP / CLI" brandName={brandName} origin={origin} covers={covers} />
 
                         {COMPARE_MODELS.some((model) => covers[model.slot]) ? (
                             <section id="models" className="landing-section">
                                 <div className="landing-wrap">
-                                    <SectionHead index="05 · 模型" title="同一句话，四个模型" text="不同模型各有所长。一个账号全部能用，挑最合适的那个，不用另外订阅。" action={{ to: register("/studio/create-video"), label: "自己试一句" }} />
+                                    <SectionHead index="06 · 模型" title="同一句话，四个模型" text="不同模型各有所长。一个账号全部能用，挑最合适的那个，不用另外订阅。" action={{ to: register("/studio/create-video"), label: "自己试一句" }} />
                                     <p className="landing-compare-prompt">
                                         <span className="landing-meta">提示词</span>
                                         {COMPARE_PROMPT}
@@ -617,7 +688,7 @@ export default function LandingPage() {
 
                         <section id="camera" className="landing-section is-flush">
                             <div className="landing-wrap">
-                                <SectionHead index="06 · 运镜" title="电影级运镜，点一下就有" text="希区柯克变焦、环绕、FPV 穿越，不用懂摄影术语，选好镜头就能拍。" />
+                                <SectionHead index="07 · 运镜" title="电影级运镜，点一下就有" text="希区柯克变焦、环绕、FPV 穿越，不用懂摄影术语，选好镜头就能拍。" />
                             </div>
                             <div className="landing-wrap landing-strip-frame">
                                 <div ref={stripRef} className="landing-strip" tabIndex={0} aria-label="运镜效果">
@@ -634,7 +705,7 @@ export default function LandingPage() {
 
                         <section id="gallery" className="landing-section">
                             <div className="landing-wrap">
-                                <SectionHead index="07 · 作品" title="都是用 OmniMuse 做的" text="没有一张是拍的。" action={{ to: register("/studio/inspire"), label: "去灵感社区" }} />
+                                <SectionHead index="08 · 作品" title="都是用 OmniMuse 做的" text="没有一张是拍的。" action={{ to: register("/studio/inspire"), label: "去灵感社区" }} />
                                 <div className="landing-masonry">
                                     {gallery.map((item, index) => (
                                         <figure key={item.src} className="landing-masonry-item" style={{ aspectRatio: item.ratio }}>

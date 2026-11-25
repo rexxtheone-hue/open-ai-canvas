@@ -722,6 +722,89 @@
     color: #e4e4e7;
 }
 
+/* 无限画布示意：点阵底、节点和连线，底部工具条 */
+.landing-canvas {
+    position: relative;
+    aspect-ratio: 16 / 8;
+    overflow: hidden;
+    border: 1px solid var(--l-line);
+    border-radius: 20px;
+    background-color: #0b0c0c;
+    background-image: radial-gradient(rgba(214, 225, 255, 0.12) 1px, transparent 1px);
+    background-size: 24px 24px;
+}
+.landing-canvas-edges {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+.landing-canvas-edges path {
+    fill: none;
+    stroke: rgba(214, 225, 255, 0.32);
+    stroke-width: 1.5;
+}
+.landing-canvas-node {
+    position: absolute;
+    display: grid;
+    gap: 8px;
+}
+.landing-canvas-node .landing-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+    color: var(--l-soft);
+    white-space: nowrap;
+}
+.landing-canvas-node .landing-meta svg {
+    width: 14px;
+    height: 14px;
+}
+.landing .landing-canvas-text {
+    padding: 12px 14px;
+    border: 1px solid var(--l-line-strong);
+    border-radius: 12px;
+    background: var(--l-panel);
+    color: var(--l-fg);
+    font-size: 14px;
+    line-height: 1.6;
+}
+.landing-canvas-media {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--l-line-strong);
+    border-radius: 12px;
+    background: var(--l-panel);
+}
+.landing-canvas-media .landing-media {
+    position: absolute;
+    inset: 0;
+}
+.landing-canvas-toolbar {
+    position: absolute;
+    left: 50%;
+    bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    border: 1px solid var(--l-line-strong);
+    border-radius: 12px;
+    background: rgba(18, 19, 20, 0.92);
+    color: var(--l-soft);
+    transform: translateX(-50%);
+}
+.landing-canvas-toolbar svg {
+    width: 18px;
+    height: 18px;
+}
+.landing-canvas-toolbar span {
+    width: 1px;
+    height: 18px;
+    background: var(--l-line-strong);
+}
+
 /* AI 助手：左边说明和复制框，右边对话和命令行示意 */
 .landing-agents {
     display: grid;
@@ -1075,6 +1158,15 @@
     .landing-agents {
         grid-template-columns: 1fr;
         gap: 40px;
+    }
+    .landing-canvas {
+        aspect-ratio: 4 / 5;
+    }
+    .landing-canvas-node .landing-meta {
+        display: none;
+    }
+    .landing-canvas-toolbar {
+        display: none;
     }
     .landing-masonry {
         columns: 2;
