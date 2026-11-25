@@ -307,6 +307,12 @@ func (s *Service) tryChannelRouteFallback(task *model.Task, cause error) (bool, 
 	if len([]rune(reason)) > 300 {
 		reason = string([]rune(reason)[:300])
 	}
-	_ = s.log(task.UserID, task.ID, "warn", "主线路生成失败，已改用备用线路重新生成（不会重复扣费）", reason)
+	// 切换只记在管理员可见的接口日志里，顾客的任务日志不出现失败字样。
+	_ = s.LogAPICall(model.ApiCallLog{
+		UserID: task.UserID, TaskID: task.ID, BillingOrderID: task.BillingOrderID, ChannelID: target.ChannelID,
+		Source: "backend-task", Capability: "video", Model: task.Model, RequestKind: "route_switch", Method: "INTERNAL",
+		Path: "task/route-switch", Status: model.ApiCallStatusFailed, ErrorCode: "route_switched",
+		Error: "主线路失败，已切到备用线路 " + target.ID + "（不重复扣费）：" + reason,
+	})
 	return true, nil
 }

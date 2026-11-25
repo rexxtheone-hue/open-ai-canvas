@@ -429,7 +429,8 @@ func (r *Repository) SwitchTaskChannelRoute(taskID string, owner string, inputJS
 			Updates(map[string]any{
 				// 切线路是新一轮提交，执行次数和用户重试一样从零算起，否则会被当成缺少提交记录的旧任务拦下。
 				"input_json": inputJSON, "route_run": gorm.Expr("route_run + ?", 1), "attempts": 0, "channel_model_id": channelModelID,
-				"provider_request_id": "", "poll_stage": "", "stage": "主线路失败，正在改用备用线路", "progress": 0,
+				// 顾客看不到切换：状态照常显示创作中，进度不归零。
+				"provider_request_id": "", "poll_stage": "", "stage": "作品创作中",
 				"error": "", "completed_at": nil, "next_poll_at": now.Add(3 * time.Second),
 				"lease_owner": "", "lease_expires_at": nil, "updated_at": now,
 			})

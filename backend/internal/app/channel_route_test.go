@@ -114,6 +114,9 @@ func TestChannelRouteSelectionExecutionAndFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if stored.Stage != "作品创作中" || stored.Error != "" {
+		t.Fatalf("customers must not see the switch: stage=%q error=%q", stored.Stage, stored.Error)
+	}
 	// worker 领取时 attempts 加一；createDirectTaskAttempt 只拦 attempts > 1 的旧任务。
 	if stored.Attempts != 0 {
 		t.Fatalf("attempts = %d, want 0 so the backup run can submit", stored.Attempts)
