@@ -669,6 +669,7 @@ export default function LandingPage() {
                 <div className="landing-wrap landing-footer-inner">
                     <span>
                         © {new Date().getFullYear()} {brandName}
+                        {isPlatform ? <span className="landing-footer-origin"> · 在马来西亚用心打造</span> : null}
                     </span>
                     <nav aria-label="页脚导航">
                         <Link to="/studio/pricing">价格</Link>
