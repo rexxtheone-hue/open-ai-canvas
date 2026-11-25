@@ -512,7 +512,10 @@ func (s *Service) openAPITaskRequest(ctx context.Context, userID string, req Ope
 			}
 			config["videoSeconds"] = strconv.Itoa(duration)
 		}
-		if req.GenerateAudio != nil {
+		// 不支持音频开关的模型一律按关闭提交；否则会套用能力配置里的默认值 true 被判为不支持。
+		if !m.GenerateAudio {
+			config["videoGenerateAudio"] = "false"
+		} else if req.GenerateAudio != nil {
 			config["videoGenerateAudio"] = strconv.FormatBool(*req.GenerateAudio)
 		}
 		operation = strings.TrimSpace(req.Operation)
