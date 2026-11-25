@@ -6,12 +6,18 @@ import { StudioToolThumb } from "@/pages/studio/studio-tool-thumb";
 import { STUDIO_QUICK_STARTS } from "@/pages/studio/studio-quickstarts";
 import { STUDIO_TOOLS } from "@/pages/studio/studio-tools";
 import { CAMERA_MOVES, cameraMoveCoverId } from "@/pages/studio/studio-prompt-tools";
-import { Camera } from "@/pages/studio/studio-icons";
+import { Camera, Globe } from "@/pages/studio/studio-icons";
 import { useStudioToolCovers } from "@/pages/studio/use-studio-tool-meta";
 import { resourceIdFromStorageKey } from "@/services/api/resources";
 import { setAdminStudioToolCover } from "@/services/api/studio";
 import { uploadMediaFile } from "@/services/file-storage";
 import { uploadImage } from "@/services/image-storage";
+
+const SITE_SLOTS = [
+    ...Array.from({ length: 6 }, (_, index) => ({ id: `site-hero-${index + 1}`, label: `首屏轮播 ${index + 1}` })),
+    ...Array.from({ length: 12 }, (_, index) => ({ id: `site-gallery-${index + 1}`, label: `作品墙 ${index + 1}` })),
+    { id: "site-final", label: "收尾画面" },
+];
 
 /**
  * 工具封面：在工具列表、网格和侧栏固定区显示，建议 1:1。快速开始封面：首页和 AI 导演的行业海报卡片，建议 4:3 竖构图偏上。
@@ -48,6 +54,8 @@ export function StudioToolCoversPanel() {
         ...STUDIO_QUICK_STARTS.map((item) => ({ id: item.coverId, label: `快速开始 · ${item.label}`, tool: { ...STUDIO_TOOLS[0], id: item.coverId, label: item.label, icon: item.icon, gradient: item.gradient } })),
         ...STUDIO_TOOLS.map((tool) => ({ id: tool.id, label: tool.label, tool })),
         ...CAMERA_MOVES.map((move) => ({ id: cameraMoveCoverId(move.value), label: `运镜 · ${move.label}`, tool: { ...STUDIO_TOOLS[0], id: cameraMoveCoverId(move.value), label: move.label, icon: Camera, gradient: ["#1f2937", "#4b5563"] as [string, string] } })),
+        // 官网首页的轮播、作品墙和收尾画面；没设置时首页退回工具封面和平台作品图。
+        ...SITE_SLOTS.map((slot) => ({ id: slot.id, label: `官网 · ${slot.label}`, tool: { ...STUDIO_TOOLS[0], id: slot.id, label: slot.label, icon: Globe, gradient: ["#1f2937", "#4b5563"] as [string, string] } })),
     ];
     return (
         <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
