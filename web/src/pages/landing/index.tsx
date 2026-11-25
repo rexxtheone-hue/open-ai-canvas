@@ -14,7 +14,7 @@ import OpenAILogo from "@lobehub/icons/es/OpenAI/components/Mono";
 import ViduLogo from "@lobehub/icons/es/Vidu/components/Mono";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Check, Copy, Languages, Menu, SquareTerminal, X } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
 import { Link, useNavigate } from "react-router";
 
 import { BrandLogo } from "@/components/brand/brand-logo";
@@ -364,7 +364,7 @@ function AgentsSection({ index, brandName, origin, covers }: { index: string; br
     );
 }
 
-function SectionHead({ index, title, text, action, controls }: { index: string; title: string; text: string; action?: { to: string; label: string }; controls?: ReactNode }) {
+function SectionHead({ index, title, text, action }: { index: string; title: string; text: string; action?: { to: string; label: string } }) {
     return (
         <div className="landing-head">
             <div>
@@ -378,12 +378,11 @@ function SectionHead({ index, title, text, action, controls }: { index: string; 
                     <ArrowRight aria-hidden />
                 </Link>
             ) : null}
-            {controls}
         </div>
     );
 }
 
-/** 横向滚动条的左右箭头：不显示滚动条，每次翻大约一屏的卡片；到头时对应箭头变灰。 */
+/** 横向滚动条两侧的半透明大箭头：压在卡片上，每次翻大约一屏；滚到头的那一侧隐藏。 */
 function StripControls({ target }: { target: RefObject<HTMLDivElement | null> }) {
     const [edges, setEdges] = useState({ start: true, end: false });
     useEffect(() => {
@@ -403,14 +402,14 @@ function StripControls({ target }: { target: RefObject<HTMLDivElement | null> })
         if (element) element.scrollBy({ left: direction * Math.max(element.clientWidth * 0.8, 240), behavior: prefersReducedMotion() ? "auto" : "smooth" });
     };
     return (
-        <div className="landing-strip-controls">
-            <button type="button" aria-label="上一组" disabled={edges.start} onClick={() => page(-1)}>
+        <>
+            <button type="button" className="landing-strip-arrow is-prev" aria-label="上一组" hidden={edges.start} onClick={() => page(-1)}>
                 <ArrowLeft aria-hidden />
             </button>
-            <button type="button" aria-label="下一组" disabled={edges.end} onClick={() => page(1)}>
+            <button type="button" className="landing-strip-arrow is-next" aria-label="下一组" hidden={edges.end} onClick={() => page(1)}>
                 <ArrowRight aria-hidden />
             </button>
-        </div>
+        </>
     );
 }
 
@@ -618,15 +617,18 @@ export default function LandingPage() {
 
                         <section id="camera" className="landing-section is-flush">
                             <div className="landing-wrap">
-                                <SectionHead index="06 · 运镜" title="电影级运镜，点一下就有" text="希区柯克变焦、环绕、FPV 穿越，不用懂摄影术语，选好镜头就能拍。" controls={<StripControls target={stripRef} />} />
+                                <SectionHead index="06 · 运镜" title="电影级运镜，点一下就有" text="希区柯克变焦、环绕、FPV 穿越，不用懂摄影术语，选好镜头就能拍。" />
                             </div>
-                            <div ref={stripRef} className="landing-strip" tabIndex={0} aria-label="运镜效果">
-                                {CAMERA_MOVES.map((move) => (
-                                    <Link key={move.cover} className="landing-strip-card" to={register("/studio/create-video")}>
-                                        <LandingMedia src={covers[move.cover]} label={move.title} />
-                                        <span className="landing-meta">{move.title}</span>
-                                    </Link>
-                                ))}
+                            <div className="landing-strip-frame">
+                                <div ref={stripRef} className="landing-strip" tabIndex={0} aria-label="运镜效果">
+                                    {CAMERA_MOVES.map((move) => (
+                                        <Link key={move.cover} className="landing-strip-card" to={register("/studio/create-video")}>
+                                            <LandingMedia src={covers[move.cover]} label={move.title} />
+                                            <span className="landing-meta">{move.title}</span>
+                                        </Link>
+                                    ))}
+                                </div>
+                                <StripControls target={stripRef} />
                             </div>
                         </section>
 

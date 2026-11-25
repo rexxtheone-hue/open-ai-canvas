@@ -567,39 +567,56 @@
 .landing-strip::-webkit-scrollbar {
     display: none;
 }
-.landing-strip-controls {
-    display: flex;
-    flex: none;
-    gap: 8px;
+.landing-strip-frame {
+    position: relative;
 }
-.landing-strip-controls button {
+/* 半透明大箭头：压在卡片两侧，垂直居中 */
+.landing-strip-arrow {
+    position: absolute;
+    top: 50%;
+    z-index: 2;
     display: grid;
     place-items: center;
-    width: 40px;
-    height: 40px;
-    border: 1px solid var(--l-line-strong);
-    border-radius: 10px;
-    background: transparent;
-    color: var(--l-fg);
+    width: 56px;
+    height: 56px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 50%;
+    background: rgba(9, 10, 10, 0.5);
+    color: #ffffff;
+    backdrop-filter: blur(8px);
     cursor: pointer;
+    transform: translateY(-50%);
     transition:
         background-color 0.15s ease-out,
-        opacity 0.15s ease-out;
+        transform 0.15s ease-out;
 }
-.landing-strip-controls button:hover:not(:disabled) {
-    background: rgba(214, 225, 255, 0.08);
+.landing-strip-arrow.is-prev {
+    left: max(16px, calc((100% - 1440px) / 2 + 16px));
 }
-.landing-strip-controls button:disabled {
-    opacity: 0.32;
-    cursor: default;
+.landing-strip-arrow.is-next {
+    right: max(16px, calc((100% - 1440px) / 2 + 16px));
 }
-.landing-strip-controls button:focus-visible {
+.landing-strip-arrow[hidden] {
+    display: none;
+}
+.landing-strip-arrow:hover {
+    background: rgba(9, 10, 10, 0.72);
+}
+.landing-strip-arrow:active {
+    transform: translateY(-50%) scale(0.94);
+}
+.landing-strip-arrow:focus-visible {
     outline: 2px solid var(--l-accent);
     outline-offset: 3px;
 }
-.landing-strip-controls svg {
-    width: 18px;
-    height: 18px;
+.landing-strip-arrow svg {
+    width: 24px;
+    height: 24px;
+}
+@media (hover: none) {
+    .landing-strip-arrow {
+        display: none;
+    }
 }
 .landing-strip-card {
     position: relative;
