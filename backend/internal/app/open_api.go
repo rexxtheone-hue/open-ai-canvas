@@ -78,6 +78,7 @@ type OpenAPIOutput struct {
 	ResourceID string `json:"-"`
 	Type       string `json:"type"`
 	URL        string `json:"url"`
+	PreviewURL string `json:"previewUrl,omitempty"`
 	MimeType   string `json:"mimeType,omitempty"`
 	Width      int    `json:"width,omitempty"`
 	Height     int    `json:"height,omitempty"`
@@ -715,7 +716,11 @@ func (s *Service) openAPIGeneration(ctx context.Context, userID string, task *mo
 		if kind == "" {
 			kind = resource.Kind
 		}
-		g.Outputs = append(g.Outputs, OpenAPIOutput{ResourceID: resource.ID, Type: kind, URL: url, MimeType: resource.MimeType, Width: resource.Width, Height: resource.Height, DurationMs: resource.DurationMs, Bytes: resource.Size})
+		previewURL := ""
+		if kind == "image" && resourceThumbnailSupported(resource) {
+			previewURL, _ = s.PublicResourcePreviewURL(ctx, resource, time.Now().Add(openAPIOutputURLTTL))
+		}
+		g.Outputs = append(g.Outputs, OpenAPIOutput{ResourceID: resource.ID, Type: kind, URL: url, PreviewURL: previewURL, MimeType: resource.MimeType, Width: resource.Width, Height: resource.Height, DurationMs: resource.DurationMs, Bytes: resource.Size})
 	}
 	return g, nil
 }

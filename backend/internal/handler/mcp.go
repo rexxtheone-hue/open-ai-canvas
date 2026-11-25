@@ -202,6 +202,9 @@ func generationSummary(g *service.OpenAPIGeneration) string {
 		lines := []string{fmt.Sprintf("Generation %s finished (%g credits).", g.ID, g.Credits)}
 		for _, output := range g.Outputs {
 			lines = append(lines, fmt.Sprintf("%s: %s", output.Type, output.URL))
+			if output.PreviewURL != "" {
+				lines = append(lines, fmt.Sprintf("To show it inline, embed this preview (it loads directly, no redirect): ![%s](%s)", output.Type, output.PreviewURL))
+			}
 		}
 		lines = append(lines, "Any generated images are attached below: show those to the user and never substitute other pictures. Download links expire in 24 hours; the work is also saved in the user's OmniMuse Studio library.")
 		return strings.Join(lines, "\n")

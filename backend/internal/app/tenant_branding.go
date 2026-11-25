@@ -154,10 +154,20 @@ func (h authHost) EmailBrand(ctx context.Context, tenantID string) auth.EmailBra
 // PublicResourceURL 返回浏览器或邮件里使用的绝对签名地址，主机是租户自己的网址；
 // 签名只覆盖资源与有效期、不含主机，所以在任何租户网址上都能通过校验。
 func (s *Service) PublicResourceURL(ctx context.Context, resource *model.Resource, expiresAt time.Time) (string, error) {
+	return s.publicResourceVariantURL(ctx, resource, assets.VariantOriginal, expiresAt)
+}
+
+// PublicResourcePreviewURL 返回缩略图的公开地址：由本站直接返回图片、不跳转存储，
+// ChatGPT 等聊天界面可以直接内嵌显示。
+func (s *Service) PublicResourcePreviewURL(ctx context.Context, resource *model.Resource, expiresAt time.Time) (string, error) {
+	return s.publicResourceVariantURL(ctx, resource, assets.VariantThumbnail, expiresAt)
+}
+
+func (s *Service) publicResourceVariantURL(ctx context.Context, resource *model.Resource, variant assets.ResourceVariant, expiresAt time.Time) (string, error) {
 	if resource == nil {
 		return "", NotFound("资源不存在")
 	}
-	relative, err := s.signedResourceAccessURL(resource, assets.VariantOriginal, expiresAt, false)
+	relative, err := s.signedResourceAccessURL(resource, variant, expiresAt, false)
 	if err != nil {
 		return "", err
 	}
