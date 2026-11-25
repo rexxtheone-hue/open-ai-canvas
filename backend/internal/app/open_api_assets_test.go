@@ -22,3 +22,11 @@ func TestOpenAPIUsedReferences(t *testing.T) {
 		t.Fatalf("empty input = %+v", got)
 	}
 }
+
+func TestOpenAPIAssetBaseName(t *testing.T) {
+	for in, want := range map[string]string{"KF4.png": "kf4", "kf4.jpg": "kf4", " Adam 15.JPEG ": "adam 15", "notes.final.v2": "notes.final", "README": "readme"} {
+		if got := openAPIAssetBaseName(in); got != want {
+			t.Fatalf("%q -> %q, want %q", in, got, want)
+		}
+	}
+}

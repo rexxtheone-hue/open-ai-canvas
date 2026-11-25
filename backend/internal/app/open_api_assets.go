@@ -27,6 +27,9 @@ type OpenAPIAsset struct {
 	Height     int       `json:"height,omitempty"`
 	DurationMs int64     `json:"durationMs,omitempty"`
 	CreatedAt  time.Time `json:"createdAt"`
+	// SameNameCount 大于 1 表示素材库里有同名素材；SameNameIdentical 表示这些同名文件内容完全一样。
+	SameNameCount     int  `json:"sameNameCount,omitempty"`
+	SameNameIdentical bool `json:"sameNameIdentical,omitempty"`
 }
 
 // OpenAPIUsedReference 是某次生成用过的参考素材，可以原样传回 generate_* 重复使用。
@@ -96,6 +99,7 @@ func (s *Service) OpenAPIAssets(ctx context.Context, userID, kind, query string,
 		}
 	}
 	sort.SliceStable(assets, func(i, j int) bool { return assets[i].CreatedAt.After(assets[j].CreatedAt) })
+	s.markSameNameAssets(userID, assets)
 	if len(assets) > limit {
 		assets = assets[:limit]
 	}
@@ -127,4 +131,47 @@ func (s *Service) openAPIUsedReferences(rawInput string) []OpenAPIUsedReference 
 	order := map[string]int{"image": 0, "video": 1, "audio": 2}
 	sort.SliceStable(refs, func(i, j int) bool { return order[refs[i].Kind] < order[refs[j].Kind] })
 	return refs
+}
+
+// markSameNameAssets 标出同名素材；文件大小和存储指纹（ETag）都相同才算同一个文件。
+func (s *Service) markSameNameAssets(userID string, assets []OpenAPIAsset) {
+	groups := map[string][]int{}
+	for index, asset := range assets {
+		key := asset.Kind + "|" + openAPIAssetBaseName(asset.Name)
+		groups[key] = append(groups[key], index)
+	}
+	for _, indexes := range groups {
+		if len(indexes) < 2 {
+			continue
+		}
+		identical := true
+		fingerprint := ""
+		for n, index := range indexes {
+			resource, err := s.repo.ResourceForUser(userID, assets[index].ID)
+			if err != nil || strings.TrimSpace(resource.ETag) == "" {
+				identical = false
+				break
+			}
+			current := fmt.Sprintf("%d:%s", resource.Size, strings.Trim(resource.ETag, `"`))
+			if n == 0 {
+				fingerprint = current
+			} else if current != fingerprint {
+				identical = false
+				break
+			}
+		}
+		for _, index := range indexes {
+			assets[index].SameNameCount = len(indexes)
+			assets[index].SameNameIdentical = identical
+		}
+	}
+}
+
+// openAPIAssetBaseName 去掉扩展名、不分大小写：KF4.png 和 kf4.jpg 算同名。
+func openAPIAssetBaseName(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if dot := strings.LastIndex(name, "."); dot > 0 && len(name)-dot <= 5 {
+		name = name[:dot]
+	}
+	return strings.TrimSpace(name)
 }

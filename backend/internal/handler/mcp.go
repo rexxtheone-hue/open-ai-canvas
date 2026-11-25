@@ -22,7 +22,7 @@ import (
 const mcpInstructions = `OmniMuse is an AI image and video studio. Use these tools to generate images and videos with the user's OmniMuse credits.
 Workflow: (1) optionally call list_models to pick a model and see its options; (2) call generate_image or generate_video; (3) videos take minutes, so call get_generation with the returned id until status is "succeeded", then show the output URLs to the user.
 Every generation costs credits. If the user has not chosen a model or the request is expensive (video, 4K, multiple outputs), call estimate_cost first and tell the user the price.
-References: the user's uploaded images, videos, audio and saved characters live in their OmniMuse library. When the user names a file, character or "the material I used before", call list_assets (search by name) or get_generation (its "references" list) and pass the asset ids in reference_image_urls, first_frame_url, reference_audio_urls and so on. Public https URLs also work. Refer to references in the prompt by order: image 1, image 2, audio 1.
+References: the user's uploaded images, videos, audio and saved characters live in their OmniMuse library. When the user names a file, character or "the material I used before", call list_assets (search by name) or get_generation (its "references" list) and pass the asset ids in reference_image_urls, first_frame_url, reference_audio_urls and so on. Public https URLs also work. Refer to references in the prompt by order: image 1, image 2, audio 1. If list_assets reports several different files with the same name, ask the user which one to use; files marked sameNameIdentical are the same content, so either is fine.
 Video sound is on by default. Results also appear in the user's OmniMuse Studio library.`
 
 var mcpSchemaCache = mcp.NewSchemaCache()
@@ -252,6 +252,17 @@ func newMCPServer(svc *service.Service) *mcp.Server {
 				return nil, nil, err
 			}
 			summary := fmt.Sprintf("%d assets found. Pass an asset's id as a reference (for example in reference_image_urls).", len(assets))
+			ambiguous := []string{}
+			seen := map[string]bool{}
+			for _, asset := range assets {
+				if asset.SameNameCount > 1 && !asset.SameNameIdentical && !seen[asset.Kind+strings.ToLower(asset.Name)] {
+					seen[asset.Kind+strings.ToLower(asset.Name)] = true
+					ambiguous = append(ambiguous, fmt.Sprintf("%q (%d files)", asset.Name, asset.SameNameCount))
+				}
+			}
+			if len(ambiguous) > 0 {
+				summary += "\nSeveral DIFFERENT files share a name: " + strings.Join(ambiguous, ", ") + ". Do not guess: show the user each one (preview and upload time) and ask which to use before generating."
+			}
 			if len(assets) == 0 {
 				summary = "No matching assets. Try a shorter name, another kind, or ask the user to upload the file in OmniMuse Studio."
 			}
