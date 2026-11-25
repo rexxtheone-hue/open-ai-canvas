@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -60,10 +61,14 @@ type account struct {
 }
 
 type modelInfo struct {
-	ID                 string   `json:"id"`
-	Name               string   `json:"name"`
-	Kind               string   `json:"kind"`
-	Price              string   `json:"price"`
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Kind   string `json:"kind"`
+	Price  string `json:"price"`
+	Prices []struct {
+		Unit    string  `json:"unit"`
+		Credits float64 `json:"credits"`
+	} `json:"prices"`
 	AspectRatios       []string `json:"aspectRatios"`
 	Resolutions        []string `json:"resolutions"`
 	Durations          []int    `json:"durations"`
@@ -614,4 +619,25 @@ func cmdCancel(c *client, args []string) error {
 	}
 	fmt.Printf("%s is now %s.\n", g.ID, g.Status)
 	return nil
+}
+
+// priceSummary 显示最低一档的价格；按 token 计费的模型提示用 --estimate 估价。
+func priceSummary(m modelInfo) string {
+	lowest, unit := 0.0, ""
+	for _, p := range m.Prices {
+		if p.Credits > 0 && (lowest == 0 || p.Credits < lowest) {
+			lowest, unit = p.Credits, p.Unit
+		}
+	}
+	if lowest == 0 {
+		if len(m.Prices) > 0 {
+			return "token-based (--estimate)"
+		}
+		return m.Price
+	}
+	suffix := ""
+	if strings.Contains(unit, "second") {
+		suffix = "/s"
+	}
+	return fmt.Sprintf("from %s credits%s", strconv.FormatFloat(lowest, 'f', -1, 64), suffix)
 }

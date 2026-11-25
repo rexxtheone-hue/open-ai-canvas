@@ -25,26 +25,27 @@ const (
 )
 
 type OpenAPIModel struct {
-	ID                 string   `json:"id"`
-	Name               string   `json:"name"`
-	Kind               string   `json:"kind"`
-	Description        string   `json:"description,omitempty"`
-	Price              string   `json:"price,omitempty"`
-	Tags               []string `json:"tags,omitempty"`
-	AspectRatios       []string `json:"aspectRatios,omitempty"`
-	DefaultAspectRatio string   `json:"defaultAspectRatio,omitempty"`
-	Resolutions        []string `json:"resolutions,omitempty"`
-	DefaultResolution  string   `json:"defaultResolution,omitempty"`
-	Qualities          []string `json:"qualities,omitempty"`
-	Durations          []int    `json:"durations,omitempty"`
-	MinDuration        int      `json:"minDuration,omitempty"`
-	MaxDuration        int      `json:"maxDuration,omitempty"`
-	DefaultDuration    int      `json:"defaultDuration,omitempty"`
-	Operations         []string `json:"operations,omitempty"`
-	GenerateAudio      bool     `json:"generateAudio,omitempty"`
-	MaxReferenceImages int      `json:"maxReferenceImages"`
-	MaxReferenceVideos int      `json:"maxReferenceVideos,omitempty"`
-	MaxReferenceAudios int      `json:"maxReferenceAudios,omitempty"`
+	ID                 string         `json:"id"`
+	Name               string         `json:"name"`
+	Kind               string         `json:"kind"`
+	Description        string         `json:"description,omitempty"`
+	Price              string         `json:"price,omitempty"`
+	Prices             []OpenAPIPrice `json:"prices,omitempty"`
+	Tags               []string       `json:"tags,omitempty"`
+	AspectRatios       []string       `json:"aspectRatios,omitempty"`
+	DefaultAspectRatio string         `json:"defaultAspectRatio,omitempty"`
+	Resolutions        []string       `json:"resolutions,omitempty"`
+	DefaultResolution  string         `json:"defaultResolution,omitempty"`
+	Qualities          []string       `json:"qualities,omitempty"`
+	Durations          []int          `json:"durations,omitempty"`
+	MinDuration        int            `json:"minDuration,omitempty"`
+	MaxDuration        int            `json:"maxDuration,omitempty"`
+	DefaultDuration    int            `json:"defaultDuration,omitempty"`
+	Operations         []string       `json:"operations,omitempty"`
+	GenerateAudio      bool           `json:"generateAudio,omitempty"`
+	MaxReferenceImages int            `json:"maxReferenceImages"`
+	MaxReferenceVideos int            `json:"maxReferenceVideos,omitempty"`
+	MaxReferenceAudios int            `json:"maxReferenceAudios,omitempty"`
 	channelID          string
 	modelKey           string
 	capability         *ModelCapabilityConfig
@@ -163,10 +164,74 @@ func imageParameterStrings(parameters []protocolcontract.ImageParameter, name st
 	return nil, ""
 }
 
+// OpenAPIPrice 是一个价格档：tier 说明适用规格，unit 是计价单位。
+type OpenAPIPrice struct {
+	Tier    string  `json:"tier"`
+	Unit    string  `json:"unit"`
+	Credits float64 `json:"credits,omitempty"`
+}
+
+var openAPISelectorLabels = map[string]map[string]string{
+	"videoInput":         {"true": "with reference video", "false": "no reference video"},
+	"videoGenerateAudio": {"true": "with audio", "false": "silent"},
+}
+
+func openAPIPriceTier(selector map[string]string) string {
+	parts := []string{}
+	for _, key := range []string{"imageResolution", "vquality", "quality", "videoGenerateAudio", "videoInput"} {
+		value := strings.TrimSpace(selector[key])
+		if value == "" {
+			continue
+		}
+		if labels, ok := openAPISelectorLabels[key]; ok {
+			if label := labels[value]; label != "" {
+				value = label
+			}
+		} else if key == "quality" {
+			value += " quality"
+		}
+		parts = append(parts, value)
+	}
+	if len(parts) == 0 {
+		return "all"
+	}
+	return strings.Join(parts, ", ")
+}
+
+func openAPIPrices(tiers []PublicChannelModelPriceTier) []OpenAPIPrice {
+	prices := make([]OpenAPIPrice, 0, len(tiers))
+	for _, tier := range tiers {
+		price := OpenAPIPrice{Tier: openAPIPriceTier(tier.Selector)}
+		switch tier.BillingMode {
+		case "per_second":
+			price.Unit, price.Credits = "credits per output second", microcreditsToCredits(tier.UnitPriceMicrocredits)
+		case "fixed_request":
+			price.Unit, price.Credits = "credits per generation", microcreditsToCredits(tier.UnitPriceMicrocredits)
+		default:
+			price.Unit = "billed by tokens; call estimate_cost for the exact price"
+		}
+		prices = append(prices, price)
+	}
+	return prices
+}
+
+// openAPIProcessingOnly 判断模型是否只做配音效、高清、动作迁移这类需要输入视频的处理；这些不走 generate_video。
+func openAPIProcessingOnly(m PublicChannelModel) bool {
+	if len(m.PriceTiers) == 0 {
+		return false
+	}
+	for _, tier := range m.PriceTiers {
+		if strings.TrimSpace(tier.Selector["operation"]) == "" {
+			return false
+		}
+	}
+	return true
+}
+
 func openAPIModelFromCatalog(channel PublicChannelCatalog, m PublicChannelModel) OpenAPIModel {
-	result := OpenAPIModel{ID: m.ID, Name: m.DisplayName, Kind: normalizeCapability(m.Capability), Description: m.Description, Price: m.PriceLabel, channelID: channel.ID, modelKey: m.ModelKey}
-	if result.Name == "" {
-		result.Name = m.ModelKey
+	result := OpenAPIModel{ID: m.ID, Name: firstNonEmpty(strings.TrimSpace(m.ChannelLabel), strings.TrimSpace(m.DisplayName), m.ModelKey), Kind: normalizeCapability(m.Capability), Description: m.Description, Prices: openAPIPrices(m.PriceTiers), channelID: channel.ID, modelKey: m.ModelKey}
+	if len(result.Prices) == 0 {
+		result.Price = m.PriceLabel
 	}
 	for _, tag := range m.Tags {
 		if label := strings.TrimSpace(tag.Text); label != "" {
@@ -214,7 +279,7 @@ func (s *Service) openAPICatalog(ctx context.Context) ([]OpenAPIModel, error) {
 	for _, channel := range catalog.Channels {
 		for _, m := range channel.Models {
 			kind := normalizeCapability(m.Capability)
-			if !m.Available || (kind != "image" && kind != "video") {
+			if !m.Available || (kind != "image" && kind != "video") || openAPIProcessingOnly(m) {
 				continue
 			}
 			models = append(models, openAPIModelFromCatalog(channel, m))
