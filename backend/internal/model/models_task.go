@@ -14,6 +14,9 @@ type Task struct {
 	CancellationRequestedAt      *time.Time               `json:"cancellationRequestedAt,omitempty"`
 	CreationSubmissionID         *string                  `json:"creationSubmissionId,omitempty" gorm:"size:36;uniqueIndex"`
 	WorkbenchKind                string                   `json:"workbenchKind,omitempty" gorm:"size:16;index"`
+	// APIClient 记录开放接口的入口（mcp、cli、api），网页提交为空；APIApp 是具体应用，例如 Claude、ChatGPT、Cursor。
+	APIClient string `json:"apiClient,omitempty" gorm:"size:16;index"`
+	APIApp    string `json:"apiApp,omitempty" gorm:"size:60"`
 	ID                           string                   `json:"id" gorm:"primaryKey;size:36"`
 	TenantID                     string                   `json:"-" gorm:"size:36;not null;default:'omnimuse';index"`
 	UserID                       string                   `json:"userId" gorm:"index;size:36;index:idx_tasks_user_created,priority:1;index:idx_tasks_user_project_created,priority:1"`

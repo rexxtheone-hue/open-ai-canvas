@@ -217,6 +217,7 @@ export type AdminAnalytics = {
     }>;
     users: Array<{ userId: string; name: string; activeDays: number; tasks: number; agentMessages: number; canvasDays: number; assets: number; resources: number; commonModel?: string }>;
     failures: Array<{ type: string; model: string; count: number; lastError?: string; lastSeenAt: string }>;
+    sources?: Array<{ client: string; app: string; tasks: number; succeeded: number; users: number; chargedMicrocredits: number }>;
 };
 
 export type ModelPricing = {

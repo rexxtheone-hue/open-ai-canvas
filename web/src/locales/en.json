@@ -16375,5 +16375,10 @@
   "；其余记录请在列表中核对": "; check the remaining records in the list",
   "；当前协议未配置独立分辨率": "; no separate resolution is configured for the current protocol",
   "；未手选 Skill 时自动使用专家技能": "; uses the expert's skills when no Skill is picked",
-  "；补充视角：{0}": "; additional viewpoint: {0}"
+  "；补充视角：{0}": "; additional viewpoint: {0}",
+  "按模型、用户、异常类型或来源渠道继续核对当前统计范围。": "Continue checking the current statistics range by model, user, error type or source.",
+  "来源渠道": "Sources",
+  "入口": "Entry",
+  "扣费积分": "Credits charged",
+  "网页": "Web"
 }

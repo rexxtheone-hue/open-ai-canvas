@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"yingce/backend/internal/model"
+	"yingce/backend/internal/repository"
 )
 
 type AnalyticsQuery struct {
@@ -25,6 +26,8 @@ type AnalyticsOverview struct {
 	Models   []AnalyticsModelRow   `json:"models"`
 	Users    []AnalyticsUserRow    `json:"users"`
 	Failures []AnalyticsFailureRow `json:"failures"`
+	// Sources 按提交入口（网页、MCP、CLI、API）和具体应用汇总，用来看外部 AI 应用带来的用量。
+	Sources []repository.AnalyticsSourceRow `json:"sources"`
 }
 
 type AnalyticsKPI struct {
@@ -188,6 +191,9 @@ func (s *Service) AdminAnalytics(actor *model.User, query AnalyticsQuery) (*Anal
 	}
 	applyAnalyticsFinance(result, records)
 	result.KPI.CurrentQueuedTasks = queued
+	if result.Sources, err = s.repo.AnalyticsSources(filter); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 

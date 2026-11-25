@@ -72,6 +72,8 @@ type OpenAPIGenerationRequest struct {
 	Count         int                `json:"count,omitempty"`
 	// Client 由服务端按入口填写（api、cli、mcp），只用于记录来源。
 	Client string `json:"-"`
+	// App 是具体应用（Claude、ChatGPT、Cursor、OmniMuse CLI 等），由服务端按令牌和请求头判断。
+	App string `json:"-"`
 }
 
 type OpenAPIOutput struct {
@@ -544,12 +546,12 @@ func (s *Service) openAPITaskRequest(ctx context.Context, userID string, req Ope
 	input := map[string]any{
 		"mode": m.Kind, "prompt": prompt, "config": config,
 		"referenceImages": refs["image"], "referenceVideos": refs["video"], "referenceAudios": refs["audio"],
-		"metadata": map[string]any{"source": "studio", "studioTool": m.Kind, "apiClient": client, "clientOperationId": newID()},
+		"metadata": map[string]any{"source": "studio", "studioTool": m.Kind, "apiClient": client, "apiApp": req.App, "clientOperationId": newID()},
 	}
 	if m.Kind == "video" {
 		input["metadata"].(map[string]any)["videoEditOperation"] = operation
 	}
-	return CreateTaskRequest{Type: "canvas_" + m.Kind, Operation: operation, Prompt: prompt, Model: m.channelID + "::" + m.modelKey, Input: input}, m, nil
+	return CreateTaskRequest{Type: "canvas_" + m.Kind, Operation: operation, Prompt: prompt, Model: m.channelID + "::" + m.modelKey, Input: input, apiClient: client, apiApp: req.App}, m, nil
 }
 
 func openAPIVideoOperation(m *OpenAPIModel, refs map[string][]any) string {
@@ -782,4 +784,40 @@ func (s *Service) OpenAPIGenerations(ctx context.Context, user *model.User, kind
 		result.Generations = append(result.Generations, OpenAPIGeneration{ID: work.ID, Kind: work.Kind, Status: string(work.Status), Stage: work.Stage, Progress: work.Progress, Model: work.Model, Prompt: work.Prompt, Error: work.Error, CreatedAt: work.CreatedAt, UpdatedAt: work.UpdatedAt})
 	}
 	return result, nil
+}
+
+// OpenAPIAppName 判断请求来自哪个应用：OAuth 连接用登记时的客户端名，其余按 User-Agent 识别。
+func (s *Service) OpenAPIAppName(token *model.APIToken, userAgent, client string) string {
+	if token != nil && token.Kind == model.APITokenKindOAuthAccess && token.ClientID != "" {
+		if oauthClient, err := s.repo.OAuthClient(token.ClientID); err == nil {
+			if name := knownAPIAppName(oauthClient.Name); name != "" {
+				return name
+			}
+			return truncateRunes(strings.TrimSpace(oauthClient.Name), 60)
+		}
+	}
+	if name := knownAPIAppName(userAgent); name != "" {
+		return name
+	}
+	if client == "cli" {
+		return "OmniMuse CLI"
+	}
+	if product, _, _ := strings.Cut(strings.TrimSpace(userAgent), "/"); product != "" {
+		return truncateRunes(product, 60)
+	}
+	return ""
+}
+
+func knownAPIAppName(value string) string {
+	value = strings.ToLower(value)
+	for _, known := range []struct{ marker, name string }{
+		{"claude-code", "Claude Code"}, {"claude code", "Claude Code"}, {"claude", "Claude"},
+		{"chatgpt", "ChatGPT"}, {"openai", "ChatGPT"}, {"codex", "Codex"}, {"cursor", "Cursor"},
+		{"windsurf", "Windsurf"}, {"gemini", "Gemini"}, {"omnimuse-cli", "OmniMuse CLI"},
+	} {
+		if strings.Contains(value, known.marker) {
+			return known.name
+		}
+	}
+	return ""
 }

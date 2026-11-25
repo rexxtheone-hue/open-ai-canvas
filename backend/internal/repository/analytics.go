@@ -349,7 +349,7 @@ func (r *Repository) VideoAPICallRoot(log model.ApiCallLog) (*model.ApiCallLog, 
 // midnight until the UTC date rolls forward.
 func whereTimeRange(query *gorm.DB, column string, from, to time.Time) *gorm.DB {
 	switch column {
-	case "created_at", "api_call_logs.created_at":
+	case "created_at", "api_call_logs.created_at", "tasks.created_at":
 	default:
 		return query.Where("1 = 0")
 	}
@@ -414,4 +414,27 @@ func (r *Repository) CurrentQueuedTaskCount(tenantID string) (int64, error) {
 	var count int64
 	err := scopeTenant(r.db.Model(&model.Task{}), tenantID).Where("status IN ?", []model.TaskStatus{model.TaskStatusQueued, model.TaskStatusRunning}).Count(&count).Error
 	return count, err
+}
+
+// AnalyticsSourceRow 是按提交入口（网页、MCP、CLI、API）和具体应用汇总的生成用量。
+type AnalyticsSourceRow struct {
+	Client              string `json:"client"`
+	App                 string `json:"app"`
+	Tasks               int64  `json:"tasks"`
+	Succeeded           int64  `json:"succeeded"`
+	Users               int64  `json:"users"`
+	ChargedMicrocredits int64  `json:"chargedMicrocredits"`
+}
+
+func (r *Repository) AnalyticsSources(filter AnalyticsFilter) ([]AnalyticsSourceRow, error) {
+	var rows []AnalyticsSourceRow
+	query := whereTimeRange(r.db.Table("tasks").
+		Select("COALESCE(NULLIF(tasks.api_client, ''), 'web') AS client, COALESCE(tasks.api_app, '') AS app, COUNT(*) AS tasks, "+
+			"SUM(CASE WHEN tasks.status = 'succeeded' THEN 1 ELSE 0 END) AS succeeded, COUNT(DISTINCT tasks.user_id) AS users, "+
+			"COALESCE(SUM(CASE WHEN billing_orders.status = 'settled' THEN billing_orders.actual_amount_microcredits ELSE 0 END), 0) AS charged_microcredits").
+		Joins("LEFT JOIN billing_orders ON billing_orders.id = tasks.billing_order_id"), "tasks.created_at", filter.From, filter.To)
+	if filter.TenantID != "" {
+		query = scopeTenant(query, filter.TenantID, "tasks.tenant_id")
+	}
+	return rows, query.Group("1, 2").Order("tasks DESC").Scan(&rows).Error
 }

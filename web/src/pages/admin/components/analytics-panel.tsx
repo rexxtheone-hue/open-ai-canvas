@@ -19,7 +19,7 @@ type Props = {
 };
 
 type TrendMetric = "volume" | "quality" | "activity";
-type AnalysisTab = "models" | "users" | "failures";
+type AnalysisTab = "models" | "users" | "failures" | "sources";
 type RangePreset = "7d" | "30d" | "60d";
 
 const capabilityOptions = [
@@ -177,6 +177,16 @@ export default function AnalyticsPanel({ users, channels }: Props) {
         { title: "次数", dataIndex: "count", width: 90 },
         { title: "最近错误", dataIndex: "lastError", ellipsis: true, render: (value) => <Tooltip title={value}>{value || "--"}</Tooltip> },
         { title: "最近发生", dataIndex: "lastSeenAt", width: 170, render: (value) => dayjs(value).format("YYYY-MM-DD HH:mm") },
+    ];
+
+    const sourceRows = data?.sources || [];
+    const sourceColumns: ColumnsType<NonNullable<AdminAnalytics["sources"]>[number]> = [
+        { title: "入口", dataIndex: "client", width: 110, render: (value: string) => <Tag>{sourceClientLabel(value)}</Tag> },
+        { title: "应用", dataIndex: "app", width: 180, render: (value: string, row) => value || (row.client === "web" ? "网页" : "--") },
+        { title: "生成任务", dataIndex: "tasks", width: 110, render: (value: number) => formatNumber(value) },
+        { title: "成功率", width: 100, render: (_, row) => (row.tasks ? percent((row.succeeded / row.tasks) * 100) : "--") },
+        { title: "用户数", dataIndex: "users", width: 100, render: (value: number) => formatNumber(value) },
+        { title: "扣费积分", dataIndex: "chargedMicrocredits", width: 140, render: (value: number) => formatCredits(value) },
     ];
 
     const trend = data?.trend || [];
@@ -447,7 +457,7 @@ export default function AnalyticsPanel({ users, channels }: Props) {
                 <div className="admin-analytics-analysis-heading">
                     <div>
                         <h2>深度分析</h2>
-                        <p>按模型、用户或异常类型继续核对当前统计范围。</p>
+                        <p>按模型、用户、异常类型或来源渠道继续核对当前统计范围。</p>
                     </div>
                 </div>
                 <Tabs
@@ -488,6 +498,17 @@ export default function AnalyticsPanel({ users, channels }: Props) {
                                     empty={<AdminTableEmpty />}
                                     skeletonColumns={5}
                                     footer={<PaginationBar alwaysShow current={failurePage} pageSize={analyticsPageSize} total={failureRows.length} onChange={(page) => setFailurePage(page)} pageSizeOptions={[analyticsPageSize]} />}
+                                />
+                            ),
+                        },
+                        {
+                            key: "sources",
+                            label: "来源渠道",
+                            children: (
+                                <AdminDataTable
+                                    table={{ rowKey: (row) => `${row.client}:${row.app}`, size: "small", loading, columns: sourceColumns, dataSource: sourceRows, pagination: false, scroll: { x: 760 } }}
+                                    empty={<AdminTableEmpty />}
+                                    skeletonColumns={6}
                                 />
                             ),
                         },
@@ -564,6 +585,10 @@ function FilterSelect({
             <Select aria-label={`${label}筛选`} allowClear showSearch optionFilterProp="label" filterOption={filterOption} loading={loading} placeholder="全部" value={value} onChange={onChange} onSearch={onSearch} options={options} style={{ width }} />
         </div>
     );
+}
+
+function sourceClientLabel(value: string) {
+    return ({ web: "网页", mcp: "MCP", cli: "CLI", api: "API" } as Record<string, string>)[value] || value;
 }
 
 function capabilityLabel(value: string) {

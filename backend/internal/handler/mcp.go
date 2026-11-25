@@ -29,6 +29,8 @@ var mcpSchemaCache = mcp.NewSchemaCache()
 
 type mcpUserKey struct{}
 
+type mcpAppKey struct{}
+
 func mcpUser(ctx context.Context) (*model.User, error) {
 	user, _ := ctx.Value(mcpUserKey{}).(*model.User)
 	if user == nil {
@@ -65,6 +67,7 @@ type mcpVideoInput struct {
 	ReferenceVideoURLs []string `json:"reference_video_urls,omitempty" jsonschema:"asset ids from list_assets or public https video URLs, to reference, edit or extend"`
 	ReferenceAudioURLs []string `json:"reference_audio_urls,omitempty" jsonschema:"asset ids from list_assets or public https audio URLs, for example a voice or voiceover for lip sync"`
 	Count              int      `json:"count,omitempty" jsonschema:"number of videos, 1 to 4 (default 1); each one is charged"`
+	Operation          string   `json:"operation,omitempty" jsonschema:"omit for normal generation. To edit an existing video put it first in reference_video_urls and set: inpaint (change something by text), replace_element (swap a person or object for reference_image_urls), style_transfer, camera_motion, extend (continue the video). lip_sync: a person image or video plus reference_audio_urls. motion_transfer: a character in reference_image_urls plus a motion video. list_models shows which operations each model supports"`
 }
 
 type mcpEstimateInput struct {
@@ -127,7 +130,7 @@ func (in mcpVideoInput) request() service.OpenAPIGenerationRequest {
 	refs = append(refs, urlRefs("image", in.ReferenceImageURLs, "")...)
 	refs = append(refs, urlRefs("video", in.ReferenceVideoURLs, "")...)
 	refs = append(refs, urlRefs("audio", in.ReferenceAudioURLs, "")...)
-	return service.OpenAPIGenerationRequest{Model: in.Model, Prompt: in.Prompt, AspectRatio: in.AspectRatio, Resolution: in.Resolution, Duration: in.Duration, GenerateAudio: in.GenerateAudio, References: refs, Count: in.Count, Client: "mcp"}
+	return service.OpenAPIGenerationRequest{Model: in.Model, Prompt: in.Prompt, AspectRatio: in.AspectRatio, Resolution: in.Resolution, Duration: in.Duration, GenerateAudio: in.GenerateAudio, References: refs, Count: in.Count, Operation: strings.TrimSpace(in.Operation), Client: "mcp"}
 }
 
 // withDefaultModel 没指定模型时用目录里该类型排在第一的模型。
@@ -313,6 +316,7 @@ func newMCPServer(svc *service.Service) *mcp.Server {
 			if req, err = withDefaultModel(ctx, svc, kind, req); err != nil {
 				return nil, nil, err
 			}
+			req.App, _ = ctx.Value(mcpAppKey{}).(string)
 			generations, err := svc.CreateOpenAPIGenerations(ctx, user, req)
 			if err != nil && len(generations) == 0 {
 				return nil, nil, err
@@ -424,7 +428,10 @@ func RegisterMCPRoutes(r *gin.Engine, api *gin.RouterGroup, svc *service.Service
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid_token", "error_description": err.Error()})
 			return
 		}
+		token, _ := c.Get(apiTokenContextKey)
+		apiToken, _ := token.(*model.APIToken)
 		ctx := context.WithValue(c.Request.Context(), mcpUserKey{}, user)
+		ctx = context.WithValue(ctx, mcpAppKey{}, svc.OpenAPIAppName(apiToken, c.GetHeader("User-Agent"), "mcp"))
 		ctx = context.WithValue(ctx, mcpBaseKey{}, requestBaseURL(c))
 		streamable.ServeHTTP(c.Writer, c.Request.WithContext(ctx))
 	}

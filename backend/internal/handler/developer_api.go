@@ -76,7 +76,7 @@ func RegisterDeveloperAPIRoutes(api *gin.RouterGroup, svc *service.Service) {
 		ok(c, gin.H{"models": models})
 	}))
 	v1.POST("/quote", withAPIToken(svc, func(c *gin.Context, user *model.User) {
-		req, valid := bindGenerationRequest(c)
+		req, valid := bindGenerationRequest(c, svc)
 		if !valid {
 			return
 		}
@@ -122,7 +122,7 @@ func RegisterDeveloperAPIRoutes(api *gin.RouterGroup, svc *service.Service) {
 		if !available || !enforceRateLimit(c, "tasks:"+user.ID, policy.Request.TaskCreatePerMinute, time.Minute) {
 			return
 		}
-		req, valid := bindGenerationRequest(c)
+		req, valid := bindGenerationRequest(c, svc)
 		if !valid {
 			return
 		}
@@ -146,6 +146,15 @@ func RegisterDeveloperAPIRoutes(api *gin.RouterGroup, svc *service.Service) {
 		}
 		ok(c, page)
 	}))
+	v1.GET("/assets", withAPIToken(svc, func(c *gin.Context, user *model.User) {
+		limit, _ := strconv.Atoi(c.Query("limit"))
+		assets, err := svc.OpenAPIAssets(c.Request.Context(), user.ID, c.Query("kind"), c.Query("query"), limit)
+		if err != nil {
+			failService(c, err)
+			return
+		}
+		ok(c, gin.H{"assets": assets})
+	}))
 	v1.GET("/generations/:id", withAPIToken(svc, func(c *gin.Context, user *model.User) {
 		generation, err := svc.OpenAPIGeneration(c.Request.Context(), user, c.Param("id"))
 		if err != nil {
@@ -164,7 +173,7 @@ func RegisterDeveloperAPIRoutes(api *gin.RouterGroup, svc *service.Service) {
 	}))
 }
 
-func bindGenerationRequest(c *gin.Context) (service.OpenAPIGenerationRequest, bool) {
+func bindGenerationRequest(c *gin.Context, svc *service.Service) (service.OpenAPIGenerationRequest, bool) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 1<<20)
 	var req service.OpenAPIGenerationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -172,6 +181,9 @@ func bindGenerationRequest(c *gin.Context) (service.OpenAPIGenerationRequest, bo
 		return req, false
 	}
 	req.Client = apiClientName(c)
+	token, _ := c.Get(apiTokenContextKey)
+	apiToken, _ := token.(*model.APIToken)
+	req.App = svc.OpenAPIAppName(apiToken, c.GetHeader("User-Agent"), req.Client)
 	return req, true
 }
 
@@ -212,9 +224,14 @@ func apiTokenUser(c *gin.Context, svc *service.Service) (*model.User, error) {
 	if token == "" {
 		return nil, service.Unauthorized("缺少 API Key：请在请求头加 Authorization: Bearer <API Key>")
 	}
-	user, _, err := svc.AuthenticateAPIToken(token, requestTenant(c))
+	user, apiToken, err := svc.AuthenticateAPIToken(token, requestTenant(c))
+	if err == nil {
+		c.Set(apiTokenContextKey, apiToken)
+	}
 	return user, err
 }
+
+const apiTokenContextKey = "omnimuse.apiToken"
 
 func withAPIToken(svc *service.Service, next func(*gin.Context, *model.User)) gin.HandlerFunc {
 	return func(c *gin.Context) {

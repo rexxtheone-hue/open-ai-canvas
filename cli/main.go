@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -28,6 +29,9 @@ Usage:
   omnimuse status <id> [--wait] [-o dir]              Check a generation (and download it)
   omnimuse list [image|video] [-n 20]                 Recent generations
   omnimuse cancel <id>                                Cancel a running generation
+  omnimuse assets [image|video|audio|character] [-q name]   Find files in your library (use the id as a reference)
+  omnimuse edit <operation> <source> "<prompt>" [flags]     Edit a video (see Edit operations below)
+  omnimuse batch <file.csv|file.jsonl> [-o dir] [-y]        Generate many images or videos from a file
   omnimuse version
 
 Generation flags:
@@ -47,6 +51,24 @@ Generation flags:
       --estimate           Only show the credit cost, do not generate
   -y, --yes                Skip the cost confirmation
       --json               Print JSON (for scripts and AI agents)
+
+References (-i, --first, --last, edit source) can be a local file (uploaded), an https URL,
+or an asset id from "omnimuse assets" or a previous generation.
+
+Edit operations (the source goes first; add more files with -i):
+  edit       <video>  "what to change"          Change something in a video by text
+  replace    <video>  -i <image> "..."          Swap a person or object for the image
+  style      <video>  "watercolor style"        Restyle a video
+  camera     <video>  "slow orbit"              Change the camera movement
+  extend     <video>  "what happens next"       Continue a video
+  lipsync    <image|video> -i <audio>           Make the person speak the audio
+  motion     <image>  -i <motion video>         Make the character copy the motion
+  Example: omnimuse edit replace clip.mp4 -i product.png "replace the bottle with this product"
+
+Batch file: one generation per CSV row or JSONL line. Columns / keys:
+  kind (image|video), prompt, model, ratio, res, quality, duration, audio (true|false),
+  ref (several separated by |), first, last, count, op
+  Every row is quoted first and the total is confirmed once before anything starts.
 
 Environment: OMNIMUSE_API_KEY, OMNIMUSE_HOST, OMNIMUSE_CONFIG
 `
@@ -75,6 +97,7 @@ type modelInfo struct {
 	MinDuration        int      `json:"minDuration"`
 	MaxDuration        int      `json:"maxDuration"`
 	MaxReferenceImages int      `json:"maxReferenceImages"`
+	Operations         []string `json:"operations"`
 }
 
 type output struct {
@@ -117,6 +140,7 @@ type generationRequest struct {
 	GenerateAudio *bool       `json:"generateAudio,omitempty"`
 	References    []reference `json:"references,omitempty"`
 	Count         int         `json:"count,omitempty"`
+	Operation     string      `json:"operation,omitempty"`
 }
 
 type stringList []string
@@ -191,6 +215,12 @@ func run(args []string) error {
 		return cmdList(c, rest)
 	case "cancel":
 		return cmdCancel(c, rest)
+	case "assets", "asset":
+		return cmdAssets(c, rest)
+	case "edit":
+		return cmdEdit(c, rest)
+	case "batch":
+		return cmdBatch(c, rest)
 	}
 	return fmt.Errorf("unknown command %q. Run: omnimuse help", command)
 }
@@ -312,7 +342,10 @@ func (c *client) resolveReference(value, kind, role string) (reference, error) {
 		return reference{URL: value, Kind: kind, Role: role}, nil
 	}
 	if _, err := os.Stat(value); err != nil {
-		return reference{}, fmt.Errorf("reference %q is not a file or https URL", value)
+		if id := strings.TrimPrefix(strings.TrimPrefix(value, "asset:"), "resource:"); assetIDPattern.MatchString(id) {
+			return reference{ResourceID: id, Kind: kind, Role: role}, nil
+		}
+		return reference{}, fmt.Errorf("reference %q is not a file, https URL or asset id", value)
 	}
 	fmt.Fprintf(os.Stderr, "Uploading %s...\n", filepath.Base(value))
 	uploaded, err := c.upload(value)
@@ -362,11 +395,15 @@ func cmdGenerate(c *client, kind string, args []string) error {
 	fs.BoolVar(&noDownload, "no-download", false, "")
 	fs.BoolVar(&estimate, "estimate", false, "")
 	fs.BoolVar(&asJSON, "json", false, "")
+	fs.StringVar(&req.Operation, "op", "", "")
 	positional, err := parseInterspersed(fs, args)
 	if err != nil {
 		return fmt.Errorf("%w (run: omnimuse help)", err)
 	}
 	req.Prompt = strings.TrimSpace(strings.Join(positional, " "))
+	if req.Prompt == "" {
+		req.Prompt = defaultEditPrompts[req.Operation]
+	}
 	if req.Prompt == "" {
 		return fmt.Errorf("missing prompt. Example: omnimuse %s \"a red sports car on a coastal road\"", kind)
 	}
@@ -387,9 +424,19 @@ func cmdGenerate(c *client, kind string, args []string) error {
 		if len(models.Models) == 0 {
 			return fmt.Errorf("no %s models are available", kind)
 		}
-		req.Model = models.Models[0].ID
+		chosen := -1
+		for i, m := range models.Models {
+			if req.Operation == "" || slices.Contains(m.Operations, req.Operation) {
+				chosen = i
+				break
+			}
+		}
+		if chosen < 0 {
+			return fmt.Errorf("no %s model supports %s right now", kind, req.Operation)
+		}
+		req.Model = models.Models[chosen].ID
 		if !asJSON {
-			fmt.Fprintf(os.Stderr, "Model: %s (choose another with -m, see: omnimuse models %s)\n", models.Models[0].Name, kind)
+			fmt.Fprintf(os.Stderr, "Model: %s (choose another with -m, see: omnimuse models %s)\n", models.Models[chosen].Name, kind)
 		}
 	}
 	if kind == "video" {
