@@ -549,7 +549,7 @@ export default function LandingPage() {
                                 <div className="landing-cases">
                                     {INDUSTRIES.map((item) => (
                                         <Link key={item.genre} className="landing-tile is-wide" to={register(`/studio/director?genre=${item.genre}`)}>
-                                            <LandingMedia src={covers[item.cover]} label={item.title} />
+                                            <LandingMedia src={covers[`site-case-${item.genre}`] || covers[item.cover]} label={item.title} />
                                             <span className="landing-tile-copy">
                                                 <strong>{item.title}</strong>
                                                 <span>{item.text}</span>

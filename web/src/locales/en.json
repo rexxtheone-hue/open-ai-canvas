@@ -6829,6 +6829,7 @@
   "应用凭据": "App credentials",
   "应用到镜头": "Apply to shot",
   "应用场景": "Use cases",
+  "应用场景 · {0}": "Use case · {0}",
   "应用已更新，Host Updater 需要人工处理": "App updated; Host Updater needs manual handling",
   "应用插件": "App plugin",
   "应用未特别要求时使用 Client Secret Post。": "Use Client Secret Post unless the app requires otherwise.",

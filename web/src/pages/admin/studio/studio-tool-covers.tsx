@@ -20,6 +20,14 @@ const SITE_SLOTS = [
     { id: "site-compare-veo", label: "模型对比 · Veo" },
     { id: "site-compare-kling", label: "模型对比 · Kling" },
     { id: "site-compare-wan", label: "模型对比 · Wan" },
+    ...[
+        ["product-ad", "产品广告"],
+        ["ugc", "真人口播"],
+        ["food", "餐饮探店"],
+        ["real-estate", "房地产看房"],
+        ["brand-film", "品牌短片"],
+        ["short-drama", "短剧"],
+    ].map(([genre, label]) => ({ id: `site-case-${genre}`, label: `应用场景 · ${label}` })),
     { id: "site-final", label: "收尾画面" },
 ];
 
