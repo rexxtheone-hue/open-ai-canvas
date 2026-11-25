@@ -31,14 +31,15 @@ Need the product image. A presenter photo is optional; with none, describe the c
 
 ## 3. Write the script first
 
-Write the spoken lines in the chosen language, about 2.5 words (or 4 Chinese characters) per second of video. Open with a hook in the first 2 seconds (a question, a bold claim or a visible problem). End with a short call to action ("Link di bawah", "点下方链接", "Tap the link"). Show the script to the user as part of the plan.
+Load the `script` formula. Pick a story shape and a hook, write the lines in the chosen language within the word budget, and show the script in the plan. Plan clips of at most 15 s each (a 15 s video is one clip; longer videos are several clips delivered in order).
 
-## 4. Generate
+## 4. Generate in three stages (each stage priced in the plan)
 
-Use a video model whose operations include reference_to_video and which has generate_audio, preferring Seedance 2.5 (Flash for drafts). Settings: 9:16, the chosen duration, sound on, 720p for drafts or 1080p for the final.
-References in order: image 1 = presenter (if any), image 2 = product.
-Prompt structure:
-"Vertical smartphone UGC video, handheld feel, natural window light, casual home setting. The person in image 1 [action] holding the product from image 2, which must look exactly like image 2 (same packaging, colours and label). Shot list: 0–2s [hook shot]; 2–Ns [demo shots, include one close-up of the product]; last 2s [call-to-action shot facing camera]. The person speaks [language] directly to camera, lips in sync, saying: "[script]". Authentic, not overly polished; no on-screen text; no music, only voice and room tone."
+1. Creator image: load the `creator` formula. Skip if the user gave their own photo or a saved character (use it as is).
+2. Storyboard: load the `storyboard` formula and make one 8-frame board per clip, product as image 1 and creator as image 2. Look at each board before going on; redo once if the face, product or hands are wrong.
+3. Video: load the `clip` formula and animate each board with Seedance 2.5 (Flash for drafts), reference_to_video, sound on, 9:16. References: board, creator, product.
+
+Show the boards to the user before the video stage when they chose step-by-step; in full-auto mode go straight on within the approved price.
 
 ## 5. Deliver and extend
 

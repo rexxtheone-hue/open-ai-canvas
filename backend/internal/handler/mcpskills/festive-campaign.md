@@ -30,6 +30,8 @@ A matching set for one festival or sale: product visuals, an ad image with the o
 
 ## 3. Plan and generate
 
+Load `product-photoshoot/formulas` (sections "Lifestyle" and "Restyle") and `product-photoshoot/vocabulary` before writing the image prompts.
+
 1. Hero product image (`/product-photoshoot` style): product unchanged, festival setting from the table, 4:5.
 2. Offer ad: same scene, headline and offer text quoted exactly, 4:5 or 1:1.
 3. Story image: 9:16 version with the greeting.

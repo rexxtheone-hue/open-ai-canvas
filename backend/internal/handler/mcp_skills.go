@@ -13,7 +13,7 @@ import (
 // MCP 工作流（slash 指令）：每个工作流是一份写好的操作手册，放在 mcpskills/ 里。
 // AI 应用通过 list_skills / get_skill 取手册，或在支持 prompts 的客户端里直接从菜单选，再照着手册调用生成工具。
 
-//go:embed mcpskills/*.md
+//go:embed mcpskills/*.md mcpskills/refs
 var mcpSkillFiles embed.FS
 
 type mcpSkill struct {
@@ -22,8 +22,13 @@ type mcpSkill struct {
 	Summary  string `json:"summary"`
 	UseWhen  string `json:"useWhen"`
 	Argument string `json:"argument,omitempty"`
-	body     string
+	// References 是按步骤读取的提示词公式（get_skill 的 reference 参数），名字到标题。
+	References map[string]string `json:"references,omitempty"`
+	body       string
 }
+
+// mcpSkillRefs 是所有工作流的提示词公式，键为 "<工作流>/<公式>"。
+var mcpSkillRefs = map[string]string{}
 
 var mcpSkills, mcpSkillRules = loadMCPSkills()
 
@@ -35,6 +40,9 @@ func loadMCPSkills() ([]mcpSkill, string) {
 	rules := ""
 	skills := []mcpSkill{}
 	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
 		data, err := mcpSkillFiles.ReadFile("mcpskills/" + entry.Name())
 		if err != nil {
 			panic(err)
@@ -49,6 +57,33 @@ func loadMCPSkills() ([]mcpSkill, string) {
 			panic(fmt.Sprintf("mcpskills/%s: %v", entry.Name(), err))
 		}
 		skills = append(skills, skill)
+	}
+	refDirs, _ := mcpSkillFiles.ReadDir("mcpskills/refs")
+	for _, dir := range refDirs {
+		files, err := mcpSkillFiles.ReadDir("mcpskills/refs/" + dir.Name())
+		if err != nil {
+			panic(err)
+		}
+		for _, file := range files {
+			data, err := mcpSkillFiles.ReadFile("mcpskills/refs/" + dir.Name() + "/" + file.Name())
+			if err != nil {
+				panic(err)
+			}
+			mcpSkillRefs[dir.Name()+"/"+strings.TrimSuffix(file.Name(), ".md")] = strings.TrimSpace(strings.ReplaceAll(string(data), "\r\n", "\n"))
+		}
+	}
+	for index := range skills {
+		for key, text := range mcpSkillRefs {
+			owner, name, _ := strings.Cut(key, "/")
+			if owner != skills[index].Name {
+				continue
+			}
+			if skills[index].References == nil {
+				skills[index].References = map[string]string{}
+			}
+			title, _, _ := strings.Cut(text, "\n")
+			skills[index].References[name] = strings.TrimSpace(strings.TrimLeft(title, "# "))
+		}
 	}
 	sort.SliceStable(skills, func(i, j int) bool { return mcpSkillOrder(skills[i].Name) < mcpSkillOrder(skills[j].Name) })
 	return skills, rules
@@ -112,10 +147,35 @@ func findMCPSkill(name string) (mcpSkill, bool) {
 // mcpSkillPlaybook 是交给 AI 的完整手册：工作流本身加上所有工作流共用的规则。
 func mcpSkillPlaybook(skill mcpSkill, brief string) string {
 	text := fmt.Sprintf("You are running the OmniMuse /%s workflow. Follow this playbook step by step.\n\n%s\n\n%s", skill.Name, skill.body, mcpSkillRules)
+	if names := mcpSkillRefNames(skill.Name); len(names) > 0 {
+		text += fmt.Sprintf("\n\n## Prompt formulas\n\nBefore writing the prompts of a step, load its formula with get_skill {\"name\": %q, \"reference\": \"<name>\"} and follow it exactly. Available: %s.", skill.Name, strings.Join(names, ", "))
+	}
 	if brief = strings.TrimSpace(brief); brief != "" {
 		text += "\n\n## The user's brief\n\n" + brief
 	}
 	return text
+}
+
+func mcpSkillRefNames(skill string) []string {
+	names := []string{}
+	for key := range mcpSkillRefs {
+		if owner, name, _ := strings.Cut(key, "/"); owner == skill {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
+// findMCPSkillRef 先在当前工作流里找公式，再按 "<工作流>/<公式>" 找其他工作流的公式。
+func findMCPSkillRef(skill, reference string) (string, string, bool) {
+	reference = strings.ToLower(strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(reference), ".md")))
+	for _, key := range []string{skill + "/" + reference, reference} {
+		if text, ok := mcpSkillRefs[key]; ok {
+			return key, text, true
+		}
+	}
+	return "", "", false
 }
 
 func mcpSkillMenu() string {
@@ -127,8 +187,9 @@ func mcpSkillMenu() string {
 }
 
 type mcpSkillInput struct {
-	Name  string `json:"name" jsonschema:"workflow name from list_skills, for example ugc-ad or /product-photoshoot"`
-	Brief string `json:"brief,omitempty" jsonschema:"what the user asked for, so the playbook can be applied to it"`
+	Name      string `json:"name" jsonschema:"workflow name from list_skills, for example ugc-ad or /product-photoshoot"`
+	Brief     string `json:"brief,omitempty" jsonschema:"what the user asked for, so the playbook can be applied to it"`
+	Reference string `json:"reference,omitempty" jsonschema:"a prompt formula the playbook names, for example creator, storyboard or product-photoshoot/formulas; load it right before the step that needs it"`
 }
 
 func registerMCPSkills(server *mcp.Server) {
@@ -146,6 +207,13 @@ func registerMCPSkills(server *mcp.Server) {
 			skill, ok := findMCPSkill(name)
 			if !ok {
 				return nil, nil, fmt.Errorf("no workflow named %q. %s", in.Name, mcpSkillMenu())
+			}
+			if strings.TrimSpace(in.Reference) != "" {
+				key, text, found := findMCPSkillRef(skill.Name, in.Reference)
+				if !found {
+					return nil, nil, fmt.Errorf("no formula %q for /%s; available: %s", in.Reference, skill.Name, strings.Join(mcpSkillRefNames(skill.Name), ", "))
+				}
+				return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "Formula " + key + " (follow it exactly when writing these prompts):\n\n" + text}}}, nil, nil
 			}
 			return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: mcpSkillPlaybook(skill, in.Brief)}}}, nil, nil
 		})

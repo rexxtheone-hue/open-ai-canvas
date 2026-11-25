@@ -25,7 +25,7 @@ Show the plan as a short table with the total price.
 
 ## 3. Generate
 
-Use an image model that renders text well (GPT Image class first, then Nano Banana). Ratio 4:5 for feed (or 1:1, 9:16 for stories if asked). Prompt each ad:
+Load the formula `product-photoshoot/formulas` (section "Ad pack") and `product-photoshoot/vocabulary` (text rules and AVOID lists): lock one visual-system paragraph for the whole pack, then write each variant with its angle. Use an image model that renders text well (GPT Image class first, then Nano Banana). Ratio 4:5 for feed (or 1:1, 9:16 for stories if asked). The text part of each prompt reads:
 "Facebook ad image, 4:5. Use image 1 as the exact product, unchanged. Layout: [product position], [background]. Headline text exactly: "[headline]" in bold sans-serif at the top. Sub-line: "[text]". Button-style label: "[CTA]". Brand colours [colours]. Clean, high contrast, readable on a phone, no other text."
 Quote every piece of text exactly, including RM prices and Chinese or Malay characters. After generation, check the text in each result; if a word is wrong, regenerate that one with the text repeated in the prompt.
 

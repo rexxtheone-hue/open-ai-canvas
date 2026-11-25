@@ -48,6 +48,36 @@ func TestMCPSkillsParseAndOnlyReferenceRealTools(t *testing.T) {
 	}
 }
 
+func TestMCPSkillFormulasExistForEveryStepThatNamesOne(t *testing.T) {
+	for skill, names := range map[string][]string{
+		"ugc-ad":             {"creator", "storyboard", "clip", "script"},
+		"drama-ad":           {"script", "characters", "places", "clip"},
+		"product-photoshoot": {"formulas", "vocabulary"},
+	} {
+		for _, name := range names {
+			key, text, ok := findMCPSkillRef(skill, name)
+			if !ok || len(text) < 1500 || !strings.HasPrefix(text, "# ") {
+				t.Fatalf("%s formula %s missing or too short (key=%s len=%d)", skill, name, key, len(text))
+			}
+			if found, _ := findMCPSkill(skill); !strings.Contains(found.body, "`"+name+"`") {
+				t.Fatalf("/%s never tells the AI to load its %s formula", skill, name)
+			}
+		}
+	}
+	// 其他工作流借用产品图公式时用 "<工作流>/<公式>"。
+	for _, skill := range []string{"static-ads", "festive-campaign"} {
+		body := func() string { s, _ := findMCPSkill(skill); return s.body }()
+		for _, ref := range regexp.MustCompile("`(product-photoshoot/[a-z]+)`").FindAllStringSubmatch(body, -1) {
+			if _, _, ok := findMCPSkillRef(skill, ref[1]); !ok {
+				t.Fatalf("/%s names missing formula %s", skill, ref[1])
+			}
+		}
+	}
+	if _, _, ok := findMCPSkillRef("ugc-ad", "nope"); ok {
+		t.Fatal("unknown formulas must not resolve")
+	}
+}
+
 func TestMCPSkillsAreServedAsToolsAndPrompts(t *testing.T) {
 	ctx := context.Background()
 	server := mcp.NewServer(&mcp.Implementation{Name: "test"}, nil)
@@ -85,6 +115,21 @@ func TestMCPSkillsAreServedAsToolsAndPrompts(t *testing.T) {
 	}
 	if body := result.Content[0].(*mcp.TextContent).Text; !strings.Contains(body, "UGC product video") {
 		t.Fatalf("get_skill body = %.200s", body)
+	}
+	if !strings.Contains(prompt.Messages[0].Content.(*mcp.TextContent).Text, "Prompt formulas") {
+		// static-ads 自己没有公式文件，借用产品图的公式；有公式的工作流才列「Prompt formulas」。
+		ugc, _ := session.GetPrompt(ctx, &mcp.GetPromptParams{Name: "ugc-ad"})
+		if !strings.Contains(ugc.Messages[0].Content.(*mcp.TextContent).Text, "Available: clip, creator, script, storyboard.") {
+			t.Fatalf("ugc-ad playbook must list its formulas")
+		}
+	}
+	formula, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_skill", Arguments: map[string]any{"name": "drama-ad", "reference": "characters"}})
+	if err != nil || formula.IsError || !strings.Contains(formula.Content[0].(*mcp.TextContent).Text, "Character picture formula") {
+		t.Fatalf("formula = %+v err=%v", formula, err)
+	}
+	borrowed, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_skill", Arguments: map[string]any{"name": "static-ads", "reference": "product-photoshoot/formulas"}})
+	if err != nil || borrowed.IsError || !strings.Contains(borrowed.Content[0].(*mcp.TextContent).Text, "Ad pack") {
+		t.Fatalf("borrowed formula = %+v err=%v", borrowed, err)
 	}
 	help, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_skill", Arguments: map[string]any{"name": "help"}})
 	if err != nil || !strings.Contains(help.Content[0].(*mcp.TextContent).Text, "/festive-campaign") {

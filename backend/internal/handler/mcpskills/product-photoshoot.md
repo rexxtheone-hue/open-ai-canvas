@@ -36,9 +36,7 @@ Without a product photo, ask for one first; images made from a description will 
 
 ## 3. Write each prompt
 
-Start every prompt with: "Use image 1 as the exact product. Keep its shape, colours, label text and logo identical; do not redesign the packaging."
-Then describe, in this order: setting and surface, camera angle and lens (for example "45-degree three-quarter view, 85mm"), lighting (for example "soft window light from the left, gentle shadow"), props (2–3, relevant to the product and the Malaysian buyer), colour palette, and the empty space needed for text if the image is for an ad.
-For a set, vary angle, setting and lighting between images, never just paraphrase the same scene. For a carousel, lock one palette and lighting style across all slides and say "slide N of M" in each prompt.
+Load the `formulas` formula and use the block template of the chosen mode; load `vocabulary` for light, lens, surfaces, text rules and the AVOID lists. For a set, vary angle, setting and lighting between images, never just paraphrase the same scene. For a carousel or ad pack, lock one visual-system paragraph and paste it into every prompt.
 
 ## 4. Models
 
