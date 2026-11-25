@@ -2,7 +2,7 @@
 .studio-mcp-hero h1 { margin: 0; font-family: var(--studio-display); font-size: 34px; line-height: 1.15; letter-spacing: -0.01em; }
 .studio-mcp-hero p { max-width: 680px; margin: 12px 0 0; color: var(--studio-soft); font-size: 15px; line-height: 1.7; }
 
-.studio-mcp-mark { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 8px; color: #fff; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+.studio-mcp-mark { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 8px; color: #fff; font-weight: 600; line-height: 1; letter-spacing: -0.02em; }
 
 .studio-mcp-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
 .studio-mcp-tabs button { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 9px; border-radius: 12px; border: 1px solid var(--studio-line-strong); background: var(--studio-panel); color: var(--studio-soft); font-size: 14px; font-weight: 600; cursor: pointer; }
@@ -12,7 +12,7 @@
 .studio-mcp-guide { padding: 26px 28px; border-radius: var(--studio-radius); border: 1px solid var(--studio-line-strong); background: var(--studio-panel); scroll-margin-top: 90px; }
 .studio-mcp-steps { display: flex; flex-direction: column; gap: 22px; margin: 0; padding: 0; list-style: none; }
 .studio-mcp-step { display: flex; gap: 16px; }
-.studio-mcp-step-index { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--studio-accent-soft); color: var(--studio-accent-text); font-size: 13px; font-weight: 700; }
+.studio-mcp-step-index { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--studio-accent-soft); color: var(--studio-accent-text); font-size: 13px; font-weight: 600; }
 .studio-mcp-step-body { display: flex; flex: 1 1 auto; flex-direction: column; gap: 10px; min-width: 0; }
 .studio-mcp-step-body h3 { margin: 3px 0 0; font-size: 16px; font-weight: 650; }
 .studio-mcp-step-body p, .studio-mcp-note { margin: 0; color: var(--studio-soft); font-size: 14px; line-height: 1.7; }

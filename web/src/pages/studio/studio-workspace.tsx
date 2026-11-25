@@ -77,7 +77,7 @@ export function StudioToolList({ title, tools, current, onPick }: { title: strin
                             <Link to={tool.path} className="studio-tool-link" onClick={onPick}>
                                 <StudioToolThumb tool={tool} cover={covers[tool.id]} size={view === "grid" ? 120 : 64} className={view === "grid" ? "is-large" : ""} />
                                 <span className="studio-tool-text">
-                                    <b>{tool.label}{tool.badge ? <em className={`studio-tag is-${tool.badge.toLowerCase()}`}>{tool.badge}</em> : null}</b>
+                                    <b>{tool.label}{tool.badge ? <em className={`studio-tag is-${tool.badge.toLowerCase()}`}>{tool.badge === "HOT" ? "热门" : "新"}</em> : null}</b>
                                     {view === "list" ? <small>{tool.description}</small> : null}
                                 </span>
                             </Link>
