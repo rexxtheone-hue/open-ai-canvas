@@ -324,54 +324,57 @@ function CanvasSection({ index, covers }: { index: string; covers: Record<string
         <section id="canvas" className="landing-section">
             <div className="landing-wrap">
                 <SectionHead index={index} title="一张画布，串起整套素材" text="在无限画布上串联多个步骤：分镜、批量出图、图生视频、对比不同版本。作品库和 Studio 共用。" action={{ to: register("/studio/canvas"), label: "打开无限画布" }} />
-                <div className="landing-canvas" aria-hidden>
-                    <svg className="landing-canvas-edges" viewBox={`0 0 ${100 * CANVAS_ASPECT} 100`} preserveAspectRatio="none">
-                        {CANVAS_EDGES.map(([from, to], index) => {
-                            const a = node(from);
-                            const b = node(to);
-                            // 连线接在节点画面的垂直中点；标签约占画布高度的 4%。
-                            const centre = (item: (typeof CANVAS_NODES)[number]) => item.y + 4 + (item.ratio ? (item.w * CANVAS_ASPECT) / item.ratio / 2 : 6);
-                            const x1 = (a.x + a.w) * CANVAS_ASPECT;
-                            const y1 = centre(a);
-                            const x2 = b.x * CANVAS_ASPECT;
-                            const y2 = centre(b);
-                            const mid = (x1 + x2) / 2;
-                            const d = `M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`;
-                            // 底线加一段沿着连线从输入流向结果的光，几条线错开出发。
+                {/* 手机上画布保持桌面比例，放在可左右滑动的框里，不把节点挤在一起 */}
+                <div className="landing-canvas-frame">
+                    <div className="landing-canvas" aria-hidden>
+                        <svg className="landing-canvas-edges" viewBox={`0 0 ${100 * CANVAS_ASPECT} 100`} preserveAspectRatio="none">
+                            {CANVAS_EDGES.map(([from, to], index) => {
+                                const a = node(from);
+                                const b = node(to);
+                                // 连线接在节点画面的垂直中点；标签约占画布高度的 4%。
+                                const centre = (item: (typeof CANVAS_NODES)[number]) => item.y + 4 + (item.ratio ? (item.w * CANVAS_ASPECT) / item.ratio / 2 : 6);
+                                const x1 = (a.x + a.w) * CANVAS_ASPECT;
+                                const y1 = centre(a);
+                                const x2 = b.x * CANVAS_ASPECT;
+                                const y2 = centre(b);
+                                const mid = (x1 + x2) / 2;
+                                const d = `M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`;
+                                // 底线加一段沿着连线从输入流向结果的光，几条线错开出发。
+                                return (
+                                    <g key={`${from}-${to}`}>
+                                        <path d={d} vectorEffect="non-scaling-stroke" />
+                                        <path className="is-pulse" d={d} pathLength={100} style={{ animationDelay: `${index * -0.6}s` }} />
+                                    </g>
+                                );
+                            })}
+                        </svg>
+                        {CANVAS_NODES.map((item) => {
+                            const Icon = item.kind === "video" ? Video : item.kind === "image" ? ImageIcon : Type;
+                            const src = item.slots.map((slot) => covers[slot]).find(Boolean);
                             return (
-                                <g key={`${from}-${to}`}>
-                                    <path d={d} vectorEffect="non-scaling-stroke" />
-                                    <path className="is-pulse" d={d} pathLength={100} style={{ animationDelay: `${index * -0.6}s` }} />
-                                </g>
+                                <div key={item.id} className="landing-canvas-node" style={{ left: `${item.x}%`, top: `${item.y}%`, width: `${item.w}%` }}>
+                                    <span className="landing-meta">
+                                        <Icon />
+                                        {item.label}
+                                    </span>
+                                    {item.kind === "text" ? (
+                                        <p className="landing-canvas-text">{CANVAS_PROMPT}</p>
+                                    ) : (
+                                        <div className="landing-canvas-media" style={{ aspectRatio: item.ratio }}>
+                                            <LandingMedia src={src} label="" />
+                                        </div>
+                                    )}
+                                </div>
                             );
                         })}
-                    </svg>
-                    {CANVAS_NODES.map((item) => {
-                        const Icon = item.kind === "video" ? Video : item.kind === "image" ? ImageIcon : Type;
-                        const src = item.slots.map((slot) => covers[slot]).find(Boolean);
-                        return (
-                            <div key={item.id} className="landing-canvas-node" style={{ left: `${item.x}%`, top: `${item.y}%`, width: `${item.w}%` }}>
-                                <span className="landing-meta">
-                                    <Icon />
-                                    {item.label}
-                                </span>
-                                {item.kind === "text" ? (
-                                    <p className="landing-canvas-text">{CANVAS_PROMPT}</p>
-                                ) : (
-                                    <div className="landing-canvas-media" style={{ aspectRatio: item.ratio }}>
-                                        <LandingMedia src={src} label="" />
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                    <div className="landing-canvas-toolbar">
-                        <MousePointer2 />
-                        <Hand />
-                        <span />
-                        <Plus />
-                        <ImageIcon />
-                        <Video />
+                        <div className="landing-canvas-toolbar">
+                            <MousePointer2 />
+                            <Hand />
+                            <span />
+                            <Plus />
+                            <ImageIcon />
+                            <Video />
+                        </div>
                     </div>
                 </div>
             </div>
