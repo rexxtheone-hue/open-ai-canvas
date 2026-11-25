@@ -12,7 +12,7 @@ type FullScreenLoaderProps = {
     className?: string;
 };
 
-/** 品牌加载页：发光标志 + 旋转光环 + 渐变进度条，配色取自 OmniMuse 标志的青、紫、粉。 */
+/** 品牌加载页：黑底白标志，一圈细白环和白色进度条。 */
 export function FullScreenLoader({ label = "正在恢复工作区", detail = "同步账号、模型和项目数据", className }: FullScreenLoaderProps) {
     const brandName = useAppearanceStore((state) => state.appearance.brandName);
     return (
