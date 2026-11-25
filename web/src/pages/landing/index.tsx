@@ -75,7 +75,7 @@ const INDUSTRIES = [
 ];
 
 /** 作品墙：后台设置的 site-gallery-N 排在前面，之后是平台作品图。 */
-const GALLERY_SLOTS = Array.from({ length: 12 }, (_, index) => `site-gallery-${index + 1}`);
+const GALLERY_SLOTS = Array.from({ length: 20 }, (_, index) => `site-gallery-${index + 1}`);
 const GALLERY_IMAGES = Array.from({ length: 24 }, (_, index) => `/auth/showcase/w${String(index + 1).padStart(2, "0")}.webp`);
 
 const MODELS = ["Seedance 2.5", "Veo 3.1", "Kling 4", "Wan 3.0", "MiniMax H3", "Vidu Q4", "Grok Imagine", "Nano Banana 2.1", "GPT Image 2.6", "Midjourney V8", "Seedream 5.5"];
@@ -249,7 +249,9 @@ export default function LandingPage() {
     const bonus = Math.floor((settingsQuery.data?.signupBonusMicrocredits ?? 0) / 1_000_000);
     const signupLabel = bonus > 0 ? `免费注册，送 ${bonus} 积分` : "免费注册";
     const heroClips = HERO_REEL.map((clip) => ({ src: covers[clip.slot] || covers[clip.fallback] || "", label: clip.label })).filter((clip) => clip.src);
-    const gallery = [...GALLERY_SLOTS.map((slot) => covers[slot]).filter((src): src is string => Boolean(src)), ...GALLERY_IMAGES];
+    const siteGallery = GALLERY_SLOTS.map((slot) => covers[slot]).filter((src): src is string => Boolean(src));
+    // 官网作品墙凑满 24 格：后台设置的排前面，不够的用平台作品图补上。
+    const gallery = [...siteGallery, ...GALLERY_IMAGES.slice(0, Math.max(0, 24 - siteGallery.length))];
 
     useEffect(() => {
         document.title = `${brandName} · AI 视频和图片创作`;
