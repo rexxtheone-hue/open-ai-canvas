@@ -82,7 +82,7 @@ const WORKFLOWS = [
     { name: "product-photoshoot", title: "产品图一套", text: "把一张产品照做成棚拍、生活场景、模特、横幅等一整套图", ask: "把我的产品照做成一套电商和广告用的图" },
     { name: "ugc-ad", title: "达人带货视频", text: "真人口吻的测评、开箱、教程、试穿视频，嘴型对上台词", ask: "为我的产品做一条达人口播带货视频" },
     { name: "static-ads", title: "广告图套装", text: "按不同卖点各做一张带标题的广告图，方便测试", ask: "为我的产品做一组 Facebook 广告图，每张一个卖点" },
-    { name: "drama-ad", title: "短剧广告", text: "有冲突、有反转的迷你短剧，产品在结尾解决问题", ask: "为我的产品做一条短剧广告" },
+    { name: "drama-ads", title: "短剧广告", text: "选一个故事，AI 写剧本、做人物和场景、拍成角色亲口说台词的短剧成片", ask: "为我的产品拍一部短剧广告" },
     { name: "adapt-ad", title: "仿拍爆款广告", text: "保留参考视频的节奏和运镜，换成你的产品和人物", ask: "参考一条爆款视频，换成我的产品重拍" },
     { name: "hook-variants", title: "多个开头测试", text: "同一条广告做 3–5 个不同的开头，用来 A/B 测试", ask: "为同一条广告做几个不同的开头钩子" },
     { name: "localize-ads", title: "多语言版本", text: "改成马来文、中文、英文或其他市场的版本", ask: "把我的广告改成马来文和英文版本" },

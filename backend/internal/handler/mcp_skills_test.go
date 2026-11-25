@@ -10,7 +10,7 @@ import (
 )
 
 func TestMCPSkillsParseAndOnlyReferenceRealTools(t *testing.T) {
-	if len(mcpSkills) < 10 || mcpSkillRules == "" {
+	if len(mcpSkills) < 9 || mcpSkillRules == "" {
 		t.Fatalf("skills=%d rules=%d", len(mcpSkills), len(mcpSkillRules))
 	}
 	if mcpSkills[0].Name != "product-photoshoot" {
@@ -51,7 +51,6 @@ func TestMCPSkillsParseAndOnlyReferenceRealTools(t *testing.T) {
 func TestMCPSkillFormulasExistForEveryStepThatNamesOne(t *testing.T) {
 	for skill, names := range map[string][]string{
 		"ugc-ad":             {"creator", "storyboard", "clip", "script"},
-		"drama-ad":           {"script", "characters", "places", "clip"},
 		"product-photoshoot": {"formulas", "vocabulary"},
 	} {
 		for _, name := range names {
@@ -123,8 +122,8 @@ func TestMCPSkillsAreServedAsToolsAndPrompts(t *testing.T) {
 			t.Fatalf("ugc-ad playbook must list its formulas")
 		}
 	}
-	formula, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_skill", Arguments: map[string]any{"name": "drama-ad", "reference": "characters"}})
-	if err != nil || formula.IsError || !strings.Contains(formula.Content[0].(*mcp.TextContent).Text, "Character picture formula") {
+	formula, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_skill", Arguments: map[string]any{"name": "ugc-ad", "reference": "creator"}})
+	if err != nil || formula.IsError || !strings.Contains(formula.Content[0].(*mcp.TextContent).Text, "Creator") {
 		t.Fatalf("formula = %+v err=%v", formula, err)
 	}
 	borrowed, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_skill", Arguments: map[string]any{"name": "static-ads", "reference": "product-photoshoot/formulas"}})

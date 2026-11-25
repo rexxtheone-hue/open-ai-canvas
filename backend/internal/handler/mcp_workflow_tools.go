@@ -368,6 +368,70 @@ func registerWorkflowTools(server *mcp.Server, svc *service.Service) {
 			return toolJSON(map[string]any{"action": in.Action, "media_id": in.MediaID, "type": results[0].Type, "url": results[0].URL}, "The film is shown to the user. Its link: "+results[0].URL), nil
 		})
 
+	server.AddTool(&mcp.Tool{Name: "ads_studio_story_presets", Title: "Drama cards", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
+		Description: "The micro drama catalog: its styles and story cards (id, title, preview). Use once when the user named a card by its title and its id is not already in this conversation.",
+		InputSchema: rawSchema(`{"type":"object","properties":{}}`)},
+		func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			catalog, err := svc.DramaCardCatalog()
+			if err != nil {
+				return toolError(err)
+			}
+			return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: string(catalog)}}}, nil
+		})
+
+	server.AddTool(&mcp.Tool{Name: "ads_studio_story_recipe", Title: "Drama card recipe",
+		Description: "The recipe the director follows for one micro drama card of ads_studio_story_presets: its film prompt, screenplay when it has one, style, settings and its product, person and place. Call it once when the user picked a card for /drama-ads, then direct the film with the drama-ads workflow. A singing ad card is not a micro drama: its instructions name the command to follow in place of the workflow. It starts no generation and costs nothing.",
+		InputSchema: rawSchema(`{"type":"object","properties":{"preset_id":{"type":"string","minLength":1,"description":"The card's id."},"product_id":{"type":"string","description":"Optional product id (not used on OmniMuse: give the product as a photo or in words)."}},"required":["preset_id"]}`)},
+		func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			user, err := mcpUser(ctx)
+			if err != nil {
+				return nil, err
+			}
+			var in struct {
+				PresetID string `json:"preset_id"`
+			}
+			if err := json.Unmarshal(req.Params.Arguments, &in); err != nil {
+				return toolError(err)
+			}
+			recipe, err := svc.DramaCardRecipe(user, in.PresetID)
+			if err != nil {
+				return toolError(err)
+			}
+			return toolJSON(recipe, ""), nil
+		})
+
+	server.AddTool(&mcp.Tool{Name: "ads_studio_list_avatars", Title: "Saved people", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
+		Description: "The people saved in the user's OmniMuse character library, each with an id, a name and a preview_url to import with media_import_url as that character's face photo.",
+		InputSchema: rawSchema(`{"type":"object","properties":{"size":{"type":"integer"},"user_cursor":{"type":"string"},"preset_cursor":{"type":"string"}}}`)},
+		func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			user, err := mcpUser(ctx)
+			if err != nil {
+				return nil, err
+			}
+			avatars, err := svc.DramaAvatars(ctx, user)
+			if err != nil {
+				return toolError(err)
+			}
+			return toolJSON(map[string]any{"avatars": avatars, "has_more": false}, ""), nil
+		})
+
+	server.AddTool(&mcp.Tool{Name: "models_explore", Title: "Model details", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
+		Description: "Read one model's options: action get with model (for example seedance_2_5) returns its modes, resolutions, durations and reference roles.",
+		InputSchema: rawSchema(`{"type":"object","properties":{"action":{"type":"string","enum":["get"]},"model":{"type":"string"}},"required":["model"]}`)},
+		func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			var in struct {
+				Model string `json:"model"`
+			}
+			if err := json.Unmarshal(req.Params.Arguments, &in); err != nil {
+				return toolError(err)
+			}
+			info, err := svc.WorkflowModelInfo(ctx, in.Model)
+			if err != nil {
+				return toolError(err)
+			}
+			return toolJSON(info, ""), nil
+		})
+
 	server.AddTool(&mcp.Tool{Name: "balance", Title: "Balance", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
 		Description: "Get the user's available credits.", InputSchema: rawSchema(`{"type":"object","properties":{}}`)},
 		func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {

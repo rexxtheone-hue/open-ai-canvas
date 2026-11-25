@@ -91,7 +91,7 @@ func loadMCPSkills() ([]mcpSkill, string) {
 
 // 常用的排前面，其余按名字。
 func mcpSkillOrder(name string) string {
-	for index, first := range []string{"product-photoshoot", "ugc-ad", "static-ads", "drama-ad", "adapt-ad", "hook-variants", "localize-ads", "resize-ads", "festive-campaign"} {
+	for index, first := range []string{"product-photoshoot", "ugc-ad", "static-ads", "adapt-ad", "hook-variants", "localize-ads", "resize-ads", "festive-campaign"} {
 		if name == first {
 			return fmt.Sprintf("%02d", index)
 		}

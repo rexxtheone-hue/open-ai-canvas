@@ -363,3 +363,31 @@ func (s *Service) WorkflowJobStatuses(ctx context.Context, user *model.User, job
 	}
 	return out
 }
+
+// WorkflowModelInfo 是 models_explore：工作流模型名对应的本站模型能做什么。
+func (s *Service) WorkflowModelInfo(ctx context.Context, name string) (map[string]any, error) {
+	m, err := s.openAPIModel(ctx, workflowModel(name))
+	if err != nil {
+		return nil, err
+	}
+	info := map[string]any{"id": name, "name": m.Name, "kind": m.Kind, "aspect_ratios": m.AspectRatios, "resolutions": m.Resolutions}
+	switch m.Kind {
+	case "video":
+		modes := []string{}
+		if containsString(m.Operations, "reference_to_video") {
+			modes = append(modes, "omni_reference", "video_extension")
+		}
+		for _, op := range m.Operations {
+			if op != "reference_to_video" {
+				modes = append(modes, op)
+			}
+		}
+		info["mode"] = modes
+		info["duration"] = map[string]any{"min": m.MinDuration, "max": m.MaxDuration}
+		info["medias"] = map[string]any{"roles": []string{"image_references", "video_references", "audio_references"}}
+	case "image":
+		info["qualities"] = m.Qualities
+		info["medias"] = map[string]any{"roles": []string{"image_references"}, "max": m.MaxReferenceImages}
+	}
+	return info, nil
+}
