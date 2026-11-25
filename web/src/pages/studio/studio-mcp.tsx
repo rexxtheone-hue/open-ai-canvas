@@ -87,12 +87,12 @@ export default function StudioMcpPage() {
         claude: (
             <ol className="studio-mcp-steps">
                 <Step index={1} title={`添加 ${brand} 连接器`}>
-                    <p>在 Claude 打开「设置 → 连接器」，点「添加自定义连接器」，名称填 {brand}，再粘贴下面的网址。</p>
+                    <p>在 Claude 左侧点「Plugins」，再点右上角「Add → Add custom connector」。名称填 {brand}，MCP server URL 粘贴下面的网址，点「Continue」，再点「Add」。</p>
                     <CopyLine value={mcpUrl} />
-                    <ExternalButton href="https://claude.ai/settings/connectors">打开 Claude 连接器</ExternalButton>
+                    <ExternalButton href="https://claude.ai/plugins/yours">打开 Claude Plugins</ExternalButton>
                 </Step>
                 <Step index={2} title="登录并授权">
-                    <p>点连接器旁边的「连接」，会打开 {brand} 的授权页，确认账号后点「授权连接」。</p>
+                    <p>Claude 会自动打开 {brand} 的授权页，确认账号后点「授权连接」，看到「Connected to {brand}」就好了。</p>
                 </Step>
                 <Step index={3} title="开始创作">
                     <p>新开一个对话，直接说你要什么。试试：「用 {brand} 为我的产品做一条 15 秒的竖屏广告视频。」</p>
@@ -103,16 +103,16 @@ export default function StudioMcpPage() {
         ),
         chatgpt: (
             <ol className="studio-mcp-steps">
-                <Step index={1} title="打开开发者模式">
-                    <p>在 ChatGPT 打开「设置 → 应用与连接器 → 高级设置」，打开「开发者模式」。需要 Plus、Pro、Business 或企业版账号。</p>
-                    <ExternalButton href="https://chatgpt.com/#settings/Connectors">打开 ChatGPT 设置</ExternalButton>
-                </Step>
-                <Step index={2} title={`创建 ${brand} 连接器`}>
-                    <p>回到「应用与连接器」，点「创建」。名称填 {brand}，MCP 服务器网址粘贴下面的地址，认证方式选 OAuth，然后按提示登录并授权。</p>
+                <Step index={1} title={`添加 ${brand} MCP 服务器`}>
+                    <p>在 ChatGPT 左侧点「Plugins」，再点右上角「Add → Add custom MCP server」。名称填 {brand}，Server URL 粘贴下面的网址，Authentication 选 OAuth，勾选「I understand and want to continue」，点「Create as a plugin」。免费版也可以用。</p>
                     <CopyLine value={mcpUrl} />
+                    <ExternalButton href="https://chatgpt.com/plugins">打开 ChatGPT Plugins</ExternalButton>
+                </Step>
+                <Step index={2} title="登录并授权">
+                    <p>点「Continue to {brand}」，在打开的授权页确认账号后点「授权连接」。</p>
                 </Step>
                 <Step index={3} title="在对话里使用">
-                    <p>新对话里点输入框的「+」，在「更多」里选 {brand}，再描述你要的内容。试试：「用 {brand} 做 4 张电商主图。」</p>
+                    <p>在输入框打 @{brand} 选中它，再描述你要的内容。试试：「@{brand} 做 4 张电商主图。」</p>
                 </Step>
             </ol>
         ),
