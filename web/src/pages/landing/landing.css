@@ -526,11 +526,47 @@
     display: flex;
     gap: 16px;
     overflow-x: auto;
-    padding: 0 max(var(--l-gutter), calc((100% - 1440px) / 2 + var(--l-gutter))) 16px;
+    padding: 0 max(var(--l-gutter), calc((100% - 1440px) / 2 + var(--l-gutter)));
     scroll-snap-type: x mandatory;
     scroll-padding-inline: max(var(--l-gutter), calc((100% - 1440px) / 2 + var(--l-gutter)));
-    scrollbar-width: thin;
-    scrollbar-color: rgba(214, 225, 255, 0.16) transparent;
+    scrollbar-width: none;
+}
+.landing-strip::-webkit-scrollbar {
+    display: none;
+}
+.landing-strip-controls {
+    display: flex;
+    flex: none;
+    gap: 8px;
+}
+.landing-strip-controls button {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--l-line-strong);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--l-fg);
+    cursor: pointer;
+    transition:
+        background-color 0.15s ease-out,
+        opacity 0.15s ease-out;
+}
+.landing-strip-controls button:hover:not(:disabled) {
+    background: rgba(214, 225, 255, 0.08);
+}
+.landing-strip-controls button:disabled {
+    opacity: 0.32;
+    cursor: default;
+}
+.landing-strip-controls button:focus-visible {
+    outline: 2px solid var(--l-accent);
+    outline-offset: 3px;
+}
+.landing-strip-controls svg {
+    width: 18px;
+    height: 18px;
 }
 .landing-strip-card {
     position: relative;
