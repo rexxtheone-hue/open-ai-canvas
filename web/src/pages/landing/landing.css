@@ -637,7 +637,7 @@
 }
 
 /* 模型对比：同一句提示词，四段并排 */
-.landing-compare-prompt {
+.landing .landing-compare-prompt {
     display: grid;
     gap: 8px;
     max-width: 880px;
