@@ -10,6 +10,7 @@ import {
     BookStack as IconoirBookStack,
     Box3dPoint as IconoirBox3dPoint,
     Building as IconoirBuilding,
+    Code as IconoirCode,
     Calendar as IconoirCalendar,
     Camera as IconoirCamera,
     ChatBubble as IconoirChatBubble,
@@ -217,6 +218,7 @@ export const Replace = iconoir(IconoirRepeat as IconoirComponent, "Replace");
 export const Rotate3d = iconoir(IconoirRotateCameraLeft as IconoirComponent, "Rotate3d");
 export const RotateCcw = iconoir(IconoirUndo as IconoirComponent, "RotateCcw");
 export const ScanFace = iconoir(IconoirFaceId as IconoirComponent, "ScanFace");
+export const CodeBrackets = iconoir(IconoirCode as IconoirComponent, "CodeBrackets");
 export const ScanText = iconoir(IconoirScanQrCode as IconoirComponent, "ScanText");
 export const Search = iconoir(IconoirSearch as IconoirComponent, "Search");
 export const Share2 = iconoir(IconoirShareAndroid as IconoirComponent, "Share2");

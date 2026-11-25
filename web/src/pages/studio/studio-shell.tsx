@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "react-router";
-import { ChatFill, ChevronDown, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, Layers, LayoutTemplate, Library, Megaphone, MessageSquareText, Hourglass, Palette, PanelLeft, Pin, UserPen, UserRound, Users, Wand2, X } from "./studio-icons";
+import { ChatFill, ChevronDown, CodeBrackets, ChevronRight, Clapperboard, Compass, Crown, DirectorFill, FolderOpen, Grid2x2, Home, Layers, LayoutTemplate, Library, Megaphone, MessageSquareText, Hourglass, Palette, PanelLeft, Pin, UserPen, UserRound, Users, Wand2, X } from "./studio-icons";
 
 import "@fontsource-variable/space-grotesk/index.css";
 
@@ -205,6 +205,10 @@ export function StudioShell({ title, subtitle, children }: { title?: string; sub
                                         {tab.label}
                                     </Link>
                                 ))}
+                                <Link to="/studio/settings?section=developer" className="studio-side-tools-wide" aria-current={pathname === "/studio/settings" && search.includes("section=developer") ? "page" : undefined}>
+                                    <CodeBrackets aria-hidden />
+                                    API 与 MCP
+                                </Link>
                             </div>,
                         )}
                         {section(

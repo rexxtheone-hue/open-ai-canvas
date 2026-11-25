@@ -82,6 +82,7 @@
 .studio-side-tools a { display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 10px; border-radius: 8px; background: var(--studio-chip); color: var(--studio-fg); font-size: 13px; font-weight: 600; text-decoration: none; }
 .studio-side-tools a svg { width: 15px; height: 15px; }
 .studio-side-tools a:hover { background: var(--studio-hover); }
+.studio-side-tools a.studio-side-tools-wide { grid-column: 1 / -1; }
 .studio-side-tools a[aria-current="page"] { background: var(--studio-panel); box-shadow: inset 0 0 0 1px var(--studio-accent); }
 .studio-side-links { display: flex; flex-direction: column; gap: 2px; }
 .studio-side-empty { display: flex; gap: 6px; margin: 4px 10px; color: var(--studio-muted); font-size: 11.5px; line-height: 1.5; }
