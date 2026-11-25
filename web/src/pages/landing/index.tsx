@@ -582,7 +582,7 @@ export default function LandingPage() {
                                 <div className="landing-grid">
                                     {IMAGE_TOOLS.map((tool) => (
                                         <Link key={tool.cover} className="landing-tile is-square" to={register("/studio/image")}>
-                                            <LandingMedia src={covers[tool.cover]} label={tool.title} />
+                                            <LandingMedia src={covers[`site-imagetool-${tool.cover}`] || covers[tool.cover]} label={tool.title} />
                                             <span className="landing-tile-copy">
                                                 <strong>{tool.title}</strong>
                                                 <span>{tool.text}</span>

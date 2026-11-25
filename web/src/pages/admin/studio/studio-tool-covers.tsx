@@ -30,6 +30,16 @@ const SITE_SLOTS = [
         ["video-upscale", "视频高清"],
     ].map(([tool, label]) => ({ id: `site-video-${tool}`, label: `视频 · ${label}` })),
     ...[
+        ["create-image", "生成图片"],
+        ["edit-image", "改图"],
+        ["relight", "重新打光"],
+        ["replace-background", "换背景"],
+        ["expand-image", "扩图"],
+        ["multi-view", "多角度"],
+        ["face-swap", "换脸"],
+        ["image-upscale", "图片高清"],
+    ].map(([tool, label]) => ({ id: `site-imagetool-${tool}`, label: `图片 · ${label}` })),
+    ...[
         ["product-ad", "产品广告"],
         ["ugc", "真人口播"],
         ["food", "餐饮探店"],
