@@ -741,8 +741,28 @@
 }
 .landing-canvas-edges path {
     fill: none;
-    stroke: rgba(214, 225, 255, 0.32);
+    stroke: rgba(214, 225, 255, 0.24);
     stroke-width: 1.5;
+}
+/* 沿连线流动的光：一小段强调色，从输入节点跑向生成结果 */
+.landing-canvas-edges .is-pulse {
+    stroke: var(--l-accent);
+    stroke-width: 0.4;
+    stroke-linecap: round;
+    stroke-dasharray: 10 90;
+    stroke-dashoffset: 100;
+    filter: drop-shadow(0 0 4px rgba(214, 92, 255, 0.9));
+    animation: landing-edge-flow 2.4s linear infinite;
+}
+@keyframes landing-edge-flow {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .landing-canvas-edges .is-pulse {
+        display: none;
+    }
 }
 .landing-canvas-node {
     position: absolute;

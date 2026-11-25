@@ -300,12 +300,15 @@ function CopyLine({ label, value }: { label: string; value: string }) {
 }
 
 /** 画布示意里的节点：位置按画布宽高的百分比，连线从左边节点的右侧连到右边节点的左侧。 */
+// 左边两个输入、右边一列两个结果，连线都从左往右，不穿过任何节点。ratio 是宽 / 高。
 const CANVAS_NODES = [
-    { id: "prompt", kind: "text", label: "提示词", slots: [], x: 5, y: 12, w: 22, ratio: "" },
-    { id: "source", kind: "image", label: "参考图 · 猫山王", slots: ["site-gallery-11"], x: 9, y: 50, w: 14, ratio: "3 / 4" },
-    { id: "cake", kind: "video", label: "视频 · Seedance 2.5", slots: ["site-gallery-1"], x: 48, y: 8, w: 12, ratio: "9 / 16" },
-    { id: "shake", kind: "video", label: "视频 · Seedance 2.5", slots: ["site-imagetool-create-image", "site-gallery-2"], x: 70, y: 30, w: 20, ratio: "1 / 1" },
+    { id: "prompt", kind: "text", label: "提示词", slots: [], x: 6, y: 14, w: 22, ratio: 0 },
+    { id: "source", kind: "image", label: "参考图 · 猫山王", slots: ["site-gallery-11"], x: 10, y: 48, w: 13, ratio: 3 / 4 },
+    { id: "shake", kind: "video", label: "视频 · Seedance 2.5", slots: ["site-imagetool-create-image", "site-gallery-2"], x: 62, y: 6, w: 15, ratio: 1 },
+    { id: "cake", kind: "video", label: "视频 · Seedance 2.5", slots: ["site-gallery-1"], x: 64, y: 50, w: 13, ratio: 3 / 4 },
 ] as const;
+/** 画布示意的宽高比（和 CSS 的 aspect-ratio 一致），用来把节点的百分比位置换成连线坐标。 */
+const CANVAS_ASPECT = 2;
 const CANVAS_EDGES = [
     ["prompt", "cake"],
     ["prompt", "shake"],
@@ -322,16 +325,25 @@ function CanvasSection({ index, covers }: { index: string; covers: Record<string
             <div className="landing-wrap">
                 <SectionHead index={index} title="一张画布，串起整套素材" text="在无限画布上串联多个步骤：分镜、批量出图、图生视频、对比不同版本。作品库和 Studio 共用。" action={{ to: register("/studio/canvas"), label: "打开无限画布" }} />
                 <div className="landing-canvas" aria-hidden>
-                    <svg className="landing-canvas-edges" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        {CANVAS_EDGES.map(([from, to]) => {
+                    <svg className="landing-canvas-edges" viewBox={`0 0 ${100 * CANVAS_ASPECT} 100`} preserveAspectRatio="none">
+                        {CANVAS_EDGES.map(([from, to], index) => {
                             const a = node(from);
                             const b = node(to);
-                            const x1 = a.x + a.w;
-                            const y1 = a.y + (a.kind === "text" ? 12 : 22);
-                            const x2 = b.x;
-                            const y2 = b.y + (b.kind === "video" && b.ratio === "9 / 16" ? 30 : 24);
+                            // 连线接在节点画面的垂直中点；标签约占画布高度的 4%。
+                            const centre = (item: (typeof CANVAS_NODES)[number]) => item.y + 4 + (item.ratio ? (item.w * CANVAS_ASPECT) / item.ratio / 2 : 6);
+                            const x1 = (a.x + a.w) * CANVAS_ASPECT;
+                            const y1 = centre(a);
+                            const x2 = b.x * CANVAS_ASPECT;
+                            const y2 = centre(b);
                             const mid = (x1 + x2) / 2;
-                            return <path key={`${from}-${to}`} d={`M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`} vectorEffect="non-scaling-stroke" />;
+                            const d = `M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`;
+                            // 底线加一段沿着连线从输入流向结果的光，几条线错开出发。
+                            return (
+                                <g key={`${from}-${to}`}>
+                                    <path d={d} vectorEffect="non-scaling-stroke" />
+                                    <path className="is-pulse" d={d} pathLength={100} style={{ animationDelay: `${index * -0.6}s` }} />
+                                </g>
+                            );
                         })}
                     </svg>
                     {CANVAS_NODES.map((item) => {
