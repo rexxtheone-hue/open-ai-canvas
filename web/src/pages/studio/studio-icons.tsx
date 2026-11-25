@@ -5,12 +5,13 @@ import {
     ArrowSeparate as IconoirArrowSeparate,
     ArrowUp as IconoirArrowUp,
     ArrowUpLeft as IconoirArrowUpLeft,
+    ArrowUpRight as IconoirArrowUpRight,
     Attachment as IconoirAttachment,
     Book as IconoirBook,
     BookStack as IconoirBookStack,
     Box3dPoint as IconoirBox3dPoint,
     Building as IconoirBuilding,
-    Code as IconoirCode,
+    Puzzle as IconoirPuzzle,
     Calendar as IconoirCalendar,
     Camera as IconoirCamera,
     ChatBubble as IconoirChatBubble,
@@ -130,6 +131,7 @@ export const ArrowLeftRight = iconoir(IconoirArrowSeparate as IconoirComponent, 
 export const ArrowRight = iconoir(IconoirArrowRight as IconoirComponent, "ArrowRight");
 export const ArrowUp = iconoir(IconoirArrowUp as IconoirComponent, "ArrowUp");
 export const ArrowUpLeft = iconoir(IconoirArrowUpLeft as IconoirComponent, "ArrowUpLeft");
+export const ArrowUpRight = iconoir(IconoirArrowUpRight as IconoirComponent, "ArrowUpRight");
 export const AudioFill = iconoir(IconoirSoundHigh as IconoirComponent, "AudioFill");
 export const AudioLines = iconoir(IconoirSoundHigh as IconoirComponent, "AudioLines");
 export const AudioWaveform = iconoir(IconoirVoice as IconoirComponent, "AudioWaveform");
@@ -218,7 +220,7 @@ export const Replace = iconoir(IconoirRepeat as IconoirComponent, "Replace");
 export const Rotate3d = iconoir(IconoirRotateCameraLeft as IconoirComponent, "Rotate3d");
 export const RotateCcw = iconoir(IconoirUndo as IconoirComponent, "RotateCcw");
 export const ScanFace = iconoir(IconoirFaceId as IconoirComponent, "ScanFace");
-export const CodeBrackets = iconoir(IconoirCode as IconoirComponent, "CodeBrackets");
+export const Puzzle = iconoir(IconoirPuzzle as IconoirComponent, "Puzzle");
 export const ScanText = iconoir(IconoirScanQrCode as IconoirComponent, "ScanText");
 export const Search = iconoir(IconoirSearch as IconoirComponent, "Search");
 export const Share2 = iconoir(IconoirShareAndroid as IconoirComponent, "Share2");

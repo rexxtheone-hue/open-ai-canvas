@@ -14,6 +14,7 @@ const GUEST_STUDIO_PAGES = new Set([
     "templates",
     "creators",
     "pricing",
+    "mcp",
     "help",
     "terms",
     "create-image",
