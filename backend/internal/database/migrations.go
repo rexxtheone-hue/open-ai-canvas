@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const CurrentSchemaVersion int64 = 86
+const CurrentSchemaVersion int64 = 87
 
 const baselineSchemaChecksum = "sha256:open-ai-canvas-schema-v1-20260830"
 const schemaMigrationAppliedAtIndexChecksum = "sha256:schema-migrations-applied-at-index-v2-20260830"
@@ -292,6 +292,9 @@ var schemaMigrations = []migration{
 			return tx.Migrator().CreateIndex(&model.Task{}, "APIClient")
 		}
 		return nil
+	}},
+	{version: 87, name: "agent_sandbox_drama", checksum: "sha256:agent-sandbox-drama-v87-20261126", apply: func(tx *gorm.DB) error {
+		return tx.AutoMigrate(&model.AgentSandbox{}, &model.DramaRun{}, &model.MediaUpload{})
 	}},
 }
 

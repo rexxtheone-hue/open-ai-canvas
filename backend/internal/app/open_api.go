@@ -74,6 +74,8 @@ type OpenAPIGenerationRequest struct {
 	Client string `json:"-"`
 	// App 是具体应用（Claude、ChatGPT、Cursor、OmniMuse CLI 等），由服务端按令牌和请求头判断。
 	App string `json:"-"`
+	// Metadata 由服务端附加到任务（例如 MCP 短剧的 dramaAdsId）。
+	Metadata map[string]any `json:"-"`
 }
 
 type OpenAPIOutput struct {
@@ -446,7 +448,7 @@ func (s *Service) openAPITaskRequest(ctx context.Context, userID string, req Ope
 	if utf8.RuneCountInString(prompt) > 16000 {
 		return CreateTaskRequest{}, nil, BadAuthRequest("提示词最多 16000 字")
 	}
-	if len(req.References) > openAPIMaxReferences {
+	if limit := openAPIMaxReferences; len(req.References) > limit && (req.Client != "mcp" || len(req.References) > 29) {
 		return CreateTaskRequest{}, nil, BadAuthRequest("参考素材最多 16 个")
 	}
 	refs := map[string][]any{"image": {}, "video": {}, "audio": {}}
@@ -550,6 +552,9 @@ func (s *Service) openAPITaskRequest(ctx context.Context, userID string, req Ope
 	}
 	if m.Kind == "video" {
 		input["metadata"].(map[string]any)["videoEditOperation"] = operation
+	}
+	for key, value := range req.Metadata {
+		input["metadata"].(map[string]any)[key] = value
 	}
 	return CreateTaskRequest{Type: "canvas_" + m.Kind, Operation: operation, Prompt: prompt, Model: m.channelID + "::" + m.modelKey, Input: input, apiClient: client, apiApp: req.App}, m, nil
 }

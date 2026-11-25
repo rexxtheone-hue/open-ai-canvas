@@ -401,6 +401,7 @@ func newMCPServer(svc *service.Service) *mcp.Server {
 			}
 			return mcpText(generation, generationSummary(generation)), nil, nil
 		})
+	registerWorkflowTools(server, svc)
 	return server
 }
 
@@ -437,6 +438,14 @@ func RegisterMCPRoutes(r *gin.Engine, api *gin.RouterGroup, svc *service.Service
 		ctx = context.WithValue(ctx, mcpBaseKey{}, requestBaseURL(c))
 		streamable.ServeHTTP(c.Writer, c.Request.WithContext(ctx))
 	}
+	// media_upload 给的上传网址：沙盒用 curl PUT 把文件送上来（网址里的 ID 本身就是凭证，两小时内有效）。
+	r.PUT("/api/media-upload/:id", func(c *gin.Context) {
+		if err := svc.ReceiveMediaUpload(c.Param("id"), c.GetHeader("Content-Type"), c.Request.Body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
 	r.POST("/mcp", mcpHandler)
 	r.GET("/mcp", mcpHandler)
 	r.DELETE("/mcp", mcpHandler)
