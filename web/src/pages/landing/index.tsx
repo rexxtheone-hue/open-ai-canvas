@@ -1,5 +1,8 @@
 import "@fontsource-variable/space-grotesk/index.css";
 import AlibabaLogo from "@lobehub/icons/es/Alibaba/components/Mono";
+import ClaudeLogo from "@lobehub/icons/es/Claude/components/Mono";
+import CursorLogo from "@lobehub/icons/es/Cursor/components/Mono";
+import McpLogo from "@lobehub/icons/es/MCP/components/Mono";
 import ByteDanceLogo from "@lobehub/icons/es/ByteDance/components/Mono";
 import DeepMindLogo from "@lobehub/icons/es/DeepMind/components/Mono";
 import GeminiLogo from "@lobehub/icons/es/Gemini/components/Mono";
@@ -10,7 +13,7 @@ import MinimaxLogo from "@lobehub/icons/es/Minimax/components/Mono";
 import OpenAILogo from "@lobehub/icons/es/OpenAI/components/Mono";
 import ViduLogo from "@lobehub/icons/es/Vidu/components/Mono";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, ChevronDown, Languages, Menu, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, Languages, Menu, SquareTerminal, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
 import { Link, useNavigate } from "react-router";
 
@@ -95,6 +98,15 @@ const COMPARE_MODELS = [
     { slot: "site-compare-wan", name: "Wan 3.0" },
 ];
 
+/** 能接入的 AI 助手，标志用单色版本显示成白色。 */
+const AGENT_APPS = [
+    { name: "Claude", logo: ClaudeLogo },
+    { name: "ChatGPT", logo: OpenAILogo },
+    { name: "Cursor", logo: CursorLogo },
+    { name: "MCP", logo: McpLogo },
+    { name: "CLI", logo: SquareTerminal },
+];
+
 /** 模型条：厂商标志用单色版本，跟着文字颜色显示成白色。 */
 const MODELS = [
     { name: "Seedance 2.5", logo: ByteDanceLogo },
@@ -108,14 +120,6 @@ const MODELS = [
     { name: "GPT Image 2.6", logo: OpenAILogo },
     { name: "Midjourney V8", logo: MidjourneyLogo },
     { name: "Seedream 5.5", logo: ByteDanceLogo },
-];
-
-const FAQS = [
-    { q: "不会剪辑、不会写脚本也能用吗？", a: "能。用对话模式说你想做什么，AI 会先写脚本、排好镜头，再一个个生成。想自己控制的话，可以用导演模式逐个镜头调整。" },
-    { q: "积分怎么算？", a: "生成图片、视频、音频都按次扣积分，提交前就会显示要扣多少。例如 Nano Banana 2.1 一张 1K 图片 30 积分，Wan 3.0 一条 720P 5 秒视频约 208 积分。生成失败会自动退回积分。" },
-    { q: "怎么付款？", a: "以马币计价，用银行卡一次性付款，不订阅、不自动续费。新用户可以先买 RM 99 新手礼包。" },
-    { q: "充值的积分多久到期？", a: "每次充值单独计算，从付款当天起 12 个月有效，大额充值包 24 个月。到期前 30 天和 7 天会提醒你。" },
-    { q: "可以先试用吗？", a: "可以。注册后先用赠送的积分试用，满意了再充值。" },
 ];
 
 function coverSource(src: string | undefined) {
@@ -268,6 +272,28 @@ function LanguageToggle() {
     );
 }
 
+/** 一行可复制的地址或命令。 */
+function CopyLine({ label, value }: { label: string; value: string }) {
+    const [copied, setCopied] = useState(false);
+    const copy = () => {
+        void navigator.clipboard?.writeText(value).then(() => {
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1600);
+        });
+    };
+    return (
+        <div className="landing-copy">
+            <span className="landing-meta">{label}</span>
+            <div>
+                <code>{value}</code>
+                <button type="button" onClick={copy} aria-label={copied ? "已复制" : `复制${label}`}>
+                    {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
+                </button>
+            </div>
+        </div>
+    );
+}
+
 function SectionHead({ index, title, text, action, controls }: { index: string; title: string; text: string; action?: { to: string; label: string }; controls?: ReactNode }) {
     return (
         <div className="landing-head">
@@ -328,13 +354,12 @@ export default function LandingPage() {
     const [scrolled, setScrolled] = useState(false);
     const [heroIndex, setHeroIndex] = useState(0);
     const [prompt, setPrompt] = useState("");
+    const origin = typeof window === "undefined" ? "https://omnimuse.io" : window.location.origin;
     const rootRef = useRef<HTMLDivElement>(null);
     const stripRef = useRef<HTMLDivElement>(null);
     const coversQuery = useQuery({ queryKey: ["studio", "tool-covers"], queryFn: async () => (await listStudioToolCovers()).covers, staleTime: 10 * 60_000, enabled: isPlatform });
     const settingsQuery = useQuery({ queryKey: ["landing", "auth-settings"], queryFn: getAuthSettings, staleTime: 10 * 60_000 });
     const covers = isPlatform ? coversQuery.data || {} : {};
-    // 代理商网站只保留与平台价格政策无关的问答（第一条和最后一条）。
-    const faqs = isPlatform ? FAQS : FAQS.filter((_, index) => index === 0 || index === FAQS.length - 1);
     const bonus = Math.floor((settingsQuery.data?.signupBonusMicrocredits ?? 0) / 1_000_000);
     const signupLabel = bonus > 0 ? `免费注册，送 ${bonus} 积分` : "免费注册";
     const heroClips = HERO_REEL.map((clip) => ({ src: covers[clip.slot] || covers[clip.fallback] || "", label: clip.label })).filter((clip) => clip.src);
@@ -366,6 +391,7 @@ export default function LandingPage() {
         { href: "#image", label: "图片" },
         { href: "#gallery", label: "作品" },
         { href: "#models", label: "模型" },
+        { href: "#agents", label: "AI 助手" },
     ];
     const currentClip = heroClips[heroIndex];
 
@@ -378,7 +404,7 @@ export default function LandingPage() {
                         <span>{brandName}</span>
                     </a>
                     <nav className={`landing-nav${menuOpen ? " is-open" : ""}`} aria-label="页面导航">
-                        {(isPlatform ? nav : []).map((item) => (
+                        {(isPlatform ? nav : nav.filter((item) => item.href === "#agents")).map((item) => (
                             <a key={item.href} href={item.href} onClick={() => setMenuOpen(false)}>
                                 {item.label}
                             </a>
@@ -543,19 +569,50 @@ export default function LandingPage() {
                     </>
                 ) : null}
 
-                <section id="faq" className="landing-section">
-                    <div className="landing-wrap landing-faq-wrap">
-                        <h2 className="landing-faq-title">常见问题</h2>
-                        <div className="landing-faq">
-                            {faqs.map((item) => (
-                                <details key={item.q}>
-                                    <summary>
-                                        {item.q}
-                                        <ChevronDown aria-hidden />
-                                    </summary>
-                                    <p>{item.a}</p>
-                                </details>
-                            ))}
+                <section id="agents" className="landing-section">
+                    <div className="landing-wrap landing-agents">
+                        <div className="landing-agents-copy">
+                            <span className="landing-meta">{isPlatform ? "07 · AI 助手" : "AI 助手"}</span>
+                            <h2>在 Claude、ChatGPT 里直接出片</h2>
+                            <p>把 {brandName} 连到你常用的 AI 助手，聊着天就把图片和视频做出来，扣的是同一个账号的积分。投手和代理商也可以用命令行批量出素材。</p>
+                            <ul className="landing-agents-apps" aria-label="支持的 AI 助手">
+                                {AGENT_APPS.map((app) => (
+                                    <li key={app.name}>
+                                        <app.logo size={18} aria-hidden />
+                                        {app.name}
+                                    </li>
+                                ))}
+                            </ul>
+                            <CopyLine label="MCP 连接地址" value={`${origin}/mcp`} />
+                            <CopyLine label="安装命令行（Mac / Linux）" value={`curl -fsSL ${origin}/install.sh | sh`} />
+                            <Link className="landing-head-action" to="/studio/mcp">
+                                查看接入教程
+                                <ArrowRight aria-hidden />
+                            </Link>
+                        </div>
+                        <div className="landing-agents-demo" aria-hidden>
+                            <div className="landing-chat">
+                                <div className="landing-chat-head">
+                                    <ClaudeLogo size={16} />
+                                    Claude
+                                </div>
+                                <p className="landing-chat-user">帮我用 Seedance 做一条槟城海边的冰拉茶广告，横屏 5 秒</p>
+                                <div className="landing-chat-reply">
+                                    <span className="landing-meta">omnimuse · generate_video</span>
+                                    <p>做好了，用了 1,612 积分。视频也存进了你的作品库。</p>
+                                    <div className="landing-chat-media">
+                                        <LandingMedia src={covers["site-compare-seedance"] || covers["quick-ugc"]} label="" />
+                                    </div>
+                                </div>
+                            </div>
+                            <pre className="landing-terminal">
+                                <code>
+                                    <span className="is-muted">$ </span>omnimuse video "槟城海边，女生拿冰拉茶回头微笑" -m "Seedance 2.5" -d 5{"\n"}
+                                    <span className="is-muted">This will use 1612 credits. Continue? [Y/n] </span>y{"\n"}
+                                    <span className="is-muted">9d175493 succeeded 100% 1m32s</span>
+                                    {"\n"}Saved ./omnimuse-9d175493.mp4
+                                </code>
+                            </pre>
                         </div>
                     </div>
                 </section>
@@ -573,6 +630,7 @@ export default function LandingPage() {
                             {signupLabel}
                             <ArrowRight aria-hidden />
                         </Link>
+                        <p className="landing-final-note">马币计价 · 按次扣积分 · 生成失败自动退积分</p>
                     </div>
                 </section>
             </main>
