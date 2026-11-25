@@ -427,7 +427,8 @@ func (r *Repository) SwitchTaskChannelRoute(taskID string, owner string, inputJS
 		result := taskLeaseWriter(tx.Model(&model.Task{}), owner).
 			Where("id = ? AND status = ?", taskID, model.TaskStatusRunning).
 			Updates(map[string]any{
-				"input_json": inputJSON, "route_run": gorm.Expr("route_run + ?", 1), "channel_model_id": channelModelID,
+				// 切线路是新一轮提交，执行次数和用户重试一样从零算起，否则会被当成缺少提交记录的旧任务拦下。
+				"input_json": inputJSON, "route_run": gorm.Expr("route_run + ?", 1), "attempts": 0, "channel_model_id": channelModelID,
 				"provider_request_id": "", "poll_stage": "", "stage": "主线路失败，正在改用备用线路", "progress": 0,
 				"error": "", "completed_at": nil, "next_poll_at": now.Add(3 * time.Second),
 				"lease_owner": "", "lease_expires_at": nil, "updated_at": now,

@@ -98,7 +98,8 @@ func TestChannelRouteSelectionExecutionAndFallback(t *testing.T) {
 
 	// 3. 失败切换：普通失败切到下一条线路；内容审核失败不切换；最后一条线路失败不再切换。
 	leaseUntil := time.Now().Add(time.Minute)
-	task := model.Task{ID: newID(), UserID: "u1", Type: "canvas_video", Status: model.TaskStatusRunning, LeaseOwner: "worker-1", LeaseExpiresAt: &leaseUntil, InputJSON: string(raw), ProviderRequestID: "upstream-1", RouteRun: 1}
+	// 直连任务的轮次从 0 起，执行过一次后 attempts=2：切线路后不能被当成缺少提交记录的旧任务。
+	task := model.Task{ID: newID(), UserID: "u1", Type: "canvas_video", Status: model.TaskStatusRunning, LeaseOwner: "worker-1", LeaseExpiresAt: &leaseUntil, InputJSON: string(raw), ProviderRequestID: "upstream-1", RouteRun: 0, Attempts: 2}
 	if err := svc.repo.Create(&task); err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +114,11 @@ func TestChannelRouteSelectionExecutionAndFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.RouteRun != 2 || stored.ProviderRequestID != "" || stored.LeaseOwner != "" || stored.Status != model.TaskStatusRunning || stored.ChannelModelID != source.ID {
+	// worker 领取时 attempts 加一；createDirectTaskAttempt 只拦 attempts > 1 的旧任务。
+	if stored.Attempts != 0 {
+		t.Fatalf("attempts = %d, want 0 so the backup run can submit", stored.Attempts)
+	}
+	if stored.RouteRun != 1 || stored.ProviderRequestID != "" || stored.LeaseOwner != "" || stored.Status != model.TaskStatusRunning || stored.ChannelModelID != source.ID {
 		t.Fatalf("switched task = run %d provider %q lease %q status %s channelModel %s", stored.RouteRun, stored.ProviderRequestID, stored.LeaseOwner, stored.Status, stored.ChannelModelID)
 	}
 	var storedInput map[string]any
