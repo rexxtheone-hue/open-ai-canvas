@@ -15,7 +15,7 @@ import "@/styles/workspace-menus.css";
 const workspaceTheme = getWorkspaceAntThemeConfig();
 
 /** Studio 固定深色：Ant Design 的弹窗和消息也要用深色算法，否则会出现白底配浅色字。 */
-function studioAntTheme(skinID: unknown): ThemeConfig {
+export function studioAntTheme(skinID: unknown): ThemeConfig {
     const dark = getAntThemeConfig(true, skinID);
     // 按组件逐项合并：工作台主题只改圆角等少数字段，不能整体覆盖深色主题里的背景色。
     const components: ThemeConfig["components"] = { ...dark.components };
@@ -29,7 +29,7 @@ function studioAntTheme(skinID: unknown): ThemeConfig {
  * AI Studio 固定使用深色界面。全站颜色变量（含 Ant Design 浮层）由 html 上的 dark 类驱动，
  * 进入 Studio 时临时加上，离开时恢复用户原来的主题；期间主题被其他逻辑改回时重新加上。
  */
-function useStudioForcedDark(active: boolean) {
+export function useStudioForcedDark(active: boolean) {
     useLayoutEffect(() => {
         if (!active) return;
         const root = document.documentElement;
