@@ -102,24 +102,33 @@ const TEXT_MODEL_KEY = "studio.director.text-model.v1";
 const STEP_KIND: Record<GenerateStep, StudioKind> = { assets: "image", boards: "image", images: "image", videos: "video", voice: "audio" };
 
 const BOARD_IMAGE_MODELS = [/gpt image 2\.5/i, /nano banana/i];
-const BOARD_VIDEO_MODELS = [/^seedance 2\.0$/i, /seedance 2\.5/i, /seedance/i];
-// 短剧广告要角色开口说话、对嘴型，用 Seedance 2.5 正式版。
-const DRAMA_VIDEO_MODELS = [/^seedance 2\.5$/i, /seedance 2\.5/i, /seedance/i];
+// 导演的视频一律优先 Seedance 2.5 正式版（不是 Flash），没有时才退到其他 Seedance。
+const DIRECTOR_VIDEO_MODELS = [/^seedance 2\.5$/i, /seedance 2\.5/i, /seedance/i];
 
 /** 分镜板用擅长排版和文字的图片模型；整段视频必须支持全能参考（分镜板作参考图，不是首帧）。 */
-function directorBoardModel(config: AiConfig, kind: "image" | "video", dialogue = false) {
+function directorBoardModel(config: AiConfig, kind: "image" | "video") {
     const options = selectableModelsByCapability(config, kind).filter((model) => kind === "image" || !videoModeUnavailableReason(modelCapabilityConfigFor(config, model).video, "reference_to_video"));
-    for (const pattern of kind === "image" ? BOARD_IMAGE_MODELS : dialogue ? DRAMA_VIDEO_MODELS : BOARD_VIDEO_MODELS) {
+    for (const pattern of kind === "image" ? BOARD_IMAGE_MODELS : DIRECTOR_VIDEO_MODELS) {
         const hit = options.find((model) => pattern.test(modelDisplayName(config, model) || model));
         if (hit) return hit;
     }
     return options[0] || "";
 }
 
-type BoardToolRequest = { prompt: string; ratio: string; seconds?: number; attachments?: Parameters<typeof studioAgentToolState>[1]["attachments"]; brand?: Parameters<typeof studioAgentToolState>[1]["brand"]; dialogue?: boolean };
+/** 逐镜头模式的视频（关键帧做首帧）也优先 Seedance 2.5。 */
+function directorShotVideoModel(config: AiConfig) {
+    const options = selectableModelsByCapability(config, "video");
+    for (const pattern of DIRECTOR_VIDEO_MODELS) {
+        const hit = options.find((model) => pattern.test(modelDisplayName(config, model) || model));
+        if (hit) return hit;
+    }
+    return undefined;
+}
+
+type BoardToolRequest = { prompt: string; ratio: string; seconds?: number; attachments?: Parameters<typeof studioAgentToolState>[1]["attachments"]; brand?: Parameters<typeof studioAgentToolState>[1]["brand"] };
 
 function boardToolState(config: AiConfig, kind: "image" | "video", request: BoardToolRequest) {
-    const model = directorBoardModel(config, kind, request.dialogue);
+    const model = directorBoardModel(config, kind);
     const result = studioAgentToolState(config, { ...request, kind, model: model || undefined, tool: "director" });
     if (kind === "video") result.state = { ...result.state, video: { ...result.state.video, mode: "reference_to_video" } };
     return result;
@@ -341,7 +350,7 @@ export default function StudioDirectorWorkspace() {
                     ? [{ id: `board:${segment.anchor.id}`, name: "分镜板", type: board.media[0].mimeType || "image/png", url: studioMediaSrc(board.media[0]), dataUrl: studioMediaSrc(board.media[0]), storageKey: board.media[0].storageKey, previewUrl: studioMediaSrc(board.media[0]), width: board.media[0].width, height: board.media[0].height }]
                     : [];
             const prompt = step === "boards" ? directorBoardPrompt(segment, characters, { style, ratio: current.ratio }) : directorBoardVideoPrompt(segment, { style, ratio: current.ratio, dialogue: (current.brief as { genre?: string } | undefined)?.genre === "drama-ad" });
-            const { state, model } = boardToolState(config, kind, { prompt, ratio: step === "boards" ? "16:9" : current.ratio, seconds: segment.seconds, attachments, brand, dialogue: (current.brief as { genre?: string } | undefined)?.genre === "drama-ad" });
+            const { state, model } = boardToolState(config, kind, { prompt, ratio: step === "boards" ? "16:9" : current.ratio, seconds: segment.seconds, attachments, brand });
             const reason = studioBlockReason(config, state, model, { loggedIn: Boolean(user), creditsEnabled: false, availableCredits: null, cost: null });
             if (reason) {
                 error ||= reason;
@@ -404,7 +413,7 @@ export default function StudioDirectorWorkspace() {
                     ? directorKeyframePrompt(fields, { style, cast: castRefs.map((item) => item.name), location: locationRef ? fields.location : "", ratio: current.ratio, materials: materials.map((item) => item.label) })
                     : directorImagePrompt(fields, characters, style)
                 : step === "videos" ? directorVideoPrompt(fields, style, { dialogue: (current.brief as { genre?: string } | undefined)?.genre === "drama-ad" }) : fields.voiceover;
-            const { state, model } = studioAgentToolState(config, { kind, prompt, ratio: current.ratio, seconds: shot.durationSeconds, attachments, brand, tool: "director" });
+            const { state, model } = studioAgentToolState(config, { kind, prompt, ratio: current.ratio, seconds: shot.durationSeconds, attachments, brand, tool: "director", model: kind === "video" ? directorShotVideoModel(config) : undefined });
             const reason = studioBlockReason(config, state, model, { loggedIn: Boolean(user), creditsEnabled: false, availableCredits: null, cost: null });
             if (reason) {
                 error ||= reason;
