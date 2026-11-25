@@ -479,9 +479,8 @@
 
 .admin-appearance-preview-copy small {
     color: rgb(255 255 255 / 0.58);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.16em;
+    font-size: 12px;
+    font-weight: 500;
 }
 
 .admin-appearance-preview-copy strong,
@@ -1414,7 +1413,7 @@
     background: var(--admin-layer-3);
     box-shadow: 0 1px 3px color-mix(in srgb, var(--foreground) 10%, transparent);
     color: var(--admin-text-primary);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .admin-shell .app-workspace-nav-link.is-active::before {
@@ -1703,9 +1702,8 @@
 
 .admin-mobile-navigation-eyebrow {
     color: var(--admin-text-muted);
-    font-size: 9px;
-    font-weight: 650;
-    letter-spacing: 0.06em;
+    font-size: 11px;
+    font-weight: 500;
     line-height: 1.25;
 }
 
@@ -4816,7 +4814,7 @@
     background: var(--admin-layer-2);
     color: var(--admin-text-primary);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
 
@@ -6371,7 +6369,7 @@
     padding: 4px 7px;
     color: color-mix(in srgb, var(--admin-status-info) 82%, var(--admin-text-primary));
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .admin-access-provider-toggle {
@@ -9202,7 +9200,7 @@
     margin-bottom: 9px;
     color: var(--admin-text-secondary);
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.08em;
 }
 
@@ -9284,7 +9282,7 @@
     background: color-mix(in srgb, var(--foreground) 8%, transparent);
     color: var(--admin-text-muted);
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.04em;
 }
 
@@ -9406,7 +9404,7 @@
     color: color-mix(in srgb, var(--workspace-accent) 76%, var(--admin-text-primary));
     font-size: 10px;
     font-variant-numeric: tabular-nums;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .admin-price-tier-card-heading-copy {
