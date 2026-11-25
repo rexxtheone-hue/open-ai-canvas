@@ -3,7 +3,7 @@ import type { StudioScenePlanInput, StudioShot, StudioShotVersion, StudioStory }
 
 /** AI 导演：简报、导演 Agent 的提示词、分镜解析和成片时间线。纯函数，便于测试。 */
 
-export type DirectorGenre = "short-film" | "music-video" | "product-ad" | "ugc" | "social" | "real-estate" | "food" | "presenter" | "explainer" | "brand-film" | "short-drama" | "trailer" | "promo" | "free";
+export type DirectorGenre = "short-film" | "music-video" | "product-ad" | "ugc" | "social" | "real-estate" | "food" | "presenter" | "explainer" | "brand-film" | "short-drama" | "drama-ad" | "trailer" | "promo" | "free";
 
 export type DirectorGenreDefinition = {
     id: DirectorGenre;
@@ -28,6 +28,7 @@ export const DIRECTOR_GENRES: DirectorGenreDefinition[] = [
     { id: "explainer", label: "讲解视频", description: "把复杂的事讲简单", subjectLabel: "主题", subjectPlaceholder: "例如：光合作用怎么运作", pointsPlaceholder: "补充要求", guidance: "讲解 / 知识类视频，不是剧情短片。观点清晰，信息结构分明，旁白配 B-roll、图示和证据镜头，节奏干净易懂，清楚易懂优先于氛围。" },
     { id: "brand-film", label: "品牌片", description: "说出品牌主张，拍成一支片", subjectLabel: "品牌", subjectPlaceholder: "例如：暖杯 WarmCup", pointsPlaceholder: "品牌由来、理念、想传达的情绪", guidance: "品牌形象片 / 宣言片，不是以产品为主的广告。用情绪、态度、世界观和高级商业质感来带，产品可以少出现或晚出现。先卖品牌的感觉和身份，最后干净地落到品牌。" },
     { id: "short-drama", label: "微短剧", description: "短、上头、竖屏", subjectLabel: "故事", subjectPlaceholder: "例如：外卖小哥意外继承百亿家产", pointsPlaceholder: "主要人物、冲突、反转、结局", guidance: "竖屏微短剧单集。9:16 手机优先构图，开头几秒就要有强钩子，情绪直接的狗血剧情，对峙式台词、反转，结尾留悬念，像红果短剧、ReelShort 那样的连载短剧。台词写进旁白字段。" },
+    { id: "drama-ad", label: "短剧广告", description: "选一个故事，把产品拍成短剧", subjectLabel: "产品", subjectPlaceholder: "例如：暖杯 316 保温杯", pointsPlaceholder: "卖点、优惠、口号（只写真实的）", guidance: "短剧广告：一部有冲突、有反转、角色在画面里开口说台词的竖屏短剧，故事围绕用户的产品转。严格按用户选的故事卡片：画风、产品第几成出场、按百分比的剧情节拍、角色类型和语气都照卡片，用户补充的内容优先。剧本先按台词算时长：中文每秒约 4 个字、英文每秒约 2.5 个词，每句之间留 0.3 秒，台词不能为了凑时长加快或删字。每场只写看得见的状态和动作（谁站哪里、拿着什么、看着谁），不要加作者没写的事件。人物一律成年人，用马来西亚的人名、场景和说话方式。台词写进 voiceover 字段，并注明是谁说的；视频生成时角色在画面里亲口说出这句话。产品出场的镜头一律用 refs 引用产品图，标签清楚；只用用户给的卖点和口号，不编造功效、价格或评价。最后一个镜头是产品单独特写加口号。对白由角色在视频里亲口说出，不需要也不要执行 voice（旁白配音）这一步。" },
     { id: "trailer", label: "电影预告片", description: "把你的点子剪成预告片", subjectLabel: "概念", subjectPlaceholder: "例如：迷途的宇航员收到一个不该存在的信号", pointsPlaceholder: "补充要求", guidance: "电影预告片 / 先导片，不是普通剧情片段。用预告片的剪辑节奏：铺垫 → 升级 → 高潮和字卡，硬切的营销节拍，用片名、上映日期和黑场字卡做停顿。卖的是一个电影世界，不是讲完一个完整故事。" },
     { id: "promo", label: "宣传视频", description: "给你的网站或产品做一支揭晓片", subjectLabel: "名称", subjectPlaceholder: "网站或产品名称", pointsPlaceholder: "创意方向", guidance: "产品宣传片：先制造期待，最后把产品作为主角揭晓。有 Logo 时必须照原样使用，不能改动或重新设计。" },
     { id: "free", label: "自由创作", description: "完全按你的描述来", subjectLabel: "主题", subjectPlaceholder: "你想做什么视频", pointsPlaceholder: "补充要求", guidance: "" },
@@ -538,9 +539,28 @@ export function directorDesignTargets(design: DirectorDesign, works: Map<string,
     ];
 }
 
-export function directorVideoPrompt(fields: DirectorShotFields, style: string) {
-    return [fields.visual, fields.camera ? `运镜：${fields.camera}` : "", style.trim() ? `风格：${style.trim()}` : ""].filter(Boolean).join("。");
+export function directorVideoPrompt(fields: DirectorShotFields, style: string, options: { dialogue?: boolean } = {}) {
+    const base = [fields.visual, fields.camera ? `运镜：${fields.camera}` : "", style.trim() ? `风格：${style.trim()}` : ""].filter(Boolean).join("。");
+    if (!options.dialogue) return base;
+    const line = directorSpokenLine(fields.voiceover);
+    return [base, line ? `Speech: ${line.speaker ? `${line.speaker} says aloud on camera, lips in sync` : "The character in frame says aloud on camera, lips in sync"}: "${line.text}"` : "No one speaks in this shot.", DIALOGUE_SOUND_RULES].join("\n");
 }
+
+/** 短剧广告的台词写在 voiceover 字段，格式「人物：台词」；拆成说话人和台词。 */
+export function directorSpokenLine(value: string | undefined) {
+    const text = (value || "").trim();
+    if (!text) return null;
+    const match = text.match(/^([^：:「"“]{1,20})[：:]\s*(.+)$/s);
+    const spoken = (match ? match[2] : text).trim().replace(/^[「"“]|[」"”]$/g, "").trim();
+    return spoken ? { speaker: match ? match[1].trim() : "", text: spoken } : null;
+}
+
+/** 角色亲口说台词时的声音规则：只说引号里的字，不加音乐、字幕和旁白。 */
+const DIALOGUE_SOUND_RULES = [
+    "Sound rules: only the words inside double quotation marks are ever spoken aloud, each by its speaker on camera with lips in sync, in the language they are written in; every other word of this text stays silent.",
+    "No music, no score, no narrator, no added sound effects: only the characters' voices and the natural sounds of this place.",
+    "No captions, subtitles or any text on screen.",
+].join("\n");
 
 export type DirectorVersionIndex = Map<string, StudioShotVersion>;
 
@@ -660,14 +680,39 @@ export function directorBoardPrompt(segment: DirectorSegment, characters: Direct
 }
 
 /** 整段视频提示词：把分镜板当参考图，按编号顺序拍成一段剪接好的视频，不能把分镜板本身画出来。 */
-export function directorBoardVideoPrompt(segment: DirectorSegment, options: { style: string; ratio: string }) {
+export function directorBoardVideoPrompt(segment: DirectorSegment, options: { style: string; ratio: string; dialogue?: boolean }) {
     let cursor = 0;
+    const speech: string[] = [];
+    const silent: string[] = [];
     const timing = segment.shots.map((shot, index) => {
         const fields = directorShotFields(shot);
         const start = cursor;
         cursor += shot.durationSeconds;
+        if (options.dialogue) {
+            const line = directorSpokenLine(fields.voiceover);
+            // 台词在镜头开始后 0.2 秒说出，按每秒 4 个中文字或 2.5 个英文词估算长度，不超出镜头。
+            if (line) {
+                const words = /[㐀-鿿]/.test(line.text) ? Array.from(line.text.replace(/\s/g, "")).length / 4 : line.text.split(/\s+/).length / 2.5;
+                const end = Math.min(cursor - 0.1, start + 0.2 + Math.max(0.8, words));
+                speech.push(`${shotLabel(index + 1)} (${(start + 0.2).toFixed(1)}–${end.toFixed(1)}s) ${line.speaker || "the character in frame"}: "${line.text}"`);
+            } else silent.push(shotLabel(index + 1));
+        }
         return `${shotLabel(index + 1)} (${start}–${cursor}s): ${fields.visual}${fields.camera ? ` Camera: ${fields.camera}.` : ""}`;
     });
+    if (options.dialogue) {
+        return [
+            `Image 1 is a storyboard design sheet. Film the characters and the location it shows as ONE edited sequence of only its numbered SHOT frames, in order (${shotLabel(1)} to ${shotLabel(segment.shots.length)}), following each frame for framing, angle, camera move, lighting and mood.`,
+            `Do NOT show the sheet itself, its panels, text, tables, captions or grid. Every shot is a separate full-screen ${options.ratio} live shot with a clean cut between shots, never split-screen. The character reference views are identity guidance only, not extra shots.`,
+            "Keep every character's face, hair and wardrobe identical in every shot, with exactly one instance of each character per shot. Every shot opens in motion; eyelines never look at the camera unless a line is said to the viewer.",
+            options.style.trim() ? `Style: ${options.style.trim()}.` : "Style: photorealistic cinematic footage, real camera, real skin texture.",
+            "Shot timing:",
+            ...timing,
+            "Audio, each line spoken aloud by its speaker on camera with lips in sync, only inside its own time window:",
+            ...(speech.length ? speech : ["No one speaks in this segment."]),
+            silent.length && speech.length ? `No speech in ${silent.join(", ")}.` : "",
+            DIALOGUE_SOUND_RULES,
+        ].filter(Boolean).join("\n");
+    }
     return [
         `Image 1 is a storyboard design sheet. Film the characters and the location it shows as ONE edited sequence of only its numbered SHOT frames, in order (${shotLabel(1)} to ${shotLabel(segment.shots.length)}), following each frame for framing, angle, camera move, lighting and mood.`,
         `Do NOT show the sheet itself, its panels, text, tables, captions or grid. Every shot is a separate full-screen ${options.ratio} live shot with a clean cut between shots, never split-screen. The character reference views are identity guidance only, not extra shots.`,

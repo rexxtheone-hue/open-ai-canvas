@@ -7,6 +7,7 @@ import { Loader2, Music, Plus, Sparkles, X } from "./studio-icons";
 import { StudioCharacterGrid, useStudioCharacters } from "./studio-character-picker";
 import { DIRECTOR_DURATIONS, DIRECTOR_RATIOS, type DirectorBrief, type DirectorMusic, type DirectorReference, type DirectorRunMode } from "./studio-director";
 import { quickStartError, quickStartTitle, type QuickStartField, type QuickStartValues, type StudioQuickStart } from "./studio-quickstarts";
+import { DRAMA_CARDS, DRAMA_CARD_STYLES } from "./studio-drama-cards";
 import { uploadStudioFile } from "./use-studio-tool";
 
 export type QuickStartSubmit = { title: string; brief: DirectorBrief; kickoff: string; music?: DirectorMusic };
@@ -144,6 +145,38 @@ function QuickStartForm({ config, runMode, starting, initialCharacterIds = [], b
                         ? <textarea value={current} rows={field.maxLength > 500 ? 5 : 3} maxLength={field.maxLength} placeholder={field.placeholder} onChange={(event) => setText((prev) => ({ ...prev, [field.key]: event.target.value }))} />
                         : <input value={current} maxLength={field.maxLength} placeholder={field.placeholder} onChange={(event) => setText((prev) => ({ ...prev, [field.key]: event.target.value }))} />}
                 </label>
+            );
+        }
+        if (field.kind === "dramaCard") {
+            const current = text[field.key] || "";
+            return (
+                <div key={field.key} className="studio-field">
+                    <span>{field.label}{field.optional ? <small> 可选</small> : <b aria-hidden> *</b>}</span>
+                    <div className="studio-drama-cards" role="radiogroup" aria-label={field.label}>
+                        {DRAMA_CARDS.map((card) => {
+                            const style = DRAMA_CARD_STYLES[card.style];
+                            return (
+                                <button
+                                    key={card.id}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={current === card.id}
+                                    className="studio-drama-card"
+                                    style={{ "--drama-from": style.gradient[0], "--drama-to": style.gradient[1] } as React.CSSProperties}
+                                    onClick={() => {
+                                        setText((prev) => ({ ...prev, [field.key]: card.id }));
+                                        setDuration(card.durationSeconds);
+                                    }}
+                                >
+                                    <span className="studio-drama-card-style">{style.label} · {card.durationSeconds} 秒</span>
+                                    <b>{card.title}</b>
+                                    <span className="studio-drama-card-line">{card.logline}</span>
+                                    <small>适合：{card.fits}</small>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
             );
         }
         if (field.kind === "chips") {

@@ -1,6 +1,7 @@
 import { Briefcase, Building2, Clapperboard, Film, Globe, Lightbulb, Megaphone, MicVocal, Music, Sparkles, Store, UserRound, Video, type LucideIcon } from "./studio-icons";
 
 import type { DirectorGenre, DirectorReference } from "./studio-director";
+import { dramaCard, dramaCardBrief } from "./studio-drama-cards";
 
 /**
  * 首页和导演首页共用的「快速开始」。每种类型有自己的表单，提交时把填写内容按固定格式写成交给导演的第一条消息，
@@ -15,7 +16,9 @@ export type QuickStartField =
     /** 歌曲：上传后作为成片背景音乐。 */
     | { kind: "song"; key: string; label: string; optional?: boolean }
     /** 人物：从角色库选，或者用文字描述。 */
-    | { kind: "characters"; key: string; label: string; max: number; optional?: boolean };
+    | { kind: "characters"; key: string; label: string; max: number; optional?: boolean }
+    /** 短剧广告故事卡片：选中的卡片 ID 存在 text[key]，选卡片时时长跟着卡片走。 */
+    | { kind: "dramaCard"; key: string; label: string; optional?: boolean };
 
 export type QuickStartValues = {
     text: Record<string, string>;
@@ -77,6 +80,7 @@ const FILM_STYLES = ["电影感", "实验性", "黑白", "动画", "艺术风"];
 const TRAILER_GENRES = ["喜剧", "惊悚", "动作", "科幻", "爱情", "恐怖", "剧情", "奇幻"];
 const SOCIAL_VIBES = ["轻松", "搞笑", "励志", "治愈", "高级"];
 const DRAMA_VIBES = ["爱情", "惊悚", "喜剧", "恐怖"];
+const DRAMA_LANGUAGES = ["中文", "马来文", "英文", "广东话", "像马来西亚人那样混着说"];
 const EXPLAINER_STYLES = ["电影感", "白板", "极简", "插画"];
 
 export const STUDIO_QUICK_STARTS: StudioQuickStart[] = [
@@ -206,6 +210,36 @@ export const STUDIO_QUICK_STARTS: StudioQuickStart[] = [
             value(values, "vibe") ? `【剧情风格】${value(values, "vibe")}` : null,
             durationLine(values),
         ]),
+    },
+    {
+        genre: "drama-ad", coverId: "quick-drama-ad", label: "短剧广告", icon: Clapperboard, gradient: ["#3a1c71", "#d76d77"], badge: "新",
+        headline: "把产品拍成一部短剧", subtitle: "选一个故事，上传产品，AI 导演拍完整部片。", cta: "执导我的短剧广告",
+        fields: [
+            { kind: "dramaCard", key: "card", label: "选一个故事" },
+            { kind: "images", key: "images", label: "产品图片", hint: "清楚的产品照，最多 6 张，标签要看得见", refLabel: "产品图", max: 6, optional: true },
+            { kind: "text", key: "productName", label: "产品叫什么？", placeholder: "例如：暖杯 316 保温杯", maxLength: 60, optional: true },
+            { kind: "textarea", key: "claims", label: "卖点、优惠和口号", placeholder: "只写真实的，例如：保冷 12 小时；首单 RM39；口号「冷到最后一口」", maxLength: 300, optional: true },
+            { kind: "chips", key: "language", label: "台词用什么语言？", options: DRAMA_LANGUAGES, custom: true, optional: true },
+            { kind: "characters", key: "cast", label: "主角用谁？", max: 2, optional: true },
+            { kind: "textarea", key: "changes", label: "想改卡片的哪里？", placeholder: "例如：场景改成槟城的茶室；女主角是马来女生", maxLength: 500, optional: true },
+        ],
+        titleKey: "productName", ratio: "9:16", durationSeconds: 60, subtitles: true, voiceover: false,
+        requireOneOf: ["images", "productName"], requireOneOfHint: "请上传产品图片或写上产品名称",
+        buildPrompt: (values) => {
+            const card = dramaCard(value(values, "card"));
+            return lines([
+                "制作一支短剧广告，严格按下面的故事卡片拍，用户补充的内容优先：", "",
+                card ? dramaCardBrief(card) : null, "",
+                refLine("产品图片", values.refs.images),
+                value(values, "productName") ? `【产品名称】${value(values, "productName")}` : null,
+                value(values, "claims") ? `【用户给的卖点、优惠和口号（只能用这些）】${value(values, "claims")}` : "【卖点】用户没有提供，只描述看得见的外观、用法和使用感受，不要编造功效数字或评价。",
+                `【台词语言】${value(values, "language") || "中文"}`,
+                ...castLines(values.cast.cast, "主角（用角色库形象）"),
+                value(values, "changes") ? `【用户要改的地方】${value(values, "changes")}` : null,
+                durationLine(values),
+                "出现产品的镜头都用 refs 引用产品图，标签、颜色和包装必须和产品图完全一致。",
+            ]);
+        },
     },
     {
         genre: "brand-film", coverId: "quick-brand-film", label: "品牌片", icon: Briefcase, gradient: ["#d9a441", "#5a3d0c"],

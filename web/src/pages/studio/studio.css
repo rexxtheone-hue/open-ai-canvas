@@ -553,6 +553,14 @@
 .studio-slot .studio-ref-slot { width: 100%; height: auto; aspect-ratio: 4 / 3; flex-direction: column; gap: 6px; padding: 8px; text-align: center; }
 .studio-slot .studio-ref-slot small { color: var(--studio-muted); font-size: 11px; line-height: 1.35; }
 .studio-chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.studio-drama-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; max-height: 360px; overflow-y: auto; padding: 2px; }
+.studio-drama-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; border: 1px solid var(--studio-line-strong); background: linear-gradient(150deg, color-mix(in srgb, var(--drama-from) 32%, var(--studio-panel)), color-mix(in srgb, var(--drama-to) 18%, var(--studio-panel))); color: var(--studio-fg); text-align: left; cursor: pointer; }
+.studio-drama-card:hover { border-color: var(--studio-fg); }
+.studio-drama-card[aria-checked="true"] { border-color: var(--studio-accent); box-shadow: 0 0 0 2px var(--studio-accent) inset; }
+.studio-drama-card b { font-size: 15px; }
+.studio-drama-card-style { font-size: 11.5px; color: var(--studio-soft); }
+.studio-drama-card-line { font-size: 12.5px; line-height: 1.55; color: var(--studio-fg); }
+.studio-drama-card small { font-size: 11.5px; color: var(--studio-muted); line-height: 1.5; }
 .studio-chip-list button { height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--studio-line); background: var(--studio-panel); color: var(--studio-fg); font: inherit; font-size: 12.5px; cursor: pointer; }
 .studio-chip-list button:hover { background: var(--studio-hover); }
 .studio-chip-list button[aria-pressed="true"] { border-color: var(--studio-accent); background: var(--studio-accent-soft); }

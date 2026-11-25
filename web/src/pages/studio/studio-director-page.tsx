@@ -111,7 +111,8 @@ export default function StudioDirectorPage() {
                 ratio: value.ratio,
                 durationSeconds: value.durationSeconds,
                 brief: { ...value, kickoff },
-                settings: { runMode, mode: "shots", brandKitId: brand.kit?.id || "", ...(options.music ? { music: options.music } : {}) },
+                // 短剧广告用分镜板模式：一段多个镜头一起生成，人物和动作更连贯，角色在段内连续对话。
+                settings: { runMode, mode: value.genre === "drama-ad" ? "board" : "shots", brandKitId: brand.kit?.id || "", ...(options.music ? { music: options.music } : {}) },
                 memory: { decisions: [], constraints: [], action_items: [], open_questions: [], resolved: [], context_notes: [] },
             });
             void queryClient.invalidateQueries({ queryKey: ["studio", "stories"] });

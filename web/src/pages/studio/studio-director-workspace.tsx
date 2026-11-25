@@ -338,7 +338,7 @@ export default function StudioDirectorWorkspace() {
                 : board?.media[0]
                     ? [{ id: `board:${segment.anchor.id}`, name: "分镜板", type: board.media[0].mimeType || "image/png", url: studioMediaSrc(board.media[0]), dataUrl: studioMediaSrc(board.media[0]), storageKey: board.media[0].storageKey, previewUrl: studioMediaSrc(board.media[0]), width: board.media[0].width, height: board.media[0].height }]
                     : [];
-            const prompt = step === "boards" ? directorBoardPrompt(segment, characters, { style, ratio: current.ratio }) : directorBoardVideoPrompt(segment, { style, ratio: current.ratio });
+            const prompt = step === "boards" ? directorBoardPrompt(segment, characters, { style, ratio: current.ratio }) : directorBoardVideoPrompt(segment, { style, ratio: current.ratio, dialogue: (current.brief as { genre?: string } | undefined)?.genre === "drama-ad" });
             const { state, model } = boardToolState(config, kind, { prompt, ratio: step === "boards" ? "16:9" : current.ratio, seconds: segment.seconds, attachments, brand });
             const reason = studioBlockReason(config, state, model, { loggedIn: Boolean(user), creditsEnabled: false, availableCredits: null, cost: null });
             if (reason) {
@@ -401,7 +401,7 @@ export default function StudioDirectorWorkspace() {
                 ? castRefs.length || locationRef || materials.length
                     ? directorKeyframePrompt(fields, { style, cast: castRefs.map((item) => item.name), location: locationRef ? fields.location : "", ratio: current.ratio, materials: materials.map((item) => item.label) })
                     : directorImagePrompt(fields, characters, style)
-                : step === "videos" ? directorVideoPrompt(fields, style) : fields.voiceover;
+                : step === "videos" ? directorVideoPrompt(fields, style, { dialogue: (current.brief as { genre?: string } | undefined)?.genre === "drama-ad" }) : fields.voiceover;
             const { state, model } = studioAgentToolState(config, { kind, prompt, ratio: current.ratio, seconds: shot.durationSeconds, attachments, brand, tool: "director" });
             const reason = studioBlockReason(config, state, model, { loggedIn: Boolean(user), creditsEnabled: false, availableCredits: null, cost: null });
             if (reason) {

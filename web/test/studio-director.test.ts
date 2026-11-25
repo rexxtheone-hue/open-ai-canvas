@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { DRAMA_CARDS } from "../src/pages/studio/studio-drama-cards";
+
 import {
     buildDirectorTimeline,
     DEFAULT_DIRECTOR_BRIEF,
@@ -20,6 +22,8 @@ import {
     directorMessageParts,
     directorProductionMode,
     directorSegments,
+    directorSpokenLine,
+    DIRECTOR_DURATIONS,
     directorImagePrompt,
     directorOrderedShots,
     directorReferences,
@@ -283,6 +287,46 @@ describe("分镜板模式", () => {
         const video = directorBoardVideoPrompt(segment, { style: "", ratio: "9:16" });
         expect(video).toContain("Do NOT show the sheet itself");
         expect(video).toContain("SHOT 02 (3–7s): 猫喝咖啡");
+    });
+
+    test("短剧广告：角色在画面里亲口说台词，按镜头给时间窗，不加音乐和字幕", () => {
+        const value = story([
+            { id: "a", durationSeconds: 4, fields: { visual: "美玲把报告摔在桌上", camera: "中景", characters: ["美玲"], voiceover: "美玲：你签了？没告诉我。", subtitle: "" } },
+            { id: "b", durationSeconds: 3, fields: { visual: "阿明低头不语", camera: "特写", characters: ["阿明"], voiceover: "", subtitle: "" } },
+            { id: "c", durationSeconds: 4, fields: { visual: "阿明抬头", camera: "近景", characters: ["阿明"], voiceover: "Ahmad: I was going to tell you tonight.", subtitle: "" } },
+        ]);
+        const [segment] = directorSegments(value);
+        const video = directorBoardVideoPrompt(segment, { style: "", ratio: "9:16", dialogue: true });
+        expect(video).toContain('SHOT 01 (0.2–');
+        expect(video).toContain('美玲: "你签了？没告诉我。"');
+        expect(video).toContain('Ahmad: "I was going to tell you tonight."');
+        expect(video).toContain("No speech in SHOT 02.");
+        expect(video).toContain("No music");
+        expect(video).toContain("No captions");
+        // 普通项目的视频提示词不变：没有台词规则。
+        expect(directorBoardVideoPrompt(segment, { style: "", ratio: "9:16" })).not.toContain("lips in sync");
+        expect(directorSpokenLine("「这是我的位子」")).toEqual({ speaker: "", text: "这是我的位子" });
+        expect(directorSpokenLine("")).toBeNull();
+    });
+
+    test("短剧广告快速开始：选卡片、产品图或名称二选一，简报带上卡片节拍和只用真实卖点的规则", () => {
+        const drama = studioQuickStart("drama-ad")!;
+        const base = { text: { card: "promotion-stolen" }, refs: {}, cast: {}, durationSeconds: 60, ratio: "9:16" };
+        expect(quickStartError(drama, base)).toBe("请上传产品图片或写上产品名称");
+        expect(quickStartError(drama, { ...base, text: { productName: "暖杯" } })).toBe("请填写「选一个故事」");
+        const ready = { ...base, text: { card: "promotion-stolen", productName: "暖杯", language: "马来文" } };
+        expect(quickStartError(drama, ready)).toBe("");
+        const prompt = drama.buildPrompt(ready);
+        expect(prompt).toContain("【故事卡片】升职被抢");
+        expect(prompt).toContain("0–18%");
+        expect(prompt).toContain("【台词语言】马来文");
+        expect(prompt).toContain("不要编造功效数字或评价");
+        expect(drama.voiceover).toBe(false);
+        for (const card of DRAMA_CARDS) {
+            expect(DIRECTOR_DURATIONS).toContain(card.durationSeconds as (typeof DIRECTOR_DURATIONS)[number]);
+            expect(card.beats.length).toBeGreaterThanOrEqual(4);
+        }
+        expect(new Set(DRAMA_CARDS.map((card) => card.id)).size).toBe(DRAMA_CARDS.length);
     });
 
     test("分镜板时间线：整段视频覆盖段内镜头，旁白和字幕按镜头起点摆放，缺视频的段落列为缺失", () => {
