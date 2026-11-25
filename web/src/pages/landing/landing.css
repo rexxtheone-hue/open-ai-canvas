@@ -345,14 +345,47 @@
     border-block: 1px solid var(--l-line);
     background: var(--l-bg-tint);
 }
+/* 模型跑马灯：两份清单一起向左移动一份的宽度，鼠标移上去暂停；两端淡出。 */
+.landing-marquee {
+    display: flex;
+    width: max-content;
+    animation: landing-marquee 40s linear infinite;
+}
+.landing-models {
+    overflow: hidden;
+    mask-image: linear-gradient(90deg, transparent 0, #000 8%, #000 92%, transparent 100%);
+}
+.landing-models:hover .landing-marquee {
+    animation-play-state: paused;
+}
 .landing-models ul {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 12px 24px;
+    flex: none;
+    gap: 40px;
     margin: 0;
-    padding: 24px 0;
+    padding: 24px 40px 24px 0;
     list-style: none;
+}
+@keyframes landing-marquee {
+    to {
+        transform: translateX(-50%);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .landing-marquee {
+        width: auto;
+        animation: none;
+    }
+    .landing-models ul {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px 24px;
+        width: 100%;
+        padding: 24px 16px;
+    }
+    .landing-models ul + ul {
+        display: none;
+    }
 }
 .landing-models li svg {
     flex: none;
@@ -374,7 +407,8 @@
     padding: 112px 0 0;
 }
 .landing-section:last-of-type,
-#agents.landing-section {
+#gallery.landing-section,
+.landing.is-neutral #agents.landing-section {
     padding-bottom: 112px;
 }
 .landing-head {
@@ -632,7 +666,8 @@
     break-inside: avoid;
 }
 .landing-masonry-item .landing-media {
-    height: auto;
+    position: absolute;
+    inset: 0;
 }
 
 /* 模型对比：同一句提示词，四段并排 */
@@ -685,6 +720,18 @@
     font-weight: 600;
     line-height: 1.05;
     letter-spacing: -0.02em;
+}
+.landing-inline-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.18em;
+    margin: 0 0.12em;
+    white-space: nowrap;
+}
+.landing-inline-logo svg {
+    width: 0.82em;
+    height: 0.82em;
+    color: #ffffff;
 }
 .landing .landing-agents-copy > p {
     margin-top: 16px;

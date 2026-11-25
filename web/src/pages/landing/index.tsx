@@ -86,8 +86,10 @@ const INDUSTRIES = [
 ];
 
 /** 作品墙：后台设置的 site-gallery-N 排在前面，之后是平台作品图。 */
-const GALLERY_SLOTS = Array.from({ length: 20 }, (_, index) => `site-gallery-${index + 1}`);
-const GALLERY_IMAGES = Array.from({ length: 24 }, (_, index) => `/auth/showcase/w${String(index + 1).padStart(2, "0")}.webp`);
+// 每格先按素材比例占好位置，图片加载、视频滚远释放时高度都不变，滚动时作品墙不会跳。
+const GALLERY_RATIOS = ["9/16", "9/16", "9/16", "9/16", "3/4", "3/4", "16/9", "1/1", "9/16", "3/2", "3/4", "1/1", "16/9", "3/4", "3/4", "1/1", "9/16", "3/2", "3/4", "16/9"];
+const GALLERY_SLOTS = GALLERY_RATIOS.map((ratio, index) => ({ slot: `site-gallery-${index + 1}`, ratio }));
+const GALLERY_IMAGES = Array.from({ length: 24 }, (_, index) => ({ src: `/auth/showcase/w${String(index + 1).padStart(2, "0")}.webp`, ratio: "1/1" }));
 
 /** 同一句提示词交给四个模型，并排播放；视频由后台 site-compare-* 栏位提供。 */
 const COMPARE_PROMPT = "槟城海边的傍晚，一位穿白色亚麻衬衫的女生赤脚走在湿沙滩上，手里拿着一杯冰拉茶，海浪冲上脚踝，她回头对镜头微笑。";
@@ -260,6 +262,9 @@ function HeroReel({ clips, onChange }: { clips: { src: string; label: string }[]
 }
 
 // i18n-ignore
+const HEADING_JOIN = { en: " and ", zh: "、" } as const;
+
+// i18n-ignore
 const LANGUAGE_LABELS = { en: "EN", zh: "中文" } as const;
 
 function LanguageToggle() {
@@ -291,6 +296,71 @@ function CopyLine({ label, value }: { label: string; value: string }) {
                 </button>
             </div>
         </div>
+    );
+}
+
+/** 在 Claude、ChatGPT 里直接出片：MCP 地址、命令行安装和对话、终端示意。 */
+function AgentsSection({ index, brandName, origin, covers }: { index: string; brandName: string; origin: string; covers: Record<string, string> }) {
+    return (
+        <section id="agents" className="landing-section">
+            <div className="landing-wrap landing-agents">
+                <div className="landing-agents-copy">
+                    <span className="landing-meta">{index}</span>
+                    <h2>
+                        {"在"}{" "}
+                        <span className="landing-inline-logo">
+                            <ClaudeLogo aria-hidden />
+                            Claude
+                        </span>
+                        {HEADING_JOIN[currentLocale === "en" ? "en" : "zh"]}
+                        <span className="landing-inline-logo">
+                            <OpenAILogo aria-hidden />
+                            ChatGPT
+                        </span>{" "}
+                        {"里直接出片"}
+                    </h2>
+                    <p>把 {brandName} 连到你常用的 AI 助手，聊着天就把图片和视频做出来，扣的是同一个账号的积分。投手和代理商也可以用命令行批量出素材。</p>
+                    <ul className="landing-agents-apps" aria-label="支持的 AI 助手">
+                        {AGENT_APPS.map((app) => (
+                            <li key={app.name}>
+                                <app.logo size={18} aria-hidden />
+                                {app.name}
+                            </li>
+                        ))}
+                    </ul>
+                    <CopyLine label="MCP 连接地址" value={`${origin}/mcp`} />
+                    <CopyLine label="安装命令行（Mac / Linux）" value={`curl -fsSL ${origin}/install.sh | sh`} />
+                    <Link className="landing-head-action" to="/studio/mcp">
+                        查看接入教程
+                        <ArrowRight aria-hidden />
+                    </Link>
+                </div>
+                <div className="landing-agents-demo" aria-hidden>
+                    <div className="landing-chat">
+                        <div className="landing-chat-head">
+                            <ClaudeLogo size={16} />
+                            Claude
+                        </div>
+                        <p className="landing-chat-user">帮我用 Seedance 做一条槟城海边的冰拉茶广告，横屏 5 秒</p>
+                        <div className="landing-chat-reply">
+                            <span className="landing-meta">omnimuse · generate_video</span>
+                            <p>做好了，用了 1,612 积分。视频也存进了你的作品库。</p>
+                            <div className="landing-chat-media">
+                                <LandingMedia src={covers["site-compare-seedance"] || covers["quick-ugc"]} label="" />
+                            </div>
+                        </div>
+                    </div>
+                    <pre className="landing-terminal">
+                        <code>
+                            <span className="is-muted">$ </span>omnimuse video "槟城海边，女生拿冰拉茶回头微笑" -m "Seedance 2.5" -d 5{"\n"}
+                            <span className="is-muted">This will use 1612 credits. Continue? [Y/n] </span>y{"\n"}
+                            <span className="is-muted">9d175493 succeeded 100% 1m32s</span>
+                            {"\n"}Saved ./omnimuse-9d175493.mp4
+                        </code>
+                    </pre>
+                </div>
+            </div>
+        </section>
     );
 }
 
@@ -363,7 +433,7 @@ export default function LandingPage() {
     const bonus = Math.floor((settingsQuery.data?.signupBonusMicrocredits ?? 0) / 1_000_000);
     const signupLabel = bonus > 0 ? `免费注册，送 ${bonus} 积分` : "免费注册";
     const heroClips = HERO_REEL.map((clip) => ({ src: covers[clip.slot] || covers[clip.fallback] || "", label: clip.label })).filter((clip) => clip.src);
-    const siteGallery = GALLERY_SLOTS.map((slot) => covers[slot]).filter((src): src is string => Boolean(src));
+    const siteGallery = GALLERY_SLOTS.flatMap(({ slot, ratio }) => (covers[slot] ? [{ src: covers[slot], ratio }] : []));
     // 官网作品墙凑满 24 格：后台设置的排前面，不够的用平台作品图补上。
     const gallery = [...siteGallery, ...GALLERY_IMAGES.slice(0, Math.max(0, 24 - siteGallery.length))];
 
@@ -386,12 +456,13 @@ export default function LandingPage() {
     };
 
     const nav = [
+        { href: "#cases", label: "行业" },
         { href: "#video", label: "视频" },
-        { href: "#camera", label: "运镜" },
         { href: "#image", label: "图片" },
-        { href: "#gallery", label: "作品" },
+        { href: "#agents", label: "MCP / CLI" },
         { href: "#models", label: "模型" },
-        { href: "#agents", label: "AI 助手" },
+        { href: "#camera", label: "运镜" },
+        { href: "#gallery", label: "作品" },
     ];
     const currentClip = heroClips[heroIndex];
 
@@ -455,23 +526,43 @@ export default function LandingPage() {
                 </section>
 
                 <section className="landing-models" aria-label="支持的模型">
-                    <div className="landing-wrap">
-                        <ul>
-                            {MODELS.map((model) => (
-                                <li key={model.name}>
-                                    <model.logo size={18} aria-hidden />
-                                    {model.name}
-                                </li>
-                            ))}
-                        </ul>
+                    <div className="landing-marquee">
+                        {/* 两份一样的清单首尾相接，向左平移一份的宽度后无缝循环；第二份只给眼睛看。 */}
+                        {[0, 1].map((copy) => (
+                            <ul key={copy} aria-hidden={copy === 1 || undefined}>
+                                {MODELS.map((model) => (
+                                    <li key={model.name}>
+                                        <model.logo size={18} aria-hidden />
+                                        {model.name}
+                                    </li>
+                                ))}
+                            </ul>
+                        ))}
                     </div>
                 </section>
 
                 {isPlatform ? (
                     <>
+                        <section id="cases" className="landing-section">
+                            <div className="landing-wrap">
+                                <SectionHead index="01 · 行业" title="你的生意，都有现成拍法" text="选一个类型，填几句话，AI 导演按这个类型写脚本、排镜头、出成片。" />
+                                <div className="landing-cases">
+                                    {INDUSTRIES.map((item) => (
+                                        <Link key={item.genre} className="landing-tile is-wide" to={register(`/studio/director?genre=${item.genre}`)}>
+                                            <LandingMedia src={covers[item.cover]} label={item.title} />
+                                            <span className="landing-tile-copy">
+                                                <strong>{item.title}</strong>
+                                                <span>{item.text}</span>
+                                            </span>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+
                         <section id="video" className="landing-section">
                             <div className="landing-wrap">
-                                <SectionHead index="01 · 视频" title="想拍什么都能拍" text="生成、换人、对口型、延长、高清，做一条视频要用的都在这里。" action={{ to: register("/studio/video"), label: "全部视频工具" }} />
+                                <SectionHead index="02 · 视频" title="想拍什么都能拍" text="生成、换人、对口型、延长、高清，做一条视频要用的都在这里。" action={{ to: register("/studio/video"), label: "全部视频工具" }} />
                                 <div className="landing-bento">
                                     {VIDEO_TOOLS.map((tool) => (
                                         <Link key={tool.cover} className="landing-tile" to={register(tool.path)}>
@@ -483,20 +574,6 @@ export default function LandingPage() {
                                         </Link>
                                     ))}
                                 </div>
-                            </div>
-                        </section>
-
-                        <section id="camera" className="landing-section is-flush">
-                            <div className="landing-wrap">
-                                <SectionHead index="02 · 运镜" title="电影级运镜，点一下就有" text="希区柯克变焦、环绕、FPV 穿越，不用懂摄影术语，选好镜头就能拍。" controls={<StripControls target={stripRef} />} />
-                            </div>
-                            <div ref={stripRef} className="landing-strip" tabIndex={0} aria-label="运镜效果">
-                                {CAMERA_MOVES.map((move) => (
-                                    <Link key={move.cover} className="landing-strip-card" to={register("/studio/create-video")}>
-                                        <LandingMedia src={covers[move.cover]} label={move.title} />
-                                        <span className="landing-meta">{move.title}</span>
-                                    </Link>
-                                ))}
                             </div>
                         </section>
 
@@ -517,40 +594,12 @@ export default function LandingPage() {
                             </div>
                         </section>
 
-                        <section id="cases" className="landing-section">
-                            <div className="landing-wrap">
-                                <SectionHead index="04 · 行业" title="你的生意，都有现成拍法" text="选一个类型，填几句话，AI 导演按这个类型写脚本、排镜头、出成片。" />
-                                <div className="landing-cases">
-                                    {INDUSTRIES.map((item) => (
-                                        <Link key={item.genre} className="landing-tile is-wide" to={register(`/studio/director?genre=${item.genre}`)}>
-                                            <LandingMedia src={covers[item.cover]} label={item.title} />
-                                            <span className="landing-tile-copy">
-                                                <strong>{item.title}</strong>
-                                                <span>{item.text}</span>
-                                            </span>
-                                        </Link>
-                                    ))}
-                                </div>
-                            </div>
-                        </section>
-
-                        <section id="gallery" className="landing-section">
-                            <div className="landing-wrap">
-                                <SectionHead index="05 · 作品" title="都是用 OmniMuse 做的" text="没有一张是拍的。" action={{ to: register("/studio/inspire"), label: "去灵感社区" }} />
-                                <div className="landing-masonry">
-                                    {gallery.map((src, index) => (
-                                        <figure key={src} className="landing-masonry-item">
-                                            <LandingMedia src={src} label={`作品 ${index + 1}`} />
-                                        </figure>
-                                    ))}
-                                </div>
-                            </div>
-                        </section>
+                        <AgentsSection index="04 · MCP / CLI" brandName={brandName} origin={origin} covers={covers} />
 
                         {COMPARE_MODELS.some((model) => covers[model.slot]) ? (
                             <section id="models" className="landing-section">
                                 <div className="landing-wrap">
-                                    <SectionHead index="06 · 模型" title="同一句话，四个模型" text="不同模型各有所长。一个账号全部能用，挑最合适的那个，不用另外订阅。" action={{ to: register("/studio/create-video"), label: "自己试一句" }} />
+                                    <SectionHead index="05 · 模型" title="同一句话，四个模型" text="不同模型各有所长。一个账号全部能用，挑最合适的那个，不用另外订阅。" action={{ to: register("/studio/create-video"), label: "自己试一句" }} />
                                     <p className="landing-compare-prompt">
                                         <span className="landing-meta">提示词</span>
                                         {COMPARE_PROMPT}
@@ -566,56 +615,37 @@ export default function LandingPage() {
                                 </div>
                             </section>
                         ) : null}
+
+                        <section id="camera" className="landing-section is-flush">
+                            <div className="landing-wrap">
+                                <SectionHead index="06 · 运镜" title="电影级运镜，点一下就有" text="希区柯克变焦、环绕、FPV 穿越，不用懂摄影术语，选好镜头就能拍。" controls={<StripControls target={stripRef} />} />
+                            </div>
+                            <div ref={stripRef} className="landing-strip" tabIndex={0} aria-label="运镜效果">
+                                {CAMERA_MOVES.map((move) => (
+                                    <Link key={move.cover} className="landing-strip-card" to={register("/studio/create-video")}>
+                                        <LandingMedia src={covers[move.cover]} label={move.title} />
+                                        <span className="landing-meta">{move.title}</span>
+                                    </Link>
+                                ))}
+                            </div>
+                        </section>
+
+                        <section id="gallery" className="landing-section">
+                            <div className="landing-wrap">
+                                <SectionHead index="07 · 作品" title="都是用 OmniMuse 做的" text="没有一张是拍的。" action={{ to: register("/studio/inspire"), label: "去灵感社区" }} />
+                                <div className="landing-masonry">
+                                    {gallery.map((item, index) => (
+                                        <figure key={item.src} className="landing-masonry-item" style={{ aspectRatio: item.ratio }}>
+                                            <LandingMedia src={item.src} label={`作品 ${index + 1}`} />
+                                        </figure>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
                     </>
                 ) : null}
 
-                <section id="agents" className="landing-section">
-                    <div className="landing-wrap landing-agents">
-                        <div className="landing-agents-copy">
-                            <span className="landing-meta">{isPlatform ? "07 · AI 助手" : "AI 助手"}</span>
-                            <h2>在 Claude、ChatGPT 里直接出片</h2>
-                            <p>把 {brandName} 连到你常用的 AI 助手，聊着天就把图片和视频做出来，扣的是同一个账号的积分。投手和代理商也可以用命令行批量出素材。</p>
-                            <ul className="landing-agents-apps" aria-label="支持的 AI 助手">
-                                {AGENT_APPS.map((app) => (
-                                    <li key={app.name}>
-                                        <app.logo size={18} aria-hidden />
-                                        {app.name}
-                                    </li>
-                                ))}
-                            </ul>
-                            <CopyLine label="MCP 连接地址" value={`${origin}/mcp`} />
-                            <CopyLine label="安装命令行（Mac / Linux）" value={`curl -fsSL ${origin}/install.sh | sh`} />
-                            <Link className="landing-head-action" to="/studio/mcp">
-                                查看接入教程
-                                <ArrowRight aria-hidden />
-                            </Link>
-                        </div>
-                        <div className="landing-agents-demo" aria-hidden>
-                            <div className="landing-chat">
-                                <div className="landing-chat-head">
-                                    <ClaudeLogo size={16} />
-                                    Claude
-                                </div>
-                                <p className="landing-chat-user">帮我用 Seedance 做一条槟城海边的冰拉茶广告，横屏 5 秒</p>
-                                <div className="landing-chat-reply">
-                                    <span className="landing-meta">omnimuse · generate_video</span>
-                                    <p>做好了，用了 1,612 积分。视频也存进了你的作品库。</p>
-                                    <div className="landing-chat-media">
-                                        <LandingMedia src={covers["site-compare-seedance"] || covers["quick-ugc"]} label="" />
-                                    </div>
-                                </div>
-                            </div>
-                            <pre className="landing-terminal">
-                                <code>
-                                    <span className="is-muted">$ </span>omnimuse video "槟城海边，女生拿冰拉茶回头微笑" -m "Seedance 2.5" -d 5{"\n"}
-                                    <span className="is-muted">This will use 1612 credits. Continue? [Y/n] </span>y{"\n"}
-                                    <span className="is-muted">9d175493 succeeded 100% 1m32s</span>
-                                    {"\n"}Saved ./omnimuse-9d175493.mp4
-                                </code>
-                            </pre>
-                        </div>
-                    </div>
-                </section>
+                {isPlatform ? null : <AgentsSection index="MCP / CLI" brandName={brandName} origin={origin} covers={covers} />}
 
                 <section className="landing-final">
                     {isPlatform ? (
