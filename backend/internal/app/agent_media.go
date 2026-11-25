@@ -16,6 +16,13 @@ import (
 
 const mediaUploadTTL = 2 * time.Hour
 
+// mediaExtensionTypes 不依赖系统的 mime.types（精简镜像里常常没有）。
+var mediaExtensionTypes = map[string]string{
+	".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif",
+	".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm", ".m4v": "video/mp4",
+	".mp3": "audio/mpeg", ".wav": "audio/wav", ".m4a": "audio/mp4", ".aac": "audio/aac", ".ogg": "audio/ogg", ".flac": "audio/flac",
+}
+
 type MediaUploadTicket struct {
 	MediaID     string `json:"media_id"`
 	Filename    string `json:"filename"`
@@ -37,7 +44,11 @@ type MediaConfirmResult struct {
 func mediaContentType(filename, contentType string) string {
 	contentType = strings.TrimSpace(contentType)
 	if contentType == "" {
-		contentType = mime.TypeByExtension(strings.ToLower(filepath.Ext(filename)))
+		ext := strings.ToLower(filepath.Ext(filename))
+		contentType = mediaExtensionTypes[ext]
+		if contentType == "" {
+			contentType = mime.TypeByExtension(ext)
+		}
 	}
 	if i := strings.Index(contentType, ";"); i > 0 {
 		contentType = strings.TrimSpace(contentType[:i])
