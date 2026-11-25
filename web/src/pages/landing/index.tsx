@@ -565,7 +565,7 @@ export default function LandingPage() {
                                 <div className="landing-bento">
                                     {VIDEO_TOOLS.map((tool) => (
                                         <Link key={tool.cover} className="landing-tile" to={register(tool.path)}>
-                                            <LandingMedia src={covers[tool.cover]} label={tool.title} />
+                                            <LandingMedia src={covers[`site-video-${tool.cover}`] || covers[tool.cover]} label={tool.title} />
                                             <span className="landing-tile-copy">
                                                 <strong>{tool.title}</strong>
                                                 <span>{tool.text}</span>
@@ -619,7 +619,7 @@ export default function LandingPage() {
                             <div className="landing-wrap">
                                 <SectionHead index="06 · 运镜" title="电影级运镜，点一下就有" text="希区柯克变焦、环绕、FPV 穿越，不用懂摄影术语，选好镜头就能拍。" />
                             </div>
-                            <div className="landing-strip-frame">
+                            <div className="landing-wrap landing-strip-frame">
                                 <div ref={stripRef} className="landing-strip" tabIndex={0} aria-label="运镜效果">
                                     {CAMERA_MOVES.map((move) => (
                                         <Link key={move.cover} className="landing-strip-card" to={register("/studio/create-video")}>

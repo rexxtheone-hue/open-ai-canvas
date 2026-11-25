@@ -21,6 +21,15 @@ const SITE_SLOTS = [
     { id: "site-compare-kling", label: "模型对比 · Kling" },
     { id: "site-compare-wan", label: "模型对比 · Wan" },
     ...[
+        ["create-video", "生成视频"],
+        ["replace-character", "换角色"],
+        ["lip-sync", "对口型"],
+        ["edit-video", "编辑视频"],
+        ["extend-video", "延长视频"],
+        ["motion-sync", "动作模仿"],
+        ["video-upscale", "视频高清"],
+    ].map(([tool, label]) => ({ id: `site-video-${tool}`, label: `视频 · ${label}` })),
+    ...[
         ["product-ad", "产品广告"],
         ["ugc", "真人口播"],
         ["food", "餐饮探店"],

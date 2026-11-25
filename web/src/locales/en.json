@@ -13525,6 +13525,7 @@
   "视频 Token 计费": "Video token billing",
   "视频 URL 转存": "Video URL transfer",
   "视频 {0}": "Video {0}",
+  "视频 · {0}": "Video · {0}",
   "视频一般需要几十秒到几分钟，取决于模型和时长。生成中的任务会出现在右侧作品库里，完成后自动刷新。": "Videos usually take from tens of seconds to a few minutes depending on the model and duration. Tasks in progress appear in the library on the right and refresh when done.",
   "视频上传失败": "Video upload failed",
   "视频下载失败": "Video download failed",
