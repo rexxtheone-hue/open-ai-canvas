@@ -1,4 +1,4 @@
-/* OmniMuse 品牌加载页：黑底白标志，一圈细白环慢慢转，下方白色进度条。不跟随明暗主题，首屏始终是品牌画面。 */
+/* OmniMuse 品牌加载页：黑底白标志，下方像剪辑软件那样跑着的时间码和播放头。不跟随明暗主题，首屏始终是品牌画面。 */
 .brand-loader {
     position: fixed;
     inset: 0;
@@ -21,35 +21,6 @@
     text-align: center;
 }
 
-.brand-loader-emblem {
-    position: relative;
-    display: grid;
-    width: 136px;
-    height: 136px;
-    place-items: center;
-}
-
-.brand-loader-halo {
-    display: none;
-}
-
-.brand-loader-track {
-    position: absolute;
-    inset: 0;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 50%;
-}
-
-/* 一段白色细弧沿着底环转动 */
-.brand-loader-ring {
-    position: absolute;
-    inset: 0;
-    border: 1px solid transparent;
-    border-top-color: rgba(255, 255, 255, 0.72);
-    border-radius: 50%;
-    animation: brand-loader-spin 1.4s linear infinite;
-}
-
 .brand-loader-mark {
     position: relative;
     display: grid;
@@ -65,6 +36,29 @@
     height: 64px;
     object-fit: contain;
     filter: brightness(0) invert(1);
+}
+
+.brand-loader-timecode {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: -16px 0 0;
+    color: rgba(255, 255, 255, 0.48);
+    font-family: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+}
+.brand-loader-timecode span {
+    color: #ffffff;
+    font-variant-numeric: tabular-nums;
+}
+/* 录制指示灯：红点慢慢闪 */
+.brand-loader-timecode i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ef4444;
+    animation: brand-loader-rec 1.2s steps(2, jump-none) infinite;
 }
 
 .brand-loader-name {
@@ -121,9 +115,9 @@
     }
 }
 
-@keyframes brand-loader-spin {
-    to {
-        transform: rotate(360deg);
+@keyframes brand-loader-rec {
+    50% {
+        opacity: 0.2;
     }
 }
 
@@ -137,10 +131,6 @@
 }
 
 @media (max-width: 480px) {
-    .brand-loader-emblem {
-        width: 120px;
-        height: 120px;
-    }
     .brand-loader-mark,
     .brand-loader-mark img,
     .brand-loader-mark .brand-loader-mark-image {
@@ -154,7 +144,7 @@
 
 @media (prefers-reduced-motion: reduce) {
     .brand-loader,
-    .brand-loader-ring,
+    .brand-loader-timecode i,
     .brand-loader-progress i {
         animation: none;
     }
