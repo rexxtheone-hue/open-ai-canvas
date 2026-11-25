@@ -233,7 +233,7 @@ export function dramaCardBrief(card: DramaCard) {
     return [
         `【故事卡片】${card.title}：${card.logline}`,
         `【画风】${style.label}。${style.look}`,
-        `【形式】${card.dialogue ? "角色在画面里亲口说台词" : "第一人称旁白讲述"}，${card.captions ? "要字幕" : "不要字幕"}，${card.ratio}，约 ${card.durationSeconds} 秒`,
+        `【形式】${card.dialogue ? "角色在画面里亲口说台词" : "第一人称旁白讲述"}，${card.captions ? "要字幕" : "不要字幕"}`,
         `【产品怎么出场】${card.product}`,
         "【剧情节拍】（百分比是占全片时长的位置）",
         ...card.beats.map((beat) => `- ${beat}`),

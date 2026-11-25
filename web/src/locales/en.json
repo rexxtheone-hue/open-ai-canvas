@@ -3645,6 +3645,7 @@
   "分镜板": "Storyboard",
   "分镜板-{0}.png": "storyboard-{0}.png",
   "分镜板模式：先生成人物三视图和场景图，再把 {0} 段各出一张分镜板、按分镜板一次生成整段视频，最后加上配音、字幕和音乐合成成片。": "Storyboard mode: first generate character turnarounds and scene images, then one storyboard board for each of the {0} segments, generate each full segment video from its board, and finally add voiceover, subtitles and music to render the final video.",
+  "分镜板模式：先生成人物三视图和场景图，再把 {0} 段各出一张分镜板、按分镜板一次生成整段视频（角色在片中亲口说台词），最后加上字幕和音乐合成成片。": "Storyboard mode: first generate character turnarounds and scene images, then one storyboard board for each of the {0} segments, generate each full segment video from its board (characters speak their lines on screen), and finally add subtitles and music to render the final video.",
   "分镜板模式：共 {0} 段。每段先出一张分镜板，再按分镜板一次生成整段视频，最后加上配音、字幕和音乐合成成片。": "Storyboard mode: {0} segment(s). Each segment gets one storyboard sheet, then the whole segment is filmed from it in one pass, and voiceover, subtitles and music are added in the final render.",
   "分镜板段落": "Storyboard segments",
   "分镜生成任务已开始，可继续编辑或切换章节": "Storyboard generation task started. You can keep editing or switch chapters",

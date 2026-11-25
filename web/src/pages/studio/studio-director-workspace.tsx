@@ -1314,7 +1314,7 @@ function ProductionQuoteBody({ story, config, mode, assetCount, voiceover, onClo
     return (
         <AppModal rootClassName="studio-modal" open title="一键制作 · 积分报价" okText={nothing ? "直接合成" : "确认制作"} cancelText="取消" onCancel={onClose} onOk={onConfirm}>
             <div className="studio-popup studio-form-stack">
-                <p className="studio-hint">{board ? `分镜板模式：先生成人物三视图和场景图，再把 ${segments.length} 段各出一张分镜板、按分镜板一次生成整段视频，最后加上配音、字幕和音乐合成成片。` : "标准流程：先生成人物三视图和场景图，再以它们为参考为每个镜头生成关键帧，把关键帧做成视频，最后合成成片。"}</p>
+                <p className="studio-hint">{board ? (voiceover ? `分镜板模式：先生成人物三视图和场景图，再把 ${segments.length} 段各出一张分镜板、按分镜板一次生成整段视频，最后加上配音、字幕和音乐合成成片。` : `分镜板模式：先生成人物三视图和场景图，再把 ${segments.length} 段各出一张分镜板、按分镜板一次生成整段视频（角色在片中亲口说台词），最后加上字幕和音乐合成成片。`) : "标准流程：先生成人物三视图和场景图，再以它们为参考为每个镜头生成关键帧，把关键帧做成视频，最后合成成片。"}</p>
                 {nothing ? <p className="studio-hint">画面、视频和配音都已经生成好了，确认后直接合成成片。</p> : (
                     <table className="studio-quote-table">
                         <thead><tr><th>项目</th><th>模型</th><th>数量</th><th>积分</th></tr></thead>

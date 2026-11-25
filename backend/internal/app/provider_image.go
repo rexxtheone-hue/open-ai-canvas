@@ -24,7 +24,9 @@ func runImageTask(ctx context.Context, input canvasGenerationInput) (map[string]
 			return nil, err
 		}
 	}
-	if _, ok := declarativeProtocolAdapterForContext(ctx, input.Config.InterfaceType); ok {
+	// 声明式 openai-image 适配器只会发 JSON；有参考图或蒙版时上游要求 multipart 的 /images/edits，走下面手写的表单路径。
+	openAIEdit := input.Config.InterfaceType == string(model.ChannelInterfaceOpenAIImage) && (len(input.ReferenceImages) > 0 || input.Mask != nil)
+	if _, ok := declarativeProtocolAdapterForContext(ctx, input.Config.InterfaceType); ok && !openAIEdit {
 		return runDeclarativeProtocolTask(ctx, input)
 	}
 	if input.Config.InterfaceType == string(model.ChannelInterfaceGrokImage) {
