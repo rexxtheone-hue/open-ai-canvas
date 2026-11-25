@@ -36,6 +36,16 @@
 .studio-mcp-prompt h3 { margin: 0; font-size: 14px; font-weight: 650; }
 .studio-mcp-prompt p { flex: 1 1 auto; margin: 0; color: var(--studio-soft); font-size: 13px; line-height: 1.65; }
 .studio-mcp-prompt .studio-mcp-copy-row code { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 1; -webkit-box-orient: vertical; color: var(--studio-muted); }
+.studio-mcp-section-lead { margin: -6px 0 16px; color: var(--studio-soft); font-size: 14px; line-height: 1.7; }
+.studio-mcp-workflows { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.studio-mcp-prompt-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.studio-mcp-copy-icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin-left: auto; border-radius: 9px; border: 1px solid var(--studio-line-strong); background: var(--studio-bg); color: var(--studio-soft); cursor: pointer; }
+.studio-mcp-copy-icon:hover { background: var(--studio-hover); color: var(--studio-fg); }
+.studio-mcp-copy-icon svg { width: 15px; height: 15px; }
+.studio-mcp-prompt-heading code { align-self: flex-start; padding: 2px 8px; border-radius: 6px; background: var(--studio-accent-soft); color: var(--studio-accent-text); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+.studio-mcp-prompt-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.studio-root .studio-mcp-prompt-actions a { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--studio-line-strong); background: var(--studio-bg); color: var(--studio-fg); font-size: 12.5px; font-weight: 600; text-decoration: none; }
+.studio-root .studio-mcp-prompt-actions a:hover { background: var(--studio-hover); color: var(--studio-fg); }
 
 .studio-mcp-features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
 .studio-mcp-features li { display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: var(--studio-radius-sm); background: var(--studio-panel); border: 1px solid var(--studio-line); }
@@ -63,5 +73,5 @@
     .studio-mcp { padding: 20px 16px 64px; gap: 22px; }
     .studio-mcp-hero h1 { font-size: 26px; }
     .studio-mcp-guide { padding: 20px 16px; }
-    .studio-mcp-prompts, .studio-mcp-features { grid-template-columns: minmax(0, 1fr); }
+    .studio-mcp-prompts, .studio-mcp-workflows, .studio-mcp-features { grid-template-columns: minmax(0, 1fr); }
 }

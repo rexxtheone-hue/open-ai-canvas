@@ -23,7 +23,8 @@ const mcpInstructions = `OmniMuse is an AI image and video studio. Use these too
 Workflow: (1) optionally call list_models to pick a model and see its options; (2) call generate_image or generate_video; (3) videos take minutes, so call get_generation with the returned id until status is "succeeded", then show the output URLs to the user.
 Every generation costs credits. If the user has not chosen a model or the request is expensive (video, 4K, multiple outputs), call estimate_cost first and tell the user the price.
 References: the user's uploaded images, videos, audio and saved characters live in their OmniMuse library. When the user names a file, character or "the material I used before", call list_assets (search by name) or get_generation (its "references" list) and pass the asset ids in reference_image_urls, first_frame_url, reference_audio_urls and so on. Public https URLs also work. Refer to references in the prompt by order: image 1, image 2, audio 1. If list_assets reports several different files with the same name, ask the user which one to use; files marked sameNameIdentical are the same content, so either is fine.
-Video sound is on by default. Results also appear in the user's OmniMuse Studio library.`
+Video sound is on by default. Results also appear in the user's OmniMuse Studio library.
+Workflows: OmniMuse has ready-made playbooks (slash commands) for multi-step jobs such as /product-photoshoot, /ugc-ad, /static-ads, /drama-ad, /adapt-ad, /hook-variants, /localize-ads, /resize-ads, /festive-campaign and /video-upgrade. When the user writes /<name>, "run /<name>", /help, or asks for one of these results, call get_skill (or list_skills for /help) first and follow the playbook.`
 
 var mcpSchemaCache = mcp.NewSchemaCache()
 
@@ -67,7 +68,7 @@ type mcpVideoInput struct {
 	ReferenceVideoURLs []string `json:"reference_video_urls,omitempty" jsonschema:"asset ids from list_assets or public https video URLs, to reference, edit or extend"`
 	ReferenceAudioURLs []string `json:"reference_audio_urls,omitempty" jsonschema:"asset ids from list_assets or public https audio URLs, for example a voice or voiceover for lip sync"`
 	Count              int      `json:"count,omitempty" jsonschema:"number of videos, 1 to 4 (default 1); each one is charged"`
-	Operation          string   `json:"operation,omitempty" jsonschema:"omit for normal generation. To edit an existing video put it first in reference_video_urls and set: inpaint (change something by text), replace_element (swap a person or object for reference_image_urls), style_transfer, camera_motion, extend (continue the video). lip_sync: a person image or video plus reference_audio_urls. motion_transfer: a character in reference_image_urls plus a motion video. list_models shows which operations each model supports"`
+	Operation          string   `json:"operation,omitempty" jsonschema:"omit for normal generation. To edit an existing video put it first in reference_video_urls and set: inpaint (change something by text), replace_element (swap a person or object for reference_image_urls), style_transfer, camera_motion, extend (continue the video). lip_sync: a person image or video plus reference_audio_urls. motion_transfer: a character in reference_image_urls plus a motion video. video_upscale or video_sfx: the video in reference_video_urls to sharpen it or add sound effects. list_models shows which operations each model supports"`
 }
 
 type mcpEstimateInput struct {
@@ -222,6 +223,7 @@ func newMCPServer(svc *service.Service) *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{Name: "omnimuse", Title: "OmniMuse", Version: "1.0.0"}, &mcp.ServerOptions{Instructions: mcpInstructions, SchemaCache: mcpSchemaCache})
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}
 	registerMCPWidget(server)
+	registerMCPSkills(server)
 
 	mcp.AddTool(server, &mcp.Tool{Name: "get_account", Title: "Account and credits", Description: "Show the connected OmniMuse account and its available credits.", Annotations: readOnly},
 		func(ctx context.Context, _ *mcp.CallToolRequest, _ mcpEmpty) (*mcp.CallToolResult, any, error) {

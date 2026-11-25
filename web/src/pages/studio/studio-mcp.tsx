@@ -34,6 +34,28 @@ function CopyLine({ value, label }: { value: string; label?: string }) {
     );
 }
 
+function CopyButton({ value }: { value: string }) {
+    const { message } = App.useApp();
+    const [copied, setCopied] = useState(false);
+    return (
+        <button
+            type="button"
+            className="studio-mcp-copy-icon"
+            aria-label="复制提示词"
+            title="复制提示词"
+            onClick={() =>
+                void navigator.clipboard.writeText(value).then(() => {
+                    setCopied(true);
+                    message.success("已复制");
+                    window.setTimeout(() => setCopied(false), 1500);
+                })
+            }
+        >
+            {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
+        </button>
+    );
+}
+
 function Step({ index, title, children }: { index: number; title: string; children: ReactNode }) {
     return (
         <li className="studio-mcp-step">
@@ -55,11 +77,23 @@ function ExternalButton({ href, children }: { href: string; children: ReactNode 
     );
 }
 
-const PROMPTS = [
-    { title: "产品广告视频", text: "用 OmniMuse 为我的产品做一条 15 秒的竖屏广告视频。先问我要产品照片、卖点和目标客户，再给我看分镜，确认后才生成。" },
-    { title: "电商主图", text: "用 OmniMuse 把这张产品照做成 4 张不同场景的电商主图，1:1，2K。先告诉我每张要花多少积分。" },
-    { title: "批量广告变体", text: "用 OmniMuse 为同一个产品生成 3 个不同开头钩子的 5 秒短视频，9:16，720p，方便我做 A/B 测试。" },
+/** 和后端 mcpskills/ 里的工作流一一对应；提示词让 AI 先取手册、先报价再生成。 */
+const WORKFLOWS = [
+    { name: "product-photoshoot", title: "产品图一套", text: "把一张产品照做成棚拍、生活场景、模特、横幅等一整套图", ask: "把我的产品照做成一套电商和广告用的图" },
+    { name: "ugc-ad", title: "达人带货视频", text: "真人口吻的测评、开箱、教程、试穿视频，嘴型对上台词", ask: "为我的产品做一条达人口播带货视频" },
+    { name: "static-ads", title: "广告图套装", text: "按不同卖点各做一张带标题的广告图，方便测试", ask: "为我的产品做一组 Facebook 广告图，每张一个卖点" },
+    { name: "drama-ad", title: "短剧广告", text: "有冲突、有反转的迷你短剧，产品在结尾解决问题", ask: "为我的产品做一条短剧广告" },
+    { name: "adapt-ad", title: "仿拍爆款广告", text: "保留参考视频的节奏和运镜，换成你的产品和人物", ask: "参考一条爆款视频，换成我的产品重拍" },
+    { name: "hook-variants", title: "多个开头测试", text: "同一条广告做 3–5 个不同的开头，用来 A/B 测试", ask: "为同一条广告做几个不同的开头钩子" },
+    { name: "localize-ads", title: "多语言版本", text: "改成马来文、中文、英文或其他市场的版本", ask: "把我的广告改成马来文和英文版本" },
+    { name: "resize-ads", title: "改成各版位尺寸", text: "一张广告图改成 4:5、1:1、9:16、16:9，文字不变形", ask: "把这张广告图改成所有投放版位的尺寸" },
+    { name: "festive-campaign", title: "节日 campaign", text: "新年、开斋节、屠妖节、圣诞、双十一的整套图和视频", ask: "为我的产品做一套节日促销图和短视频" },
+    { name: "video-upgrade", title: "视频高清和配音效", text: "把视频变清晰，或给无声视频加上音效", ask: "把我的视频变高清，并加上合适的音效" },
 ];
+
+function workflowPrompt(workflow: (typeof WORKFLOWS)[number], mcpUrl: string, brand: string) {
+    return `用 ${brand} 运行 /${workflow.name}：${workflow.ask}。先问我需要的资料，给我看计划和要花的积分，我确认后才开始生成。\n\n如果还没有连接 ${brand}，请先让我用 ${mcpUrl} 添加 ${brand} 连接器。`;
+}
 
 const FAQ = [
     { q: "需要 API Key 吗？", a: "Claude、ChatGPT、Cursor 不需要：添加网址后点「连接」，用 OmniMuse 账号登录授权即可。只有不支持 OAuth 登录的工具，或服务器上的脚本，才需要在「API 与 MCP」设置里创建 API Key。" },
@@ -191,15 +225,32 @@ export default function StudioMcpPage() {
                 </section>
 
                 <section className="studio-mcp-section">
-                    <h2>试试这些提示词</h2>
-                    <div className="studio-mcp-prompts">
-                        {PROMPTS.map((prompt) => (
-                            <article key={prompt.title} className="studio-mcp-prompt">
-                                <h3>{prompt.title}</h3>
-                                <p>{prompt.text}</p>
-                                <CopyLine value={prompt.text} />
-                            </article>
-                        ))}
+                    <h2>现成工作流</h2>
+                    <p className="studio-mcp-section-lead">连接后，在对话里输入「/工作流名」或点下面的按钮，AI 会按写好的步骤先问资料、报价，确认后再生成。输入 /help 查看全部。</p>
+                    <div className="studio-mcp-prompts studio-mcp-workflows">
+                        {WORKFLOWS.map((workflow) => {
+                            const text = workflowPrompt(workflow, mcpUrl, brand);
+                            return (
+                                <article key={workflow.name} className="studio-mcp-prompt">
+                                    <div className="studio-mcp-prompt-heading">
+                                        <h3>{workflow.title}</h3>
+                                        <code>/{workflow.name}</code>
+                                    </div>
+                                    <p>{workflow.text}</p>
+                                    <div className="studio-mcp-prompt-actions">
+                                        <a href={`https://claude.ai/new?q=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer">
+                                            <StudioMcpMark id="claude" size={16} />
+                                            在 Claude 试用
+                                        </a>
+                                        <a href={`https://chatgpt.com/?q=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer">
+                                            <StudioMcpMark id="chatgpt" size={16} />
+                                            在 ChatGPT 试用
+                                        </a>
+                                        <CopyButton value={text} />
+                                    </div>
+                                </article>
+                            );
+                        })}
                     </div>
                 </section>
 
@@ -207,6 +258,9 @@ export default function StudioMcpPage() {
                     <h2>AI 助手能做什么</h2>
                     <ul className="studio-mcp-features">
                         <li><b>生成图片和视频</b><span>文生图、图生视频、首尾帧、参考图/视频/音频，所有网页版上架的模型都能用。</span></li>
+                        <li><b>编辑视频</b><span>局部修改、换产品或人物、对口型、动作迁移、续写、高清和配音效。</span></li>
+                        <li><b>现成工作流</b><span>带货视频、广告图套装、短剧广告、节日 campaign 等，一句话按步骤完成。</span></li>
+                        <li><b>用素材库里的文件</b><span>说出文件名，AI 会从你的作品库里找到并当参考素材。</span></li>
                         <li><b>先估价再生成</b><span>每次生成前可以先算积分，确认后再扣。</span></li>
                         <li><b>查进度和作品</b><span>查看生成进度、最近的作品，需要时取消。</span></li>
                         <li><b>查余额</b><span>随时问 AI 助手还剩多少积分。</span></li>
