@@ -456,7 +456,7 @@ export default function LandingPage() {
     };
 
     const nav = [
-        { href: "#cases", label: "行业" },
+        { href: "#cases", label: "应用场景" },
         { href: "#video", label: "视频" },
         { href: "#image", label: "图片" },
         { href: "#agents", label: "MCP / CLI" },
@@ -545,7 +545,7 @@ export default function LandingPage() {
                     <>
                         <section id="cases" className="landing-section">
                             <div className="landing-wrap">
-                                <SectionHead index="01 · 行业" title="你的生意，都有现成拍法" text="选一个类型，填几句话，AI 导演按这个类型写脚本、排镜头、出成片。" />
+                                <SectionHead index="01 · 应用场景" title="你的生意，都有现成拍法" text="选一个类型，填几句话，AI 导演按这个类型写脚本、排镜头、出成片。" />
                                 <div className="landing-cases">
                                     {INDUSTRIES.map((item) => (
                                         <Link key={item.genre} className="landing-tile is-wide" to={register(`/studio/director?genre=${item.genre}`)}>
