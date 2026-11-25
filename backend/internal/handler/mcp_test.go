@@ -133,6 +133,13 @@ func TestMCPOAuthFlowListsToolsAndRotatesRefreshTokens(t *testing.T) {
 	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), "generate_video") || !strings.Contains(list.Body.String(), "get_generation") {
 		t.Fatalf("tools/list status=%d body=%s", list.Code, list.Body.String())
 	}
+	if body := list.Body.String(); !strings.Contains(body, `"openai/outputTemplate":"`+mcpWidgetURI+`"`) || !strings.Contains(body, `"resourceUri":"`+mcpWidgetURI+`"`) {
+		t.Fatalf("generation tools must link the result card: %s", body)
+	}
+	widget := mcpCall(router, tokens.AccessToken, `{"jsonrpc":"2.0","id":9,"method":"resources/read","params":{"uri":"`+mcpWidgetURI+`"}}`)
+	if body := widget.Body.String(); widget.Code != http.StatusOK || !strings.Contains(body, `"mimeType":"text/html;profile=mcp-app"`) || !strings.Contains(body, "resourceDomains") || !strings.Contains(body, "ui/notifications/tool-result") {
+		t.Fatalf("resources/read status=%d body=%.400s", widget.Code, body)
+	}
 	account := mcpCall(router, tokens.AccessToken, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_account","arguments":{}}}`)
 	if account.Code != http.StatusOK || !strings.Contains(account.Body.String(), "profile-user") {
 		t.Fatalf("get_account status=%d body=%s", account.Code, account.Body.String())

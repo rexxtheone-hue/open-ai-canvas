@@ -206,7 +206,7 @@ func generationSummary(g *service.OpenAPIGeneration) string {
 				lines = append(lines, fmt.Sprintf("To show it inline, embed this preview (it loads directly, no redirect): ![%s](%s)", output.Type, output.PreviewURL))
 			}
 		}
-		lines = append(lines, "Any generated images are attached below: show those to the user and never substitute other pictures. Download links expire in 24 hours; the work is also saved in the user's OmniMuse Studio library.")
+		lines = append(lines, "The result card shows the generated media to the user. Never show web images or any other pictures in its place; if you cannot display it, give the link. Download links expire in 24 hours; the work is also saved in the user's OmniMuse Studio library.")
 		return strings.Join(lines, "\n")
 	case model.TaskStatusFailed, model.TaskStatusCancelled:
 		return fmt.Sprintf("Generation %s %s: %s. Credits for failed generations are refunded automatically.", g.ID, g.Status, g.Error)
@@ -218,6 +218,7 @@ func generationSummary(g *service.OpenAPIGeneration) string {
 func newMCPServer(svc *service.Service) *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{Name: "omnimuse", Title: "OmniMuse", Version: "1.0.0"}, &mcp.ServerOptions{Instructions: mcpInstructions, SchemaCache: mcpSchemaCache})
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}
+	registerMCPWidget(server)
 
 	mcp.AddTool(server, &mcp.Tool{Name: "get_account", Title: "Account and credits", Description: "Show the connected OmniMuse account and its available credits.", Annotations: readOnly},
 		func(ctx context.Context, _ *mcp.CallToolRequest, _ mcpEmpty) (*mcp.CallToolResult, any, error) {
@@ -332,22 +333,24 @@ func newMCPServer(svc *service.Service) *mcp.Server {
 			for i := range generations {
 				finished = append(finished, &generations[i])
 			}
-			return withPreviews(svc, user, mcpText(generations, strings.Join(summaries, "\n\n")), finished...), nil, nil
+			result := withPreviews(svc, user, mcpText(generations, strings.Join(summaries, "\n\n")), finished...)
+			result.StructuredContent = mcpWidgetData(finished...)
+			return result, nil, nil
 		}
 	}
 	generateImage, generateVideo := generate("image"), generate("video")
 
-	mcp.AddTool(server, &mcp.Tool{Name: "generate_image", Title: "Generate image", Description: "Generate images on OmniMuse (charged in credits). Waits up to about 45 seconds and returns the image URLs; if still running, returns an id to check with get_generation."},
+	mcp.AddTool(server, &mcp.Tool{Name: "generate_image", Title: "Generate image", Meta: mcpWidgetToolMeta("Generating image…", "Image ready"), Description: "Generate images on OmniMuse (charged in credits). Waits up to about 45 seconds and returns the image URLs; if still running, returns an id to check with get_generation."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in mcpImageInput) (*mcp.CallToolResult, any, error) {
 			return generateImage(ctx, in.request(), 45*time.Second)
 		})
 
-	mcp.AddTool(server, &mcp.Tool{Name: "generate_video", Title: "Generate video", Description: "Start a video generation on OmniMuse (charged in credits). Supports text to video, first/last frame, and reference images, videos or audio. Videos take one to several minutes: poll get_generation with the returned id."},
+	mcp.AddTool(server, &mcp.Tool{Name: "generate_video", Title: "Generate video", Meta: mcpWidgetToolMeta("Starting video…", "Video started"), Description: "Start a video generation on OmniMuse (charged in credits). Supports text to video, first/last frame, and reference images, videos or audio. Videos take one to several minutes: poll get_generation with the returned id."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in mcpVideoInput) (*mcp.CallToolResult, any, error) {
 			return generateVideo(ctx, in.request(), 0)
 		})
 
-	mcp.AddTool(server, &mcp.Tool{Name: "get_generation", Title: "Check generation", Description: "Get the status, output URLs and the reference assets (\"references\") of a generation. Pass those reference ids back to generate_image or generate_video to reuse the same materials. Set wait_seconds (up to 50) to wait for it to finish.", Annotations: readOnly},
+	mcp.AddTool(server, &mcp.Tool{Name: "get_generation", Title: "Check generation", Meta: mcpWidgetToolMeta("Checking…", "Checked"), Description: "Get the status, output URLs and the reference assets (\"references\") of a generation. Pass those reference ids back to generate_image or generate_video to reuse the same materials. Set wait_seconds (up to 50) to wait for it to finish.", Annotations: readOnly},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in mcpGenerationInput) (*mcp.CallToolResult, any, error) {
 			user, err := mcpUser(ctx)
 			if err != nil {
@@ -358,7 +361,9 @@ func newMCPServer(svc *service.Service) *mcp.Server {
 			if err != nil {
 				return nil, nil, err
 			}
-			return withPreviews(svc, user, mcpText(generation, generationSummary(generation)), generation), nil, nil
+			result := withPreviews(svc, user, mcpText(generation, generationSummary(generation)), generation)
+			result.StructuredContent = mcpWidgetData(generation)
+			return result, nil, nil
 		})
 
 	mcp.AddTool(server, &mcp.Tool{Name: "list_generations", Title: "Recent generations", Description: "List the user's most recent OmniMuse generations (from the web Studio, CLI and MCP).", Annotations: readOnly},
@@ -420,6 +425,7 @@ func RegisterMCPRoutes(r *gin.Engine, api *gin.RouterGroup, svc *service.Service
 			return
 		}
 		ctx := context.WithValue(c.Request.Context(), mcpUserKey{}, user)
+		ctx = context.WithValue(ctx, mcpBaseKey{}, requestBaseURL(c))
 		streamable.ServeHTTP(c.Writer, c.Request.WithContext(ctx))
 	}
 	r.POST("/mcp", mcpHandler)
