@@ -75,6 +75,7 @@ type OpenAPIGenerationRequest struct {
 }
 
 type OpenAPIOutput struct {
+	ResourceID string `json:"-"`
 	Type       string `json:"type"`
 	URL        string `json:"url"`
 	MimeType   string `json:"mimeType,omitempty"`
@@ -708,7 +709,7 @@ func (s *Service) openAPIGeneration(ctx context.Context, userID string, task *mo
 		if kind == "" {
 			kind = resource.Kind
 		}
-		g.Outputs = append(g.Outputs, OpenAPIOutput{Type: kind, URL: url, MimeType: resource.MimeType, Width: resource.Width, Height: resource.Height, DurationMs: resource.DurationMs, Bytes: resource.Size})
+		g.Outputs = append(g.Outputs, OpenAPIOutput{ResourceID: resource.ID, Type: kind, URL: url, MimeType: resource.MimeType, Width: resource.Width, Height: resource.Height, DurationMs: resource.DurationMs, Bytes: resource.Size})
 	}
 	return g, nil
 }

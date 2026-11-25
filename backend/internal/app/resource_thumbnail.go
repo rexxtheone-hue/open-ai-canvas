@@ -174,3 +174,21 @@ func thumbnailResourceAccess(resource *model.Resource, access *ResourceAccess) *
 	next.FallbackReason = ""
 	return &next
 }
+
+// OpenAPIImagePreview 返回作品图片的缩略图（JPEG），让 MCP 客户端直接在对话里显示真实结果。
+func (s *Service) OpenAPIImagePreview(userID, resourceID string) ([]byte, string, error) {
+	resource, err := s.repo.ResourceForUser(userID, resourceID)
+	if err != nil {
+		return nil, "", err
+	}
+	stream := s.openResourceThumbnail(userID, resource)
+	if stream == nil {
+		return nil, "", errors.New("无法生成缩略图")
+	}
+	defer stream.Body.Close()
+	data, err := io.ReadAll(io.LimitReader(stream.Body, 2<<20))
+	if err != nil {
+		return nil, "", err
+	}
+	return data, stream.Resource.MimeType, nil
+}

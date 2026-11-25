@@ -160,6 +160,29 @@ func generationDone(status string) bool {
 	return false
 }
 
+// withPreviews 把已完成作品的图片缩略图附在结果里，Claude、ChatGPT 会直接在对话里显示，
+// 不会再自己去找相似的网图。视频只给链接。
+func withPreviews(svc *service.Service, user *model.User, result *mcp.CallToolResult, generations ...*service.OpenAPIGeneration) *mcp.CallToolResult {
+	added := 0
+	for _, g := range generations {
+		if g == nil || model.TaskStatus(g.Status) != model.TaskStatusSucceeded {
+			continue
+		}
+		for _, output := range g.Outputs {
+			if output.Type != "image" || output.ResourceID == "" || added >= 4 {
+				continue
+			}
+			data, mimeType, err := svc.OpenAPIImagePreview(user.ID, output.ResourceID)
+			if err != nil || len(data) == 0 {
+				continue
+			}
+			result.Content = append(result.Content, &mcp.ImageContent{Data: data, MIMEType: mimeType})
+			added++
+		}
+	}
+	return result
+}
+
 func generationSummary(g *service.OpenAPIGeneration) string {
 	switch model.TaskStatus(g.Status) {
 	case model.TaskStatusSucceeded:
@@ -167,7 +190,7 @@ func generationSummary(g *service.OpenAPIGeneration) string {
 		for _, output := range g.Outputs {
 			lines = append(lines, fmt.Sprintf("%s: %s", output.Type, output.URL))
 		}
-		lines = append(lines, "Download links expire in 24 hours; the work is also saved in the user's OmniMuse Studio library.")
+		lines = append(lines, "Any generated images are attached below: show those to the user and never substitute other pictures. Download links expire in 24 hours; the work is also saved in the user's OmniMuse Studio library.")
 		return strings.Join(lines, "\n")
 	case model.TaskStatusFailed, model.TaskStatusCancelled:
 		return fmt.Sprintf("Generation %s %s: %s. Credits for failed generations are refunded automatically.", g.ID, g.Status, g.Error)
@@ -250,7 +273,11 @@ func newMCPServer(svc *service.Service) *mcp.Server {
 			if err != nil {
 				summaries = append(summaries, "Warning: "+err.Error())
 			}
-			return mcpText(generations, strings.Join(summaries, "\n\n")), nil, nil
+			finished := make([]*service.OpenAPIGeneration, 0, len(generations))
+			for i := range generations {
+				finished = append(finished, &generations[i])
+			}
+			return withPreviews(svc, user, mcpText(generations, strings.Join(summaries, "\n\n")), finished...), nil, nil
 		}
 	}
 	generateImage, generateVideo := generate("image"), generate("video")
@@ -276,7 +303,7 @@ func newMCPServer(svc *service.Service) *mcp.Server {
 			if err != nil {
 				return nil, nil, err
 			}
-			return mcpText(generation, generationSummary(generation)), nil, nil
+			return withPreviews(svc, user, mcpText(generation, generationSummary(generation)), generation), nil, nil
 		})
 
 	mcp.AddTool(server, &mcp.Tool{Name: "list_generations", Title: "Recent generations", Description: "List the user's most recent OmniMuse generations (from the web Studio, CLI and MCP).", Annotations: readOnly},
