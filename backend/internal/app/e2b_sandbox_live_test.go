@@ -49,3 +49,29 @@ func TestE2BSandboxLive(t *testing.T) {
 		t.Fatalf("after connect = %+v %v", res, err)
 	}
 }
+
+func TestE2BSandboxDetachedLive(t *testing.T) {
+	if os.Getenv("E2B_LIVE_TEST") != "1" {
+		t.Skip("E2B_LIVE_TEST not set")
+	}
+	client, err := newE2BClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	sbx, err := client.create(ctx, map[string]string{"test": "1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.kill(ctx, sbx.ID)
+	start := time.Now()
+	pid, err := sbx.startDetached(ctx, "sleep 8; echo done > /home/user/bg.txt", nil)
+	if err != nil || pid == 0 || time.Since(start) > 5*time.Second {
+		t.Fatalf("detached pid=%d err=%v took=%s", pid, err, time.Since(start))
+	}
+	time.Sleep(12 * time.Second)
+	res, err := sbx.exec(ctx, "cat /home/user/bg.txt", 20*time.Second, nil)
+	if err != nil || strings.TrimSpace(res.Stdout) != "done" {
+		t.Fatalf("background did not finish: %+v %v", res, err)
+	}
+}

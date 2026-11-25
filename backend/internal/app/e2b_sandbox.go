@@ -161,6 +161,7 @@ type e2bExecResult struct {
 	Stderr   string
 	ExitCode int
 	TimedOut bool
+	PID      int
 }
 
 type e2bProcessEvent struct {
@@ -183,6 +184,22 @@ type e2bProcessEvent struct {
 
 // exec 用 bash 在 /home/user 里跑一条命令，等它结束或超时，返回输出和退出码。
 func (s *e2bSandbox) exec(ctx context.Context, command string, timeout time.Duration, envs map[string]string) (e2bExecResult, error) {
+	return s.run(ctx, command, timeout, envs, false)
+}
+
+// startDetached 启动命令后立刻断开（进程留在沙盒里继续跑），返回它的 PID。
+func (s *e2bSandbox) startDetached(ctx context.Context, command string, envs map[string]string) (int, error) {
+	res, err := s.run(ctx, command, 30*time.Second, envs, true)
+	if err != nil {
+		return 0, err
+	}
+	if res.PID == 0 {
+		return 0, errors.New("后台命令没有启动")
+	}
+	return res.PID, nil
+}
+
+func (s *e2bSandbox) run(ctx context.Context, command string, timeout time.Duration, envs map[string]string, detach bool) (e2bExecResult, error) {
 	payload, err := json.Marshal(map[string]any{
 		"process": map[string]any{"cmd": "/bin/bash", "args": []string{"-l", "-c", command}, "cwd": "/home/user", "envs": envs},
 		"stdin":   false,
@@ -202,7 +219,9 @@ func (s *e2bSandbox) exec(ctx context.Context, command string, timeout time.Dura
 	s.envdHeaders(req)
 	req.Header.Set("Content-Type", "application/connect+json")
 	req.Header.Set("Connect-Protocol-Version", "1")
-	req.Header.Set("Connect-Timeout-Ms", fmt.Sprint(timeout.Milliseconds()))
+	if !detach {
+		req.Header.Set("Connect-Timeout-Ms", fmt.Sprint(timeout.Milliseconds()))
+	}
 	resp, err := s.client.http.Do(req)
 	if err != nil {
 		if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
@@ -254,6 +273,12 @@ func (s *e2bSandbox) exec(ctx context.Context, command string, timeout time.Dura
 		var event e2bProcessEvent
 		if err := json.Unmarshal(body, &event); err != nil {
 			continue
+		}
+		if start := event.Event.Start; start != nil {
+			result.PID = start.PID
+			if detach {
+				return result, nil
+			}
 		}
 		if data := event.Event.Data; data != nil {
 			if data.Stdout != "" {

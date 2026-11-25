@@ -105,16 +105,13 @@ func (s *Service) SandboxExec(ctx context.Context, user *model.User, input Sandb
 		id := newID()[:12]
 		logPath := "/home/user/.jobs/" + id + ".log"
 		statusPath := "/home/user/.jobs/" + id + ".status"
-		wrapper := fmt.Sprintf(`mkdir -p /home/user/.jobs && cd /home/user && (timeout %d bash -lc "$OM_BG_COMMAND" > %s 2>&1; echo $? > %s) > /dev/null 2>&1 < /dev/null & echo $!`, sandboxBackgroundSeconds, logPath, statusPath)
+		wrapper := fmt.Sprintf(`mkdir -p /home/user/.jobs && cd /home/user && timeout %d bash -lc "$OM_BG_COMMAND" > %s 2>&1 < /dev/null; echo $? > %s`, sandboxBackgroundSeconds, logPath, statusPath)
 		_ = sbx.client.setTimeout(ctx, sbx.ID, sandboxBackgroundSeconds+e2bIdleSeconds)
-		res, err := sbx.exec(ctx, wrapper, 30*time.Second, map[string]string{"OM_BG_COMMAND": command})
+		pid, err := sbx.startDetached(ctx, wrapper, map[string]string{"OM_BG_COMMAND": command})
 		if err != nil {
 			return nil, err
 		}
-		if res.ExitCode != 0 {
-			return nil, fmt.Errorf("后台命令没有启动：%s", strings.TrimSpace(res.Stderr))
-		}
-		result.PID = strings.TrimSpace(res.Stdout)
+		result.PID = fmt.Sprint(pid)
 		result.LogPath = logPath
 		result.StatusPath = statusPath
 		return result, nil
