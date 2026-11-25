@@ -1,7 +1,7 @@
 import "@fontsource-variable/space-grotesk/index.css";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Check, ChevronDown, Clapperboard, Download, Languages, Menu, MessageSquareText, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ArrowRight, ChevronDown, Languages, Menu, X } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 
 import { BrandLogo } from "@/components/brand/brand-logo";
@@ -15,42 +15,70 @@ import "./landing.css";
 
 const register = (next: string) => `/register?next=${encodeURIComponent(next)}`;
 
-const HERO_TILES = [
-    { cover: "quick-product-ad", label: "产品广告" },
-    { cover: "quick-ugc", label: "真人口播" },
-    { cover: "quick-food", label: "餐饮探店" },
-    { cover: "quick-real-estate", label: "房地产看房" },
-    { cover: "quick-brand-film", label: "品牌短片" },
-    { cover: "replace-character", label: "换角色" },
+/** 首屏轮播：优先用后台为官网设置的 site-hero-N，没有时退回工具封面。 */
+const HERO_REEL = [
+    { slot: "site-hero-1", fallback: "quick-brand-film", label: "品牌短片" },
+    { slot: "site-hero-2", fallback: "quick-product-ad", label: "产品广告" },
+    { slot: "site-hero-3", fallback: "quick-food", label: "餐饮探店" },
+    { slot: "site-hero-4", fallback: "quick-real-estate", label: "房地产看房" },
+    { slot: "site-hero-5", fallback: "quick-short-drama", label: "短剧" },
+    { slot: "site-hero-6", fallback: "quick-ugc", label: "真人口播" },
 ];
 
-const CASES = [
-    { cover: "quick-product-ad", genre: "product-ad", title: "产品广告", text: "一张产品图，生成带卖点、配乐和字幕的 15 秒广告片。" },
-    { cover: "quick-ugc", genre: "ugc", title: "真人口播", text: "AI 主播拿着你的产品讲解，像顾客自拍分享一样自然。" },
-    { cover: "quick-real-estate", genre: "real-estate", title: "房地产看房", text: "房源照片直接变成平稳运镜的看房视频，不改动真实房况。" },
-    { cover: "quick-food", genre: "food", title: "餐饮探店", text: "把菜品拍得诱人，做成适合 Facebook 和 TikTok 的短视频。" },
-    { cover: "quick-brand-film", genre: "brand-film", title: "品牌短片", text: "用电影感的短片讲你的品牌故事，适合官网和活动开场。" },
-    { cover: "quick-social", genre: "social", title: "社媒日更", text: "每天要发的短视频和图片，一次规划好，批量做出来。" },
+const VIDEO_TOOLS = [
+    { cover: "create-video", title: "生成视频", text: "文字、图片、视频、音频任意组合作为参考，Seedance、Veo、Wan、Kling 随时切换", path: "/studio/create-video" },
+    { cover: "replace-character", title: "换角色", text: "把视频里的人换成你的模特或代言人", path: "/studio/video" },
+    { cover: "lip-sync", title: "对口型", text: "上传配音，人物开口说你的台词", path: "/studio/video" },
+    { cover: "edit-video", title: "编辑视频", text: "一句话换背景、换衣服、去掉杂物", path: "/studio/video" },
+    { cover: "extend-video", title: "延长视频", text: "从最后一帧自然接着拍", path: "/studio/video" },
+    { cover: "motion-sync", title: "动作模仿", text: "让你的角色照着参考视频做动作", path: "/studio/video" },
+    { cover: "video-upscale", title: "视频高清", text: "草稿放大成高清成片", path: "/studio/video" },
 ];
 
-const STEPS = [
-    { icon: MessageSquareText, title: "说出你要什么", text: "输入一句话，或上传产品图、房源照片、参考视频。中文、英文都可以。" },
-    { icon: Clapperboard, title: "AI 写脚本、排镜头", text: "自动规划镜头、台词、配音和配乐，每个镜头都能单独修改。" },
-    { icon: Download, title: "生成并下载", text: "直接下载高清视频，发到 Facebook、Instagram、TikTok 和小红书。" },
+const CAMERA_MOVES = [
+    { cover: "camera-dolly-zoom", title: "希区柯克变焦" },
+    { cover: "camera-orbit", title: "环绕" },
+    { cover: "camera-crane", title: "升降" },
+    { cover: "camera-fpv", title: "FPV 穿越" },
+    { cover: "camera-drone", title: "无人机航拍" },
+    { cover: "camera-tracking", title: "跟踪" },
+    { cover: "camera-follow", title: "跟拍" },
+    { cover: "camera-handheld", title: "手持" },
+    { cover: "camera-zoom-in", title: "推近" },
+    { cover: "camera-zoom-out", title: "拉远" },
+    { cover: "camera-pan-left", title: "左摇" },
+    { cover: "camera-pan-right", title: "右摇" },
+    { cover: "camera-tilt-up", title: "上仰" },
+    { cover: "camera-tilt-down", title: "下俯" },
+    { cover: "camera-jib", title: "摇臂" },
+    { cover: "camera-static", title: "固定机位" },
 ];
 
-const TOOLS = [
-    { cover: "create-video", title: "生成视频", text: "图片、视频、音频任意组合作为参考" },
-    { cover: "replace-character", title: "换角色", text: "把视频里的人换成你的模特或代言人" },
-    { cover: "lip-sync", title: "对口型", text: "上传配音，人物开口说你的台词" },
-    { cover: "edit-video", title: "编辑视频", text: "一句话换背景、换衣服、去掉杂物" },
-    { cover: "voice-clone", title: "声音克隆", text: "录一段声音，之后的配音都用你的声线" },
+const IMAGE_TOOLS = [
     { cover: "create-image", title: "生成图片", text: "海报、产品图、社媒配图" },
-    { cover: "video-upscale", title: "视频高清", text: "把草稿视频放大成高清成片" },
-    { cover: "add-sound-effect", title: "视频配音效", text: "自动按画面配上环境声和音效" },
+    { cover: "edit-image", title: "改图", text: "一句话改局部、换颜色" },
+    { cover: "relight", title: "重新打光", text: "白天变黄昏，影棚变自然光" },
+    { cover: "replace-background", title: "换背景", text: "产品放进任何场景" },
+    { cover: "expand-image", title: "扩图", text: "竖图变横图，补全画面" },
+    { cover: "multi-view", title: "多角度", text: "一张图生成多个视角" },
+    { cover: "face-swap", title: "换脸", text: "保留姿势和服装换人" },
+    { cover: "image-upscale", title: "图片高清", text: "放大到 4K 不糊" },
 ];
 
-const MODELS = ["Seedance 2.5", "Veo 3.1", "Wan 3.0", "MiniMax H3", "Vidu Q4", "Grok Imagine", "Nano Banana 2.1", "GPT Image 2.5", "Midjourney", "Seedream 5.0", "Lyria 3 Pro"];
+const INDUSTRIES = [
+    { cover: "quick-product-ad", genre: "product-ad", title: "产品广告", text: "一张产品图，生成带卖点、配乐和字幕的 15 秒广告片" },
+    { cover: "quick-ugc", genre: "ugc", title: "真人口播", text: "AI 主播拿着你的产品讲解，像顾客自拍分享" },
+    { cover: "quick-food", genre: "food", title: "餐饮探店", text: "把菜品拍得诱人，适合 Facebook 和 TikTok" },
+    { cover: "quick-real-estate", genre: "real-estate", title: "房地产看房", text: "房源照片变成平稳运镜的看房视频" },
+    { cover: "quick-brand-film", genre: "brand-film", title: "品牌短片", text: "电影感的品牌故事，适合官网和活动开场" },
+    { cover: "quick-short-drama", genre: "short-drama", title: "短剧", text: "从剧本到分镜到成片，角色前后一致" },
+];
+
+/** 作品墙：后台设置的 site-gallery-N 排在前面，之后是平台作品图。 */
+const GALLERY_SLOTS = Array.from({ length: 12 }, (_, index) => `site-gallery-${index + 1}`);
+const GALLERY_IMAGES = Array.from({ length: 24 }, (_, index) => `/auth/showcase/w${String(index + 1).padStart(2, "0")}.webp`);
+
+const MODELS = ["Seedance 2.5", "Veo 3.1", "Kling 4", "Wan 3.0", "MiniMax H3", "Vidu Q4", "Grok Imagine", "Nano Banana 2.1", "GPT Image 2.6", "Midjourney V8", "Seedream 5.5"];
 
 const FAQS = [
     { q: "不会剪辑、不会写脚本也能用吗？", a: "能。用对话模式说你想做什么，AI 会先写脚本、排好镜头，再一个个生成。想自己控制的话，可以用导演模式逐个镜头调整。" },
@@ -65,13 +93,15 @@ function coverSource(src: string | undefined) {
     return src.endsWith("#video") ? { src: src.slice(0, -"#video".length), video: true } : { src, video: false };
 }
 
-/** 视频封面进入画面才加载和播放，离开就暂停；系统要求减少动态时只显示第一帧。 */
-function LandingMedia({ src, label }: { src?: string; label: string }) {
+const prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** 视频进入画面才加载和播放，离开就暂停；系统要求减少动态时只显示第一帧。 */
+function LandingMedia({ src, label, eager = false }: { src?: string; label: string; eager?: boolean }) {
     const ref = useRef<HTMLVideoElement>(null);
     const inView = useRef(false);
-    const [visible, setVisible] = useState(false);
+    const [visible, setVisible] = useState(eager);
     const media = coverSource(src);
-    const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced = prefersReducedMotion();
     const play = () => {
         if (inView.current && !reduced) void ref.current?.play().catch(() => undefined);
     };
@@ -92,14 +122,66 @@ function LandingMedia({ src, label }: { src?: string; label: string }) {
                     if (element.currentSrc && !reduced) void element.play().catch(() => undefined);
                 } else element.pause();
             },
-            { rootMargin: "120px" },
+            { rootMargin: "200px" },
         );
         observer.observe(element);
         return () => observer.disconnect();
     }, [media.video, media.src, reduced]);
     if (!media.src) return <span className="landing-media is-empty" aria-hidden />;
-    if (!media.video) return <img className="landing-media" src={media.src} alt={label} loading="lazy" />;
+    if (!media.video) return <img className="landing-media" src={media.src} alt={label} loading={eager ? "eager" : "lazy"} decoding="async" />;
     return <video ref={ref} className="landing-media" src={visible ? `${media.src}#t=0.1` : undefined} muted loop playsInline preload="metadata" disablePictureInPicture aria-label={label} onLoadedData={play} />;
+}
+
+/** 首屏全屏轮播：一次只加载当前和下一段，每段约 5 秒后淡入下一段。 */
+function HeroReel({ clips, onChange }: { clips: { src: string; label: string }[]; onChange: (index: number) => void }) {
+    const [active, setActive] = useState(0);
+    const [loaded, setLoaded] = useState<ReadonlySet<number>>(() => new Set([0, 1]));
+    const reduced = prefersReducedMotion();
+    const refs = useRef<(HTMLVideoElement | null)[]>([]);
+    const count = clips.length;
+
+    useEffect(() => {
+        if (count < 2 || reduced) return;
+        const timer = window.setInterval(() => setActive((index) => (index + 1) % count), 5200);
+        return () => window.clearInterval(timer);
+    }, [count, reduced]);
+
+    useEffect(() => {
+        onChange(active);
+        setLoaded((previous) => (previous.has(active) && previous.has((active + 1) % count) ? previous : new Set([...previous, active, (active + 1) % count])));
+        refs.current.forEach((video, index) => {
+            if (!video) return;
+            if (index === active && !reduced) {
+                video.currentTime = 0;
+                void video.play().catch(() => undefined);
+            } else video.pause();
+        });
+    }, [active, count, reduced, onChange]);
+
+    return (
+        <div className="landing-reel" aria-hidden>
+            {clips.map((clip, index) => {
+                const media = coverSource(clip.src);
+                if (!media.src) return null;
+                return media.video ? (
+                    <video
+                        key={clip.src}
+                        ref={(element) => {
+                            refs.current[index] = element;
+                        }}
+                        className={index === active ? "is-active" : undefined}
+                        src={loaded.has(index) ? `${media.src}#t=0.1` : undefined}
+                        muted
+                        playsInline
+                        loop
+                        preload="auto"
+                    />
+                ) : (
+                    <img key={clip.src} className={index === active ? "is-active" : undefined} src={media.src} alt="" />
+                );
+            })}
+        </div>
+    );
 }
 
 // i18n-ignore
@@ -130,12 +212,35 @@ function Pricing() {
     return <TopupOffers products={productsQuery.data} onBuy={() => navigate(register("/studio/pricing"))} />;
 }
 
-/** 官网落地页：未登录的访客打开根路径时看到；已登录的直接进入 Studio。 */
+function SectionHead({ index, title, text, action }: { index: string; title: string; text: string; action?: { to: string; label: string } }) {
+    return (
+        <div className="landing-head">
+            <div>
+                <span className="landing-meta">{index}</span>
+                <h2>{title}</h2>
+                <p>{text}</p>
+            </div>
+            {action ? (
+                <Link className="landing-head-action" to={action.to}>
+                    {action.label}
+                    <ArrowRight aria-hidden />
+                </Link>
+            ) : null}
+        </div>
+    );
+}
+
+/** 官网首页：未登录的访客打开根路径时看到；已登录的直接进入 Studio。 */
 export default function LandingPage() {
-    // 代理商网站显示中性版本：不用平台的案例封面、价格政策问答和卖点，只保留通用介绍和品牌名。
+    // 代理商网站显示中性版本：不用平台的作品和封面、价格政策问答，只保留通用介绍和品牌名。
     const isPlatform = useAppearanceStore((state) => state.appearance.isPlatform !== false);
     const brandName = useAppearanceStore((state) => state.appearance.brandName) || (isPlatform ? "OmniMuse" : "");
+    const navigate = useNavigate();
     const [menuOpen, setMenuOpen] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
+    const [heroIndex, setHeroIndex] = useState(0);
+    const [prompt, setPrompt] = useState("");
+    const rootRef = useRef<HTMLDivElement>(null);
     const coversQuery = useQuery({ queryKey: ["studio", "tool-covers"], queryFn: async () => (await listStudioToolCovers()).covers, staleTime: 10 * 60_000, enabled: isPlatform });
     const settingsQuery = useQuery({ queryKey: ["landing", "auth-settings"], queryFn: getAuthSettings, staleTime: 10 * 60_000 });
     const covers = isPlatform ? coversQuery.data || {} : {};
@@ -143,28 +248,46 @@ export default function LandingPage() {
     const faqs = isPlatform ? FAQS : FAQS.filter((_, index) => index === 0 || index === FAQS.length - 1);
     const bonus = Math.floor((settingsQuery.data?.signupBonusMicrocredits ?? 0) / 1_000_000);
     const signupLabel = bonus > 0 ? `免费注册，送 ${bonus} 积分` : "免费注册";
+    const heroClips = HERO_REEL.map((clip) => ({ src: covers[clip.slot] || covers[clip.fallback] || "", label: clip.label })).filter((clip) => clip.src);
+    const gallery = [...GALLERY_SLOTS.map((slot) => covers[slot]).filter((src): src is string => Boolean(src)), ...GALLERY_IMAGES];
 
     useEffect(() => {
-        document.title = `${brandName} · AI 广告视频与内容创作`;
+        document.title = `${brandName} · AI 视频和图片创作`;
     }, [brandName]);
 
+    useEffect(() => {
+        const root = rootRef.current;
+        if (!root) return;
+        const update = () => setScrolled(root.scrollTop > 24);
+        root.addEventListener("scroll", update, { passive: true });
+        return () => root.removeEventListener("scroll", update);
+    }, []);
+
+    const submitPrompt = (event: FormEvent) => {
+        event.preventDefault();
+        const text = prompt.trim();
+        navigate(register(text ? `/studio/agents?q=${encodeURIComponent(text)}` : "/studio"));
+    };
+
     const nav = [
-        { href: "#cases", label: "应用场景" },
-        { href: "#tools", label: "工具" },
+        { href: "#video", label: "视频" },
+        { href: "#camera", label: "运镜" },
+        { href: "#image", label: "图片" },
+        { href: "#gallery", label: "作品" },
         { href: "#pricing", label: "价格" },
-        { href: "#faq", label: "常见问题" },
     ];
+    const currentClip = heroClips[heroIndex];
 
     return (
-        <div className={`landing${isPlatform ? "" : " is-neutral"}`}>
-            <header className="landing-bar">
+        <div ref={rootRef} className={`landing${isPlatform ? "" : " is-neutral"}`}>
+            <header className={`landing-bar${scrolled ? " is-solid" : ""}`}>
                 <div className="landing-wrap landing-bar-inner">
                     <a className="landing-brand" href="#top" aria-label={brandName}>
                         <BrandLogo className="landing-logo" theme="dark" fallback={<span className="landing-logo" />} />
                         <span>{brandName}</span>
                     </a>
                     <nav className={`landing-nav${menuOpen ? " is-open" : ""}`} aria-label="页面导航">
-                        {nav.map((item) => (
+                        {(isPlatform ? nav : nav.filter((item) => item.href === "#pricing")).map((item) => (
                             <a key={item.href} href={item.href} onClick={() => setMenuOpen(false)}>
                                 {item.label}
                             </a>
@@ -187,56 +310,35 @@ export default function LandingPage() {
 
             <main id="top">
                 <section className="landing-hero">
+                    {heroClips.length ? <HeroReel clips={heroClips} onChange={setHeroIndex} /> : null}
+                    <div className="landing-hero-scrim" aria-hidden />
                     <div className="landing-wrap landing-hero-inner">
-                        <div className="landing-hero-copy">
-                            <span className="landing-eyebrow">AI 广告视频工作台</span>
-                            <h1>
-                                <span>不用拍摄团队，</span>
-                                <span>也能天天出广告视频</span>
-                            </h1>
-                            <p>上传产品图或说一句话，{brandName} 帮你做产品广告、真人口播、看房视频和品牌短片。Seedance、Veo、Wan 等顶级模型，一个账号全部能用。</p>
-                            <div className="landing-hero-actions">
-                                <Link className="landing-button is-primary is-large" to={register("/studio")}>
-                                    {signupLabel}
-                                    <ArrowRight aria-hidden />
-                                </Link>
-                                <a className="landing-button is-large" href="#cases">
-                                    看看能做什么
-                                </a>
-                            </div>
-                            {isPlatform ? (
-                                <ul className="landing-hero-points">
-                                    <li>
-                                        <Check aria-hidden />
-                                        马币计价，按次扣积分
-                                    </li>
-                                    <li>
-                                        <Check aria-hidden />
-                                        生成失败自动退积分
-                                    </li>
-                                    <li>
-                                        <Check aria-hidden />
-                                        会员作品可商用
-                                    </li>
-                                </ul>
-                            ) : null}
-                        </div>
-                        {isPlatform ? (
-                            <div className="landing-hero-reel" aria-hidden>
-                                {HERO_TILES.map((tile) => (
-                                    <div key={tile.cover} className="landing-tile">
-                                        <LandingMedia src={covers[tile.cover]} label="" />
-                                        <span className="landing-tile-meta">{tile.label}</span>
-                                    </div>
-                                ))}
-                            </div>
+                        {currentClip ? (
+                            <p className="landing-meta landing-hero-meta" aria-hidden>
+                                {String(heroIndex + 1).padStart(2, "0")} / {String(heroClips.length).padStart(2, "0")} · {currentClip.label}
+                            </p>
                         ) : null}
+                        <h1>
+                            <span>一句话，</span>
+                            <span>拍出你的广告大片</span>
+                        </h1>
+                        <p className="landing-hero-lead">Seedance、Veo、Kling、Nano Banana 等顶级模型都在一个账号里。产品广告、真人口播、看房视频、短剧，说一句话就开拍。</p>
+                        <form className="landing-prompt" onSubmit={submitPrompt}>
+                            <label htmlFor="landing-prompt-input" className="landing-sr-only">
+                                描述你想做的视频
+                            </label>
+                            <input id="landing-prompt-input" value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="例如：给我的榴莲千层做一条 15 秒 TikTok 广告" autoComplete="off" />
+                            <button type="submit" className="landing-button is-primary">
+                                开始生成
+                                <ArrowRight aria-hidden />
+                            </button>
+                        </form>
+                        <p className="landing-hero-note">{bonus > 0 ? `${signupLabel}，不用绑卡` : "注册不用绑卡"}</p>
                     </div>
                 </section>
 
                 <section className="landing-models" aria-label="支持的模型">
                     <div className="landing-wrap">
-                        <span>汇集主流 AI 模型</span>
                         <ul>
                             {MODELS.map((name) => (
                                 <li key={name}>{name}</li>
@@ -245,90 +347,98 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                <section id="cases" className="landing-section">
-                    <div className="landing-wrap">
-                        <div className="landing-head">
-                            <h2>你的生意，都用得上</h2>
-                            <p>选一个场景，填几句话，AI 按这个类型的拍法帮你出片。</p>
-                        </div>
-                        <div className="landing-cases">
-                            {CASES.map((item) => (
-                                <Link key={item.genre} className="landing-case" to={register(`/studio/director?genre=${item.genre}`)}>
-                                    {isPlatform ? (
-                                        <div className="landing-case-media">
-                                            <LandingMedia src={covers[item.cover]} label={item.title} />
-                                        </div>
-                                    ) : null}
-                                    <div className="landing-case-body">
-                                        <h3>{item.title}</h3>
-                                        <p>{item.text}</p>
-                                        <span className="landing-case-cta">
-                                            试试看
-                                            <ArrowRight aria-hidden />
-                                        </span>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-
-                <section className="landing-section is-tinted">
-                    <div className="landing-wrap">
-                        <div className="landing-head">
-                            <h2>三步出片</h2>
-                            <p>不用学剪辑软件，也不用请演员和摄影师。</p>
-                        </div>
-                        <ol className="landing-steps">
-                            {STEPS.map((step, index) => (
-                                <li key={step.title}>
-                                    <span className="landing-step-index">{String(index + 1).padStart(2, "0")}</span>
-                                    <step.icon aria-hidden />
-                                    <h3>{step.title}</h3>
-                                    <p>{step.text}</p>
-                                </li>
-                            ))}
-                        </ol>
-                    </div>
-                </section>
-
-                <section id="tools" className="landing-section">
-                    <div className="landing-wrap">
-                        <div className="landing-head">
-                            <h2>一个账号，全套工具</h2>
-                            <p>从生成、修改到配音、高清，做一条视频要用的都在这里。</p>
-                        </div>
-                        <div className="landing-tools">
-                            {TOOLS.map((tool) => (
-                                <div key={tool.cover} className="landing-tool">
-                                    {isPlatform ? (
-                                        <div className="landing-tool-media">
+                {isPlatform ? (
+                    <>
+                        <section id="video" className="landing-section">
+                            <div className="landing-wrap">
+                                <SectionHead index="01 · 视频" title="想拍什么都能拍" text="生成、换人、对口型、延长、高清，做一条视频要用的都在这里。" action={{ to: register("/studio/video"), label: "全部视频工具" }} />
+                                <div className="landing-bento">
+                                    {VIDEO_TOOLS.map((tool) => (
+                                        <Link key={tool.cover} className="landing-tile" to={register(tool.path)}>
                                             <LandingMedia src={covers[tool.cover]} label={tool.title} />
-                                        </div>
-                                    ) : null}
-                                    <h3>{tool.title}</h3>
-                                    <p>{tool.text}</p>
+                                            <span className="landing-tile-copy">
+                                                <strong>{tool.title}</strong>
+                                                <span>{tool.text}</span>
+                                            </span>
+                                        </Link>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-                </section>
+                            </div>
+                        </section>
 
-                <section id="pricing" className="landing-section is-tinted">
+                        <section id="camera" className="landing-section is-flush">
+                            <div className="landing-wrap">
+                                <SectionHead index="02 · 运镜" title="电影级运镜，点一下就有" text="希区柯克变焦、环绕、FPV 穿越，不用懂摄影术语，选好镜头就能拍。" />
+                            </div>
+                            <div className="landing-strip" tabIndex={0} aria-label="运镜效果">
+                                {CAMERA_MOVES.map((move) => (
+                                    <Link key={move.cover} className="landing-strip-card" to={register("/studio/create-video")}>
+                                        <LandingMedia src={covers[move.cover]} label={move.title} />
+                                        <span className="landing-meta">{move.title}</span>
+                                    </Link>
+                                ))}
+                            </div>
+                        </section>
+
+                        <section id="image" className="landing-section">
+                            <div className="landing-wrap">
+                                <SectionHead index="03 · 图片" title="产品图、海报、模特图" text="生成、改图、换背景、重新打光，电商和社媒要的图一次做完。" action={{ to: register("/studio/image"), label: "全部图片工具" }} />
+                                <div className="landing-grid">
+                                    {IMAGE_TOOLS.map((tool) => (
+                                        <Link key={tool.cover} className="landing-tile is-square" to={register("/studio/image")}>
+                                            <LandingMedia src={covers[tool.cover]} label={tool.title} />
+                                            <span className="landing-tile-copy">
+                                                <strong>{tool.title}</strong>
+                                                <span>{tool.text}</span>
+                                            </span>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+
+                        <section id="cases" className="landing-section">
+                            <div className="landing-wrap">
+                                <SectionHead index="04 · 行业" title="你的生意，都有现成拍法" text="选一个类型，填几句话，AI 导演按这个类型写脚本、排镜头、出成片。" />
+                                <div className="landing-cases">
+                                    {INDUSTRIES.map((item) => (
+                                        <Link key={item.genre} className="landing-tile is-wide" to={register(`/studio/director?genre=${item.genre}`)}>
+                                            <LandingMedia src={covers[item.cover]} label={item.title} />
+                                            <span className="landing-tile-copy">
+                                                <strong>{item.title}</strong>
+                                                <span>{item.text}</span>
+                                            </span>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+
+                        <section id="gallery" className="landing-section">
+                            <div className="landing-wrap">
+                                <SectionHead index="05 · 作品" title="都是用 OmniMuse 做的" text="没有一张是拍的。" action={{ to: register("/studio/inspire"), label: "去灵感社区" }} />
+                                <div className="landing-masonry">
+                                    {gallery.map((src, index) => (
+                                        <figure key={src} className="landing-masonry-item">
+                                            <LandingMedia src={src} label={`作品 ${index + 1}`} />
+                                        </figure>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+                    </>
+                ) : null}
+
+                <section id="pricing" className="landing-section">
                     <div className="landing-wrap">
-                        <div className="landing-head">
-                            <h2>简单透明的价格</h2>
-                            <p>充越多，送越多，积分所有模型通用。{bonus > 0 ? `注册就送 ${bonus} 积分，先试再买。` : ""}</p>
-                        </div>
+                        <SectionHead index={isPlatform ? "06 · 价格" : "价格"} title="按次扣积分，所有模型通用" text={`马币计价，一次性付款，生成失败自动退积分。${bonus > 0 ? `注册就送 ${bonus} 积分，先试再买。` : ""}`} />
                         <Pricing />
                     </div>
                 </section>
 
                 <section id="faq" className="landing-section">
                     <div className="landing-wrap landing-faq-wrap">
-                        <div className="landing-head">
-                            <h2>常见问题</h2>
-                        </div>
+                        <h2 className="landing-faq-title">常见问题</h2>
                         <div className="landing-faq">
                             {faqs.map((item) => (
                                 <details key={item.q}>
@@ -344,8 +454,13 @@ export default function LandingPage() {
                 </section>
 
                 <section className="landing-final">
+                    {isPlatform ? (
+                        <div className="landing-final-media" aria-hidden>
+                            <LandingMedia src={covers["site-final"] || covers["quick-short-film"] || covers["quick-brand-film"]} label="" />
+                        </div>
+                    ) : null}
                     <div className="landing-wrap">
-                        <h2>今天就做出第一条广告视频</h2>
+                        <h2>今天就拍第一条</h2>
                         <p>{bonus > 0 ? `注册就送 ${bonus} 积分，不用绑卡。` : "注册不用绑卡。"}</p>
                         <Link className="landing-button is-primary is-large" to={register("/studio")}>
                             {signupLabel}
