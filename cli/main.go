@@ -36,7 +36,7 @@ Generation flags:
       --res <resolution>   Resolution, e.g. 2k, 4k (images) or 720p, 1080p (video)
   -q, --quality <tier>     Image quality tier, when the model supports it
   -d, --duration <sec>     Video length in seconds
-      --audio              Generate sound (video models that support it)
+      --no-audio           Make a silent video (sound is on by default when the model supports it)
   -i, --ref <file|url>     Reference image, video or audio (repeatable). Local files are uploaded
       --first <file|url>   First frame image (video)
       --last <file|url>    Last frame image (video)
@@ -328,7 +328,7 @@ func cmdGenerate(c *client, kind string, args []string) error {
 	var req generationRequest
 	var refs stringList
 	var first, last, outDir string
-	var audio, noWait, noDownload, estimate, yes, asJSON bool
+	var audio, noAudio, noWait, noDownload, estimate, yes, asJSON bool
 	for _, name := range []string{"m", "model"} {
 		fs.StringVar(&req.Model, name, "", "")
 	}
@@ -357,6 +357,7 @@ func cmdGenerate(c *client, kind string, args []string) error {
 	fs.StringVar(&first, "first", "", "")
 	fs.StringVar(&last, "last", "", "")
 	fs.BoolVar(&audio, "audio", false, "")
+	fs.BoolVar(&noAudio, "no-audio", false, "")
 	fs.BoolVar(&noWait, "no-wait", false, "")
 	fs.BoolVar(&noDownload, "no-download", false, "")
 	fs.BoolVar(&estimate, "estimate", false, "")
@@ -369,7 +370,11 @@ func cmdGenerate(c *client, kind string, args []string) error {
 	if req.Prompt == "" {
 		return fmt.Errorf("missing prompt. Example: omnimuse %s \"a red sports car on a coastal road\"", kind)
 	}
-	if audio {
+	// 默认有声（按模型默认）；--no-audio 才关闭。--audio 保留兼容。
+	if noAudio {
+		off := false
+		req.GenerateAudio = &off
+	} else if audio {
 		req.GenerateAudio = &audio
 	}
 	if req.Model == "" {

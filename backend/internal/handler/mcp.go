@@ -57,7 +57,7 @@ type mcpVideoInput struct {
 	AspectRatio        string   `json:"aspect_ratio,omitempty" jsonschema:"for example 16:9, 9:16, 1:1"`
 	Resolution         string   `json:"resolution,omitempty" jsonschema:"for example 480p, 720p, 1080p"`
 	Duration           int      `json:"duration,omitempty" jsonschema:"length in seconds; see list_models for allowed values"`
-	GenerateAudio      *bool    `json:"generate_audio,omitempty" jsonschema:"generate sound when the model supports it"`
+	GenerateAudio      *bool    `json:"generate_audio,omitempty" jsonschema:"sound is ON by default when the model supports it; set false only when the user asks for a silent video"`
 	FirstFrameURL      string   `json:"first_frame_url,omitempty" jsonschema:"public https image URL used as the first frame (image to video)"`
 	LastFrameURL       string   `json:"last_frame_url,omitempty" jsonschema:"public https image URL used as the last frame"`
 	ReferenceImageURLs []string `json:"reference_image_urls,omitempty" jsonschema:"public https image URLs for characters, products or scenes"`
