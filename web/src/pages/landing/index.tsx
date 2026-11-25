@@ -1,6 +1,6 @@
 import "@fontsource-variable/space-grotesk/index.css";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Check, ChevronDown, Clapperboard, Languages, Menu, Sparkles, Wand2, X } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Clapperboard, Download, Languages, Menu, MessageSquareText, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 
@@ -15,7 +15,14 @@ import "./landing.css";
 
 const register = (next: string) => `/register?next=${encodeURIComponent(next)}`;
 
-const HERO_TILES = ["quick-product-ad", "quick-ugc", "quick-food", "quick-real-estate", "quick-brand-film", "replace-character"];
+const HERO_TILES = [
+    { cover: "quick-product-ad", label: "产品广告" },
+    { cover: "quick-ugc", label: "真人口播" },
+    { cover: "quick-food", label: "餐饮探店" },
+    { cover: "quick-real-estate", label: "房地产看房" },
+    { cover: "quick-brand-film", label: "品牌短片" },
+    { cover: "replace-character", label: "换角色" },
+];
 
 const CASES = [
     { cover: "quick-product-ad", genre: "product-ad", title: "产品广告", text: "一张产品图，生成带卖点、配乐和字幕的 15 秒广告片。" },
@@ -27,9 +34,9 @@ const CASES = [
 ];
 
 const STEPS = [
-    { icon: Sparkles, title: "说出你要什么", text: "输入一句话，或上传产品图、房源照片、参考视频。中文、英文都可以。" },
+    { icon: MessageSquareText, title: "说出你要什么", text: "输入一句话，或上传产品图、房源照片、参考视频。中文、英文都可以。" },
     { icon: Clapperboard, title: "AI 写脚本、排镜头", text: "自动规划镜头、台词、配音和配乐，每个镜头都能单独修改。" },
-    { icon: Wand2, title: "生成并下载", text: "直接下载高清视频，发到 Facebook、Instagram、TikTok 和小红书。" },
+    { icon: Download, title: "生成并下载", text: "直接下载高清视频，发到 Facebook、Instagram、TikTok 和小红书。" },
 ];
 
 const TOOLS = [
@@ -216,9 +223,10 @@ export default function LandingPage() {
                         </div>
                         {isPlatform ? (
                             <div className="landing-hero-reel" aria-hidden>
-                                {HERO_TILES.map((id) => (
-                                    <div key={id} className="landing-tile">
-                                        <LandingMedia src={covers[id]} label="" />
+                                {HERO_TILES.map((tile) => (
+                                    <div key={tile.cover} className="landing-tile">
+                                        <LandingMedia src={covers[tile.cover]} label="" />
+                                        <span className="landing-tile-meta">{tile.label}</span>
                                     </div>
                                 ))}
                             </div>
