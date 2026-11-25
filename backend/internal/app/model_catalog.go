@@ -142,7 +142,8 @@ func (s *Service) publicSystemChannelCatalog(intent *ModelRequestIntent) ([]Publ
 
 		publicModels := make([]PublicChannelModel, 0, len(channelModels))
 		for _, cm := range channelModels {
-			if !cm.Enabled {
+			// 只作后台线路的模型（例如被 Seedance 2.5 路由调用的 Vega）不在前台出现。
+			if !cm.Enabled || cm.RouteOnly {
 				continue
 			}
 

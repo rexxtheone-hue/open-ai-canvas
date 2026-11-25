@@ -70,6 +70,17 @@ type ChannelModel struct {
 
 	// AgencyDiscountPercent 是代理商批发折扣（15/25/30/40）：池扣减 = 平台积分 × (100 − 折扣) / 85。
 	AgencyDiscountPercent int `json:"-" gorm:"not null;default:15"`
+
+	// RouteRules 按分辨率把任务转给其他渠道模型执行（计费仍按本模型的价格档）；Targets 依次为主用和备用，
+	// "self" 表示本模型。RouteOnly 的模型不在前台目录出现、也不能直接下单，只能被路由调用。
+	RouteRules []ChannelModelRouteRule `json:"routeRules" gorm:"serializer:json;type:text;not null;default:'[]'"`
+	RouteOnly  bool                    `json:"routeOnly" gorm:"not null;default:false"`
+}
+
+// ChannelModelRouteRule 指定一组分辨率由哪些渠道模型依次执行。
+type ChannelModelRouteRule struct {
+	Resolutions []string `json:"resolutions"`
+	Targets     []string `json:"targets"`
 }
 
 // ChannelModelPriceTier 表示渠道模型在一个规格组合下的可执行上游 SKU 和用户价格。

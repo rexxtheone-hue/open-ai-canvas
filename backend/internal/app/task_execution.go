@@ -19,7 +19,11 @@ func (s *Service) processTask(ctx context.Context, task model.Task) (map[string]
 	if err != nil {
 		return nil, nil, err
 	}
-	task.InputJSON = decryptedInput
+	routedInput, err := s.applyChannelRouteExecution(decryptedInput)
+	if err != nil {
+		return nil, nil, err
+	}
+	task.InputJSON = routedInput
 	ctx = withTaskExecutionID(ctx, task.ID)
 	ctx = withProviderAnalytics(ctx, s, task)
 	ctx = context.WithValue(ctx, mediaExecutionTaskKey{}, task)

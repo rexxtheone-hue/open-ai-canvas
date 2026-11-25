@@ -181,6 +181,7 @@ func (s *Service) CreateTask(userID string, req CreateTaskRequest) (*model.Task,
 	if err != nil {
 		return nil, err
 	}
+	s.applyChannelRouteCreationCost(billingOrder, normalizedInput, taskType, req.Operation)
 	if req.admission != nil && billingOrder != nil {
 		if billingOrder.AmountMicrocredits > req.admission.MaxCharge {
 			return nil, BadAuthRequest("模型调用报价超过本轮 Agent 积分上限，尚未创建任务或扣费")
@@ -276,7 +277,7 @@ func applyRoutedProviderSelection(input map[string]any, routed *RoutedModel) map
 	nextConfig := make(map[string]any, len(config)+2)
 	for key, value := range config {
 		switch key {
-		case "channelId", "channelModelKey", "priceTierId", "providerModelKey", "apiFormat", "interfaceType", "baseUrl", "apiKey", "secretKey", "headers", "model", "capabilityConfig":
+		case "channelId", "channelModelKey", "priceTierId", "providerModelKey", "apiFormat", "interfaceType", "baseUrl", "apiKey", "secretKey", "headers", "model", "capabilityConfig", "routeTargets", "routeIndex":
 			continue
 		default:
 			nextConfig[key] = value
@@ -476,7 +477,7 @@ func (s *Service) resolveSystemChannelModelSelection(input map[string]any, taskT
 	if err != nil {
 		return input, InvalidModelSelection("指定的模型不存在")
 	}
-	if !channelModel.Enabled {
+	if !channelModel.Enabled || channelModel.RouteOnly {
 		return input, InvalidModelSelection("指定的模型已停用")
 	}
 	if channelModel.Protocol == "" {
@@ -634,6 +635,14 @@ func (s *Service) resolveSystemChannelModelSelection(input map[string]any, taskT
 	nextConfig["providerModelKey"] = firstNonEmpty(priceTier.ProviderModelKey, channelModel.ProviderModelKey, channelModel.ModelKey)
 	nextConfig["interfaceType"] = string(channelModel.Protocol)
 	nextConfig["apiFormat"] = channelAPIFormatForProtocol(channel.APIFormat, channelModel.Protocol)
+	if targets := channelRouteTargets(channelModel, metadataString(nextConfig, "vquality")); len(targets) > 0 {
+		values := make([]any, len(targets))
+		for index, target := range targets {
+			values[index] = target
+		}
+		nextConfig["routeTargets"] = values
+		nextConfig["routeIndex"] = "0"
+	}
 	return input, nil
 }
 

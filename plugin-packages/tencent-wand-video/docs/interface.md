@@ -19,10 +19,11 @@
 | `images`（首帧角色） | `content[]` 中 `{"type":"image_url","image_url":{"url":...},"role":"first_frame"}` | 最多 1 张 |
 | `images`（尾帧角色） | `content[]` 中 `role: "last_frame"` | 最多 1 张 |
 | `images`（其他角色） | `content[]` 中 `role: "reference_image"` | 建议最多 9 张 |
-| `videos` | `content[]` 中 `{"type":"video_url",...,"role":"reference_video"}` | 建议最多 3 个 |
+| `videos` | `content[]` 中 `{"type":"video_url",...,"role":"reference_video"}` | 按 Seedance 2.5：最多 10 段，每段 2–30 秒（编辑类 4–30 秒），合计不超过 30 秒 |
 | `audios` | `content[]` 中 `{"type":"audio_url",...,"role":"reference_audio"}` | 建议最多 3 个 |
-| `duration` | `duration` | 整数 4–15 秒；未指定时不发送，上游默认 5 |
-| `aspectRatio` | `ratio` | 21:9、16:9、4:3、1:1、3:4、9:16；未指定、auto 或自适应时不发送（上游默认 adaptive） |
+| `duration` | `duration` | 整数 4–30 秒；未指定时不发送，上游默认 5。编辑类操作不发送（时长跟随原视频） |
+| `aspectRatio` | `ratio` | 21:9、16:9、4:3、1:1、3:4、9:16；未指定、auto 或自适应时不发送（上游默认 adaptive）。编辑类操作不发送（比例跟随原视频） |
+| `operation` | — | 局部重绘 `inpaint`、换元素 `replace_element`、换风格 `style_transfer`、运镜重拍 `camera_motion` 与普通生成同一请求体，只是不发送 `ratio`、`duration`；对口型、动作迁移按参考视频生成。视频续写 `extend` 不支持 |
 | `resolution` | `resolution` | 转大写发送；纯数字补 P（720 → 720P），2160P → 4K，1440P → 2K。超出型号档位时上游返回 400 |
 
 ## Provider 扩展键
@@ -45,7 +46,7 @@
   "apiVersion": "yingce.plugin/v2",
   "id": "tencent-wand-video",
   "name": "腾讯云 WAND 视频",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Rexx",
   "description": "腾讯云 TokenHub WAND-Vega-Video 视频协议插件（POST /v1/wand/vega-videos/tasks，异步轮询），支持文生视频、首尾帧和全能参考。",
   "permissions": [
@@ -94,16 +95,12 @@
                   },
                   [
                     "extend",
-                    "inpaint",
-                    "replace_element",
-                    "style_transfer",
-                    "camera_motion",
                     "edit"
                   ]
                 ]
               }
             },
-            "message": "该模型不支持视频续写或局部修改，请改用支持这些功能的模型。"
+            "message": "该模型不支持视频续写，请改用支持续写的模型。"
           },
           {
             "assert": {
@@ -382,24 +379,44 @@
               "$omitEmpty": {
                 "$if": {
                   "condition": {
-                    "$gt": [
+                    "$in": [
                       {
-                        "$coalesce": [
-                          {
-                            "$ref": "request.duration"
-                          },
-                          0
-                        ]
+                        "$ref": "request.operation"
                       },
-                      0
+                      [
+                        "inpaint",
+                        "replace_element",
+                        "style_transfer",
+                        "camera_motion"
+                      ]
                     ]
                   },
-                  "then": {
-                    "$toInt": {
-                      "$ref": "request.duration"
+                  "then": null,
+                  "else": {
+                    "$omitEmpty": {
+                      "$if": {
+                        "condition": {
+                          "$gt": [
+                            {
+                              "$coalesce": [
+                                {
+                                  "$ref": "request.duration"
+                                },
+                                0
+                              ]
+                            },
+                            0
+                          ]
+                        },
+                        "then": {
+                          "$toInt": {
+                            "$ref": "request.duration"
+                          }
+                        },
+                        "else": null
+                      }
                     }
-                  },
-                  "else": null
+                  }
                 }
               }
             },
@@ -409,30 +426,50 @@
                   "condition": {
                     "$in": [
                       {
-                        "$lower": {
-                          "$trim": {
-                            "$coalesce": [
-                              {
-                                "$ref": "request.aspectRatio"
-                              },
-                              ""
-                            ]
-                          }
-                        }
+                        "$ref": "request.operation"
                       },
                       [
-                        "",
-                        "auto",
-                        "adaptive",
-                        "自适应",
-                        "智能"
+                        "inpaint",
+                        "replace_element",
+                        "style_transfer",
+                        "camera_motion"
                       ]
                     ]
                   },
                   "then": null,
                   "else": {
-                    "$trim": {
-                      "$ref": "request.aspectRatio"
+                    "$omitEmpty": {
+                      "$if": {
+                        "condition": {
+                          "$in": [
+                            {
+                              "$lower": {
+                                "$trim": {
+                                  "$coalesce": [
+                                    {
+                                      "$ref": "request.aspectRatio"
+                                    },
+                                    ""
+                                  ]
+                                }
+                              }
+                            },
+                            [
+                              "",
+                              "auto",
+                              "adaptive",
+                              "自适应",
+                              "智能"
+                            ]
+                          ]
+                        },
+                        "then": null,
+                        "else": {
+                          "$trim": {
+                            "$ref": "request.aspectRatio"
+                          }
+                        }
+                      }
                     }
                   }
                 }

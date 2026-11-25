@@ -145,3 +145,33 @@ func TestTencentWandVideoRejectsEditAndEmptyPrompt(t *testing.T) {
 		t.Fatal("empty prompt must be rejected")
 	}
 }
+
+func TestTencentWandVideoEditOperationsOmitRatioAndDuration(t *testing.T) {
+	adapter := loadTencentWandVideoAdapter(t)
+	for _, operation := range []string{"inpaint", "replace_element", "style_transfer", "camera_motion"} {
+		create, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{
+			Model: "wand-vega-video-1.5-pro", Prompt: "把杯子换成红色", Operation: operation, Duration: 8, AspectRatio: "16:9", Resolution: "720p",
+			Videos: []MediaReference{{URL: "https://cdn.example/source.mp4"}},
+		}})
+		if err != nil {
+			t.Fatalf("%s rejected: %v", operation, err)
+		}
+		body := create.Body.(map[string]any)
+		if _, has := body["duration"]; has {
+			t.Fatalf("%s must not send duration: %#v", operation, body)
+		}
+		if _, has := body["ratio"]; has {
+			t.Fatalf("%s must not send ratio: %#v", operation, body)
+		}
+		if body["resolution"] != "720P" {
+			t.Fatalf("%s resolution = %#v", operation, body["resolution"])
+		}
+	}
+	create, err := adapter.BuildCreate(context.Background(), RequestContext{Request: GenerationRequest{Model: "m", Prompt: "p", Operation: "lip_sync", Duration: 6, AspectRatio: "9:16", Videos: []MediaReference{{URL: "https://cdn.example/v.mp4"}}}})
+	if err != nil {
+		t.Fatalf("lip_sync rejected: %v", err)
+	}
+	if body := create.Body.(map[string]any); body["duration"] != 6 || body["ratio"] != "9:16" {
+		t.Fatalf("lip_sync keeps ratio and duration: %#v", body)
+	}
+}

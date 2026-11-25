@@ -306,6 +306,12 @@ func (w *taskWorkerCoordinator) processClaimedTask(task *model.Task, globalSlot 
 				err = errors.New(taskTimeoutMessage(task.Type))
 			}
 		}
+		if !providerSucceeded {
+			// 按分辨率路由的任务：主用出错时切到备用线路重新生成，不退款也不重复扣费。
+			if switched, switchErr := s.tryChannelRouteFallback(task, err); switched {
+				return switchErr
+			}
+		}
 		s.noteAgentMemoryCompactTask(*task, nil, err)
 		return terminal.handleExecutionFailure(task, err, providerSucceeded, channelSlotFailedBeforeRequest)
 	}

@@ -418,3 +418,42 @@ func (r *Repository) TaskLogs(userID string, taskID string) ([]model.TaskLog, er
 	err := r.db.Order("created_at asc").Find(&logs, "user_id = ? AND task_id = ?", userID, taskID).Error
 	return logs, err
 }
+
+// SwitchTaskChannelRoute 把按分辨率路由的任务切到下一条线路：写入新的执行输入、开启新一轮提交，
+// 清掉旧的上游任务 ID 并尽快重新调度；计费订单只更新执行渠道和成本快照，售价不变。
+func (r *Repository) SwitchTaskChannelRoute(taskID string, owner string, inputJSON string, billingOrderID string, channelID string, channelModelID string, cost *model.BillingCostSnapshot) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		now := time.Now()
+		result := taskLeaseWriter(tx.Model(&model.Task{}), owner).
+			Where("id = ? AND status = ?", taskID, model.TaskStatusRunning).
+			Updates(map[string]any{
+				"input_json": inputJSON, "route_run": gorm.Expr("route_run + ?", 1), "channel_model_id": channelModelID,
+				"provider_request_id": "", "poll_stage": "", "stage": "主线路失败，正在改用备用线路", "progress": 0,
+				"error": "", "completed_at": nil, "next_poll_at": now.Add(3 * time.Second),
+				"lease_owner": "", "lease_expires_at": nil, "updated_at": now,
+			})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return ErrTaskStateConflict
+		}
+		if billingOrderID == "" {
+			return nil
+		}
+		updates := map[string]any{"channel_id": channelID, "channel_model_id": channelModelID, "updated_at": now}
+		if cost != nil {
+			updates["cost_configured"] = cost.CostPricing.Configured
+			updates["cost_unit_price_microcredits"] = cost.CostPricing.UnitPriceMicrocredits
+			updates["cost_input_token_price_microcredits"] = cost.CostPricing.InputTokenPriceMicrocredits
+			updates["cost_output_token_price_microcredits"] = cost.CostPricing.OutputTokenPriceMicrocredits
+			updates["cost_cached_token_price_microcredits"] = cost.CostPricing.CachedTokenPriceMicrocredits
+			updates["cost_billing_mode"] = cost.CostBillingMode
+			updates["cost_quantity"] = cost.CostQuantity
+			updates["cost_video_formula_tokens"] = cost.CostVideoFormulaTokens
+		}
+		return tx.Model(&model.BillingOrder{}).
+			Where("id = ? AND task_id = ? AND status IN ?", billingOrderID, taskID, []model.BillingStatus{model.BillingStatusReserved, model.BillingStatusRunning}).
+			Updates(updates).Error
+	})
+}

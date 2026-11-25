@@ -31,6 +31,9 @@ type ChannelModelRequest struct {
 	Enabled                      *bool                          `json:"enabled"`
 	CapabilityConfig             *ModelCapabilityConfig         `json:"capabilityConfig"`
 	PriceTiers                   []ChannelModelPriceTierRequest `json:"priceTiers"`
+	// RouteRules、RouteOnly 为空表示保持原值，避免旧版后台页面保存时清掉路由。
+	RouteRules *[]model.ChannelModelRouteRule `json:"routeRules"`
+	RouteOnly  *bool                          `json:"routeOnly"`
 }
 
 const maxAdminChannelModelBatchDeleteCount = 100
@@ -263,6 +266,19 @@ func (s *Service) SaveAdminChannelModel(actor *model.User, channelID string, id 
 	}
 	if req.Enabled != nil {
 		item.Enabled = *req.Enabled
+	}
+	if req.RouteOnly != nil {
+		item.RouteOnly = *req.RouteOnly
+	}
+	if req.RouteRules != nil {
+		rules, ruleErr := s.normalizeChannelModelRouteRules(item, *req.RouteRules)
+		if ruleErr != nil {
+			return nil, ruleErr
+		}
+		item.RouteRules = rules
+	}
+	if item.RouteRules == nil {
+		item.RouteRules = []model.ChannelModelRouteRule{}
 	}
 	if err := validateChannelModelTierCapabilities(tiers, item.CapabilityConfigJSON, capability, string(protocol)); err != nil {
 		return nil, err

@@ -77,10 +77,14 @@ func (w *taskLifecycleCoordinator) retryTask(userID string, id string) (*model.T
 	if err := s.requireCustomChannelsForTaskInput(billingInput); err != nil {
 		return nil, err
 	}
+	// 按分辨率路由的任务重试时从主用线路重新开始。
+	task.InputJSON = resetChannelRouteIndex(task.InputJSON)
+	resetChannelRouteConfig(billingInput)
 	billingOrder, err := s.taskBillingOrder(userID, task, billingInput)
 	if err != nil {
 		return nil, err
 	}
+	s.applyChannelRouteCreationCost(billingOrder, billingInput, task.Type, task.Operation)
 	policy, err := s.RuntimePolicy()
 	if err != nil {
 		return nil, err
