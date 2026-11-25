@@ -22,8 +22,8 @@ var workflowModelKeys = map[string]string{
 	"seedance_2_5_flash":  "dreamina-seedance-2-5-flash-261115",
 	"seedream_5_5":        "dola-seedream-5-5-261028",
 	"seedream_v5_pro":     "doubao-seedream-5-0-pro-260628",
-	"gpt_image_2_6_flare": "gpt-image-2.5-sunburst",
-	"gpt_image_2_6":       "gpt-image-2.5-sunburst",
+	"gpt_image_2_6_flare": "gpt-image-2.6-flare",
+	"gpt_image_2_6":       "gpt-image-2.6-sunburst",
 	"nano_banana_2":       "",
 	"seed_audio":          "seed-audio-1.0",
 }
