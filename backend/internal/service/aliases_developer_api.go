@@ -5,6 +5,7 @@ import "yingce/backend/internal/app"
 type (
 	OpenAPIGenerationRequest = app.OpenAPIGenerationRequest
 	OpenAPIReference         = app.OpenAPIReference
+	OpenAPIAsset             = app.OpenAPIAsset
 )
 
 type (

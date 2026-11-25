@@ -22,7 +22,8 @@ import (
 const mcpInstructions = `OmniMuse is an AI image and video studio. Use these tools to generate images and videos with the user's OmniMuse credits.
 Workflow: (1) optionally call list_models to pick a model and see its options; (2) call generate_image or generate_video; (3) videos take minutes, so call get_generation with the returned id until status is "succeeded", then show the output URLs to the user.
 Every generation costs credits. If the user has not chosen a model or the request is expensive (video, 4K, multiple outputs), call estimate_cost first and tell the user the price.
-Reference images, videos and audio must be public https URLs. Results also appear in the user's OmniMuse Studio library.`
+References: the user's uploaded images, videos, audio and saved characters live in their OmniMuse library. When the user names a file, character or "the material I used before", call list_assets (search by name) or get_generation (its "references" list) and pass the asset ids in reference_image_urls, first_frame_url, reference_audio_urls and so on. Public https URLs also work. Refer to references in the prompt by order: image 1, image 2, audio 1.
+Video sound is on by default. Results also appear in the user's OmniMuse Studio library.`
 
 var mcpSchemaCache = mcp.NewSchemaCache()
 
@@ -46,7 +47,7 @@ type mcpImageInput struct {
 	AspectRatio        string         `json:"aspect_ratio,omitempty" jsonschema:"for example 1:1, 16:9, 9:16, 4:5"`
 	Resolution         string         `json:"resolution,omitempty" jsonschema:"for example 1k, 2k, 4k when the model supports it"`
 	Quality            string         `json:"quality,omitempty" jsonschema:"quality tier when the model supports it"`
-	ReferenceImageURLs []string       `json:"reference_image_urls,omitempty" jsonschema:"public https image URLs to edit or use as reference"`
+	ReferenceImageURLs []string       `json:"reference_image_urls,omitempty" jsonschema:"asset ids from list_assets or public https image URLs, to edit or use as reference"`
 	Count              int            `json:"count,omitempty" jsonschema:"number of images, 1 to 4 (default 1); each one is charged"`
 	Parameters         map[string]any `json:"parameters,omitempty" jsonschema:"advanced model-specific options"`
 }
@@ -58,11 +59,11 @@ type mcpVideoInput struct {
 	Resolution         string   `json:"resolution,omitempty" jsonschema:"for example 480p, 720p, 1080p"`
 	Duration           int      `json:"duration,omitempty" jsonschema:"length in seconds; see list_models for allowed values"`
 	GenerateAudio      *bool    `json:"generate_audio,omitempty" jsonschema:"sound is ON by default when the model supports it; set false only when the user asks for a silent video"`
-	FirstFrameURL      string   `json:"first_frame_url,omitempty" jsonschema:"public https image URL used as the first frame (image to video)"`
-	LastFrameURL       string   `json:"last_frame_url,omitempty" jsonschema:"public https image URL used as the last frame"`
-	ReferenceImageURLs []string `json:"reference_image_urls,omitempty" jsonschema:"public https image URLs for characters, products or scenes"`
-	ReferenceVideoURLs []string `json:"reference_video_urls,omitempty" jsonschema:"public https video URLs to reference, edit or extend"`
-	ReferenceAudioURLs []string `json:"reference_audio_urls,omitempty" jsonschema:"public https audio URLs, for example a voiceover for lip sync"`
+	FirstFrameURL      string   `json:"first_frame_url,omitempty" jsonschema:"asset id or public https image URL used as the first frame (image to video)"`
+	LastFrameURL       string   `json:"last_frame_url,omitempty" jsonschema:"asset id or public https image URL used as the last frame"`
+	ReferenceImageURLs []string `json:"reference_image_urls,omitempty" jsonschema:"asset ids from list_assets or public https image URLs, for characters, products or scenes"`
+	ReferenceVideoURLs []string `json:"reference_video_urls,omitempty" jsonschema:"asset ids from list_assets or public https video URLs, to reference, edit or extend"`
+	ReferenceAudioURLs []string `json:"reference_audio_urls,omitempty" jsonschema:"asset ids from list_assets or public https audio URLs, for example a voice or voiceover for lip sync"`
 	Count              int      `json:"count,omitempty" jsonschema:"number of videos, 1 to 4 (default 1); each one is charged"`
 }
 
@@ -82,6 +83,12 @@ type mcpListInput struct {
 	Limit int    `json:"limit,omitempty" jsonschema:"how many recent generations to return, up to 50 (default 10)"`
 }
 
+type mcpAssetsInput struct {
+	Kind  string `json:"kind,omitempty" jsonschema:"image, video, audio or character; omit for all"`
+	Query string `json:"query,omitempty" jsonschema:"part of the file or character name, for example KF4 or Adam"`
+	Limit int    `json:"limit,omitempty" jsonschema:"how many to return, up to 100 (default 30)"`
+}
+
 type mcpEmpty struct{}
 
 func mcpText(value any, summary string) *mcp.CallToolResult {
@@ -96,8 +103,14 @@ func mcpText(value any, summary string) *mcp.CallToolResult {
 func urlRefs(kind string, urls []string, role string) []service.OpenAPIReference {
 	refs := make([]service.OpenAPIReference, 0, len(urls))
 	for _, url := range urls {
-		if url = strings.TrimSpace(url); url != "" {
+		url = strings.TrimSpace(url)
+		switch {
+		case url == "":
+		case strings.HasPrefix(strings.ToLower(url), "http://") || strings.HasPrefix(strings.ToLower(url), "https://"):
 			refs = append(refs, service.OpenAPIReference{URL: url, Kind: kind, Role: role})
+		default:
+			// 不是网址就当作素材库里的素材 ID（list_assets、get_generation 返回的 id）。
+			refs = append(refs, service.OpenAPIReference{ResourceID: strings.TrimPrefix(url, "resource:"), Kind: kind, Role: role})
 		}
 	}
 	return refs
@@ -225,6 +238,34 @@ func newMCPServer(svc *service.Service) *mcp.Server {
 			return mcpText(models, fmt.Sprintf("%d models available. Pass a model's id (or exact name) as \"model\".", len(models))), nil, nil
 		})
 
+	mcp.AddTool(server, &mcp.Tool{Name: "list_assets", Title: "Find my assets", Description: "Search the user's OmniMuse library (uploaded images, videos, audio and saved characters) by name. Returns asset ids to pass as references to generate_image or generate_video, with small previews of the images.", Annotations: readOnly},
+		func(ctx context.Context, _ *mcp.CallToolRequest, in mcpAssetsInput) (*mcp.CallToolResult, any, error) {
+			user, err := mcpUser(ctx)
+			if err != nil {
+				return nil, nil, err
+			}
+			assets, err := svc.OpenAPIAssets(ctx, user.ID, in.Kind, in.Query, in.Limit)
+			if err != nil {
+				return nil, nil, err
+			}
+			summary := fmt.Sprintf("%d assets found. Pass an asset's id as a reference (for example in reference_image_urls).", len(assets))
+			if len(assets) == 0 {
+				summary = "No matching assets. Try a shorter name, another kind, or ask the user to upload the file in OmniMuse Studio."
+			}
+			result := mcpText(assets, summary)
+			previews := 0
+			for _, asset := range assets {
+				if asset.Kind != "image" || previews >= 8 {
+					continue
+				}
+				if data, mimeType, err := svc.OpenAPIImagePreview(user.ID, asset.ID); err == nil && len(data) > 0 {
+					result.Content = append(result.Content, &mcp.TextContent{Text: "Preview of " + asset.Name + " (" + asset.ID + "):"}, &mcp.ImageContent{Data: data, MIMEType: mimeType})
+					previews++
+				}
+			}
+			return result, nil, nil
+		})
+
 	mcp.AddTool(server, &mcp.Tool{Name: "estimate_cost", Title: "Estimate cost", Description: "Estimate how many credits a generate_image or generate_video call would cost, without generating anything.", Annotations: readOnly},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in mcpEstimateInput) (*mcp.CallToolResult, any, error) {
 			user, err := mcpUser(ctx)
@@ -292,7 +333,7 @@ func newMCPServer(svc *service.Service) *mcp.Server {
 			return generateVideo(ctx, in.request(), 0)
 		})
 
-	mcp.AddTool(server, &mcp.Tool{Name: "get_generation", Title: "Check generation", Description: "Get the status and output URLs of a generation. Set wait_seconds (up to 50) to wait for it to finish.", Annotations: readOnly},
+	mcp.AddTool(server, &mcp.Tool{Name: "get_generation", Title: "Check generation", Description: "Get the status, output URLs and the reference assets (\"references\") of a generation. Pass those reference ids back to generate_image or generate_video to reuse the same materials. Set wait_seconds (up to 50) to wait for it to finish.", Annotations: readOnly},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in mcpGenerationInput) (*mcp.CallToolResult, any, error) {
 			user, err := mcpUser(ctx)
 			if err != nil {

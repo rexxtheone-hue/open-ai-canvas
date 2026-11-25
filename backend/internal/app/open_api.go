@@ -86,19 +86,21 @@ type OpenAPIOutput struct {
 }
 
 type OpenAPIGeneration struct {
-	ID        string          `json:"id"`
-	Kind      string          `json:"kind"`
-	Status    string          `json:"status"`
-	Stage     string          `json:"stage,omitempty"`
-	Progress  int             `json:"progress"`
-	Model     string          `json:"model,omitempty"`
-	Prompt    string          `json:"prompt,omitempty"`
-	Error     string          `json:"error,omitempty"`
-	Credits   float64         `json:"credits,omitempty"`
-	Outputs   []OpenAPIOutput `json:"outputs,omitempty"`
-	WebURL    string          `json:"webUrl,omitempty"`
-	CreatedAt time.Time       `json:"createdAt"`
-	UpdatedAt time.Time       `json:"updatedAt"`
+	ID       string          `json:"id"`
+	Kind     string          `json:"kind"`
+	Status   string          `json:"status"`
+	Stage    string          `json:"stage,omitempty"`
+	Progress int             `json:"progress"`
+	Model    string          `json:"model,omitempty"`
+	Prompt   string          `json:"prompt,omitempty"`
+	Error    string          `json:"error,omitempty"`
+	Credits  float64         `json:"credits,omitempty"`
+	Outputs  []OpenAPIOutput `json:"outputs,omitempty"`
+	// References 是这次生成用过的素材库素材，可以原样传回 generate_* 重复使用。
+	References []OpenAPIUsedReference `json:"references,omitempty"`
+	WebURL     string                 `json:"webUrl,omitempty"`
+	CreatedAt  time.Time              `json:"createdAt"`
+	UpdatedAt  time.Time              `json:"updatedAt"`
 }
 
 type OpenAPIGenerationPage struct {
@@ -687,6 +689,7 @@ func (s *Service) openAPIGeneration(ctx context.Context, userID string, task *mo
 	if base := s.tenantSiteURL(TenantFromContext(ctx)); base != nil {
 		g.WebURL = strings.TrimRight(base.String(), "/") + "/studio"
 	}
+	g.References = s.openAPIUsedReferences(task.InputJSON)
 	if task.Status != model.TaskStatusSucceeded || strings.TrimSpace(task.ResultJSON) == "" {
 		return g, nil
 	}
