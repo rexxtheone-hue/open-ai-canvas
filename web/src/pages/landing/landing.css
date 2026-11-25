@@ -113,9 +113,11 @@
     font-size: 18px;
     font-weight: 600;
 }
+/* 官网顶栏的标志统一成纯白，和白色字标一致。 */
 .landing-logo {
     width: 28px;
     height: 28px;
+    filter: brightness(0) invert(1);
 }
 .landing-nav {
     display: flex;
@@ -348,12 +350,19 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 12px 36px;
+    gap: 12px 24px;
     margin: 0;
     padding: 24px 0;
     list-style: none;
 }
+.landing-models li svg {
+    flex: none;
+    color: #ffffff;
+}
 .landing-models li {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     color: var(--l-soft);
     font-family: var(--l-display);
     font-size: 15px;
@@ -591,6 +600,42 @@
     height: auto;
 }
 
+/* 模型对比：同一句提示词，四段并排 */
+.landing-compare-prompt {
+    display: grid;
+    gap: 8px;
+    max-width: 880px;
+    margin-bottom: 24px;
+    padding: 16px 20px;
+    border: 1px solid var(--l-line);
+    border-radius: 12px;
+    background: var(--l-panel);
+    color: var(--l-soft);
+    font-size: 15px;
+    line-height: 1.6;
+}
+.landing-compare {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+.landing .landing-compare-item {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: 16px;
+    background: var(--l-panel);
+}
+.landing-compare-item figcaption {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgba(9, 10, 10, 0.76);
+    color: #e4e4e7;
+}
+
 /* 常见问题 */
 .landing-faq-wrap {
     max-width: 880px;
@@ -812,7 +857,8 @@
     .landing-tile-copy span {
         display: none;
     }
-    .landing-cases {
+    .landing-cases,
+    .landing-compare {
         grid-template-columns: 1fr;
     }
     .landing-masonry {

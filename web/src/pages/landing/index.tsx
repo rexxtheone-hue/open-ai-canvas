@@ -1,4 +1,14 @@
 import "@fontsource-variable/space-grotesk/index.css";
+import AlibabaLogo from "@lobehub/icons/es/Alibaba/components/Mono";
+import ByteDanceLogo from "@lobehub/icons/es/ByteDance/components/Mono";
+import DeepMindLogo from "@lobehub/icons/es/DeepMind/components/Mono";
+import GeminiLogo from "@lobehub/icons/es/Gemini/components/Mono";
+import GrokLogo from "@lobehub/icons/es/Grok/components/Mono";
+import KlingLogo from "@lobehub/icons/es/Kling/components/Mono";
+import MidjourneyLogo from "@lobehub/icons/es/Midjourney/components/Mono";
+import MinimaxLogo from "@lobehub/icons/es/Minimax/components/Mono";
+import OpenAILogo from "@lobehub/icons/es/OpenAI/components/Mono";
+import ViduLogo from "@lobehub/icons/es/Vidu/components/Mono";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, ChevronDown, Languages, Menu, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -7,8 +17,6 @@ import { Link, useNavigate } from "react-router";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { currentLocale, setLocale } from "@/lib/i18n/runtime";
 import { getAuthSettings } from "@/services/api/auth";
-import { TopupOffers } from "@/components/topup-offers";
-import { listTopupProducts } from "@/services/api/payments";
 import { listStudioToolCovers } from "@/services/api/studio";
 import { useAppearanceStore } from "@/stores/use-appearance-store";
 import "./landing.css";
@@ -78,7 +86,29 @@ const INDUSTRIES = [
 const GALLERY_SLOTS = Array.from({ length: 20 }, (_, index) => `site-gallery-${index + 1}`);
 const GALLERY_IMAGES = Array.from({ length: 24 }, (_, index) => `/auth/showcase/w${String(index + 1).padStart(2, "0")}.webp`);
 
-const MODELS = ["Seedance 2.5", "Veo 3.1", "Kling 4", "Wan 3.0", "MiniMax H3", "Vidu Q4", "Grok Imagine", "Nano Banana 2.1", "GPT Image 2.6", "Midjourney V8", "Seedream 5.5"];
+/** 同一句提示词交给四个模型，并排播放；视频由后台 site-compare-* 栏位提供。 */
+const COMPARE_PROMPT = "槟城海边的傍晚，一位穿白色亚麻衬衫的女生赤脚走在湿沙滩上，手里拿着一杯冰拉茶，海浪冲上脚踝，她回头对镜头微笑。";
+const COMPARE_MODELS = [
+    { slot: "site-compare-seedance", name: "Seedance 2.5" },
+    { slot: "site-compare-veo", name: "Veo 3.1" },
+    { slot: "site-compare-kling", name: "Kling 4" },
+    { slot: "site-compare-wan", name: "Wan 3.0" },
+];
+
+/** 模型条：厂商标志用单色版本，跟着文字颜色显示成白色。 */
+const MODELS = [
+    { name: "Seedance 2.5", logo: ByteDanceLogo },
+    { name: "Veo 3.1", logo: DeepMindLogo },
+    { name: "Kling 4", logo: KlingLogo },
+    { name: "Wan 3.0", logo: AlibabaLogo },
+    { name: "MiniMax H3", logo: MinimaxLogo },
+    { name: "Vidu Q4", logo: ViduLogo },
+    { name: "Grok Imagine", logo: GrokLogo },
+    { name: "Nano Banana 2.1", logo: GeminiLogo },
+    { name: "GPT Image 2.6", logo: OpenAILogo },
+    { name: "Midjourney V8", logo: MidjourneyLogo },
+    { name: "Seedream 5.5", logo: ByteDanceLogo },
+];
 
 const FAQS = [
     { q: "不会剪辑、不会写脚本也能用吗？", a: "能。用对话模式说你想做什么，AI 会先写脚本、排好镜头，再一个个生成。想自己控制的话，可以用导演模式逐个镜头调整。" },
@@ -95,71 +125,109 @@ function coverSource(src: string | undefined) {
 
 const prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/** 视频进入画面才加载和播放，离开就暂停；系统要求减少动态时只显示第一帧。 */
+/** 访客开了省流量、网络是 2G，或系统要求减少动态时，视频只显示第一帧，不自动播放。 */
+const shouldHoldMotion = () => {
+    if (prefersReducedMotion()) return true;
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    return Boolean(connection?.saveData || connection?.effectiveType === "2g" || connection?.effectiveType === "slow-2g");
+};
+
+/**
+ * 懒加载视频：快滚到时（上下 600px）才挂上地址开始下载，滚远了就卸掉释放内存和解码器；
+ * 露出至少 30% 才播放，其余时间暂停。一页几十段视频时，同时在播的只有画面里那几段。
+ */
 function LandingMedia({ src, label, eager = false }: { src?: string; label: string; eager?: boolean }) {
     const ref = useRef<HTMLVideoElement>(null);
-    const inView = useRef(false);
-    const [visible, setVisible] = useState(eager);
+    const showing = useRef(false);
+    const [near, setNear] = useState(eager);
     const media = coverSource(src);
-    const reduced = prefersReducedMotion();
+    const hold = shouldHoldMotion();
     const play = () => {
-        if (inView.current && !reduced) void ref.current?.play().catch(() => undefined);
+        if (showing.current && !hold) void ref.current?.play().catch(() => undefined);
     };
     useEffect(() => {
         const element = ref.current;
         if (!media.video || !element) return;
         if (typeof IntersectionObserver === "undefined") {
-            inView.current = true;
-            setVisible(true);
+            showing.current = true;
+            setNear(true);
             return;
         }
-        const observer = new IntersectionObserver(
+        const nearObserver = new IntersectionObserver(([entry]) => entry && setNear(entry.isIntersecting), { rootMargin: "600px 0px" });
+        const playObserver = new IntersectionObserver(
             ([entry]) => {
                 if (!entry) return;
-                inView.current = entry.isIntersecting;
-                if (entry.isIntersecting) {
-                    setVisible(true);
-                    if (element.currentSrc && !reduced) void element.play().catch(() => undefined);
-                } else element.pause();
+                showing.current = entry.isIntersecting;
+                if (entry.isIntersecting) play();
+                else element.pause();
             },
-            { rootMargin: "200px" },
+            { threshold: 0.3 },
         );
-        observer.observe(element);
-        return () => observer.disconnect();
-    }, [media.video, media.src, reduced]);
+        nearObserver.observe(element);
+        playObserver.observe(element);
+        return () => {
+            nearObserver.disconnect();
+            playObserver.disconnect();
+        };
+        // play 只读 ref，不需要作为依赖。
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [media.video, media.src, hold]);
+    useEffect(() => {
+        const element = ref.current;
+        // 卸掉地址后要 load() 一次，浏览器才会真正释放已缓冲的数据。
+        if (!near && element?.getAttribute("src") === null && element.currentSrc) element.load();
+    }, [near]);
     if (!media.src) return <span className="landing-media is-empty" aria-hidden />;
     if (!media.video) return <img className="landing-media" src={media.src} alt={label} loading={eager ? "eager" : "lazy"} decoding="async" />;
-    return <video ref={ref} className="landing-media" src={visible ? `${media.src}#t=0.1` : undefined} muted loop playsInline preload="metadata" disablePictureInPicture aria-label={label} onLoadedData={play} />;
+    return <video ref={ref} className="landing-media" src={near ? `${media.src}#t=0.1` : undefined} muted loop playsInline preload={near ? "metadata" : "none"} disablePictureInPicture aria-label={label} onLoadedData={play} />;
 }
 
-/** 首屏全屏轮播：一次只加载当前和下一段，每段约 5 秒后淡入下一段。 */
+/**
+ * 首屏全屏轮播：只挂上一段、当前段和下一段的地址（淡入淡出要用到上一段），其余不下载；
+ * 首屏滚出画面或切到别的标签页时停止轮播并暂停，回来再继续。
+ */
 function HeroReel({ clips, onChange }: { clips: { src: string; label: string }[]; onChange: (index: number) => void }) {
     const [active, setActive] = useState(0);
-    const [loaded, setLoaded] = useState<ReadonlySet<number>>(() => new Set([0, 1]));
-    const reduced = prefersReducedMotion();
+    const [onScreen, setOnScreen] = useState(true);
+    const hold = shouldHoldMotion();
+    const rootRef = useRef<HTMLDivElement>(null);
     const refs = useRef<(HTMLVideoElement | null)[]>([]);
     const count = clips.length;
+    const running = onScreen && !hold && count > 1;
 
     useEffect(() => {
-        if (count < 2 || reduced) return;
+        const element = rootRef.current;
+        if (!element || typeof IntersectionObserver === "undefined") return;
+        const observer = new IntersectionObserver(([entry]) => entry && setOnScreen(entry.isIntersecting && document.visibilityState === "visible"), { threshold: 0.2 });
+        const onVisibility = () => setOnScreen(document.visibilityState === "visible" && element.getBoundingClientRect().bottom > 0);
+        observer.observe(element);
+        document.addEventListener("visibilitychange", onVisibility);
+        return () => {
+            observer.disconnect();
+            document.removeEventListener("visibilitychange", onVisibility);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!running) return;
         const timer = window.setInterval(() => setActive((index) => (index + 1) % count), 5200);
         return () => window.clearInterval(timer);
-    }, [count, reduced]);
+    }, [running, count]);
 
     useEffect(() => {
         onChange(active);
-        setLoaded((previous) => (previous.has(active) && previous.has((active + 1) % count) ? previous : new Set([...previous, active, (active + 1) % count])));
         refs.current.forEach((video, index) => {
             if (!video) return;
-            if (index === active && !reduced) {
-                video.currentTime = 0;
+            if (index === active && onScreen && !hold) {
+                if (video.paused && video.currentTime > 4.5) video.currentTime = 0;
                 void video.play().catch(() => undefined);
             } else video.pause();
         });
-    }, [active, count, reduced, onChange]);
+    }, [active, onScreen, hold, onChange]);
 
+    const keep = (index: number) => index === active || index === (active + 1) % count || index === (active - 1 + count) % count;
     return (
-        <div className="landing-reel" aria-hidden>
+        <div ref={rootRef} className="landing-reel" aria-hidden>
             {clips.map((clip, index) => {
                 const media = coverSource(clip.src);
                 if (!media.src) return null;
@@ -170,11 +238,14 @@ function HeroReel({ clips, onChange }: { clips: { src: string; label: string }[]
                             refs.current[index] = element;
                         }}
                         className={index === active ? "is-active" : undefined}
-                        src={loaded.has(index) ? `${media.src}#t=0.1` : undefined}
+                        src={keep(index) ? `${media.src}#t=0.1` : undefined}
                         muted
                         playsInline
                         loop
-                        preload="auto"
+                        preload={index === active ? "auto" : keep(index) ? "metadata" : "none"}
+                        onLoadedData={(event) => {
+                            if (index === active && onScreen && !hold) void event.currentTarget.play().catch(() => undefined);
+                        }}
                     />
                 ) : (
                     <img key={clip.src} className={index === active ? "is-active" : undefined} src={media.src} alt="" />
@@ -195,21 +266,6 @@ function LanguageToggle() {
             <span>{LANGUAGE_LABELS[next]}</span>
         </button>
     );
-}
-
-function Pricing() {
-    const navigate = useNavigate();
-    const productsQuery = useQuery({ queryKey: ["landing", "topup-products"], queryFn: async () => (await listTopupProducts()).products, staleTime: 5 * 60_000 });
-    if (productsQuery.isLoading) return <p className="landing-muted">正在读取充值包…</p>;
-    if (productsQuery.isSuccess && !productsQuery.data.length) return <p className="landing-muted">暂未开放在线充值，请联系客服充值。</p>;
-    if (!productsQuery.data?.length) {
-        return (
-            <p className="landing-muted">
-                充值包暂时读取不到，可以 <Link to="/studio/pricing">打开充值页</Link> 查看。
-            </p>
-        );
-    }
-    return <TopupOffers products={productsQuery.data} onBuy={() => navigate(register("/studio/pricing"))} />;
 }
 
 function SectionHead({ index, title, text, action }: { index: string; title: string; text: string; action?: { to: string; label: string } }) {
@@ -276,7 +332,7 @@ export default function LandingPage() {
         { href: "#camera", label: "运镜" },
         { href: "#image", label: "图片" },
         { href: "#gallery", label: "作品" },
-        { href: "#pricing", label: "价格" },
+        { href: "#models", label: "模型" },
     ];
     const currentClip = heroClips[heroIndex];
 
@@ -289,7 +345,7 @@ export default function LandingPage() {
                         <span>{brandName}</span>
                     </a>
                     <nav className={`landing-nav${menuOpen ? " is-open" : ""}`} aria-label="页面导航">
-                        {(isPlatform ? nav : nav.filter((item) => item.href === "#pricing")).map((item) => (
+                        {(isPlatform ? nav : []).map((item) => (
                             <a key={item.href} href={item.href} onClick={() => setMenuOpen(false)}>
                                 {item.label}
                             </a>
@@ -342,8 +398,11 @@ export default function LandingPage() {
                 <section className="landing-models" aria-label="支持的模型">
                     <div className="landing-wrap">
                         <ul>
-                            {MODELS.map((name) => (
-                                <li key={name}>{name}</li>
+                            {MODELS.map((model) => (
+                                <li key={model.name}>
+                                    <model.logo size={18} aria-hidden />
+                                    {model.name}
+                                </li>
                             ))}
                         </ul>
                     </div>
@@ -428,15 +487,28 @@ export default function LandingPage() {
                                 </div>
                             </div>
                         </section>
+
+                        {COMPARE_MODELS.some((model) => covers[model.slot]) ? (
+                            <section id="models" className="landing-section">
+                                <div className="landing-wrap">
+                                    <SectionHead index="06 · 模型" title="同一句话，四个模型" text="不同模型各有所长。一个账号全部能用，挑最合适的那个，不用另外订阅。" action={{ to: register("/studio/create-video"), label: "自己试一句" }} />
+                                    <p className="landing-compare-prompt">
+                                        <span className="landing-meta">提示词</span>
+                                        {COMPARE_PROMPT}
+                                    </p>
+                                    <div className="landing-compare">
+                                        {COMPARE_MODELS.map((model) => (
+                                            <figure key={model.slot} className="landing-compare-item">
+                                                <LandingMedia src={covers[model.slot]} label={model.name} />
+                                                <figcaption className="landing-meta">{model.name} · 6s · 1080p</figcaption>
+                                            </figure>
+                                        ))}
+                                    </div>
+                                </div>
+                            </section>
+                        ) : null}
                     </>
                 ) : null}
-
-                <section id="pricing" className="landing-section">
-                    <div className="landing-wrap">
-                        <SectionHead index={isPlatform ? "06 · 价格" : "价格"} title="按次扣积分，所有模型通用" text={`马币计价，一次性付款，生成失败自动退积分。${bonus > 0 ? `注册就送 ${bonus} 积分，先试再买。` : ""}`} />
-                        <Pricing />
-                    </div>
-                </section>
 
                 <section id="faq" className="landing-section">
                     <div className="landing-wrap landing-faq-wrap">
@@ -478,7 +550,7 @@ export default function LandingPage() {
                         © {new Date().getFullYear()} {brandName}
                     </span>
                     <nav aria-label="页脚导航">
-                        <a href="#pricing">价格</a>
+                        <Link to="/studio/pricing">价格</Link>
                         <Link to="/studio">进入 Studio</Link>
                         <Link to="/login?next=%2Fstudio">登录</Link>
                     </nav>

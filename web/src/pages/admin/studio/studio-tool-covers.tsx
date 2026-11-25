@@ -16,6 +16,10 @@ import { uploadImage } from "@/services/image-storage";
 const SITE_SLOTS = [
     ...Array.from({ length: 6 }, (_, index) => ({ id: `site-hero-${index + 1}`, label: `首屏轮播 ${index + 1}` })),
     ...Array.from({ length: 20 }, (_, index) => ({ id: `site-gallery-${index + 1}`, label: `作品墙 ${index + 1}` })),
+    { id: "site-compare-seedance", label: "模型对比 · Seedance" },
+    { id: "site-compare-veo", label: "模型对比 · Veo" },
+    { id: "site-compare-kling", label: "模型对比 · Kling" },
+    { id: "site-compare-wan", label: "模型对比 · Wan" },
     { id: "site-final", label: "收尾画面" },
 ];
 
