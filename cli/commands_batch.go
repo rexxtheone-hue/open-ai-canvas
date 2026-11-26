@@ -18,6 +18,7 @@ import (
 )
 
 var assetIDPattern = regexp.MustCompile(`^[0-9a-f]{32}$`)
+var imageURLPattern = regexp.MustCompile(`\.(png|jpe?g|webp|gif|bmp|avif)(\?|$)`)
 
 var editOperations = map[string]string{
 	"edit": "inpaint", "inpaint": "inpaint", "replace": "replace_element", "replace_element": "replace_element",

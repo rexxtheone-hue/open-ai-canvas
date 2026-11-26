@@ -456,6 +456,10 @@ func cmdGenerate(c *client, kind string, args []string) error {
 		if err != nil {
 			return err
 		}
+		// -i 是参考素材；图片明确标成 reference，后台才会走参考生视频而不是把两张图当首尾帧。
+		if ref.Kind == "image" || (ref.Kind == "" && imageURLPattern.MatchString(strings.ToLower(ref.URL))) {
+			ref.Role = "reference"
+		}
 		req.References = append(req.References, ref)
 	}
 

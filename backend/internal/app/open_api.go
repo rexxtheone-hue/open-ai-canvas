@@ -570,10 +570,19 @@ func openAPIVideoOperation(m *OpenAPIModel, refs map[string][]any) string {
 		return "reference_to_video"
 	case len(refs["image"]) > 0:
 		explicitRoles := false
+		referenceRole := false
 		for _, item := range refs["image"] {
-			if role, _ := item.(map[string]any)["role"].(string); role == "first_frame" || role == "last_frame" {
+			role, _ := item.(map[string]any)["role"].(string)
+			if role == "first_frame" || role == "last_frame" {
 				explicitRoles = true
 			}
+			if role == "reference" {
+				referenceRole = true
+			}
+		}
+		// 明确标成参考图（CLI -i、MCP reference_image_urls）时走参考生视频，不能按张数猜成首尾帧。
+		if referenceRole && !explicitRoles && (len(m.Operations) == 0 || containsString(m.Operations, "reference_to_video")) {
+			return "reference_to_video"
 		}
 		if len(m.Operations) > 0 && !containsString(m.Operations, "image_to_video") {
 			return "reference_to_video"

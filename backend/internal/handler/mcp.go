@@ -129,7 +129,7 @@ func (in mcpVideoInput) request() service.OpenAPIGenerationRequest {
 	refs := []service.OpenAPIReference{}
 	refs = append(refs, urlRefs("image", []string{in.FirstFrameURL}, "first_frame")...)
 	refs = append(refs, urlRefs("image", []string{in.LastFrameURL}, "last_frame")...)
-	refs = append(refs, urlRefs("image", in.ReferenceImageURLs, "")...)
+	refs = append(refs, urlRefs("image", in.ReferenceImageURLs, "reference")...)
 	refs = append(refs, urlRefs("video", in.ReferenceVideoURLs, "")...)
 	refs = append(refs, urlRefs("audio", in.ReferenceAudioURLs, "")...)
 	return service.OpenAPIGenerationRequest{Model: in.Model, Prompt: in.Prompt, AspectRatio: in.AspectRatio, Resolution: in.Resolution, Duration: in.Duration, GenerateAudio: in.GenerateAudio, References: refs, Count: in.Count, Operation: strings.TrimSpace(in.Operation), Client: "mcp"}
