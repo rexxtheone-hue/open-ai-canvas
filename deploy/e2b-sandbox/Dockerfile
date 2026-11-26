@@ -1,6 +1,6 @@
 FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive PIP_BREAK_SYSTEM_PACKAGES=1 PIP_NO_CACHE_DIR=1
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg python3 python3-pip jq curl ca-certificates fonts-dejavu-core imagemagick sox zip unzip git && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg python3 python3-pip jq curl ca-certificates fonts-dejavu-core fonts-noto-cjk imagemagick sox zip unzip git && rm -rf /var/lib/apt/lists/*
 RUN pip install --index-url https://download.pytorch.org/whl/cpu torch torchaudio
 RUN pip install --only-binary=av faster-whisper demucs numpy soundfile pillow fonttools "av>=13,<19"
 ENV HF_HOME=/opt/hf TORCH_HOME=/opt/torch
