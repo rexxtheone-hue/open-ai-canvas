@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -371,6 +372,15 @@ func (s *Service) openAPIReferenceItem(userID string, ref OpenAPIReference, inde
 	item := map[string]any{"id": fmt.Sprintf("ref%d", index+1), "dataUrl": ""}
 	if role := strings.TrimSpace(ref.Role); role != "" {
 		item["role"] = role
+	}
+	// 指向本站素材的网址（MCP/CLI 常把 get_generation 返回的链接再传回来）要认回素材 ID：
+	// Cloudwise、腾讯、方舟的可信素材入库都只处理站内素材，按外链提交会跳过入库直接被上游判真人拦截。
+	if strings.TrimSpace(ref.ResourceID) == "" {
+		if id := publicResourceIDFromURL(ref.URL); id != "" {
+			if _, err := s.repo.ResourceForUser(userID, id); err == nil {
+				ref.ResourceID, ref.URL = id, ""
+			}
+		}
 	}
 	switch {
 	case strings.TrimSpace(ref.ResourceID) != "":
@@ -834,4 +844,21 @@ func knownAPIAppName(value string) string {
 		}
 	}
 	return ""
+}
+
+// publicResourceIDFromURL 从本站素材公开链接（/api/public/resources/<id>/file）里取出素材 ID，不是这种链接返回空。
+func publicResourceIDFromURL(raw string) string {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Scheme != "https" {
+		return ""
+	}
+	rest, ok := strings.CutPrefix(parsed.Path, "/api/public/resources/")
+	if !ok {
+		return ""
+	}
+	id, ok := strings.CutSuffix(rest, "/file")
+	if !ok || id == "" || strings.Contains(id, "/") {
+		return ""
+	}
+	return id
 }

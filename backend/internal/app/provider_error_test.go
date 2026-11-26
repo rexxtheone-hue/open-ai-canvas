@@ -109,3 +109,12 @@ func TestProviderPayloadBusinessFailureIgnoresPendingOutput(t *testing.T) {
 		t.Fatalf("pending output marked failed: (%q, %q)", code, message)
 	}
 }
+
+func TestProviderResponseBusinessFailureHonoursSuccessFlag(t *testing.T) {
+	if _, _, failed := providerResponseBusinessFailure([]byte(`{"code":"10000","success":true,"taskStatus":"COMPLETED","data":{"output":{"task_status":"SUCCEEDED"}}}`)); failed {
+		t.Fatal("Cloudwise success envelope with code 10000 must not be logged as failed")
+	}
+	if code, _, failed := providerResponseBusinessFailure([]byte(`{"code":"40001","success":false,"message":"bad request"}`)); !failed || code == "" {
+		t.Fatalf("explicit failure must still be detected, got code=%q failed=%v", code, failed)
+	}
+}

@@ -99,8 +99,10 @@ func providerBusinessFailure(payload map[string]any) (string, string, bool) {
 		}
 	}
 
+	// Cloudwise 等网关成功时也带非零 code（如 "10000"），同时给 success: true；以明确的 success 为准。
+	succeeded, _ := payload["success"].(bool)
 	code := strings.ToLower(strings.TrimSpace(fmt.Sprint(payload["code"])))
-	if code != "" && code != "0" &&
+	if !succeeded && code != "" && code != "0" &&
 		code != "success" && code != "succeeded" &&
 		code != "ok" && code != "<nil>" {
 		code, message := providerFailureDetails(payload)
