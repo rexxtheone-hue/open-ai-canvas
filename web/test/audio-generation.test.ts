@@ -23,20 +23,20 @@ describe("audio voice protocol handling", () => {
         expect(normalizeAudioVoiceForConfig(doubao, "alloy")).toBe("");
     });
 
-    test("lists every official Doubao 1.0 voice in Chinese", () => {
+    test("lists only Doubao 2.0 voices, which seed-audio-1.0 accepts", () => {
         const values = doubaoAudioVoiceOptions.map((item) => item.value);
-        expect(doubaoAudioVoiceOptions).toHaveLength(103);
+        expect(doubaoAudioVoiceOptions).toHaveLength(80);
         expect(new Set(values).size).toBe(values.length);
-        expect(values).toContain("zh_female_shuangkuaisisi_moon_bigtts");
-        expect(values).toContain("zh_female_yueyunv_mars_bigtts");
-        expect(values).toContain("zh_male_qingcang_mars_bigtts");
-        expect(values).not.toContain("zh_female_vv_uranus_bigtts");
-        expect(values).not.toContain("zh_female_xiaohe_uranus_bigtts");
+        expect(values).toContain("zh_female_vv_uranus_bigtts");
+        expect(values).toContain("zh_female_xiaohe_uranus_bigtts");
+        expect(values).toContain("ICL_uranus_en_female_charlie_tob");
+        expect(values.some((value) => /_(mars|moon)_bigtts$/.test(value))).toBe(false);
         expect(doubaoAudioVoiceOptions.every((item) => /[\u4e00-\u9fff]/.test(item.label) && /[\u4e00-\u9fff]/.test(item.scene))).toBe(true);
     });
 
     test("preserves manually entered official Doubao speaker IDs", () => {
         const doubao = { ...config("doubao-streaming-tts"), model: "seed-audio-1.0", audioModel: "seed-audio-1.0" } as any;
         expect(normalizeAudioVoiceForConfig(doubao, "zh_male_custom_official_speaker")).toBe("zh_male_custom_official_speaker");
+        expect(normalizeAudioVoiceForConfig(doubao, "zh_female_shuangkuaisisi_moon_bigtts")).toBe("");
     });
 });

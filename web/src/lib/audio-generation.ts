@@ -1,4 +1,4 @@
-import { doubaoAudioVoiceOptions, doubaoDefaultAudioVoice } from "@/lib/doubao-audio-voices";
+import { doubaoAudioVoiceOptions, doubaoDefaultAudioVoice, isRetiredDoubaoVoice } from "@/lib/doubao-audio-voices";
 import { SEED_AUDIO_PROTOCOLS } from "@/lib/model-selection";
 import { resolveModelRequestConfig } from "@/stores/use-config-store";
 import type { AiConfig } from "@/stores/use-config-store";
@@ -100,7 +100,7 @@ export function normalizeAudioVoiceForConfig(config: AiConfig, value: string) {
     const options = audioVoiceOptionsForConfig(config);
     const normalized = String(value || "").trim();
     if (isDoubaoAudioConfig(config)) {
-        if (!normalized || normalized === "alloy") return "";
+        if (!normalized || normalized === "alloy" || isRetiredDoubaoVoice(normalized)) return "";
         return normalized;
     }
     if (options.some((item) => item.value === normalized)) return normalized;
