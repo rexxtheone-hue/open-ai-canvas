@@ -83,7 +83,7 @@ func skillDescription(skill string) string {
 			continue
 		}
 		value := strings.TrimSpace(strings.TrimPrefix(line, "description:"))
-		if value != "|" && value != ">" {
+		if value == "" || !strings.ContainsAny(value[:1], "|>") {
 			return value
 		}
 		parts := []string{}

@@ -25,7 +25,9 @@ Every generation costs credits. If the user has not chosen a model or the reques
 References: the user's uploaded images, videos, audio and saved characters live in their OmniMuse library. When the user names a file, character or "the material I used before", call list_assets (search by name) or get_generation (its "references" list) and pass the asset ids in reference_image_urls, first_frame_url, reference_audio_urls and so on. Public https URLs also work. Refer to references in the prompt by order: image 1, image 2, audio 1. If list_assets reports several different files with the same name, ask the user which one to use; files marked sameNameIdentical are the same content, so either is fine.
 Video sound is on by default. Results also appear in the user's OmniMuse Studio library.
 Workflows: OmniMuse has ready-made playbooks (slash commands) for multi-step jobs such as /product-photoshoot, /ugc-ad, /static-ads, /adapt-ad, /hook-variants, /localize-ads, /resize-ads, /festive-campaign and /video-upgrade. When the user writes /<name>, "run /<name>", /help, or asks for one of these results, call get_skill (or list_skills for /help) first and follow the playbook.
-Micro drama ads: when the user writes /drama-ads (or /microdrama-ads), or asks for a short drama ad, call get_workflow_instructions with workflow "drama-ads" and follow it exactly; it uses sandbox_exec, the batch generation tools, jobs_wait and get_drama_ads_config.`
+Micro drama ads: when the user writes /drama-ads (or /microdrama-ads), or asks for a short drama ad, call get_workflow_instructions with workflow "drama-ads" and follow it exactly; it uses sandbox_exec, the batch generation tools, jobs_wait and get_drama_ads_config.
+UGC videos: when the user writes /ugc-video, or asks for a finished UGC video (creator review, product voiceover, unboxing, try-on, tutorial or website tour), call get_workflow_instructions with workflow "ugc-video" and follow it exactly.
+Reference ad adaptation: when the user writes /marketing-adapt-video, or asks to turn a reference video ad into an original ad for their product, call get_workflow_instructions with workflow "marketing-adapt-video" and follow it exactly.`
 
 var mcpSchemaCache = mcp.NewSchemaCache()
 
@@ -403,6 +405,7 @@ func newMCPServer(svc *service.Service) *mcp.Server {
 			return mcpText(generation, generationSummary(generation)), nil, nil
 		})
 	registerWorkflowTools(server, svc)
+	registerUploadWidget(server)
 	return server
 }
 
@@ -440,7 +443,19 @@ func RegisterMCPRoutes(r *gin.Engine, api *gin.RouterGroup, svc *service.Service
 		streamable.ServeHTTP(c.Writer, c.Request.WithContext(ctx))
 	}
 	// media_upload 给的上传网址：沙盒用 curl PUT 把文件送上来（网址里的 ID 本身就是凭证，两小时内有效）。
+	// 上传面板在客户端的沙箱页面里直接 PUT，所以允许跨域。
+	mediaUploadCORS := func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Methods", "PUT, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Content-Type")
+		c.Header("Access-Control-Max-Age", "600")
+	}
+	r.OPTIONS("/api/media-upload/:id", func(c *gin.Context) {
+		mediaUploadCORS(c)
+		c.Status(http.StatusNoContent)
+	})
 	r.PUT("/api/media-upload/:id", func(c *gin.Context) {
+		mediaUploadCORS(c)
 		if err := svc.ReceiveMediaUpload(c.Param("id"), c.GetHeader("Content-Type"), c.Request.Body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return

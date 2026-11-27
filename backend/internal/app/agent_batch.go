@@ -218,7 +218,15 @@ func (s *Service) workflowRequest(ctx context.Context, user *model.User, kind st
 		}
 		req.References = append(req.References, OpenAPIReference{ResourceID: resourceID, Kind: mediaKind, Role: frameRole})
 	}
-	if kind == "image" && len(params) > 0 {
+	if kind == "audio" && paramString(params, "voice_type") == "element" {
+		resourceID, err := s.studioVoiceResource(user.ID, paramString(params, "voice_id"))
+		if err != nil {
+			return req, nil, err
+		}
+		req.References = append(req.References, OpenAPIReference{ResourceID: resourceID, Kind: "audio"})
+		params = withoutKeys(params, "voice_id", "voice_type")
+	}
+	if (kind == "image" || kind == "audio") && len(params) > 0 {
 		extra := map[string]any{}
 		for key, value := range params {
 			switch key {
@@ -385,9 +393,44 @@ func (s *Service) WorkflowModelInfo(ctx context.Context, name string) (map[strin
 		info["mode"] = modes
 		info["duration"] = map[string]any{"min": m.MinDuration, "max": m.MaxDuration}
 		info["medias"] = map[string]any{"roles": []string{"image_references", "video_references", "audio_references"}}
+	case "audio":
+		info["params"] = map[string]any{
+			"voice_type":  "preset or element, from list_voices",
+			"voice_id":    "voice_id from list_voices",
+			"format":      []string{"mp3", "wav", "ogg_opus", "pcm"},
+			"speech_rate": map[string]any{"min": -50, "max": 100, "default": 0},
+		}
+		info["medias"] = map[string]any{"roles": []string{"audio_references", "image_references"}, "max_audio_references": 3, "max_audio_seconds": 30, "max_image_references": 1, "note": "Audio references clone a voice (@Audio1 in the prompt); do not mix with an image reference."}
+		info["max_output_seconds"] = 120
+		info["speech_only"] = true
 	case "image":
 		info["qualities"] = m.Qualities
 		info["medias"] = map[string]any{"roles": []string{"image_references"}, "max": m.MaxReferenceImages}
 	}
 	return info, nil
+}
+
+func withoutKeys(params map[string]any, keys ...string) map[string]any {
+	out := make(map[string]any, len(params))
+	for key, value := range params {
+		out[key] = value
+	}
+	for _, key := range keys {
+		delete(out, key)
+	}
+	return out
+}
+
+// studioVoiceResource 是「我的声音」里一个声音的样本音频：seed_audio 拿它当参考音频克隆音色。
+func (s *Service) studioVoiceResource(userID, voiceID string) (string, error) {
+	voices, err := s.StudioVoices(userID)
+	if err != nil {
+		return "", err
+	}
+	for _, voice := range voices {
+		if voice.ID == voiceID {
+			return voice.ResourceID, nil
+		}
+	}
+	return "", fmt.Errorf("找不到这个声音：%s，先用 list_voices 查看", voiceID)
 }

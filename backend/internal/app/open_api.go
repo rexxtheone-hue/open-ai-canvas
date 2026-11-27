@@ -288,7 +288,7 @@ func (s *Service) openAPICatalog(ctx context.Context) ([]OpenAPIModel, error) {
 	for _, channel := range catalog.Channels {
 		for _, m := range channel.Models {
 			kind := normalizeCapability(m.Capability)
-			if !m.Available || (kind != "image" && kind != "video") || openAPIProcessingOnly(m) {
+			if !m.Available || (kind != "image" && kind != "video" && kind != "audio") || openAPIProcessingOnly(m) {
 				continue
 			}
 			models = append(models, openAPIModelFromCatalog(channel, m))
@@ -297,22 +297,20 @@ func (s *Service) openAPICatalog(ctx context.Context) ([]OpenAPIModel, error) {
 	return models, nil
 }
 
-// OpenAPIModels 列出当前网址可用的图片和视频模型；kind 为空时两种都返回。
+// OpenAPIModels 列出当前网址可用的模型；kind 为空时返回图片和视频两种。
 func (s *Service) OpenAPIModels(ctx context.Context, kind string) ([]OpenAPIModel, error) {
 	kind = strings.ToLower(strings.TrimSpace(kind))
-	if kind != "" && kind != "image" && kind != "video" {
-		return nil, BadAuthRequest("kind 只能是 image 或 video")
+	if kind != "" && kind != "image" && kind != "video" && kind != "audio" {
+		return nil, BadAuthRequest("kind 只能是 image、video 或 audio")
 	}
 	models, err := s.openAPICatalog(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if kind == "" {
-		return models, nil
-	}
 	filtered := []OpenAPIModel{}
 	for _, m := range models {
-		if m.Kind == kind {
+		// 不指定 kind 时只列图片和视频；音频模型给工作流的 generate_audio 用。
+		if m.Kind == kind || kind == "" && m.Kind != "audio" {
 			filtered = append(filtered, m)
 		}
 	}
@@ -550,6 +548,25 @@ func (s *Service) openAPITaskRequest(ctx context.Context, userID string, req Ope
 				}
 			}
 		}
+	}
+	if m.Kind == "audio" {
+		if len(refs["video"]) > 0 {
+			return CreateTaskRequest{}, nil, BadAuthRequest("音频模型不接受参考视频")
+		}
+		if voice := paramString(req.Parameters, "voice_id"); voice != "" {
+			config["audioVoice"] = voice
+		}
+		if format := paramString(req.Parameters, "format"); format != "" {
+			config["audioFormat"] = format
+		}
+		// speech_rate 照火山语音：0 是正常语速，-50 慢一半，100 快一倍。
+		if rate, ok := req.Parameters["speech_rate"]; ok {
+			config["audioSpeed"] = strconv.FormatFloat((paramNumber(rate)+100)/100, 'f', -1, 64)
+		}
+		if count := len(refs["audio"]); count > 0 && len(refs["image"]) == 0 {
+			prompt = audioReferencePrompt(prompt, count)
+		}
+		operation = "audio"
 	}
 	client := req.Client
 	if client == "" {
@@ -861,4 +878,18 @@ func publicResourceIDFromURL(raw string) string {
 		return ""
 	}
 	return id
+}
+
+// audioReferencePrompt 照 Studio：参考音频在提示词里写作 @Audio1、@Audio2，漏写的补在最前面。
+func audioReferencePrompt(prompt string, count int) string {
+	missing := []string{}
+	for i := 1; i <= count; i++ {
+		if marker := fmt.Sprintf("@Audio%d", i); !strings.Contains(prompt, marker) {
+			missing = append(missing, marker)
+		}
+	}
+	if len(missing) == 0 {
+		return prompt
+	}
+	return strings.Join(missing, " ") + " " + prompt
 }

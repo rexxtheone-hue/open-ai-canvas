@@ -7,4 +7,5 @@ type (
 	MediaUploadTicket = app.MediaUploadTicket
 	WorkflowJob       = app.WorkflowJob
 	DramaQuoteInput   = app.DramaQuoteInput
+	WorkflowBatchItem = app.WorkflowBatchItem
 )

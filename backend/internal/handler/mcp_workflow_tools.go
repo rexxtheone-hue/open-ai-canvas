@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,11 +29,17 @@ func batchSchema(kind string) string {
 	extra := ""
 	if kind == "video" {
 		extra = `,"duration":{"type":"integer","description":"Duration in seconds."},"resolution":{"type":"string"},"mode":{"type":"string","description":"omni_reference (references), video_extension (continue @Video1), or omit for text to video."},"generate_audio":{"type":"boolean"}`
+	} else if kind == "audio" {
+		extra = `,"voice_type":{"type":"string","enum":["preset","element"],"description":"For seed_audio: whether voice_id is a built-in preset voice ('preset') or one of the user's own voices ('element')."},"voice_id":{"type":"string","description":"For seed_audio: the voice_id from list_voices."},"format":{"type":"string","enum":["mp3","wav","ogg_opus","pcm"]},"speech_rate":{"type":"number","minimum":-50,"maximum":100,"description":"0 is normal speed."}`
 	} else {
 		extra = `,"resolution":{"type":"string"},"quality":{"type":"string"}`
 	}
-	params := `{"type":"object","properties":{"model":{"type":"string","description":"Model id (seedance_2_5, seedream_5_5, seedream_v5_pro, gpt_image_2_6_flare, seed_audio) or an OmniMuse model id from list_models."},"prompt":{"description":"Text, or {\"ref\": \"sandbox:<path>\"} for a checked prompt file in the sandbox.","anyOf":[{"type":"string"},` + refSchema + `]},"count":{"type":"number","const":1},"aspect_ratio":{"type":"string"},"drama_ads_id":{"description":"The drama_ads_id get_drama_ads_config returned; repeat it on every item of the drama."},"medias":` + mediasSchema + extra + `},"required":["model"],"additionalProperties":{}}`
+	params := `{"type":"object","properties":{"model":{"type":"string","description":"Model id (seedance_2_5, seedream_5_5, seedream_v5_pro, gpt_image_2_6, gpt_image_2_6_flare, seed_audio) or an OmniMuse model id from list_models."},"prompt":{"description":"Text, or {\"ref\": \"sandbox:<path>\"} for a checked prompt file in the sandbox.","anyOf":[{"type":"string"},` + refSchema + `]},"count":{"type":"number","const":1},"aspect_ratio":{"type":"string"},"drama_ads_id":{"description":"The drama_ads_id get_drama_ads_config returned; repeat it on every item of the drama."},"medias":` + mediasSchema + extra + `},"required":["model"],"additionalProperties":{}}`
 	return `{"type":"object","properties":{"requests":{"anyOf":[{"minItems":1,"maxItems":12,"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"description":"Caller-provided stable index, such as the scene number."},"params":{"anyOf":[` + params + `,` + refSchema + `]}},"required":["index","params"],"additionalProperties":false},"description":"Ordered generation requests. Response jobs keep the provided indices."},` + refSchema + `],"description":"Ordered requests, or {\"ref\": \"sandbox:<path>#/requests\"} naming a sandbox JSON file that holds them."}},"required":["requests"]}`
+}
+
+func audioParamsSchema() string {
+	return `{"type":"object","properties":{"model":{"type":"string","description":"Audio model id: seed_audio."},"prompt":{"description":"The words to speak, or {\"ref\": \"sandbox:<path>\"}.","anyOf":[{"type":"string","minLength":1},` + refSchema + `]},"count":{"type":"number","const":1},"voice_type":{"type":"string","enum":["preset","element"]},"voice_id":{"type":"string"},"format":{"type":"string","enum":["mp3","wav","ogg_opus","pcm"]},"speech_rate":{"type":"number","minimum":-50,"maximum":100},"medias":` + mediasSchema + `},"required":["model","prompt"],"additionalProperties":{}}`
 }
 
 const jobsSchema = `{"minItems":1,"maxItems":%d,"type":"array","items":{"type":"object","properties":{"index":{"type":"integer","minimum":0,"description":"Stable index returned by the batch generation tool."},"job_id":{"type":"string"}},"required":["index","job_id"],"additionalProperties":false}}`
@@ -173,7 +180,7 @@ func registerWorkflowTools(server *mcp.Server, svc *service.Service) {
 			return toolJSON(res, ""), nil
 		})
 
-	for _, kind := range []string{"image", "video"} {
+	for _, kind := range []string{"image", "video", "audio"} {
 		kind := kind
 		server.AddTool(&mcp.Tool{Name: "generate_" + kind + "_batch", Title: "Generate " + kind + " batch",
 			Description: fmt.Sprintf("Submit 1-12 independent %s generations in parallel (charged in credits). Each requests[] item creates one job and keeps its caller-provided index in the response. Poll returned job IDs with jobs_wait in groups of at most 12. A partial failure does not make the whole batch safe to retry: keep returned job IDs and resend only rejected items. When the requests are already in a sandbox JSON file, pass `requests: {\"ref\": \"sandbox:<path>#/requests\"}` instead of copying them. A prompt given as {\"ref\": \"sandbox:<file>\"} is read whole from the sandbox, and the reply lists it in references_read with the sha256 of the text sent.", kind),
@@ -203,6 +210,61 @@ func registerWorkflowTools(server *mcp.Server, svc *service.Service) {
 				return toolJSON(map[string]any{"jobs": jobs}, fmt.Sprintf("%d of %d submitted. Wait with jobs_wait.", accepted, len(jobs))), nil
 			})
 	}
+
+	server.AddTool(&mcp.Tool{Name: "generate_audio", Title: "Generate audio",
+		Description: "Generate one speech/voice request (charged in credits). DEFAULT speech model: seed_audio (Seed Audio 1.0 by ByteDance). seed_audio takes a preset or own voice (voice_type 'preset'|'element' + voice_id from list_voices) plus optional format and speech_rate, and can clone a voice from an audio_references media item (write @Audio1 in the prompt) or take an image_references cue. It is speech-only: never use it for music or sound effects. For 2-12 independent lines use generate_audio_batch. Returns a job_id: wait with jobs_wait. On a transport timeout the submission outcome may be unknown: do not automatically resubmit. A prompt already in a sandbox file can be passed as params.prompt: {\"ref\": \"sandbox:<path>\"}.",
+		InputSchema: rawSchema(`{"type":"object","properties":{"params":{"anyOf":[` + audioParamsSchema() + `,` + refSchema + `]}},"required":["params"]}`)},
+		func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			user, err := mcpUser(ctx)
+			if err != nil {
+				return nil, err
+			}
+			var in struct {
+				Params map[string]any `json:"params"`
+			}
+			if err := json.Unmarshal(req.Params.Arguments, &in); err != nil {
+				return toolError(err)
+			}
+			jobs := svc.SubmitWorkflowBatch(ctx, user, "audio", []service.WorkflowBatchItem{{Index: 0, Params: in.Params}})
+			job := jobs[0]
+			if job.JobID == "" {
+				return toolError(errors.New(firstNonEmptyString(job.Error, "submission failed")))
+			}
+			return toolJSON(job, "Submitted. Wait with jobs_wait using index 0 and this job_id."), nil
+		})
+
+	server.AddTool(&mcp.Tool{Name: "list_voices", Title: "List voices", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
+		Description: "List available voices for speech. Returns the user's own voices (voice_type 'element', cloned from their sample) plus built-in preset voices (voice_type 'preset'). Pass that exact voice_id and voice_type pair to generate_audio / generate_audio_batch with model seed_audio. Paginate with the returned next_cursor.",
+		InputSchema: rawSchema(`{"type":"object","properties":{"size":{"type":"integer","minimum":1,"maximum":100,"description":"Max voices to return, default 20."},"cursor":{"type":"string","description":"next_cursor from a previous list_voices result."}}}`)},
+		func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			user, err := mcpUser(ctx)
+			if err != nil {
+				return nil, err
+			}
+			var in struct {
+				Size   int    `json:"size"`
+				Cursor string `json:"cursor"`
+			}
+			_ = json.Unmarshal(req.Params.Arguments, &in)
+			voices, err := svc.WorkflowVoices(user.ID)
+			if err != nil {
+				return toolError(err)
+			}
+			size := in.Size
+			if size <= 0 || size > 100 {
+				size = 20
+			}
+			start, _ := strconv.Atoi(in.Cursor)
+			if start < 0 || start > len(voices) {
+				start = 0
+			}
+			end := min(start+size, len(voices))
+			out := map[string]any{"voices": voices[start:end], "has_more": end < len(voices)}
+			if end < len(voices) {
+				out["next_cursor"] = strconv.Itoa(end)
+			}
+			return toolJSON(out, ""), nil
+		})
 
 	server.AddTool(&mcp.Tool{Name: "jobs_wait", Title: "Wait for jobs",
 		Description: "Long-poll 1-12 generation jobs together. Waits up to timeout_seconds (default 15, max 15) for every job to reach a terminal state, then returns indexed statuses and result URLs. A failed job carries error: the reason in words to tell the user. When all_terminal is false, wait poll_after_seconds before calling again.",
@@ -267,7 +329,7 @@ func registerWorkflowTools(server *mcp.Server, svc *service.Service) {
 		})
 
 	server.AddTool(&mcp.Tool{Name: "get_workflow_instructions", Title: "Load a workflow", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
-		Description: "Micro drama ad directed in this chat: load 'drama-ads' when the user selected /drama-ads. Call with NO argument to list available workflows. Call with a workflow name to load that workflow's full SKILL.md plus the list of files readable via get_workflow_bundle_file.",
+		Description: "Load 'drama-ads' when the user selected /drama-ads (micro drama ad), 'ugc-video' for /ugc-video, and 'marketing-adapt-video' for /marketing-adapt-video. Call with NO argument to list available workflows. Call with a workflow name to load that workflow's full SKILL.md plus the list of files readable via get_workflow_bundle_file.",
 		InputSchema: rawSchema(`{"type":"object","properties":{"workflow":{"type":"string","minLength":1,"description":"Workflow name. Omit to list all available workflows."}}}`)},
 		func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			var in struct {
