@@ -527,7 +527,7 @@ func imageSizeValueForDeclaredPreset(profile *ImageCapabilityConfig, size string
 	if profile.Size.Parameter == "size" {
 		return strings.TrimSpace(preset.Size)
 	}
-	return normalizeDeclaredImageRatio(preset.Ratio)
+	return declaredPresetRatio(preset.Ratio)
 }
 
 // imageSizeRatioForDeclaredPreset 把已声明的 preset 像素值还原成它对应的比例。比例型线路
@@ -542,7 +542,7 @@ func imageSizeRatioForDeclaredPreset(profile *ImageCapabilityConfig, size string
 		return ""
 	}
 	if preset, ok := declaredImageSizePreset(profile.Size.Presets, value, imagePresetSelectionTier(profile, quality), imagePresetDefaultTier(profile)); ok {
-		return normalizeDeclaredImageRatio(preset.Ratio)
+		return declaredPresetRatio(preset.Ratio)
 	}
 	return ""
 }
@@ -569,6 +569,11 @@ func declaredImageSizePreset(presets []ImageSizePreset, value string, quality st
 		}
 	}
 	return ImageSizePreset{}, false
+}
+
+// declaredPresetRatio 是送出去的比例：保留 preset 声明的写法（21:9），只在比较时才约分成 7:3。
+func declaredPresetRatio(value string) string {
+	return normalizeImageAspectRatio(value)
 }
 
 func normalizeDeclaredImageRatio(value string) string {
@@ -666,7 +671,7 @@ func resolveImageTaskSize(profile *ImageCapabilityConfig, interfaceType string, 
 		return preset.Size
 	}
 	if profile.Size.Parameter == "aspect_ratio" {
-		return normalizeDeclaredImageRatio(preset.Ratio)
+		return declaredPresetRatio(preset.Ratio)
 	}
 	return size
 }

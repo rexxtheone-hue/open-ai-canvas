@@ -559,7 +559,8 @@ func (s *Service) openAPITaskRequest(ctx context.Context, userID string, req Ope
 		if format := paramString(req.Parameters, "format"); format != "" {
 			config["audioFormat"] = format
 		}
-		// speech_rate 照火山语音：0 是正常语速，-50 慢一半，100 快一倍。
+		// speech_rate 照火山语音：0 是正常语速，-50 慢一半，100 快一倍。插件按 audioSpeed 换算，不能留空。
+		config["audioSpeed"] = "1"
 		if rate, ok := req.Parameters["speech_rate"]; ok {
 			config["audioSpeed"] = strconv.FormatFloat((paramNumber(rate)+100)/100, 'f', -1, 64)
 		}

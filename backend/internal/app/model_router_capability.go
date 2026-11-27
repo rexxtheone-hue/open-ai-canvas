@@ -427,7 +427,7 @@ func normalizeImageSizeIntent(spec CapabilitySpec, intent ModelRequestIntent) Mo
 	if spec.ImageSize.Parameter == "size" {
 		options["size"] = strings.TrimSpace(preset.Size)
 	} else {
-		options["size"] = normalizeDeclaredImageRatio(preset.Ratio)
+		options["size"] = declaredPresetRatio(preset.Ratio)
 	}
 	intent.Options = options
 	return intent

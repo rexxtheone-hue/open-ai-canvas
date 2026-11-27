@@ -30,3 +30,12 @@ func TestWorkflowPresetVoicesAreUnique(t *testing.T) {
 		t.Fatalf("only %d voices", len(seen))
 	}
 }
+
+func TestDeclaredPresetKeepsWideRatioSpelling(t *testing.T) {
+	profile := DefaultModelCapabilityConfigForModel("openai-image", "GPT Image 2.6")
+	profile.Image.Size = ImageSizeConfig{Parameter: "aspect_ratio", Values: []string{"16:9", "21:9"}, Default: "16:9",
+		Presets: []ImageSizePreset{{Tier: "2k", Ratio: "21:9", Size: "3136x1344", Width: 3136, Height: 1344}}}
+	if got := imageSizeValueForDeclaredPreset(profile.Image, "21:9", "2k"); got != "21:9" {
+		t.Fatalf("21:9 was sent as %q", got)
+	}
+}
