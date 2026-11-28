@@ -395,7 +395,11 @@ func registerWorkflowTools(server *mcp.Server, svc *service.Service) {
 				}
 				generations := []*service.OpenAPIGeneration{}
 				for _, job := range in.Jobs {
-					if g, err := svc.OpenAPIGeneration(ctx, user, job.JobID); err == nil {
+					id, err := svc.ResolveWorkflowJobID(user, job.JobID)
+					if err != nil {
+						continue
+					}
+					if g, err := svc.OpenAPIGeneration(ctx, user, id); err == nil {
 						generations = append(generations, g)
 					}
 				}

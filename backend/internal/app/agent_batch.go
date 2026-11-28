@@ -26,6 +26,7 @@ var workflowModelKeys = map[string]string{
 	"gpt_image_2_6":       "gpt-image-2.6-sunburst",
 	"nano_banana_2":       "",
 	"nano_banana_2_1":     "MODEL_000102",
+	"wan_3_0":             "MODEL_000049",
 	"seed_audio":          "seed-audio-1.0",
 }
 
@@ -255,6 +256,10 @@ func (s *Service) workflowMediaResource(ctx context.Context, user *model.User, v
 	if resource, err := s.repo.ResourceForUser(user.ID, value); err == nil && resource != nil {
 		return resource.ID, resource.Kind, nil
 	}
+	value, err := s.ResolveWorkflowJobID(user, value)
+	if err != nil {
+		return "", "", err
+	}
 	generation, err := s.OpenAPIGeneration(ctx, user, value)
 	if err != nil {
 		return "", "", fmt.Errorf("找不到素材或生成任务：%s", value)
@@ -328,6 +333,11 @@ func (s *Service) SubmitWorkflowBatch(ctx context.Context, user *model.User, kin
 			req.Metadata["runId"] = runID
 		}
 		generations, err := s.CreateOpenAPIGenerations(ctx, user, req)
+		if isActiveTaskLimit(err) {
+			job.JobID, job.Status = s.enqueueWorkflowRequest(user, req), "queued"
+			jobs = append(jobs, job)
+			continue
+		}
 		if err != nil || len(generations) == 0 {
 			job.Status = "rejected"
 			if err != nil {
@@ -357,7 +367,18 @@ func (s *Service) WorkflowJobStatuses(ctx context.Context, user *model.User, job
 	out := make([]WorkflowJobStatus, 0, len(jobs))
 	for _, job := range jobs {
 		status := WorkflowJobStatus{Index: job.Index, JobID: job.JobID}
-		generation, err := s.OpenAPIGeneration(ctx, user, job.JobID)
+		realID, queued, errText, isQueued := workflowQueuedJob(user.ID, job.JobID)
+		if isQueued && errText != "" {
+			status.Status, status.Error, status.Terminal = "failed", errText, true
+			out = append(out, status)
+			continue
+		}
+		if queued {
+			status.Status = "queued"
+			out = append(out, status)
+			continue
+		}
+		generation, err := s.OpenAPIGeneration(ctx, user, realID)
 		if err != nil {
 			status.Status, status.Error, status.Terminal = "not_found", err.Error(), true
 			out = append(out, status)

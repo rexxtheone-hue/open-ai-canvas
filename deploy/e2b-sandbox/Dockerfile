@@ -11,5 +11,6 @@ RUN npm install -g playwright@1.49.1 && playwright install --with-deps chromium 
 COPY workflows /opt/workflows
 RUN bash /opt/workflows/video-montage/scripts/fetch_fonts.sh || true
 RUN mkdir -p /opt/torch /home/user && chmod -R a+rX /opt/hf /opt/torch /opt/workflows
+RUN printf '\n# OmniMuse: Cloudflare blocks the default Python-urllib User-Agent on omnimuse.io result links\nimport urllib.request as _om_u\n_om_o = _om_u.build_opener()\n_om_o.addheaders = [("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) OmniMuseSandbox/1.0")]\n_om_u.install_opener(_om_o)\n' >> /etc/python3.12/sitecustomize.py
 COPY omnimuse.sh /etc/profile.d/omnimuse.sh
 RUN cat /etc/profile.d/omnimuse.sh >> /etc/bash.bashrc && chmod a+r /etc/profile.d/omnimuse.sh

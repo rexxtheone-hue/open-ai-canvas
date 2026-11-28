@@ -22,7 +22,7 @@ import (
 
 const (
 	e2bEnvdPort        = 49983
-	e2bDefaultTemplate = "omnimuse-drama-6"
+	e2bDefaultTemplate = "omnimuse-drama-7"
 	e2bIdleSeconds     = 15 * 60
 	e2bUser            = "user"
 )
