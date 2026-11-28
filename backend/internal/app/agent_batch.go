@@ -25,6 +25,7 @@ var workflowModelKeys = map[string]string{
 	"gpt_image_2_6_flare": "gpt-image-2.6-flare",
 	"gpt_image_2_6":       "gpt-image-2.6-sunburst",
 	"nano_banana_2":       "",
+	"nano_banana_2_1":     "MODEL_000102",
 	"seed_audio":          "seed-audio-1.0",
 }
 
