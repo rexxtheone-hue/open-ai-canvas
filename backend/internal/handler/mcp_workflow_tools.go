@@ -410,7 +410,7 @@ func registerWorkflowTools(server *mcp.Server, svc *service.Service) {
 
 	server.AddTool(&mcp.Tool{Name: "show_result", Title: "Show final video", Meta: mcpWidgetToolMeta("Loading…", "Shown"),
 		Description: "Display a final completed video with preview and download. Call after verifying the final export. Include a nonempty action string, optionally meta as any JSON object, and media_id (a confirmed owned video). Never pass a job ID, local path or unfinished render.",
-		InputSchema: rawSchema(`{"type":"object","properties":{"media_id":{"type":"string","description":"Confirmed owned video media_id."},"action":{"type":"string","minLength":1,"description":"Required action label, such as microdrama_film."},"meta":{"type":"object","additionalProperties":{}}},"required":["action","media_id"],"additionalProperties":false}`)},
+		InputSchema: rawSchema(`{"type":"object","properties":{"media_id":{"type":"string","description":"Confirmed owned video media_id."},"action":{"type":"string","minLength":1,"description":"Required action label, such as microdrama_film or short_drama."},"preset":{"type":"string","maxLength":200,"description":"The command that made it, such as /short-drama."},"meta":{"type":"object","additionalProperties":{}}},"required":["action","media_id"],"additionalProperties":false}`)},
 		func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			user, err := mcpUser(ctx)
 			if err != nil {
