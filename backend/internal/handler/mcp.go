@@ -27,7 +27,8 @@ Video sound is on by default. Results also appear in the user's OmniMuse Studio 
 Workflows: OmniMuse has ready-made playbooks (slash commands) for multi-step jobs such as /product-photoshoot, /ugc-ad, /static-ads, /adapt-ad, /hook-variants, /localize-ads, /resize-ads, /festive-campaign and /video-upgrade. When the user writes /<name>, "run /<name>", /help, or asks for one of these results, call get_skill (or list_skills for /help) first and follow the playbook.
 Micro drama ads: when the user writes /drama-ads (or /microdrama-ads), or asks for a short drama ad, call get_workflow_instructions with workflow "drama-ads" and follow it exactly; it uses sandbox_exec, the batch generation tools, jobs_wait and get_drama_ads_config.
 UGC videos: when the user writes /ugc-video, or asks for a finished UGC video (creator review, product voiceover, unboxing, try-on, tutorial or website tour), call get_workflow_instructions with workflow "ugc-video" and follow it exactly.
-Reference ad adaptation: when the user writes /marketing-adapt-video, or asks to turn a reference video ad into an original ad for their product, call get_workflow_instructions with workflow "marketing-adapt-video" and follow it exactly.`
+Reference ad adaptation: when the user writes /marketing-adapt-video, or asks to turn a reference video ad into an original ad for their product, call get_workflow_instructions with workflow "marketing-adapt-video" and follow it exactly.
+Short dramas: when the user writes /short-drama, or asks to turn a script or story idea into a short drama episode (cast, scenes, talking clips, one film), call get_workflow_instructions with workflow "short-drama" and follow it exactly.`
 
 var mcpSchemaCache = mcp.NewSchemaCache()
 

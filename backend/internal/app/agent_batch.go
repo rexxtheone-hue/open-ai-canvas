@@ -230,7 +230,7 @@ func (s *Service) workflowRequest(ctx context.Context, user *model.User, kind st
 		extra := map[string]any{}
 		for key, value := range params {
 			switch key {
-			case "model", "prompt", "aspect_ratio", "resolution", "quality", "medias", "count", "drama_ads_id", "folder_id", "use_unlim", "use_free_gens", "preset_session_id":
+			case "model", "prompt", "aspect_ratio", "resolution", "quality", "medias", "count", "drama_ads_id", "folder_id", "use_unlim", "use_free_gens", "preset_session_id", "run_id", "get_cost":
 			default:
 				extra[key] = value
 			}
@@ -319,6 +319,12 @@ func (s *Service) SubmitWorkflowBatch(ctx context.Context, user *model.User, kin
 		}
 		if dramaID := paramString(params, "drama_ads_id"); dramaID != "" {
 			req.Metadata = map[string]any{"dramaAdsId": dramaID}
+		}
+		if runID := paramString(params, "run_id"); runID != "" {
+			if req.Metadata == nil {
+				req.Metadata = map[string]any{}
+			}
+			req.Metadata["runId"] = runID
 		}
 		generations, err := s.CreateOpenAPIGenerations(ctx, user, req)
 		if err != nil || len(generations) == 0 {

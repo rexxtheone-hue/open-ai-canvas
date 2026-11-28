@@ -329,7 +329,7 @@ func registerWorkflowTools(server *mcp.Server, svc *service.Service) {
 		})
 
 	server.AddTool(&mcp.Tool{Name: "get_workflow_instructions", Title: "Load a workflow", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
-		Description: "Load 'drama-ads' when the user selected /drama-ads (micro drama ad), 'ugc-video' for /ugc-video, and 'marketing-adapt-video' for /marketing-adapt-video. Call with NO argument to list available workflows. Call with a workflow name to load that workflow's full SKILL.md plus the list of files readable via get_workflow_bundle_file.",
+		Description: "Load 'drama-ads' when the user selected /drama-ads (micro drama ad), 'ugc-video' for /ugc-video, 'marketing-adapt-video' for /marketing-adapt-video, and 'short-drama' for /short-drama (a short drama episode from a script or an idea). Call with NO argument to list available workflows. Call with a workflow name to load that workflow's full SKILL.md plus the list of files readable via get_workflow_bundle_file.",
 		InputSchema: rawSchema(`{"type":"object","properties":{"workflow":{"type":"string","minLength":1,"description":"Workflow name. Omit to list all available workflows."}}}`)},
 		func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			var in struct {
@@ -428,6 +428,56 @@ func registerWorkflowTools(server *mcp.Server, svc *service.Service) {
 				return toolError(errors.New("media_id is not a confirmed upload"))
 			}
 			return toolJSON(map[string]any{"action": in.Action, "media_id": in.MediaID, "type": results[0].Type, "url": results[0].URL}, "The film is shown to the user. Its link: "+results[0].URL), nil
+		})
+
+	for _, kind := range []string{"image", "video", "audio"} {
+		kind := kind
+		server.AddTool(&mcp.Tool{Name: "estimate_" + kind + "_cost", Title: "Estimate " + kind + " cost", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
+			Description: fmt.Sprintf("Estimate the credit cost of one %s generation request. Takes the same `params` object as generate_%s_batch items: `params.model` is required. Submits no job; a `get_cost` flag and a `run_id` in params are accepted and change nothing. `params` may also be {\"ref\": \"sandbox:<path>#<pointer>\"} naming one request's params in a sandbox JSON file. Returns credits (credits_each × count); a model this site cannot price yet returns unavailable.", kind, kind),
+			InputSchema: rawSchema(`{"type":"object","properties":{"params":{"type":"object","additionalProperties":{},"description":"The request's params, as the generate tool takes them."}},"required":["params"]}`)},
+			func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+				user, err := mcpUser(ctx)
+				if err != nil {
+					return nil, err
+				}
+				var in struct {
+					Params map[string]any `json:"params"`
+				}
+				if err := json.Unmarshal(req.Params.Arguments, &in); err != nil {
+					return toolError(err)
+				}
+				quote, err := svc.EstimateWorkflowCost(ctx, user, kind, in.Params)
+				if err != nil {
+					return toolError(err)
+				}
+				return toolJSON(quote, fmt.Sprintf("Estimated %v credits.", quote["credits"])), nil
+			})
+	}
+
+	server.AddTool(&mcp.Tool{Name: "register_result", Title: "Save final film",
+		Description: "Save one verified final video to the user's OmniMuse history: kind short_drama for the final film of a /short-drama episode. Pass the confirmed final video media_id and, when the run has one, run_id. It links the existing video without copying files, generating or charging credits. Call it once per final video, after media_confirm. Never pass URLs, local paths, job IDs, drafts or takes. On timeout repeat the same inputs.",
+		InputSchema: rawSchema(`{"type":"object","properties":{"kind":{"type":"string","enum":["short_drama"]},"media_id":{"type":"string","minLength":1,"description":"Confirmed final video media_id."},"run_id":{"type":"string","maxLength":200},"folder_id":{"type":"string","maxLength":200}},"required":["kind","media_id"]}`)},
+		func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			user, err := mcpUser(ctx)
+			if err != nil {
+				return nil, err
+			}
+			var in struct {
+				Kind    string `json:"kind"`
+				MediaID string `json:"media_id"`
+				RunID   string `json:"run_id"`
+			}
+			if err := json.Unmarshal(req.Params.Arguments, &in); err != nil {
+				return toolError(err)
+			}
+			results := svc.ConfirmMediaUploads(user, []string{in.MediaID})
+			if len(results) == 0 || results[0].Status != "confirmed" {
+				return toolError(errors.New("media_id is not a confirmed upload"))
+			}
+			if results[0].Type != "" && results[0].Type != "video" {
+				return toolError(errors.New("media_id is not a video"))
+			}
+			return toolJSON(map[string]any{"ok": true, "kind": in.Kind, "media_id": in.MediaID, "run_id": in.RunID, "url": results[0].URL}, "Saved to the user's OmniMuse library."), nil
 		})
 
 	server.AddTool(&mcp.Tool{Name: "ads_studio_story_presets", Title: "Drama cards", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},

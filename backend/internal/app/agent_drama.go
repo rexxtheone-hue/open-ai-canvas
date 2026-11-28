@@ -107,6 +107,37 @@ func (s *Service) quoteWorkflowParams(ctx context.Context, user *model.User, kin
 	return each, "", nil
 }
 
+// EstimateWorkflowCost 是 estimate_image_cost / estimate_video_cost / estimate_audio_cost：一项请求的报价，不生成任何东西。
+func (s *Service) EstimateWorkflowCost(ctx context.Context, user *model.User, kind string, params map[string]any) (map[string]any, error) {
+	if ref, ok := params["ref"].(string); ok && len(params) == 1 {
+		value, _, err := s.resolveSandboxRef(ctx, user, ref)
+		if err != nil {
+			return nil, err
+		}
+		resolved, ok := value.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("%s 指向的不是一项 params", ref)
+		}
+		params = resolved
+	}
+	if paramString(params, "model") == "" {
+		return nil, errors.New("params.model 必填")
+	}
+	count := paramNumber(params["count"])
+	if count < 1 {
+		count = 1
+	}
+	each, unavailable, err := s.quoteWorkflowParams(ctx, user, kind, withoutKeys(params, "get_cost", "run_id", "count"))
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]any{"model": paramString(params, "model"), "count": count, "credits_each": roundCredits(each), "credits": roundCredits(each * count)}
+	if unavailable != "" {
+		out["unavailable"] = unavailable
+	}
+	return out, nil
+}
+
 // QuoteDrama 是 get_drama_ads_config：报价，不生成任何东西。第一次调用时开一部短剧，返回 drama_ads_id。
 func (s *Service) QuoteDrama(ctx context.Context, user *model.User, input DramaQuoteInput) (*DramaQuote, error) {
 	switch input.Purpose {
