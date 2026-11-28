@@ -231,7 +231,7 @@ func (s *Service) workflowRequest(ctx context.Context, user *model.User, kind st
 		extra := map[string]any{}
 		for key, value := range params {
 			switch key {
-			case "model", "prompt", "aspect_ratio", "resolution", "quality", "medias", "count", "drama_ads_id", "folder_id", "use_unlim", "use_free_gens", "preset_session_id", "run_id", "get_cost":
+			case "model", "prompt", "aspect_ratio", "resolution", "quality", "medias", "count", "drama_ads_id", "folder_id", "use_unlim", "use_free_gens", "preset_session_id", "run_id", "get_cost", "is_inpaint", "remove_bg":
 			default:
 				extra[key] = value
 			}
